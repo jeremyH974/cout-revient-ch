@@ -18,7 +18,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self' https://api.coingecko.com https://api.coinbase.com https://api.kraken.com https://api.frankfurter.dev https://api.frankfurter.app",
+  "connect-src 'self' https://api.coingecko.com https://api.coinbase.com https://api.exchange.coinbase.com https://api.kraken.com https://api.frankfurter.dev https://api.frankfurter.app",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",
@@ -35,6 +35,26 @@ function cspMetaOnBuild(): Plugin {
         '<meta charset="UTF-8" />',
         `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP}" />`,
       );
+    },
+  };
+}
+
+/**
+ * jsPDF importe dynamiquement canvg, html2canvas et dompurify (doc.html(), SVG) : inutilisés par
+ * l'export PDF (texte + tableaux). Sans ce stub, ~350 kB de chunks morts seraient précachés.
+ */
+function stubJspdfOptionalDeps(): Plugin {
+  const stubbed = new Set(['canvg', 'html2canvas', 'dompurify']);
+  return {
+    name: 'stub-jspdf-optional-deps',
+    apply: 'build',
+    enforce: 'pre', // avant le résolveur de Vite, sinon node_modules gagne
+
+    resolveId(id) {
+      return stubbed.has(id) ? `\0stub:${id}` : null;
+    },
+    load(id) {
+      return id.startsWith('\0stub:') ? 'export default undefined;' : null;
     },
   };
 }
@@ -57,6 +77,7 @@ export default defineConfig({
   plugins: [
     svelte(),
     cspMetaOnBuild(),
+    stubJspdfOptionalDeps(),
     VitePWA({
       registerType: 'prompt',
       injectRegister: null,

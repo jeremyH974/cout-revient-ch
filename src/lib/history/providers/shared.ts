@@ -1,5 +1,5 @@
 /** Utilitaires communs aux fournisseurs d'historique. */
-import { parseDecimal, toDecimalString } from '../../domain/money';
+import { ZERO, parseDecimal, toDecimalString } from '../../domain/money';
 import type { DecimalString } from '../../domain/types';
 import { numberToDecimal } from '../../pricing/types';
 import type { DailyPoint, DayString, FetchLike } from '../types';
@@ -15,7 +15,7 @@ export function priceFromJson(value: unknown): DecimalString | null {
   const text = numberToDecimal(value);
   if (text === null) return null;
   const big = parseDecimal(text);
-  if (big === null || big.lt(0)) return null;
+  if (big === null || big.lt(ZERO)) return null;
   return toDecimalString(big);
 }
 

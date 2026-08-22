@@ -128,7 +128,8 @@
   Sauvegarde : {app.state.ui.lastBackupAt
     ? fmtRelative(app.state.ui.lastBackupAt, nowMs())
     : 'jamais ⚠'} ·
-  <a href={router.href({ name: 'import' })}>Ré-importer</a>
+  <a href={router.href({ name: 'import' })}>Ré-importer</a> ·
+  <a href={router.href({ name: 'report' })}>Rapport PDF</a>
 </footer>
 
 <style>

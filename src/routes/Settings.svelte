@@ -94,6 +94,14 @@
         disabled={!app.hasData}>Exporter le tableau (CSV pour Excel)</button
       >
     </div>
+    <div class="row">
+      <button
+        class="secondary"
+        type="button"
+        onclick={() => router.navigate({ name: 'report' })}
+        disabled={!app.hasData}>Rapport PDF (imprimable)</button
+      >
+    </div>
   </section>
 
   <section class="card group">

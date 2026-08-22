@@ -9,6 +9,7 @@
   import ManualEntry from './routes/ManualEntry.svelte';
   import Portfolio from './routes/Portfolio.svelte';
   import Privacy from './routes/Privacy.svelte';
+  import Report from './routes/Report.svelte';
   import Settings from './routes/Settings.svelte';
   import Welcome from './routes/Welcome.svelte';
   import { app } from './state/app.svelte';
@@ -21,7 +22,10 @@
   });
 
   $effect(() => {
-    if (!app.hasData && (route.name === 'portfolio' || route.name === 'asset')) {
+    if (
+      !app.hasData &&
+      (route.name === 'portfolio' || route.name === 'asset' || route.name === 'report')
+    ) {
       router.navigate({ name: 'welcome' });
     }
   });
@@ -58,6 +62,8 @@
       <Privacy />
     {:else if route.name === 'help'}
       <Help />
+    {:else if route.name === 'report'}
+      <Report />
     {:else}
       <Portfolio />
     {/if}
