@@ -34,3 +34,13 @@ describe('format fr-FR', () => {
     );
   });
 });
+
+describe('devise d’affichage', () => {
+  it('formate en dollars avec le symbole étroit', async () => {
+    const { fmtMoney, fmtPrice: price } = await import('./fr');
+    expect(nbsp(fmtMoney(D('1234.5'), 'USD'))).toBe('1 234,50 $');
+    expect(nbsp(fmtMoney(D('-5'), 'USD', { sign: true }))).toBe('−5,00 $');
+    expect(nbsp(price(D('0.8747'), 'USD'))).toBe('0,8747 $');
+    expect(nbsp(fmtMoney(D('12'), 'EUR'))).toBe('12,00 €');
+  });
+});

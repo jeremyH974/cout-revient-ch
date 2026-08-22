@@ -131,6 +131,16 @@
         >
       </select>
     </label>
+    <label class="field"
+      >Devise d'affichage
+      <select
+        value={app.state.ui.displayCurrency}
+        onchange={(e) => app.setCurrency(e.currentTarget.value as 'EUR' | 'USD')}
+      >
+        <option value="EUR">Euro (€) — devise des données</option>
+        <option value="USD">Dollar ($) — chaque mouvement converti au taux BCE du jour</option>
+      </select>
+    </label>
     <label class="check"
       ><input
         type="checkbox"

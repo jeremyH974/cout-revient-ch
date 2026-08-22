@@ -1,5 +1,6 @@
 /** État persisté (localStorage + sauvegarde JSON), versionné. */
 import type { PriceQuoteInput } from '../domain/engine/report';
+import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import {
   DEFAULT_ENGINE_SETTINGS,
   type AssetCode,
@@ -35,6 +36,8 @@ export interface UiSettings {
   discreet: boolean;
   hideClosed: boolean;
   priceSource: 'auto' | 'off';
+  /** Devise d'affichage ; l'euro reste la devise des données. */
+  displayCurrency: Currency;
   lastBackupAt: string | null;
   disclaimerAcceptedAt: string | null;
 }
@@ -50,6 +53,8 @@ export interface StoredStateV1 {
   assetSettings: Record<AssetCode, AssetSettings>;
   engineSettings: EngineSettings;
   priceCache: Record<AssetCode, PriceQuoteInput>;
+  /** Taux de change BCE mis en cache (EUR → devises d'affichage). */
+  fx: FxCache;
   ui: UiSettings;
 }
 
@@ -58,6 +63,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   discreet: false,
   hideClosed: false,
   priceSource: 'auto',
+  displayCurrency: 'EUR',
   lastBackupAt: null,
   disclaimerAcceptedAt: null,
 };
@@ -73,6 +79,7 @@ export function emptyState(): StoredStateV1 {
     assetSettings: {},
     engineSettings: { ...DEFAULT_ENGINE_SETTINGS },
     priceCache: {},
+    fx: { ...EMPTY_FX_CACHE, rates: {}, updatedAt: {} },
     ui: { ...DEFAULT_UI_SETTINGS },
   };
 }
@@ -103,6 +110,7 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     taxAnnotations: isRecord(state.taxAnnotations) ? state.taxAnnotations : {},
     assetSettings: isRecord(state.assetSettings) ? state.assetSettings : {},
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
+    fx: isRecord(state.fx) ? { ...empty.fx, ...state.fx } : empty.fx,
   };
 }
 
@@ -183,7 +191,8 @@ function validQualification(raw: unknown): raw is Qualification {
 }
 
 /** Écarte les entrées invalides plutôt que de laisser le moteur planter ; renvoie le nombre écarté. */
-export function sanitizeState(state: StoredStateV1): { state: StoredStateV1; dropped: number } {
+export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dropped: number } {
+  let state = input;
   let dropped = 0;
   const rawRows: Record<RowKey, RawCoinhouseRow> = {};
   for (const [key, raw] of Object.entries(state.rawRows)) {
@@ -226,8 +235,23 @@ export function sanitizeState(state: StoredStateV1): { state: StoredStateV1; dro
       coingeckoId: typeof raw['coingeckoId'] === 'string' ? raw['coingeckoId'] : null,
     };
   }
+  const fxRates: FxCache['rates'] = {};
+  for (const [currency, raw] of Object.entries(state.fx.rates)) {
+    if (!isRecord(raw)) continue;
+    const series: Record<string, string> = {};
+    for (const [day, rate] of Object.entries(raw))
+      if (isDecimal(rate) && /^\d{4}-\d{2}-\d{2}$/.test(day)) series[day] = rate;
+    fxRates[currency as Currency] = series;
+  }
+  const fx: FxCache = {
+    ...state.fx,
+    rates: fxRates,
+    updatedAt: isRecord(state.fx.updatedAt) ? state.fx.updatedAt : {},
+  };
+  if (!['EUR', 'USD'].includes(state.ui.displayCurrency))
+    state = { ...state, ui: { ...state.ui, displayCurrency: 'EUR' } };
   return {
-    state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings },
+    state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings, fx },
     dropped,
   };
 }

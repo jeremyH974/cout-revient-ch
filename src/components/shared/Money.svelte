@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Big } from '$lib/domain/money';
-  import { fmtEur } from '$lib/format/fr';
+  import { fmtMoney } from '$lib/format/fr';
   import { app } from '../../state/app.svelte';
 
   let {
@@ -18,7 +18,13 @@
   } = $props();
 
   const text = $derived(
-    value === null ? '—' : app.state.ui.discreet ? '•••• €' : fmtEur(value, { sign, compact }),
+    value === null
+      ? '—'
+      : app.state.ui.discreet
+        ? app.currency === 'USD'
+          ? '•••• $'
+          : '•••• €'
+        : fmtMoney(value, app.currency, { sign, compact }),
   );
   const tone = $derived(
     !colored || value === null ? '' : value.lt('0') ? 'loss' : value.gt('0') ? 'gain' : '',

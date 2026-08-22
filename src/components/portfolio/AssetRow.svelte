@@ -1,12 +1,15 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { fmtPrice } from '$lib/format/fr';
+
+  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import CoinBadge from '../shared/CoinBadge.svelte';
   import Money from '../shared/Money.svelte';
   import Pct from '../shared/Pct.svelte';
   import Qty from '../shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { position }: { position: PositionReport } = $props();
   const p = $derived(position);
@@ -21,10 +24,10 @@
   >
   <span class="cell qty"
     ><Qty value={p.qty} abbreviate /><span class="muted small"
-      >PRU {p.pru ? fmtPrice(p.pru) : '—'}</span
+      >PRU {p.pru ? price(p.pru) : '—'}</span
     ></span
   >
-  <span class="cell price muted">{p.price ? fmtPrice(p.price.priceEur) : '—'}</span>
+  <span class="cell price muted">{p.price ? price(p.price.priceEur) : '—'}</span>
   <span class="cell value"><Money value={p.value} compact /></span>
   <span class="cell latent"
     ><Money value={p.unrealized} sign colored compact /><span class="small"

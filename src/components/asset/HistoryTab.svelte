@@ -1,8 +1,11 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { fmtDateTime, fmtPrice, fmtQty } from '$lib/format/fr';
+  import { fmtDateTime, fmtQty } from '$lib/format/fr';
+  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import Money from '../shared/Money.svelte';
   import Qty from '../shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { position }: { position: PositionReport } = $props();
   const labels: Record<string, string> = {
@@ -35,7 +38,7 @@
       {#if h.counterAsset && h.counterAsset !== 'eur'}<span class="chip"
           >via {h.counterAsset.toUpperCase()}</span
         >{/if}
-      {#if h.unitPrice}<span class="muted">· {fmtPrice(h.unitPrice)} / unité</span>{/if}
+      {#if h.unitPrice}<span class="muted">· {price(h.unitPrice)} / unité</span>{/if}
       {#if h.quotePrice}<span class="muted"
           >· cours {fmtQty(h.quotePrice.price)} {h.quotePrice.asset.toUpperCase()}</span
         >{/if}
@@ -54,7 +57,7 @@
           colored
         /> ·
       {/if}
-      PRU {h.realized !== null ? 'inchangé' : 'après'} : {h.pruAfter ? fmtPrice(h.pruAfter) : '—'} · reste
+      PRU {h.realized !== null ? 'inchangé' : 'après'} : {h.pruAfter ? price(h.pruAfter) : '—'} · reste
       <Qty value={h.qtyAfter} abbreviate />
     </p>
     {#each h.warnings as w (w)}<p class="warn small">{w}</p>{/each}

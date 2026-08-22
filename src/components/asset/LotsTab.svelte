@@ -1,9 +1,12 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { fmtDateTime, fmtPrice } from '$lib/format/fr';
+  import { fmtDateTime } from '$lib/format/fr';
+  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import Money from '../shared/Money.svelte';
   import Pct from '../shared/Pct.svelte';
   import Qty from '../shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { position }: { position: PositionReport } = $props();
   const labels: Record<string, string> = {
@@ -35,7 +38,7 @@
       </header>
       <p>
         <Qty value={lot.qtyRemaining} asset={position.asset} />
-        <span class="muted">@ {lot.unitCost ? fmtPrice(lot.unitCost) : '—'} all-in</span
+        <span class="muted">@ {lot.unitCost ? price(lot.unitCost) : '—'} all-in</span
         >{#if !lot.qtyRemaining.eq(lot.qtyInitial)}&nbsp;<span class="muted">
             · entamé (initial <Qty value={lot.qtyInitial} />)</span
           >{/if}

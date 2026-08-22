@@ -1,6 +1,7 @@
 <script lang="ts">
   import { nowMs } from '$lib/clock';
-  import { fmtPrice, fmtRelative } from '$lib/format/fr';
+  import { fmtRelative } from '$lib/format/fr';
+  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import CalcTab from '../components/asset/CalcTab.svelte';
@@ -14,6 +15,7 @@
   import Sheet from '../components/shared/Sheet.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { asset }: { asset: string } = $props();
   let tab = $state<'lots' | 'history' | 'calc'>('history');
@@ -63,7 +65,7 @@
           {#if p.closed}
             <span class="muted">Position clôturée</span>
           {:else if p.price}
-            {fmtPrice(p.price.priceEur)}
+            {price(p.price.priceEur)}
             <span class="muted small"
               >{p.price.source} · {fmtRelative(p.price.at, nowMs())}{p.price.stale
                 ? ' (périmé)'
@@ -89,7 +91,7 @@
         <div>
           <p class="label">Détenu</p>
           <p class="big"><Qty value={p.qty} abbreviate /></p>
-          <p class="muted small">@ PRU {p.pru ? fmtPrice(p.pru) : '—'}</p>
+          <p class="muted small">@ PRU {p.pru ? price(p.pru) : '—'}</p>
         </div>
         <div>
           <p class="label">Investi</p>

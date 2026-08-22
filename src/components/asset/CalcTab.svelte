@@ -1,6 +1,11 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { fmtDate, fmtEur, fmtPct, fmtPrice, fmtQty } from '$lib/format/fr';
+  import { fmtDate, fmtPct, fmtQty } from '$lib/format/fr';
+  import { fmtMoney, fmtPrice as fmtPriceBase } from '$lib/format/fr';
+  import { app } from '../../state/app.svelte';
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
+  const eur = (v: Parameters<typeof fmtMoney>[0], opts?: Parameters<typeof fmtMoney>[2]): string =>
+    fmtMoney(v, app.currency, opts);
 
   let { position }: { position: PositionReport } = $props();
   const p = $derived(position);
@@ -21,7 +26,7 @@
         Il change uniquement quand vous achetez, jamais quand vous vendez.
       </p>
       <p class="formula">
-        {fmtEur(p.costBasis)} ÷ {fmtQty(p.qty)} = <strong>{p.pru ? fmtPrice(p.pru) : '—'}</strong>
+        {eur(p.costBasis)} ÷ {fmtQty(p.qty)} = <strong>{p.pru ? price(p.pru) : '—'}</strong>
       </p>
     </section>
     <section>
@@ -31,11 +36,8 @@
         PRU).
       </p>
       <p class="formula">
-        {fmtQty(p.qty)} × ({p.price ? fmtPrice(p.price.priceEur) : '—'} − {p.pru
-          ? fmtPrice(p.pru)
-          : '—'}) = <strong>{fmtEur(p.unrealized, { sign: true })}</strong> ({fmtPct(
-          p.unrealizedPct,
-        )} vs PRU)
+        {fmtQty(p.qty)} × ({p.price ? price(p.price.priceEur) : '—'} − {p.pru ? price(p.pru) : '—'})
+        = <strong>{eur(p.unrealized, { sign: true })}</strong> ({fmtPct(p.unrealizedPct)} vs PRU)
       </p>
     </section>
   {/if}
@@ -50,25 +52,25 @@
       <ul>
         {#each sells as h (h.eventId + h.kind)}
           <li>
-            {fmtDate(h.at)} : {fmtEur(h.valueEur)} − {fmtQty(h.qty.abs())} × PRU =
-            <strong>{fmtEur(h.realized, { sign: true })}</strong>
+            {fmtDate(h.at)} : {eur(h.valueEur)} − {fmtQty(h.qty.abs())} × PRU =
+            <strong>{eur(h.realized, { sign: true })}</strong>
           </li>
         {/each}
       </ul>
-      <p class="formula">Total réalisé = <strong>{fmtEur(p.realized, { sign: true })}</strong></p>
+      <p class="formula">Total réalisé = <strong>{eur(p.realized, { sign: true })}</strong></p>
     {/if}
   </section>
   <section>
     <h3>Total et ROI</h3>
     <p class="formula">
       Total = réalisé + latent{#if p.otherIncome.gt('0')}
-        + récompenses{/if} = {fmtEur(p.realized, { sign: true })}
-      {fmtEur(p.unrealized, { sign: true })}{#if p.otherIncome.gt('0')}
-        {fmtEur(p.otherIncome, { sign: true })}{/if} =
-      <strong>{fmtEur(p.total, { sign: true })}</strong>
+        + récompenses{/if} = {eur(p.realized, { sign: true })}
+      {eur(p.unrealized, { sign: true })}{#if p.otherIncome.gt('0')}
+        {eur(p.otherIncome, { sign: true })}{/if} =
+      <strong>{eur(p.total, { sign: true })}</strong>
     </p>
     <p class="formula">
-      ROI = total ÷ tout ce que vous avez acheté = {fmtEur(p.total, { sign: true })} ÷ {fmtEur(
+      ROI = total ÷ tout ce que vous avez acheté = {eur(p.total, { sign: true })} ÷ {eur(
         p.investedTotal,
       )} = <strong>{fmtPct(p.roi)}</strong>
     </p>
@@ -81,16 +83,15 @@
         n'est calculé sur cette base.{/if}
     </p>
     <p class="formula">
-      {fmtEur(p.investedTotal)} − {fmtEur(p.proceedsTotal)} =
-      <strong>{fmtEur(p.netInvested)}</strong>
+      {eur(p.investedTotal)} − {eur(p.proceedsTotal)} =
+      <strong>{eur(p.netInvested)}</strong>
     </p>
   </section>
   <section>
     <h3>Frais</h3>
     <p class="formula">
-      Frais Coinhouse payés sur cet actif : {fmtEur(p.feesEur)}{#if p.rebatesEur.gt('0')}
-        (dont remises obtenues : {fmtEur(p.rebatesEur)}){/if}. Le spread est déjà dans les prix
-      all-in.
+      Frais Coinhouse payés sur cet actif : {eur(p.feesEur)}{#if p.rebatesEur.gt('0')}
+        (dont remises obtenues : {eur(p.rebatesEur)}){/if}. Le spread est déjà dans les prix all-in.
     </p>
   </section>
   {#if p.integrity}

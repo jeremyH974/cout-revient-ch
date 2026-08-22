@@ -1,4 +1,13 @@
 import { nowIso, nowMs } from '$lib/clock';
+import {
+  convertEvents,
+  convertQuotes,
+  earliestDay,
+  frankfurterProvider,
+  rateLookup,
+  refreshRates,
+  type Currency,
+} from '$lib/fx';
 /**
  * Store applicatif (Svelte 5 runes) : état persisté + dérivés (événements, rapport, prix).
  * Les routes ne calculent rien : elles lisent `app.report`.
@@ -56,6 +65,7 @@ export class AppState {
     lastRefreshAt: null,
   });
   liveQuotes = $state<Record<AssetCode, PriceQuoteInput>>({});
+  fxStatus = $state<{ loading: boolean; error: string | null }>({ loading: false, error: null });
 
   events = $derived.by((): LedgerEvent[] => {
     const { events } = normalizeCoinhouseRows(
@@ -87,10 +97,31 @@ export class AppState {
     return result;
   });
 
+  /** Devise d'affichage effective : l'euro si les taux de la devise choisie manquent. */
+  currency = $derived.by((): Currency => {
+    const wanted = this.state.ui.displayCurrency;
+    if (wanted === 'EUR') return 'EUR';
+    const series = this.state.fx.rates[wanted];
+    return series && Object.keys(series).length > 0 ? wanted : 'EUR';
+  });
+
+  fxLookup = $derived.by(() => rateLookup(this.state.fx.rates[this.currency] ?? {}));
+
+  /** Grand livre dans la devise d'affichage : chaque mouvement au taux BCE de son jour. */
+  displayEvents = $derived.by((): LedgerEvent[] => {
+    if (this.currency === 'EUR') return this.events;
+    const converted = convertEvents(this.events, this.fxLookup);
+    return converted.ok ? converted.events : this.events;
+  });
+
+  displayQuotes = $derived.by((): Record<AssetCode, PriceQuoteInput> =>
+    this.currency === 'EUR' ? this.quotes : convertQuotes(this.quotes, this.fxLookup),
+  );
+
   report = $derived.by((): PortfolioReport =>
     computePortfolio({
-      events: this.events,
-      prices: this.quotes,
+      events: this.displayEvents,
+      prices: this.displayQuotes,
       settings: this.state.engineSettings,
       balances: balanceRecords(Object.values(this.state.rawRows)),
     }),
@@ -109,6 +140,7 @@ export class AppState {
     this.state = loaded.state;
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
+    if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
     let timer: ReturnType<typeof setTimeout> | null = null;
     $effect.root(() => {
       $effect(() => {
@@ -179,6 +211,27 @@ export class AppState {
         manualPriceAt: priceEur ? nowIso(now) : null,
       },
     };
+  }
+
+  setCurrency(currency: Currency): void {
+    this.setUi({ displayCurrency: currency });
+    void this.ensureRates();
+  }
+
+  /** Taux BCE de la première opération à aujourd'hui (incrémental, mis en cache). */
+  async ensureRates(): Promise<void> {
+    const currency = this.state.ui.displayCurrency;
+    if (currency === 'EUR' || this.fxStatus.loading) return;
+    this.fxStatus = { loading: true, error: null };
+    const today = nowIso().slice(0, 10);
+    const result = await refreshRates(currency, $state.snapshot(this.state.fx), {
+      provider: frankfurterProvider(),
+      fromDay: earliestDay(this.events, today),
+      toDay: today,
+      now: nowMs,
+    });
+    if (result.fetched) this.state.fx = result.cache;
+    this.fxStatus = { loading: false, error: result.error };
   }
 
   setUi(patch: Partial<UiSettings>): void {

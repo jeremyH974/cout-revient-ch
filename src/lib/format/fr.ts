@@ -4,6 +4,7 @@
  */
 import { Big, D, type DecimalString } from '../domain/money';
 import type { NaiveDateTime } from '../domain/types';
+import type { Currency } from '../fx/types';
 
 const HALF_UP = Big.roundHalfUp;
 const MINUS = '−';
@@ -12,18 +13,22 @@ function intl(options: Intl.NumberFormatOptions): Intl.NumberFormat {
   return new Intl.NumberFormat('fr-FR', options);
 }
 
-const EUR_2 = intl({
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-const EUR_0 = intl({
-  style: 'currency',
-  currency: 'EUR',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
-});
+const moneyFormatters = new Map<string, Intl.NumberFormat>();
+function money(currency: Currency, minDp: number, maxDp: number): Intl.NumberFormat {
+  const key = `${currency}:${minDp}:${maxDp}`;
+  let formatter = moneyFormatters.get(key);
+  if (!formatter) {
+    formatter = intl({
+      style: 'currency',
+      currency,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: minDp,
+      maximumFractionDigits: maxDp,
+    });
+    moneyFormatters.set(key, formatter);
+  }
+  return formatter;
+}
 const PCT_1 = intl({ style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const PLAIN = intl({ maximumFractionDigits: 20 });
 
@@ -37,17 +42,27 @@ function toNumber(value: Big, dp: number): number {
   return Number(value.round(dp, HALF_UP).toFixed(dp));
 }
 
-/** Montant en euros : 2 décimales (0 si ≥ 100 000 € en mode compact). */
-export function fmtEur(
+/** Montant dans la devise d'affichage : 2 décimales (0 si ≥ 100 000 en mode compact). */
+export function fmtMoney(
   value: Big | DecimalString | null,
+  currency: Currency = 'EUR',
   opts: { sign?: boolean; compact?: boolean } = {},
 ): string {
   if (value === null) return '—';
   const big = D(value);
   const negative = big.lt('0');
   const abs = big.abs();
-  const formatter = opts.compact && abs.gte('100000') ? EUR_0 : EUR_2;
+  const formatter =
+    opts.compact && abs.gte('100000') ? money(currency, 0, 0) : money(currency, 2, 2);
   return signed(formatter.format(toNumber(abs, 2)), negative, opts.sign ?? false);
+}
+
+/** Raccourci euro (compatibilité). */
+export function fmtEur(
+  value: Big | DecimalString | null,
+  opts: { sign?: boolean; compact?: boolean } = {},
+): string {
+  return fmtMoney(value, 'EUR', opts);
 }
 
 /** Ratio (0,1234) → pourcentage (« +12,3 % »). */
@@ -69,18 +84,12 @@ function adaptiveDecimals(abs: Big, max: number): number {
 }
 
 /** Prix unitaire en euros avec décimales adaptées (0,000003 € lisible). */
-export function fmtPrice(value: Big | DecimalString | null): string {
+export function fmtPrice(value: Big | DecimalString | null, currency: Currency = 'EUR'): string {
   if (value === null) return '—';
   const big = D(value);
   const abs = big.abs();
   const dp = adaptiveDecimals(abs, 10);
-  const formatter = intl({
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: Math.min(dp, 2),
-    maximumFractionDigits: dp,
-  });
-  return signed(formatter.format(toNumber(abs, dp)), big.lt('0'), false);
+  return signed(money(currency, Math.min(dp, 2), dp).format(toNumber(abs, dp)), big.lt('0'), false);
 }
 
 /** Quantité d'actif : jusqu'à 8 décimales, abrégée (« 110 M ») si demandé. */

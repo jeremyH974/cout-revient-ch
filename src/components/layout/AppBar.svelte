@@ -12,6 +12,14 @@
     return () => clearInterval(id);
   });
 
+  const fxNote = $derived.by((): string => {
+    if (app.currency === 'EUR')
+      return app.state.ui.displayCurrency === 'USD' ? ' · taux USD indisponibles' : '';
+    return app.fxLookup.latestDay
+      ? ` · taux BCE du ${app.fxLookup.latestDay.split('-').reverse().join('/')}`
+      : '';
+  });
+
   const freshness = $derived.by((): string => {
     const status = app.priceStatus;
     if (status.loading) return 'Mise à jour des prix…';
@@ -19,7 +27,7 @@
     if (!app.report.pricedAt)
       return status.online === false ? 'Hors ligne — aucun prix' : 'Prix non chargés';
     const rel = fmtRelative(app.report.pricedAt, tick);
-    return status.online === false ? `Hors ligne — derniers prix ${rel}` : `Prix ${rel}`;
+    return (status.online === false ? `Hors ligne — derniers prix ${rel}` : `Prix ${rel}`) + fxNote;
   });
 </script>
 
@@ -43,6 +51,15 @@
     <p class="muted small">{freshness}</p>
   </div>
   <div class="actions">
+    <button
+      class="icon currency"
+      type="button"
+      onclick={() => app.setCurrency(app.currency === 'EUR' ? 'USD' : 'EUR')}
+      aria-label="Devise d'affichage : {app.currency}. Basculer."
+      title="Devise d'affichage"
+    >
+      {app.currency === 'EUR' ? '€' : '$'}
+    </button>
     <button
       class="icon"
       type="button"
@@ -143,6 +160,10 @@
   .icon[aria-pressed='true'] {
     color: var(--fg);
     background: var(--bg-elev);
+  }
+  .currency {
+    font-weight: 700;
+    font-size: var(--fs-lg);
   }
   .icon:disabled {
     opacity: 0.5;
