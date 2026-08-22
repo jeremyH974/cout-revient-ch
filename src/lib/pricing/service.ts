@@ -19,8 +19,8 @@ export interface RefreshResult {
   quotes: Record<AssetCode, PriceQuoteInput>;
   missing: AssetCode[];
   errors: string[];
-  /** Vrai si au moins un fournisseur a répondu. */
-  online: boolean;
+  /** Vrai si un fournisseur a répondu, faux si tous ont échoué, null si aucune requête n'était nécessaire. */
+  online: boolean | null;
 }
 
 export function manualQuote(
@@ -45,7 +45,7 @@ export async function refreshPrices(
 ): Promise<RefreshResult> {
   const quotes: Record<AssetCode, PriceQuoteInput> = {};
   const errors: string[] = [];
-  let online = false;
+  let online: boolean | null = null;
   let pending: AssetCode[] = [];
   const now = options.now();
 
@@ -75,6 +75,7 @@ export async function refreshPrices(
 
   for (const provider of options.providers) {
     if (pending.length === 0) break;
+    if (online === null) online = false;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 8000);
     try {

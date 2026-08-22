@@ -98,9 +98,9 @@
         <div>
           <p class="label">Valeur</p>
           <p class="big"><Money value={p.value} compact /></p>
-          <p class="small">
-            <Money value={p.unrealized} sign colored /> (<Pct value={p.unrealizedPct} />) latent
-          </p>
+          {#if !p.closed}<p class="small">
+              <Money value={p.unrealized} sign colored /> (<Pct value={p.unrealizedPct} />) latent
+            </p>{/if}
         </div>
       </div>
       <p class="line">

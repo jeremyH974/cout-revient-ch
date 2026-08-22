@@ -212,7 +212,7 @@ export class AppState {
     this.state.priceCache = { ...this.state.priceCache, ...fresh };
     this.priceStatus = {
       loading: false,
-      online: result.online,
+      online: result.online ?? this.priceStatus.online,
       errors: result.errors,
       missing: result.missing,
       lastRefreshAt: nowIso(),
