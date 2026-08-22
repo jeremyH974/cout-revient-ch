@@ -25,3 +25,23 @@ function createToasts() {
 }
 
 export const toasts = createToasts();
+
+/** Mise à jour PWA : une nouvelle version attend d'être appliquée. */
+function createUpdate() {
+  let ready = $state(false);
+  let apply: (() => void) | null = null;
+  return {
+    get ready(): boolean {
+      return ready;
+    },
+    arm(fn: () => void): void {
+      apply = fn;
+      ready = true;
+    },
+    apply(): void {
+      apply?.();
+    },
+  };
+}
+
+export const update = createUpdate();

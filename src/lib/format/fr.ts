@@ -96,7 +96,7 @@ export function fmtQty(
     const text = `${PLAIN.format(toNumber(millions, millions.gte('100') ? 0 : 1))} M`;
     return signed(text, big.lt('0'), opts.sign ?? false);
   }
-  const dp = abs.gte('1') ? 8 : adaptiveDecimals(abs, 10);
+  const dp = 9; // l'export Coinhouse va jusqu'à 9 décimales : on les montre toutes
   const text = intl({ maximumFractionDigits: dp }).format(toNumber(abs, dp));
   return signed(text, big.lt('0'), opts.sign ?? false);
 }

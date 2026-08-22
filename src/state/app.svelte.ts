@@ -1,3 +1,4 @@
+import { nowIso, nowMs } from '$lib/clock';
 /**
  * Store applicatif (Svelte 5 runes) : état persisté + dérivés (événements, rapport, prix).
  * Les routes ne calculent rien : elles lisent `app.report`.
@@ -11,7 +12,7 @@ import type {
   Qualification,
 } from '$lib/domain/types';
 import { balanceRecords } from '$lib/import/coinhouse/balances';
-import { importCoinhouseCsv, type ImportReport } from '$lib/import/coinhouse/index';
+import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
 import { manualToLedgerEvent } from '$lib/import/manual';
 import { coinbaseProvider, coingeckoProvider, refreshPrices } from '$lib/pricing';
@@ -38,6 +39,7 @@ export interface PriceStatus {
   lastRefreshAt: string | null;
 }
 
+const EPOCH = '1970-01-01T00:00:00.000Z';
 const PRICE_MAX_AGE_MS = 10 * 60_000;
 const SAVE_DEBOUNCE_MS = 300;
 
@@ -76,7 +78,7 @@ export class AppState {
         result[asset] = {
           asset,
           priceEur: settings.manualPriceEur,
-          at: settings.manualPriceAt ?? new Date(0).toISOString(),
+          at: settings.manualPriceAt ?? EPOCH,
           source: 'manuel',
           stale: false,
         };
@@ -120,12 +122,8 @@ export class AppState {
     });
   }
 
-  importCsv(
-    text: string,
-    fileName: string,
-    now = new Date(),
-  ): ReturnType<typeof importCoinhouseCsv> {
-    const importId = `imp:${now.getTime().toString(36)}`;
+  importCsv(text: string, fileName: string, now = nowMs()): ReturnType<typeof importCoinhouseCsv> {
+    const importId = `imp:${now.toString(36)}`;
     const result = importCoinhouseCsv(text, this.state.rawRows, importId);
     if (result.ok) {
       this.state.rawRows = result.rows;
@@ -133,7 +131,7 @@ export class AppState {
         ...this.state.imports,
         {
           id: importId,
-          at: now.toISOString(),
+          at: nowIso(now),
           fileName,
           rows: result.report.parsedRows,
           newRows: result.report.newRows,
@@ -142,10 +140,6 @@ export class AppState {
       void requestPersistentStorage();
     }
     return result;
-  }
-
-  lastImport(): ImportReport | null {
-    return null;
   }
 
   addManual(event: ManualEvent): void {
@@ -175,14 +169,14 @@ export class AppState {
     );
   }
 
-  setManualPrice(asset: AssetCode, priceEur: string | null, now = new Date()): void {
+  setManualPrice(asset: AssetCode, priceEur: string | null, now = nowMs()): void {
     const current = this.assetSettings(asset);
     this.state.assetSettings = {
       ...this.state.assetSettings,
       [asset]: {
         ...current,
         manualPriceEur: priceEur,
-        manualPriceAt: priceEur ? now.toISOString() : null,
+        manualPriceAt: priceEur ? nowIso(now) : null,
       },
     };
   }
@@ -206,7 +200,7 @@ export class AppState {
       {
         providers: [coingeckoProvider(overrides), coinbaseProvider()],
         maxAgeMs: PRICE_MAX_AGE_MS,
-        now: () => Date.now(),
+        now: nowMs,
       },
     );
     const fresh = Object.fromEntries(
@@ -221,13 +215,13 @@ export class AppState {
       online: result.online,
       errors: result.errors,
       missing: result.missing,
-      lastRefreshAt: new Date().toISOString(),
+      lastRefreshAt: nowIso(),
     };
   }
 
-  exportBackup(now = new Date()): string {
-    this.state.ui = { ...this.state.ui, lastBackupAt: now.toISOString() };
-    return serializeBackup($state.snapshot(this.state), now.toISOString());
+  exportBackup(now = nowMs()): string {
+    this.state.ui = { ...this.state.ui, lastBackupAt: nowIso(now) };
+    return serializeBackup($state.snapshot(this.state), nowIso(now));
   }
 
   restoreBackup(

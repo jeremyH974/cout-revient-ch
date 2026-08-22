@@ -130,6 +130,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   if (input.settings.includeSubscriptionsInPnl) total = total.minus(run.subscriptionsEur);
   const totals: PortfolioTotals = {
     value,
+    costBasis: sumBy(open, (p) => p.costBasis),
     investedTotal,
     proceedsTotal,
     netInvested: investedTotal.minus(proceedsTotal),

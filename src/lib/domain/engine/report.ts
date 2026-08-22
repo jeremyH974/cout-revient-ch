@@ -125,6 +125,8 @@ export interface PositionReport {
 
 export interface PortfolioTotals {
   value: Big;
+  /** Coût des positions détenues (Σ qté × PRU) : base du latent. */
+  costBasis: Big;
   investedTotal: Big;
   proceedsTotal: Big;
   netInvested: Big;
