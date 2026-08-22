@@ -1,0 +1,197 @@
+/** Boucle chronologique : applique chaque événement aux positions concernées. */
+import { isFiat } from '../assets';
+import { D, ZERO, type Big } from '../money';
+import type { AssetCode, EngineSettings, LedgerEvent, UnqualifiedEvent } from '../types';
+import { PositionState, type Movement } from './position';
+
+const KIND_RANK: Record<LedgerEvent['kind'], number> = {
+  'opening-balance': 0,
+  deposit: 1,
+  reward: 2,
+  trade: 3,
+  migration: 3,
+  withdrawal: 4,
+  fee: 5,
+  unqualified: 6,
+};
+
+/** Tri déterministe : date, puis acquisitions avant cessions, puis source, puis id. */
+export function sortEvents(events: readonly LedgerEvent[]): LedgerEvent[] {
+  return [...events].sort(
+    (a, b) =>
+      a.at.localeCompare(b.at) ||
+      KIND_RANK[a.kind] - KIND_RANK[b.kind] ||
+      (a.source === b.source ? 0 : a.source === 'coinhouse-csv' ? -1 : 1) ||
+      a.id.localeCompare(b.id),
+  );
+}
+
+export interface LedgerRun {
+  positions: Map<AssetCode, PositionState>;
+  unqualified: UnqualifiedEvent[];
+  cashIn: Big;
+  cashOut: Big;
+  subscriptionsEur: Big;
+  warnings: string[];
+}
+
+const move = (event: LedgerEvent, kind: Movement['kind'], extra?: Partial<Movement>): Movement => ({
+  eventId: event.id,
+  at: event.at,
+  kind,
+  counterAsset: null,
+  quotePrice: null,
+  feeEur: ZERO,
+  rebateEur: ZERO,
+  warnings: event.warnings,
+  ...extra,
+});
+
+export function runLedger(events: readonly LedgerEvent[], settings: EngineSettings): LedgerRun {
+  const positions = new Map<AssetCode, PositionState>();
+  const pos = (asset: AssetCode): PositionState => {
+    let p = positions.get(asset);
+    if (!p) {
+      p = new PositionState(asset);
+      positions.set(asset, p);
+    }
+    return p;
+  };
+  const run: LedgerRun = {
+    positions,
+    unqualified: [],
+    cashIn: ZERO,
+    cashOut: ZERO,
+    subscriptionsEur: ZERO,
+    warnings: [],
+  };
+
+  for (const event of sortEvents(events)) {
+    switch (event.kind) {
+      case 'trade': {
+        const value = D(event.valueEur);
+        const feeEur = event.fee ? D(event.fee.grossEur).minus(event.fee.rebateEur) : ZERO;
+        const rebateEur = event.fee ? D(event.fee.rebateEur) : ZERO;
+        const outIsCash = isFiat(event.out.asset);
+        const inIsCash = isFiat(event.in.asset);
+        if (outIsCash) run.cashIn = run.cashIn.plus(value);
+        if (inIsCash) run.cashOut = run.cashOut.plus(value);
+        if (!outIsCash) {
+          pos(event.out.asset).dispose(
+            D(event.out.qty),
+            value,
+            true,
+            move(event, 'sell', {
+              counterAsset: event.in.asset,
+              quotePrice: event.quotePrice,
+              feeEur: inIsCash ? feeEur : ZERO,
+              rebateEur: inIsCash ? rebateEur : ZERO,
+            }),
+          );
+        }
+        if (!inIsCash) {
+          pos(event.in.asset).acquire(
+            D(event.in.qty),
+            value,
+            'purchase',
+            true,
+            move(event, 'buy', {
+              counterAsset: event.out.asset,
+              quotePrice: event.quotePrice,
+              feeEur: outIsCash || !inIsCash ? feeEur : ZERO,
+              rebateEur: outIsCash || !inIsCash ? rebateEur : ZERO,
+            }),
+          );
+        }
+        break;
+      }
+      case 'migration': {
+        const from = pos(event.out.asset);
+        const qtyOut = D(event.out.qty);
+        const carried = qtyOut.gte(from.qty)
+          ? from.costBasis
+          : from.costBasis.times(qtyOut).div(from.qty);
+        const fair = event.fairValueOutEur ?? event.fairValueInEur;
+        const realize = settings.migrationMode === 'realize' && fair !== null;
+        const valuation = realize ? D(fair) : carried;
+        const disposed = from.dispose(
+          qtyOut,
+          valuation,
+          true,
+          move(event, 'migration-out', { counterAsset: event.in.asset }),
+        );
+        if (!disposed) break;
+        pos(event.in.asset).acquire(
+          D(event.in.qty),
+          valuation,
+          'migration',
+          true,
+          move(event, 'migration-in', { counterAsset: event.out.asset }),
+        );
+        break;
+      }
+      case 'reward': {
+        const fair =
+          settings.rewardValuation === 'fair-value' && event.fairValueEur
+            ? D(event.fairValueEur)
+            : ZERO;
+        const p = pos(event.in.asset);
+        p.acquire(D(event.in.qty), fair, 'reward', false, move(event, 'reward'));
+        p.otherIncome = p.otherIncome.plus(fair);
+        break;
+      }
+      case 'deposit': {
+        const cost = event.costEur ? D(event.costEur) : ZERO;
+        const warnings = event.costEur
+          ? event.warnings
+          : [...event.warnings, 'Coût d’acquisition inconnu : 0 € retenu (à renseigner).'];
+        pos(event.in.asset).acquire(
+          D(event.in.qty),
+          cost,
+          'deposit',
+          true,
+          move(event, 'deposit', { warnings }),
+        );
+        break;
+      }
+      case 'withdrawal': {
+        const p = pos(event.out.asset);
+        const qty = D(event.out.qty);
+        if (event.proceedsEur) {
+          p.dispose(qty, D(event.proceedsEur), true, move(event, 'withdrawal'));
+        } else {
+          const atCost = qty.gte(p.qty) ? p.costBasis : p.costBasis.times(qty).div(p.qty);
+          p.dispose(
+            qty,
+            atCost,
+            true,
+            move(event, 'withdrawal', {
+              warnings: [
+                ...event.warnings,
+                'Retrait valorisé au coût (pas de plus-value constatée).',
+              ],
+            }),
+          );
+        }
+        break;
+      }
+      case 'opening-balance':
+        pos(event.in.asset).acquire(
+          D(event.in.qty),
+          D(event.costEur),
+          'opening-balance',
+          true,
+          move(event, 'opening-balance'),
+        );
+        break;
+      case 'fee':
+        run.subscriptionsEur = run.subscriptionsEur.plus(event.amountEur);
+        break;
+      case 'unqualified':
+        run.unqualified.push(event);
+        for (const leg of event.legs) pos(leg.asset).unqualifiedCount++;
+        break;
+    }
+  }
+  return run;
+}
