@@ -41,6 +41,10 @@ function cspMetaOnBuild(): Plugin {
 
 export default defineConfig({
   base: BASE,
+  preview: {
+    port: Number(process.env['PORT']) || 4173,
+    strictPort: false,
+  },
   server: {
     // Port assigné par l'outil de lancement (variable PORT), 5173 sinon.
     port: Number(process.env['PORT']) || 5173,

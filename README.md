@@ -40,13 +40,31 @@ transactions.csv`). Sur iPhone : appui long → _Enregistrer dans Fichiers_.
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173/cout-revient-ch/
-npm run check    # lint + typecheck + tests
-npm run build
+npm run dev      # http://127.0.0.1:5173/cout-revient-ch/
+npm run check    # lint + typecheck (svelte-check) + tests
+npm run build    # dist/ (PWA, CSP injectée)
+npm run preview  # sert dist/
 ```
 
-Stack : Vite 8, Svelte 5 (runes), TypeScript strict, big.js (arithmétique décimale), PapaParse,
-Vitest. Déploiement automatique sur GitHub Pages à chaque push sur `main`.
+Stack : Vite 8, Svelte 5 (runes), TypeScript strict, big.js (arithmétique décimale exacte),
+PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur `main`
+(`.github/workflows/ci.yml`).
+
+- `src/lib/domain` : moteur pur (PRU = coût moyen pondéré all-in, lots au prorata, contrôle des
+  soldes). Voir [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) et
+  [docs/DECISIONS.md](docs/DECISIONS.md).
+- `docs/coinhouse-export.md` : format et sémantique de l'export (colonne « Contre-valeur (EUR) »
+  de la jambe crypto exprimée en USDC quand on paie en USDC, etc.).
+- Tests : `npm test`. Le fichier `tests/fixtures/coinhouse/export-anonymized.csv` est une fixture
+  anonymisée (`npm run anonymize -- <export.csv>`). Un export réel placé à la racine du projet
+  (ignoré par git) est testé en plus, localement.
+- Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
+
+### Confidentialité
+
+Aucun backend, aucun compte, aucune statistique. Les données restent dans le navigateur
+(`localStorage`) ; seuls les tickers détenus sont envoyés à CoinGecko puis Coinbase pour les prix.
+Sauvegarde/restauration JSON dans les réglages.
 
 ## Licence
 

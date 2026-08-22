@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { fmtDateTime, fmtPrice } from '$lib/format/fr';
+  import { fmtDateTime, fmtPrice, fmtQty } from '$lib/format/fr';
   import Money from '../shared/Money.svelte';
   import Qty from '../shared/Qty.svelte';
 
@@ -37,13 +37,14 @@
         >{/if}
       {#if h.unitPrice}<span class="muted">· {fmtPrice(h.unitPrice)} / unité</span>{/if}
       {#if h.quotePrice}<span class="muted"
-          >· cours {h.quotePrice.price} {h.quotePrice.asset.toUpperCase()}</span
+          >· cours {fmtQty(h.quotePrice.price)} {h.quotePrice.asset.toUpperCase()}</span
         >{/if}
     </p>
     {#if h.feeEur.gt('0') || h.rebateEur.gt('0')}
       <p class="muted small">
-        Frais <Money value={h.feeEur} />{#if h.rebateEur.gt('0')}
-          (après remise <Money value={h.rebateEur} />){/if}
+        Frais <Money value={h.feeEur} />{#if h.rebateEur.gt('0')}&nbsp;(après remise <Money
+            value={h.rebateEur}
+          />){/if}
       </p>
     {/if}
     <p class="after">

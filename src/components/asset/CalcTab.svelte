@@ -8,28 +8,37 @@
 </script>
 
 <div class="calc">
-  <section>
-    <h3>PRU (prix de revient unitaire)</h3>
-    <p>
-      Coût total des unités détenues ÷ quantité détenue, <strong>spread et frais inclus</strong>. Il
-      change uniquement quand vous achetez, jamais quand vous vendez.
-    </p>
-    <p class="formula">
-      {fmtEur(p.costBasis)} ÷ {fmtQty(p.qty)} = <strong>{p.pru ? fmtPrice(p.pru) : '—'}</strong>
-    </p>
-  </section>
-  <section>
-    <h3>Latent</h3>
-    <p>
-      Ce que vous gagneriez ou perdriez en vendant tout maintenant : quantité × (prix actuel − PRU).
-    </p>
-    <p class="formula">
-      {fmtQty(p.qty)} × ({p.price ? fmtPrice(p.price.priceEur) : '—'} − {p.pru
-        ? fmtPrice(p.pru)
-        : '—'}) = <strong>{fmtEur(p.unrealized, { sign: true })}</strong> ({fmtPct(p.unrealizedPct)} vs
-      PRU)
-    </p>
-  </section>
+  {#if p.closed}
+    <section>
+      <h3>Position clôturée</h3>
+      <p>Plus aucune unité détenue : seul le réalisé compte.</p>
+    </section>
+  {:else}
+    <section>
+      <h3>PRU (prix de revient unitaire)</h3>
+      <p>
+        Coût total des unités détenues ÷ quantité détenue, <strong>spread et frais inclus</strong>.
+        Il change uniquement quand vous achetez, jamais quand vous vendez.
+      </p>
+      <p class="formula">
+        {fmtEur(p.costBasis)} ÷ {fmtQty(p.qty)} = <strong>{p.pru ? fmtPrice(p.pru) : '—'}</strong>
+      </p>
+    </section>
+    <section>
+      <h3>Latent</h3>
+      <p>
+        Ce que vous gagneriez ou perdriez en vendant tout maintenant : quantité × (prix actuel −
+        PRU).
+      </p>
+      <p class="formula">
+        {fmtQty(p.qty)} × ({p.price ? fmtPrice(p.price.priceEur) : '—'} − {p.pru
+          ? fmtPrice(p.pru)
+          : '—'}) = <strong>{fmtEur(p.unrealized, { sign: true })}</strong> ({fmtPct(
+          p.unrealizedPct,
+        )} vs PRU)
+      </p>
+    </section>
+  {/if}
   <section>
     <h3>Réalisé</h3>
     <p>

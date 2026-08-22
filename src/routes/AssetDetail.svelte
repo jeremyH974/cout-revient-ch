@@ -60,7 +60,9 @@
       <div>
         <h2>{assetName(p.asset)} <span class="muted">· {p.asset.toUpperCase()}</span></h2>
         <p class="price">
-          {#if p.price}
+          {#if p.closed}
+            <span class="muted">Position clôturée</span>
+          {:else if p.price}
             {fmtPrice(p.price.priceEur)}
             <span class="muted small"
               >{p.price.source} · {fmtRelative(p.price.at, nowMs())}{p.price.stale
@@ -70,11 +72,13 @@
           {:else}
             <span class="muted">Prix indisponible</span>
           {/if}
-          <button class="link" type="button" onclick={() => (priceSheet = true)}
-            >{app.assetSettings(asset).manualPriceEur
-              ? 'modifier le prix manuel'
-              : 'saisir un prix'}</button
-          >
+          {#if !p.closed}
+            <button class="link" type="button" onclick={() => (priceSheet = true)}
+              >{app.assetSettings(asset).manualPriceEur
+                ? 'modifier le prix manuel'
+                : 'saisir un prix'}</button
+            >
+          {/if}
         </p>
       </div>
     </div>
@@ -110,8 +114,7 @@
             sign
           />){:else}<Money value={p.netInvested} />{/if} · Frais <Money
           value={p.feesEur}
-        />{#if p.rebatesEur.gt('0')}
-          (remises <Money value={p.rebatesEur} />){/if}
+        />{#if p.rebatesEur.gt('0')}&nbsp;(remises <Money value={p.rebatesEur} />){/if}
       </p>
       {#if p.status === 'needs-qualification'}<p class="warn small">
           Des opérations de cet actif sont à qualifier : le calcul est incomplet.

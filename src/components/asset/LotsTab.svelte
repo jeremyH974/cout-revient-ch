@@ -36,7 +36,7 @@
       <p>
         <Qty value={lot.qtyRemaining} asset={position.asset} />
         <span class="muted">@ {lot.unitCost ? fmtPrice(lot.unitCost) : '—'} all-in</span
-        >{#if !lot.qtyRemaining.eq(lot.qtyInitial)}<span class="muted">
+        >{#if !lot.qtyRemaining.eq(lot.qtyInitial)}&nbsp;<span class="muted">
             · entamé (initial <Qty value={lot.qtyInitial} />)</span
           >{/if}
       </p>
