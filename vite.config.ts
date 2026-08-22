@@ -41,6 +41,11 @@ function cspMetaOnBuild(): Plugin {
 
 export default defineConfig({
   base: BASE,
+  server: {
+    // Port assigné par l'outil de lancement (variable PORT), 5173 sinon.
+    port: Number(process.env['PORT']) || 5173,
+    strictPort: false,
+  },
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   resolve: {
     alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) },
