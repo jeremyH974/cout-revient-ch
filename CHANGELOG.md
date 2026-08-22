@@ -7,6 +7,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Graphiques : couleur par zone — vert en gain, rouge en perte, avec bascule exacte au
+  croisement de la référence (zéro pour le latent, capital investi pour la valeur, PRU pour le
+  prix) ; PRU tracé en trait plein avec étiquette et zone gain/perte entre prix et PRU ; légende ;
+  PRU et prix rappelés dans l'en-tête et l'infobulle ; « PRU vs prix » par défaut sur un actif.
+- Bascule de thème clair / sombre / système dans la barre ; couleur de la barre du navigateur
+  mobile suit le thème.
 - Cartes « Évolution » (portefeuille et actif) : courbe reconstituée jour par jour à partir des
   quantités réellement détenues × prix historiques (Coinbase Exchange, Kraken, CoinGecko ; cache
   IndexedDB), périodes 1J · 1S · 1M · 3M · 1A · Tout, métriques valeur / latent € / latent % /

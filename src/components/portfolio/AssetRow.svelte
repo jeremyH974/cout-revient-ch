@@ -68,12 +68,16 @@
     grid-area: id;
     flex-direction: row;
     align-items: center;
+    justify-content: flex-start;
+    text-align: left;
     gap: var(--space-3);
   }
   .names {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     line-height: 1.2;
+    min-width: 0;
   }
   .qty {
     grid-area: qty;

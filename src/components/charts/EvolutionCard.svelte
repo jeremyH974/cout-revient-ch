@@ -1,17 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
-  import { ZERO, type Big } from '$lib/domain/money';
+  import { D, ZERO, type Big } from '$lib/domain/money';
   import { seriesToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
   import { fmtMoney, fmtPct, fmtPrice } from '$lib/format/fr';
   import { periodPerformance, periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import {
     METRIC_SPECS,
-    availableMetrics,
-    metricSeries,
     type Metric,
     type MetricPoint,
+    availableMetrics,
+    defaultMetric,
+    metricSeries,
   } from '$lib/history/metrics';
   import { app } from '../../state/app.svelte';
   import { history, type Scope } from '../../state/history.svelte';
@@ -22,9 +23,16 @@
   let { scope = 'portfolio', title = 'Évolution' }: { scope?: Scope; title?: string } = $props();
   let period = $state<Period>('1m');
   const metrics = $derived(availableMetrics(scope === 'portfolio' ? 'portfolio' : 'asset'));
-  const metric = $derived<Metric>(
-    metrics.includes(app.state.ui.chartMetric) ? app.state.ui.chartMetric : 'value',
+  const stored = $derived(
+    scope === 'portfolio' ? app.state.ui.chartMetric : app.state.ui.assetChartMetric,
   );
+  const metric = $derived<Metric>(
+    metrics.includes(stored)
+      ? stored
+      : defaultMetric(scope === 'portfolio' ? 'portfolio' : 'asset'),
+  );
+  const chooseMetric = (m: Metric): void =>
+    app.setUi(scope === 'portfolio' ? { chartMetric: m } : { assetChartMetric: m });
   const spec = $derived(METRIC_SPECS[metric]);
 
   onMount(() => void history.ensure());
@@ -63,13 +71,17 @@
     p && p.qty && p.qty.gt(ZERO) ? p.cost.div(p.qty) : null;
   const tone = (v: Big | null): string =>
     v === null ? '' : v.lt('0') ? 'loss' : v.gt('0') ? 'gain' : '';
+  /** Variation sur la période, calculée sur la série réellement tracée (premier point défini). */
   const delta = $derived.by((): Big | null => {
     if (!first || !last) return null;
     if (metric === 'value')
       return period === '1d' ? last.value.minus(first.value) : (perf?.gain ?? null);
-    if (metric === 'unrealized') return latent(last)!.minus(latent(first)!);
-    if (metric === 'unrealizedPct')
-      return latentPct(last) && latentPct(first) ? latentPct(last)!.minus(latentPct(first)!) : null;
+    const plotted = points;
+    const a = plotted[0];
+    const b = plotted[plotted.length - 1];
+    if (!a || !b || a === b) return null;
+    if (metric === 'unrealized') return D(String(b.primary - a.primary));
+    if (metric === 'unrealizedPct') return D(String((b.primary - a.primary) / 100));
     return last.price && pru(last) ? last.price.minus(pru(last)!) : null;
   });
   const markers = $derived.by((): ChartMarker[] =>
@@ -106,7 +118,7 @@
           role="radio"
           aria-checked={metric === m}
           class:active={metric === m}
-          onclick={() => app.setUi({ chartMetric: m })}>{METRIC_SPECS[m].label}</button
+          onclick={() => chooseMetric(m)}>{METRIC_SPECS[m].label}</button
         >
       {/each}
     </div>
@@ -189,6 +201,16 @@
     </div>
     <PeriodToggle bind:value={period} />
   </header>
+  {#if scope !== 'portfolio' && metric !== 'pru' && last}
+    <p class="muted small">
+      PRU {pru(last) ? fmtPrice(pru(last), app.currency) : '—'} · prix {last.price
+        ? fmtPrice(last.price, app.currency)
+        : '—'}{#if last.price && pru(last)}
+        · écart <span class={tone(last.price.minus(pru(last)!))}
+          >{fmtPct(last.price.minus(pru(last)!).div(pru(last)!))}</span
+        >{/if}
+    </p>
+  {/if}
   {#if history.status.loading}
     <p class="muted small">
       Chargement de l'historique des prix… {history.status.done}/{history.status.total}
@@ -203,6 +225,7 @@
     {markers}
     zeroLine={spec.zeroLine}
     colorMode={spec.colorMode}
+    band={spec.band}
     labels={{ primary: spec.primaryLabel, secondary: spec.secondaryLabel }}
   />
   <footer class="muted small">

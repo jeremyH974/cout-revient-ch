@@ -17,8 +17,22 @@
 
   const route = $derived(router.route);
 
+  let systemDark = $state(true);
+  onMount(() => {
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    systemDark = media.matches;
+    const onChange = (e: MediaQueryListEvent): void => {
+      systemDark = e.matches;
+    };
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  });
   $effect(() => {
     document.documentElement.dataset['theme'] = app.state.ui.theme;
+    const dark = app.state.ui.theme === 'dark' || (app.state.ui.theme === 'auto' && systemDark);
+    document
+      .querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', dark ? '#0f1115' : '#f6f7f9');
   });
 
   $effect(() => {

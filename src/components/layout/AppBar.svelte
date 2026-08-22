@@ -7,6 +7,12 @@
 
   let { title = 'Coût de revient CH', back = false }: { title?: string; back?: boolean } = $props();
   let tick = $state(nowMs());
+  const THEMES = ['auto', 'light', 'dark'] as const;
+  const THEME_LABELS = { auto: 'Système', light: 'Clair', dark: 'Sombre' } as const;
+  const cycleTheme = (): void => {
+    const current = THEMES.indexOf(app.state.ui.theme);
+    app.setUi({ theme: THEMES[(current + 1) % THEMES.length] ?? 'auto' });
+  };
   onMount(() => {
     const id = setInterval(() => (tick = nowMs()), 30_000);
     return () => clearInterval(id);
@@ -51,6 +57,41 @@
     <p class="muted small">{freshness}</p>
   </div>
   <div class="actions">
+    <button
+      class="icon"
+      type="button"
+      onclick={cycleTheme}
+      aria-label="Thème : {THEME_LABELS[app.state.ui.theme]}. Changer."
+      title="Thème : {THEME_LABELS[app.state.ui.theme]}"
+    >
+      {#if app.state.ui.theme === 'light'}
+        <svg viewBox="0 0 24 24" width="22" height="22"
+          ><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2" /><path
+            d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          /></svg
+        >
+      {:else if app.state.ui.theme === 'dark'}
+        <svg viewBox="0 0 24 24" width="22" height="22"
+          ><path
+            d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linejoin="round"
+          /></svg
+        >
+      {:else}
+        <svg viewBox="0 0 24 24" width="22" height="22"
+          ><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2" /><path
+            d="M12 3a9 9 0 0 1 0 18z"
+            fill="currentColor"
+          /></svg
+        >
+      {/if}
+    </button>
     <button
       class="icon currency"
       type="button"

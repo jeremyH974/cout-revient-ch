@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { D } from '../domain/money';
-import { availableMetrics, metricSeries, type MetricPoint } from './metrics';
+import { availableMetrics, defaultMetric, metricSeries, type MetricPoint } from './metrics';
 
 const points: MetricPoint[] = [
   { day: '2026-01-01', value: D('0'), cost: D('0'), qty: D('0'), price: D('100') },
@@ -30,5 +30,6 @@ describe('métriques', () => {
   it('métriques disponibles selon le périmètre', () => {
     expect(availableMetrics('portfolio')).toEqual(['value', 'unrealized', 'unrealizedPct']);
     expect(availableMetrics('asset')).toContain('pru');
+    expect(defaultMetric('asset')).toBe('pru');
   });
 });

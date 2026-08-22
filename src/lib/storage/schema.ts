@@ -41,6 +41,8 @@ export interface UiSettings {
   displayCurrency: Currency;
   /** Métrique tracée par défaut sur les cartes « Évolution ». */
   chartMetric: Metric;
+  /** Métrique par défaut sur la page d'un actif (PRU vs prix). */
+  assetChartMetric: Metric;
   lastBackupAt: string | null;
   disclaimerAcceptedAt: string | null;
 }
@@ -68,6 +70,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   priceSource: 'auto',
   displayCurrency: 'EUR',
   chartMetric: 'value',
+  assetChartMetric: 'pru',
   lastBackupAt: null,
   disclaimerAcceptedAt: null,
 };
@@ -256,6 +259,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, displayCurrency: 'EUR' } };
   if (!METRICS.includes(state.ui.chartMetric))
     state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };
+  if (!METRICS.includes(state.ui.assetChartMetric))
+    state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
   return {
     state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings, fx },
     dropped,
