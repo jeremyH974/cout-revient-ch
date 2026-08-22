@@ -42,7 +42,7 @@
 
   const fmt = (v: number): string =>
     format === 'percent'
-      ? `${v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} %`
+      ? `${v < 0 ? '−' : ''}${Math.abs(v).toFixed(1).replace('.', ',')} %`
       : fmtMoney(v.toFixed(2), currency, { compact: true });
   const label = (day: string): string => (day.length > 10 ? day.slice(11, 16) : fmtDate(day));
 

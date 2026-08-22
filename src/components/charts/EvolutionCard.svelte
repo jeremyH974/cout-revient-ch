@@ -158,7 +158,7 @@
           <p class="big {tone(delta)}">
             {delta === null
               ? '—'
-              : `${delta.lt('0') ? '−' : '+'}${delta.abs().times('100').toFixed(1)} pts`}
+              : `${delta.lt('0') ? '−' : '+'}${delta.abs().times('100').toFixed(1).replace('.', ',')} pts`}
           </p>
         </div>
       {:else}
