@@ -1,0 +1,21 @@
+# Dépendances et sorties de build
+node_modules/
+dist/
+dev-dist/
+coverage/
+.vite/
+*.log
+.env
+.env.*
+
+# Système
+.DS_Store
+Thumbs.db
+
+# Exports Coinhouse personnels : JAMAIS dans git (seules les fixtures anonymisées sont autorisées)
+*.csv
+!tests/fixtures/**/*.csv
+/data/
+
+# Claude Code (réglages locaux)
+.claude/settings.local.json

@@ -1,0 +1,195 @@
+/* ============================================================================
+   Coût de revient CH — design tokens, reset, utilitaires
+   Thème : sombre par défaut (comme Discord/eToro), clair via [data-theme="light"]
+   ou préférence système quand [data-theme="auto"].
+   ========================================================================== */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0f1115;
+  --bg-elev: #171a21;
+  --bg-sunken: #0a0c10;
+  --fg: #e7e9ee;
+  --fg-muted: #9aa3b2;
+  --fg-faint: #6b7280;
+  --border: #262b36;
+  --accent: #5b8def;
+  --accent-fg: #0b1220;
+  --gain: #4ade80;
+  --loss: #f87171;
+  --warn: #fbbf24;
+  --info: #60a5fa;
+
+  --font:
+    system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Menlo, Consolas, monospace;
+  --fs-xs: 12px;
+  --fs-sm: 14px;
+  --fs-md: 16px;
+  --fs-lg: 20px;
+  --fs-xl: 28px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --tap: 44px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6f7f9;
+  --bg-elev: #ffffff;
+  --bg-sunken: #eceef2;
+  --fg: #111827;
+  --fg-muted: #4b5563;
+  --fg-faint: #6b7280;
+  --border: #e5e7eb;
+  --accent: #2563eb;
+  --accent-fg: #ffffff;
+  --gain: #15803d;
+  --loss: #b91c1c;
+  --warn: #b45309;
+  --info: #1d4ed8;
+  --shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']):not([data-theme='light']) {
+    color-scheme: light;
+    --bg: #f6f7f9;
+    --bg-elev: #ffffff;
+    --bg-sunken: #eceef2;
+    --fg: #111827;
+    --fg-muted: #4b5563;
+    --fg-faint: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --accent-fg: #ffffff;
+    --gain: #15803d;
+    --loss: #b91c1c;
+    --warn: #b45309;
+    --info: #1d4ed8;
+    --shadow: 0 1px 2px rgb(0 0 0 / 8%);
+  }
+}
+
+/* Reset minimal ------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--fs-xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: var(--fs-lg);
+  font-weight: 650;
+}
+
+h3 {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+img,
+svg {
+  max-width: 100%;
+  display: block;
+}
+
+/* Utilitaires --------------------------------------------------------------- */
+.num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.gain {
+  color: var(--gain);
+}
+
+.loss {
+  color: var(--loss);
+}
+
+.muted {
+  color: var(--fg-muted);
+}
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
