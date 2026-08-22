@@ -144,7 +144,13 @@
     return points.length < 2 || last.primary >= points[0]!.primary;
   });
   const referenceLabel = $derived(
-    zeroLine ? 'zéro' : labels.secondary ? `${labels.secondary.toLowerCase()}` : null,
+    zeroLine
+      ? 'zéro'
+      : labels.secondary
+        ? labels.secondary === labels.secondary.toUpperCase()
+          ? labels.secondary
+          : labels.secondary.toLowerCase()
+        : null,
   );
   const extremes = $derived.by(() => {
     if (points.length === 0) return null;
@@ -296,8 +302,8 @@
     <ul class="legend" aria-label="Légende">
       <li><span class="swatch line-swatch gain"></span>{labels.primary} en gain</li>
       <li>
-        <span class="swatch line-swatch loss"></span>{labels.primary} en perte{#if referenceLabel}
-          (référence : {referenceLabel}){/if}
+        <span class="swatch line-swatch loss"></span>{labels.primary} en perte{#if referenceLabel}&nbsp;(référence
+          : {referenceLabel}){/if}
       </li>
       {#if labels.secondary && secondaryPath}<li>
           <span class="swatch secondary-swatch" class:emphasis={band}></span>{labels.secondary}
