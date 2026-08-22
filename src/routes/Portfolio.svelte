@@ -8,6 +8,7 @@
   import AppBar from '../components/layout/AppBar.svelte';
   import AssetRow from '../components/portfolio/AssetRow.svelte';
   import SummaryHeader from '../components/portfolio/SummaryHeader.svelte';
+  import EvolutionCard from '../components/charts/EvolutionCard.svelte';
   import Money from '../components/shared/Money.svelte';
   import { app } from '../state/app.svelte';
 
@@ -34,6 +35,7 @@
 
 <AppBar />
 <SummaryHeader />
+<EvolutionCard scope="portfolio" />
 
 <div class="toolbar">
   <input

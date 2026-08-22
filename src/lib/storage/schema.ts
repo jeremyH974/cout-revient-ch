@@ -1,6 +1,7 @@
 /** État persisté (localStorage + sauvegarde JSON), versionné. */
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
+import { METRICS, type Metric } from '../history/metrics';
 import {
   DEFAULT_ENGINE_SETTINGS,
   type AssetCode,
@@ -38,6 +39,8 @@ export interface UiSettings {
   priceSource: 'auto' | 'off';
   /** Devise d'affichage ; l'euro reste la devise des données. */
   displayCurrency: Currency;
+  /** Métrique tracée par défaut sur les cartes « Évolution ». */
+  chartMetric: Metric;
   lastBackupAt: string | null;
   disclaimerAcceptedAt: string | null;
 }
@@ -64,6 +67,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   hideClosed: false,
   priceSource: 'auto',
   displayCurrency: 'EUR',
+  chartMetric: 'value',
   lastBackupAt: null,
   disclaimerAcceptedAt: null,
 };
@@ -250,6 +254,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
   };
   if (!['EUR', 'USD'].includes(state.ui.displayCurrency))
     state = { ...state, ui: { ...state.ui, displayCurrency: 'EUR' } };
+  if (!METRICS.includes(state.ui.chartMetric))
+    state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };
   return {
     state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings, fx },
     dropped,

@@ -1,5 +1,7 @@
 <script lang="ts">
   import { nowMs } from '$lib/clock';
+  import { operationsToCsv } from '$lib/export/csv-export';
+  import { downloadText } from '$lib/export/download';
   import { fmtRelative } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
@@ -7,6 +9,7 @@
   import CalcTab from '../components/asset/CalcTab.svelte';
   import HistoryTab from '../components/asset/HistoryTab.svelte';
   import LotsTab from '../components/asset/LotsTab.svelte';
+  import EvolutionCard from '../components/charts/EvolutionCard.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import CoinBadge from '../components/shared/CoinBadge.svelte';
   import Money from '../components/shared/Money.svelte';
@@ -127,6 +130,20 @@
     {/if}
   </header>
 
+  <EvolutionCard scope={asset} title="Évolution" />
+
+  <p class="tools">
+    <button
+      class="link"
+      type="button"
+      onclick={() =>
+        downloadText(
+          `cout-revient-ch-${asset}-operations-${new Date(nowMs()).toISOString().slice(0, 10)}.csv`,
+          operationsToCsv(app.report, app.currency, asset),
+          'text/csv;charset=utf-8',
+        )}>Télécharger l'historique de {asset.toUpperCase()} (CSV)</button
+    >
+  </p>
   <nav class="tabs" aria-label="Sections">
     <button type="button" class:active={tab === 'history'} onclick={() => (tab = 'history')}
       >Historique ({p.history.length})</button
@@ -216,6 +233,10 @@
   }
   .warn {
     color: var(--warn);
+  }
+  .tools {
+    padding: var(--space-2) var(--space-4);
+    font-size: var(--fs-sm);
   }
   .tabs {
     display: grid;

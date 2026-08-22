@@ -1,6 +1,8 @@
-<script lang="ts">
+<script module lang="ts">
   export type Period = '1d' | '1w' | '1m' | '3m' | '1y' | 'all';
+</script>
 
+<script lang="ts">
   let {
     value = $bindable<Period>('1m'),
     available = ['1d', '1w', '1m', '3m', '1y', 'all'] as Period[],

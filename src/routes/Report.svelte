@@ -13,6 +13,7 @@
   const model = $derived<ReportModel>(
     buildReportModel(app.report, {
       discreet: app.state.ui.discreet,
+      currency: app.currency,
       generatedAt,
       version: __APP_VERSION__,
       subscriptionsInPnl: app.state.engineSettings.includeSubscriptionsInPnl,

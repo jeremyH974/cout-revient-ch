@@ -1,6 +1,6 @@
 <script lang="ts">
   import { nowMs } from '$lib/clock';
-  import { positionsToCsv } from '$lib/export/csv-export';
+  import { lotsToCsv, operationsToCsv, positionsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
   import { fmtRelative } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
@@ -85,13 +85,35 @@
       <button
         class="secondary"
         type="button"
+        disabled={!app.hasData}
         onclick={() =>
           downloadText(
             `cout-revient-ch-positions-${stamp()}.csv`,
-            positionsToCsv(app.report),
+            positionsToCsv(app.report, app.currency),
             'text/csv;charset=utf-8',
-          )}
-        disabled={!app.hasData}>Exporter le tableau (CSV pour Excel)</button
+          )}>Positions (CSV)</button
+      >
+      <button
+        class="secondary"
+        type="button"
+        disabled={!app.hasData}
+        onclick={() =>
+          downloadText(
+            `cout-revient-ch-operations-${stamp()}.csv`,
+            operationsToCsv(app.report, app.currency),
+            'text/csv;charset=utf-8',
+          )}>Opérations avec PRU (CSV)</button
+      >
+      <button
+        class="secondary"
+        type="button"
+        disabled={!app.hasData}
+        onclick={() =>
+          downloadText(
+            `cout-revient-ch-lots-${stamp()}.csv`,
+            lotsToCsv(app.report, app.currency),
+            'text/csv;charset=utf-8',
+          )}>Lots ouverts (CSV)</button
       >
     </div>
     <div class="row">

@@ -43,6 +43,15 @@ génère un PDF A4 (page de garde, synthèse, répartition, positions ouvertes, 
 clôturées, méthodologie) entièrement dans le navigateur : rien n'est envoyé. Le mode discret masque
 les montants ; « Imprimer / Enregistrer en PDF » est l'alternative sans bibliothèque.
 
+## Évolution et exports
+
+Chaque page affiche une carte **Évolution** : valeur de vos avoirs reconstituée jour par jour
+(quantités détenues × prix historiques), capital investi en pointillé, périodes 1J à Tout, et
+métriques au choix — valeur, plus-value latente (€ ou %), ou **PRU face au prix** pour un actif,
+avec vos achats et ventes marqués sur la courbe. La performance d'une période est calculée **hors
+apports et retraits**. Exports CSV (positions, opérations avec PRU après chaque ligne, lots, série)
+et rapport PDF : voir [docs/exports.md](docs/exports.md).
+
 ## Devise d'affichage
 
 L'euro est la devise des données Coinhouse. Le bouton **€ / $** affiche tout en dollars en

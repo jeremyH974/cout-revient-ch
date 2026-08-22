@@ -1,40 +1,56 @@
-<script lang="ts">
-  import type { Currency } from '$lib/fx/types';
-  import { fmtDate, fmtMoney } from '$lib/format/fr';
-
+<script module lang="ts">
   export interface ChartPoint {
-    /** `YYYY-MM-DD` (ou ISO pour l'intraday). */
+    /** `YYYY-MM-DD`, ou ISO 8601 pour l'intraday. */
     day: string;
-    value: number;
-    cost: number | null;
+    primary: number;
+    secondary: number | null;
   }
   export interface ChartMarker {
     day: string;
     kind: 'buy' | 'sell';
   }
+  export type ChartColorMode = 'trend' | 'sign' | 'vsSecondary';
+</script>
+
+<script lang="ts">
+  import type { Currency } from '$lib/fx/types';
+  import { fmtDate, fmtMoney } from '$lib/format/fr';
 
   let {
     points,
+    format = 'money',
     currency = 'EUR',
     markers = [],
     height = 220,
-    showCost = true,
+    zeroLine = false,
+    colorMode = 'trend',
+    labels = { primary: 'Valeur', secondary: null },
   }: {
     points: ChartPoint[];
+    format?: 'money' | 'percent';
     currency?: Currency;
     markers?: ChartMarker[];
     height?: number;
-    showCost?: boolean;
+    zeroLine?: boolean;
+    colorMode?: ChartColorMode;
+    labels?: { primary: string; secondary: string | null };
   } = $props();
 
   let width = $state(320);
   let hover = $state<number | null>(null);
   const PAD = { top: 28, right: 12, bottom: 26, left: 12 };
 
+  const fmt = (v: number): string =>
+    format === 'percent'
+      ? `${v < 0 ? '−' : ''}${Math.abs(v).toFixed(1)} %`
+      : fmtMoney(v.toFixed(2), currency, { compact: true });
+  const label = (day: string): string => (day.length > 10 ? day.slice(11, 16) : fmtDate(day));
+
   const stats = $derived.by(() => {
     const values = points.flatMap((p) =>
-      showCost && p.cost !== null ? [p.value, p.cost] : [p.value],
+      p.secondary !== null ? [p.primary, p.secondary] : [p.primary],
     );
+    if (zeroLine) values.push(0);
     if (values.length === 0) return null;
     let min = Math.min(...values);
     let max = Math.max(...values);
@@ -55,48 +71,50 @@
       ? PAD.top + ((stats.max - v) * (height - PAD.top - PAD.bottom)) / (stats.max - stats.min)
       : 0,
   );
-  const fmt = (v: number): string => fmtMoney(v.toFixed(2), currency, { compact: true });
+  const baseline = $derived(zeroLine && stats ? y(0) : height - PAD.bottom);
   const linePath = $derived(
     points
-      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`)
+      .map((p, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.primary).toFixed(1)}`)
       .join(' '),
   );
   const areaPath = $derived(
     points.length > 1
-      ? `${linePath} L${x(points.length - 1).toFixed(1)},${height - PAD.bottom} L${x(0).toFixed(1)},${height - PAD.bottom} Z`
+      ? `${linePath} L${x(points.length - 1).toFixed(1)},${baseline.toFixed(1)} L${x(0).toFixed(1)},${baseline.toFixed(1)} Z`
       : '',
   );
-  const costPath = $derived(
-    showCost
-      ? points
-          .map((p, i) =>
-            p.cost === null
-              ? ''
-              : `${i === 0 || points[i - 1]?.cost === null ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.cost).toFixed(1)}`,
-          )
-          .join(' ')
-      : '',
+  const secondaryPath = $derived(
+    points
+      .map((p, i) =>
+        p.secondary === null
+          ? ''
+          : `${i === 0 || points[i - 1]?.secondary === null ? 'M' : 'L'}${x(i).toFixed(1)},${y(p.secondary).toFixed(1)}`,
+      )
+      .join(' '),
   );
+  const positive = $derived.by((): boolean => {
+    const last = points[points.length - 1];
+    if (!last) return true;
+    if (colorMode === 'sign') return last.primary >= 0;
+    if (colorMode === 'vsSecondary')
+      return last.secondary === null || last.primary >= last.secondary;
+    return points.length < 2 || last.primary >= points[0]!.primary;
+  });
   const extremes = $derived.by(() => {
     if (points.length === 0) return null;
     let lo = 0;
     let hi = 0;
     points.forEach((p, i) => {
-      if (p.value < points[lo]!.value) lo = i;
-      if (p.value > points[hi]!.value) hi = i;
+      if (p.primary < points[lo]!.primary) lo = i;
+      if (p.primary > points[hi]!.primary) hi = i;
     });
     return { lo, hi };
   });
   const ticks = $derived.by(() => {
-    const n = Math.min(points.length, Math.max(2, Math.floor(width / 120)));
     if (points.length < 2) return [];
+    const n = Math.min(points.length, Math.max(2, Math.floor(width / 120)));
     return Array.from({ length: n }, (_, k) => Math.round((k * (points.length - 1)) / (n - 1)));
   });
-  const label = (day: string): string => (day.length > 10 ? day.slice(11, 16) : fmtDate(day));
-  const markerIndex = $derived((day: string): number => points.findIndex((p) => p.day >= day));
-  const trendUp = $derived(
-    points.length > 1 && points[points.length - 1]!.value >= points[0]!.value,
-  );
+  const markerIndex = (day: string): number => points.findIndex((p) => p.day >= day);
 
   function onPointer(event: PointerEvent): void {
     if (points.length < 2) return;
@@ -115,56 +133,65 @@
       {width}
       {height}
       role="img"
-      aria-label="Évolution de {fmt(points[0]!.value)} le {label(points[0]!.day)} à {fmt(
-        points[points.length - 1]!.value,
+      aria-label="{labels.primary} : de {fmt(points[0]!.primary)} le {label(points[0]!.day)} à {fmt(
+        points[points.length - 1]!.primary,
       )} le {label(points[points.length - 1]!.day)}"
       onpointermove={onPointer}
       onpointerdown={onPointer}
       onpointerleave={() => (hover = null)}
     >
       <defs>
-        <linearGradient id="area-fill" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id="area-fill-{colorMode}" x1="0" y1="0" x2="0" y2="1">
           <stop
             offset="0%"
-            stop-color={trendUp ? 'var(--gain)' : 'var(--loss)'}
+            stop-color={positive ? 'var(--gain)' : 'var(--loss)'}
             stop-opacity="0.28"
           />
           <stop
             offset="100%"
-            stop-color={trendUp ? 'var(--gain)' : 'var(--loss)'}
+            stop-color={positive ? 'var(--gain)' : 'var(--loss)'}
             stop-opacity="0"
           />
         </linearGradient>
       </defs>
       <line x1={PAD.left} x2={width - PAD.right} y1={y(stats.max)} y2={y(stats.max)} class="grid" />
-      <line
-        x1={PAD.left}
-        x2={width - PAD.right}
-        y1={y((stats.max + stats.min) / 2)}
-        y2={y((stats.max + stats.min) / 2)}
-        class="grid"
-      />
-      <path d={areaPath} fill="url(#area-fill)" />
-      {#if costPath}<path d={costPath} class="cost" />{/if}
-      <path d={linePath} class="line" class:down={!trendUp} />
+      {#if zeroLine}
+        <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} class="zero" />
+      {:else}
+        <line
+          x1={PAD.left}
+          x2={width - PAD.right}
+          y1={y((stats.max + stats.min) / 2)}
+          y2={y((stats.max + stats.min) / 2)}
+          class="grid"
+        />
+      {/if}
+      <path d={areaPath} fill="url(#area-fill-{colorMode})" />
+      {#if secondaryPath}<path d={secondaryPath} class="secondary" />{/if}
+      <path d={linePath} class="line" class:down={!positive} />
       {#each markers as m, k (k)}
         {@const i = markerIndex(m.day)}
-        {#if i >= 0}<circle cx={x(i)} cy={y(points[i]!.value)} r="4" class="marker {m.kind}" />{/if}
+        {#if i >= 0}<circle
+            cx={x(i)}
+            cy={y(points[i]!.primary)}
+            r="4"
+            class="marker {m.kind}"
+          />{/if}
       {/each}
       {#if extremes}
         <text
           x={x(extremes.hi)}
-          y={y(points[extremes.hi]!.value) - 8}
+          y={y(points[extremes.hi]!.primary) - 8}
           class="extreme"
           text-anchor={extremes.hi > points.length / 2 ? 'end' : 'start'}
-          >↑ {fmt(points[extremes.hi]!.value)}</text
+          >↑ {fmt(points[extremes.hi]!.primary)}</text
         >
         <text
           x={x(extremes.lo)}
-          y={y(points[extremes.lo]!.value) + 16}
+          y={y(points[extremes.lo]!.primary) + 16}
           class="extreme"
           text-anchor={extremes.lo > points.length / 2 ? 'end' : 'start'}
-          >↓ {fmt(points[extremes.lo]!.value)}</text
+          >↓ {fmt(points[extremes.lo]!.primary)}</text
         >
       {/if}
       {#each ticks as i (i)}
@@ -177,17 +204,17 @@
         >
       {/each}
       {#if hover !== null}
-        {@const p = points[hover]!}
         <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={height - PAD.bottom} class="cross" />
-        <circle cx={x(hover)} cy={y(p.value)} r="5" class="dot" />
+        <circle cx={x(hover)} cy={y(points[hover]!.primary)} r="5" class="dot" />
       {/if}
     </svg>
     {#if hover !== null}
       {@const p = points[hover]!}
-      <div class="tip" style:left="{Math.min(Math.max(x(hover) - 70, 0), width - 150)}px">
+      <div class="tip" style:left="{Math.min(Math.max(x(hover) - 70, 0), width - 160)}px">
         <strong>{label(p.day)}</strong><br />
-        {fmt(p.value)}{#if showCost && p.cost !== null}<br /><span class="muted"
-            >investi {fmt(p.cost)}</span
+        {labels.primary}
+        {fmt(p.primary)}{#if labels.secondary && p.secondary !== null}<br /><span class="muted"
+            >{labels.secondary} {fmt(p.secondary)}</span
           >{/if}
       </div>
     {/if}
@@ -208,6 +235,9 @@
     stroke: var(--border);
     stroke-dasharray: 3 4;
   }
+  .zero {
+    stroke: var(--fg-faint);
+  }
   .line {
     fill: none;
     stroke: var(--gain);
@@ -218,7 +248,7 @@
   .line.down {
     stroke: var(--loss);
   }
-  .cost {
+  .secondary {
     fill: none;
     stroke: var(--fg-muted);
     stroke-width: 1.5;

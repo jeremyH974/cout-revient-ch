@@ -7,6 +7,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Cartes « Évolution » (portefeuille et actif) : courbe reconstituée jour par jour à partir des
+  quantités réellement détenues × prix historiques (Coinbase Exchange, Kraken, CoinGecko ; cache
+  IndexedDB), périodes 1J · 1S · 1M · 3M · 1A · Tout, métriques valeur / latent € / latent % /
+  PRU vs prix, performance de période hors apports, marqueurs d'achats/ventes, export CSV de la
+  série.
+- Exports CSV : positions, opérations normalisées avec PRU après chaque ligne, lots ouverts,
+  historique d'un actif — dans la devise affichée (voir `docs/exports.md`).
 - Devise d'affichage EUR/USD : chaque mouvement converti au taux de référence BCE de son jour
   (Frankfurter, sans clé, cache incrémental inclus dans la sauvegarde) ; prix actuels au dernier
   taux ; bascule dans la barre et les réglages.

@@ -9,7 +9,8 @@
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
-import { fmtDate, fmtEur, fmtPct, fmtPrice, fmtQty } from '../format/fr';
+import { fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty } from '../format/fr';
+import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
 
 export const APP_NAME = 'Coût de revient CH';
@@ -19,8 +20,6 @@ export const DISCLAIMER =
   'gestion : ils ne constituent ni un conseil en investissement, ni un calcul fiscal (la plus-value ' +
   'imposable en France suit la méthode globale de l’article 150 VH bis du CGI).';
 
-/** Devise des montants. Bascule de devise à venir : ne formater les montants que via `Formatter`. */
-const CURRENCY = 'EUR';
 const MASK = '••••';
 const NONE = '—';
 
@@ -100,6 +99,8 @@ export interface ReportModel {
 
 export interface ReportModelOptions {
   discreet: boolean;
+  /** Devise d'affichage des montants (EUR par défaut). */
+  currency?: Currency | undefined;
   /** Instant de génération, ISO 8601. */
   generatedAt: string;
   version: string;
@@ -116,15 +117,15 @@ interface Formatter {
   pct(value: Big | null, sign?: boolean): string;
 }
 
-function createFormatter(discreet: boolean): Formatter {
+function createFormatter(discreet: boolean, currency: Currency): Formatter {
   return {
     money: (value, sign = false) => {
       if (value === null) return NONE;
       if (discreet) return MASK;
-      return fmtEur(value, { sign: sign && !value.eq(ZERO) });
+      return fmtMoney(value, currency, { sign: sign && !value.eq(ZERO) });
     },
     qty: (value) => (value === null ? NONE : discreet ? MASK : fmtQty(value)),
-    price: (value) => (value === null ? NONE : fmtPrice(value)),
+    price: (value) => (value === null ? NONE : fmtPrice(value, currency)),
     pct: (value, sign = true) => (value === null ? NONE : fmtPct(value, { sign })),
   };
 }
@@ -377,7 +378,8 @@ const METHODOLOGY: ReportParagraph[] = [
 ];
 
 export function buildReportModel(report: PortfolioReport, opts: ReportModelOptions): ReportModel {
-  const f = createFormatter(opts.discreet);
+  const currency: Currency = opts.currency ?? 'EUR';
+  const f = createFormatter(opts.discreet, currency);
   const t = report.totals;
   const all = [...report.positions, ...report.stablecoins, ...report.closed, ...report.blocked];
   const period = coveredPeriod(all);
@@ -388,7 +390,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
 
   const facts: ReportFact[] = [
     { label: 'Généré le', value: generated.label },
-    { label: 'Devise', value: CURRENCY },
+    { label: 'Devise', value: currency },
     {
       label: 'Période couverte',
       value: period ? `du ${fmtDate(period.from)} au ${fmtDate(period.to)}` : 'aucune opération',
@@ -500,7 +502,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       version: opts.version,
       generatedAt: opts.generatedAt,
       generatedLabel: generated.label,
-      currency: CURRENCY,
+      currency,
       discreet: opts.discreet,
       dateStamp: generated.stamp,
     },
