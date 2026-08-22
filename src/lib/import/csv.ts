@@ -4,6 +4,8 @@ import Papa from 'papaparse';
 export interface CsvTable {
   header: string[];
   rows: string[][];
+  /** Numéro de ligne (1 = en-tête) de chaque entrée de `rows` dans le fichier d'origine. */
+  lineNumbers: number[];
   delimiter: string;
 }
 
@@ -12,14 +14,22 @@ export function parseCsvText(text: string): CsvTable {
   const result = Papa.parse<string[]>(clean, {
     delimiter: '', // détection automatique (, ; tab |)
     dynamicTyping: false,
-    skipEmptyLines: 'greedy',
+    skipEmptyLines: false,
     header: false,
   });
-  const data = result.data.filter((row) => row.some((cell) => cell.trim() !== ''));
-  const [first, ...rows] = data;
-  return {
-    header: (first ?? []).map((cell) => cell.trim()),
-    rows,
-    delimiter: result.meta.delimiter ?? ',',
-  };
+  const rows: string[][] = [];
+  const lineNumbers: number[] = [];
+  let header: string[] = [];
+  let headerSeen = false;
+  result.data.forEach((row, index) => {
+    if (!row.some((cell) => cell.trim() !== '')) return;
+    if (!headerSeen) {
+      header = row.map((cell) => cell.trim());
+      headerSeen = true;
+      return;
+    }
+    rows.push(row);
+    lineNumbers.push(index + 1);
+  });
+  return { header, rows, lineNumbers, delimiter: result.meta.delimiter ?? ',' };
 }

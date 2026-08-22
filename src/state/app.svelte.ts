@@ -193,16 +193,11 @@ export class AppState {
     const overrides = Object.fromEntries(
       Object.entries(this.state.assetSettings).map(([a, s]) => [a, s.coingeckoId]),
     );
-    const result = await refreshPrices(
-      codes,
-      force ? {} : this.state.priceCache,
-      this.state.assetSettings,
-      {
-        providers: [coingeckoProvider(overrides), coinbaseProvider()],
-        maxAgeMs: PRICE_MAX_AGE_MS,
-        now: nowMs,
-      },
-    );
+    const result = await refreshPrices(codes, this.state.priceCache, this.state.assetSettings, {
+      providers: [coingeckoProvider(overrides), coinbaseProvider()],
+      maxAgeMs: force ? 0 : PRICE_MAX_AGE_MS,
+      now: nowMs,
+    });
     const fresh = Object.fromEntries(
       Object.entries(result.quotes).filter(
         ([, q]) => !q.stale && q.source !== 'manuel' && q.source !== 'parité €',

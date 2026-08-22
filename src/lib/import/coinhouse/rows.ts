@@ -84,7 +84,7 @@ export function parseCoinhouseRows(
   const knownIndexes = new Set(Object.values(columns).filter((i): i is number => i !== null));
 
   table.rows.forEach((raw, i) => {
-    const lineNo = i + 2; // ligne 1 = en-tête
+    const lineNo = table.lineNumbers[i] ?? i + 2;
     const fail = (column: LogicalColumn | null, message: string): void => {
       issues.push({ lineNo, column, message });
     };

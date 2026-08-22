@@ -191,3 +191,70 @@ describe('moteur — cas particuliers', () => {
     expect(s(eth.roi)).toBe('0.375');
   });
 });
+
+describe('moteur — correctifs de revue', () => {
+  it('une position « poussière » garde son latent dans le total global', () => {
+    const report = run(
+      [buy('2026-01-01T10:00:00', 'meme', '1000000', '100')],
+      [price('meme', '0.000000001')],
+    );
+    expect(report.closed[0]?.asset).toBe('meme');
+    expect(report.closed[0]?.dust).toBe(true);
+    expect(s(report.totals.total)).toBe('-99.999');
+    const t = report.totals;
+    expect(s(t.value.plus(t.proceedsTotal).minus(t.investedTotal))).toBe('-99.999');
+  });
+
+  it('un actif bloqué dès sa première opération reste visible', () => {
+    const report = run(
+      [sell('2026-01-02T10:00:00', 'btc', '0.1', '6000')],
+      [price('btc', '60000')],
+    );
+    expect(report.blocked.map((p) => p.asset)).toEqual(['btc']);
+    expect(report.blocked[0]?.history).toHaveLength(1);
+    expect(report.warnings[0]).toMatch(/Historique d'achat manquant/);
+  });
+
+  it('les frais sont attribués à la jambe crypto, une seule fois', () => {
+    const events = [
+      buy('2026-01-01T10:00:00', 'usdc', '1000', '900'),
+      buy('2026-01-02T10:00:00', 'btc', '0.01', '425', 'usdc'),
+    ];
+    (events[1] as TradeEvent).out = { asset: 'usdc', qty: '500' };
+    (events[1] as TradeEvent).fee = {
+      asset: 'usdc',
+      gross: '5',
+      rebate: '0',
+      grossEur: '4.25',
+      rebateEur: '0',
+    };
+    const report = run(events, [price('btc', '90000'), price('usdc', '0.88')]);
+    expect(s(report.positions[0]?.feesEur)).toBe('4.25');
+    expect(s(report.stablecoins[0]?.feesEur)).toBe('0');
+    expect(s(report.totals.feesEur)).toBe('4.25');
+  });
+
+  it('le contrôle de solde ignore les saisies hors Coinhouse', () => {
+    const events: LedgerEvent[] = [
+      buy('2026-01-01T10:00:00', 'btc', '1', '50000'),
+      {
+        ...base(),
+        kind: 'deposit',
+        at: '2026-01-02T10:00:00',
+        scope: 'external',
+        in: { asset: 'btc', qty: '0.5' },
+        costEur: '20000',
+      },
+    ];
+    const report = computePortfolio({
+      events,
+      prices: { btc: price('btc', '60000') },
+      settings: DEFAULT_ENGINE_SETTINGS,
+      balances: [
+        { rowKey: 'r1', asset: 'btc', signedQty: '1', balance: '1', at: '2026-01-01T10:00:00' },
+      ],
+    });
+    expect(s(report.positions[0]?.qty)).toBe('1.5');
+    expect(report.positions[0]?.integrity?.status).toBe('ok');
+  });
+});

@@ -105,3 +105,129 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
   };
 }
+
+// --- Assainissement des entrées (sauvegardes éditées, versions futures) -----------------------
+
+const DECIMAL = /^-?\d+(\.\d+)?$/;
+const NAIVE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const isDecimal = (v: unknown): v is string => typeof v === 'string' && DECIMAL.test(v);
+const isDecimalOrNull = (v: unknown): v is string | null =>
+  v === null || v === undefined || isDecimal(v);
+const decOrNull = (v: unknown): string | null => (isDecimal(v) ? v : null);
+const MANUAL_KINDS = new Set(['buy', 'sell', 'reward', 'deposit', 'withdrawal', 'opening-balance']);
+const QUALIFICATION_KINDS = new Set([
+  'ignore',
+  'reward',
+  'deposit',
+  'withdrawal',
+  'purchase',
+  'sale',
+  'trade',
+]);
+
+function sanitizeRow(key: string, raw: unknown): RawCoinhouseRow | null {
+  if (!isRecord(raw)) return null;
+  const r = raw;
+  if (typeof r['at'] !== 'string' || !NAIVE.test(r['at'])) return null;
+  if (typeof r['type'] !== 'string' || typeof r['asset'] !== 'string' || r['asset'] === '')
+    return null;
+  if (!isDecimal(r['qty'])) return null;
+  for (const c of ['marketPrice', 'valueEur', 'feeAsset', 'feeEur', 'feeRebate', 'balance']) {
+    if (!isDecimalOrNull(r[c])) return null;
+  }
+  return {
+    key,
+    importId: typeof r['importId'] === 'string' ? r['importId'] : '',
+    lineNo: typeof r['lineNo'] === 'number' ? r['lineNo'] : 0,
+    id: typeof r['id'] === 'string' && r['id'] !== '' ? r['id'] : null,
+    at: r['at'],
+    type: r['type'],
+    qty: r['qty'],
+    asset: r['asset'],
+    marketPrice: decOrNull(r['marketPrice']),
+    valueEur: decOrNull(r['valueEur']),
+    feeAsset: decOrNull(r['feeAsset']),
+    feeEur: decOrNull(r['feeEur']),
+    feeRebate: decOrNull(r['feeRebate']),
+    balance: decOrNull(r['balance']),
+    account: typeof r['account'] === 'string' ? r['account'] : '',
+    extra: isRecord(r['extra']) ? (r['extra'] as Record<string, string>) : {},
+  };
+}
+
+function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
+  if (!isRecord(raw)) return null;
+  const m = raw;
+  if (typeof m['kind'] !== 'string' || !MANUAL_KINDS.has(m['kind'])) return null;
+  if (typeof m['at'] !== 'string' || !NAIVE.test(m['at'])) return null;
+  if (typeof m['asset'] !== 'string' || m['asset'] === '' || !isDecimal(m['qty'])) return null;
+  if (!isDecimalOrNull(m['amountEur'])) return null;
+  return {
+    id,
+    at: m['at'],
+    kind: m['kind'] as ManualEvent['kind'],
+    asset: m['asset'],
+    qty: m['qty'],
+    amountEur: decOrNull(m['amountEur']),
+    scope: m['scope'] === 'external' ? 'external' : 'coinhouse',
+    note: typeof m['note'] === 'string' ? m['note'] : '',
+  };
+}
+
+function validQualification(raw: unknown): raw is Qualification {
+  if (!isRecord(raw) || typeof raw['kind'] !== 'string' || !QUALIFICATION_KINDS.has(raw['kind']))
+    return false;
+  return ['fairValueEur', 'costEur', 'proceedsEur', 'valueEur'].every((c) =>
+    isDecimalOrNull(raw[c]),
+  );
+}
+
+/** Écarte les entrées invalides plutôt que de laisser le moteur planter ; renvoie le nombre écarté. */
+export function sanitizeState(state: StoredStateV1): { state: StoredStateV1; dropped: number } {
+  let dropped = 0;
+  const rawRows: Record<RowKey, RawCoinhouseRow> = {};
+  for (const [key, raw] of Object.entries(state.rawRows)) {
+    const row = sanitizeRow(key, raw);
+    if (row) rawRows[key] = row;
+    else dropped++;
+  }
+  const manualEvents: Record<string, ManualEvent> = {};
+  for (const [id, raw] of Object.entries(state.manualEvents)) {
+    const event = sanitizeManual(id, raw);
+    if (event) manualEvents[id] = event;
+    else dropped++;
+  }
+  const qualifications: Record<EventId, Qualification> = {};
+  for (const [id, raw] of Object.entries(state.qualifications)) {
+    if (validQualification(raw)) qualifications[id] = raw;
+    else dropped++;
+  }
+  const priceCache: Record<AssetCode, PriceQuoteInput> = {};
+  for (const [asset, raw] of Object.entries(state.priceCache)) {
+    if (isRecord(raw) && isDecimal(raw['priceEur']) && typeof raw['at'] === 'string') {
+      priceCache[asset] = {
+        asset,
+        priceEur: raw['priceEur'],
+        at: raw['at'],
+        source: typeof raw['source'] === 'string' ? raw['source'] : 'cache',
+        stale: true,
+      };
+    } else dropped++;
+  }
+  const assetSettings: Record<AssetCode, AssetSettings> = {};
+  for (const [asset, raw] of Object.entries(state.assetSettings)) {
+    if (!isRecord(raw)) {
+      dropped++;
+      continue;
+    }
+    assetSettings[asset] = {
+      manualPriceEur: decOrNull(raw['manualPriceEur']),
+      manualPriceAt: typeof raw['manualPriceAt'] === 'string' ? raw['manualPriceAt'] : null,
+      coingeckoId: typeof raw['coingeckoId'] === 'string' ? raw['coingeckoId'] : null,
+    };
+  }
+  return {
+    state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings },
+    dropped,
+  };
+}

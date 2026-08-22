@@ -100,3 +100,31 @@ describe('stockage', () => {
     expect(migrateState({ schemaVersion: 2 }).ok).toBe(false);
   });
 });
+
+describe('assainissement', () => {
+  it('écarte les entrées invalides sans planter', () => {
+    const raw = {
+      schemaVersion: 1,
+      imports: [],
+      rawRows: { ok: row('ok'), bad: null, bad2: { ...row('bad2'), qty: '1,5' } },
+      manualEvents: {
+        m1: {
+          id: 'm1',
+          at: '2026-01-01T10:00:00',
+          kind: 'buy',
+          asset: 'eth',
+          qty: '1',
+          amountEur: 5,
+          scope: 'coinhouse',
+          note: '',
+        },
+      },
+      qualifications: { q1: { kind: 'purchase', costEur: 'abc' } },
+      engineSettings: {},
+      priceCache: { btc: { priceEur: 'abc', at: 'x' } },
+    };
+    const result = migrateState(raw);
+    expect(result.ok && Object.keys(result.state.rawRows)).toEqual(['ok']);
+    expect(result.ok && result.dropped).toBe(5);
+  });
+});

@@ -1,5 +1,5 @@
 /** Boucle chronologique : applique chaque événement aux positions concernées. */
-import { isFiat } from '../assets';
+import { isCashLike, isFiat } from '../assets';
 import { D, ZERO, type Big } from '../money';
 import type { AssetCode, EngineSettings, LedgerEvent, UnqualifiedEvent } from '../types';
 import { PositionState, type Movement } from './position';
@@ -32,6 +32,8 @@ export interface LedgerRun {
   cashIn: Big;
   cashOut: Big;
   subscriptionsEur: Big;
+  /** Quantités des seuls événements de scope 'coinhouse', pour le contrôle de solde. */
+  coinhouseQty: Map<AssetCode, Big>;
   warnings: string[];
 }
 
@@ -63,17 +65,26 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     cashIn: ZERO,
     cashOut: ZERO,
     subscriptionsEur: ZERO,
+    coinhouseQty: new Map(),
     warnings: [],
+  };
+  const track = (event: LedgerEvent, asset: AssetCode, signed: Big): void => {
+    if (event.scope !== 'coinhouse' || isFiat(asset)) return;
+    run.coinhouseQty.set(asset, (run.coinhouseQty.get(asset) ?? ZERO).plus(signed));
   };
 
   for (const event of sortEvents(events)) {
     switch (event.kind) {
       case 'trade': {
+        track(event, event.out.asset, D(event.out.qty).neg());
+        track(event, event.in.asset, D(event.in.qty));
         const value = D(event.valueEur);
         const feeEur = event.fee ? D(event.fee.grossEur).minus(event.fee.rebateEur) : ZERO;
         const rebateEur = event.fee ? D(event.fee.rebateEur) : ZERO;
         const outIsCash = isFiat(event.out.asset);
         const inIsCash = isFiat(event.in.asset);
+        // Les frais vont à la jambe crypto (ou au stablecoin face à l'euro), jamais aux deux.
+        const feeToOut = inIsCash || !isCashLike(event.out.asset);
         if (outIsCash) run.cashIn = run.cashIn.plus(value);
         if (inIsCash) run.cashOut = run.cashOut.plus(value);
         if (!outIsCash) {
@@ -84,8 +95,8 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
             move(event, 'sell', {
               counterAsset: event.in.asset,
               quotePrice: event.quotePrice,
-              feeEur: inIsCash ? feeEur : ZERO,
-              rebateEur: inIsCash ? rebateEur : ZERO,
+              feeEur: feeToOut ? feeEur : ZERO,
+              rebateEur: feeToOut ? rebateEur : ZERO,
             }),
           );
         }
@@ -98,14 +109,16 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
             move(event, 'buy', {
               counterAsset: event.out.asset,
               quotePrice: event.quotePrice,
-              feeEur: outIsCash || !inIsCash ? feeEur : ZERO,
-              rebateEur: outIsCash || !inIsCash ? rebateEur : ZERO,
+              feeEur: !feeToOut ? feeEur : ZERO,
+              rebateEur: !feeToOut ? rebateEur : ZERO,
             }),
           );
         }
         break;
       }
       case 'migration': {
+        track(event, event.out.asset, D(event.out.qty).neg());
+        track(event, event.in.asset, D(event.in.qty));
         const from = pos(event.out.asset);
         const qtyOut = D(event.out.qty);
         const carried = qtyOut.gte(from.qty)
@@ -131,6 +144,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       }
       case 'reward': {
+        track(event, event.in.asset, D(event.in.qty));
         const fair =
           settings.rewardValuation === 'fair-value' && event.fairValueEur
             ? D(event.fairValueEur)
@@ -141,6 +155,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       }
       case 'deposit': {
+        track(event, event.in.asset, D(event.in.qty));
         const cost = event.costEur ? D(event.costEur) : ZERO;
         const warnings = event.costEur
           ? event.warnings
@@ -155,6 +170,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       }
       case 'withdrawal': {
+        track(event, event.out.asset, D(event.out.qty).neg());
         const p = pos(event.out.asset);
         const qty = D(event.out.qty);
         if (event.proceedsEur) {
@@ -176,6 +192,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       }
       case 'opening-balance':
+        track(event, event.in.asset, D(event.in.qty));
         pos(event.in.asset).acquire(
           D(event.in.qty),
           D(event.costEur),
@@ -193,5 +210,6 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
     }
   }
+  for (const state of positions.values()) run.warnings.push(...state.warnings);
   return run;
 }

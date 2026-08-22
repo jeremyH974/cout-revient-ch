@@ -4,6 +4,17 @@ import { emptyState, type StoredStateV1 } from './schema';
 
 export const STORAGE_KEY = 'crch:v1:state';
 
+export const CORRUPT_BACKUP_KEY = `${STORAGE_KEY}.corrupt`;
+
+/** Copie les données illisibles avant qu'une sauvegarde automatique ne les écrase. */
+function preserveCorrupt(storage: Storage, raw: string): void {
+  try {
+    storage.setItem(CORRUPT_BACKUP_KEY, raw);
+  } catch {
+    /* quota : tant pis, l'erreur est déjà signalée */
+  }
+}
+
 export type LoadResult =
   | { status: 'empty'; state: StoredStateV1 }
   | { status: 'ok'; state: StoredStateV1 }
@@ -15,8 +26,10 @@ export function loadState(storage: Storage = localStorage): LoadResult {
   try {
     const migrated = migrateState(JSON.parse(raw));
     if (migrated.ok) return { status: 'ok', state: migrated.state };
+    preserveCorrupt(storage, raw);
     return { status: 'corrupt', state: emptyState(), error: migrated.error, raw };
   } catch (error) {
+    preserveCorrupt(storage, raw);
     return { status: 'corrupt', state: emptyState(), error: String(error), raw };
   }
 }

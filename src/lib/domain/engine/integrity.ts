@@ -27,18 +27,33 @@ interface Row {
 
 const near = (a: Big, b: Big): boolean => a.minus(b).abs().lte(TOLERANCE);
 
-/** Enchaîne les lignes d'une journée depuis `start` ; null si impossible. */
+/** Budget de recherche : les journées ont au plus quelques dizaines de lignes. */
+const MAX_STEPS = 20_000;
+
+/** Enchaîne les lignes d'une journée depuis `start` (recherche avec retour arrière) ; null si impossible. */
 function chainDay(rows: Row[], start: Big): { end: Big; reordered: boolean } | null {
-  const remaining = [...rows];
-  let current = start;
-  let reordered = false;
-  while (remaining.length > 0) {
-    const index = remaining.findIndex((r) => near(r.before, current));
-    if (index === -1) return null;
-    if (index !== 0) reordered = true;
-    current = remaining.splice(index, 1)[0]!.after;
-  }
-  return { end: current, reordered };
+  const n = rows.length;
+  const used: boolean[] = new Array<boolean>(n).fill(false);
+  const order: number[] = [];
+  let steps = 0;
+  const walk = (current: Big, depth: number): Big | null => {
+    if (depth === n) return current;
+    for (let i = 0; i < n; i++) {
+      if (used[i] || !near(rows[i]!.before, current)) continue;
+      if (++steps > MAX_STEPS) return null;
+      used[i] = true;
+      order.push(i);
+      const end = walk(rows[i]!.after, depth + 1);
+      if (end !== null) return end;
+      order.pop();
+      used[i] = false;
+    }
+    return null;
+  };
+  const end = walk(start, 0);
+  if (end === null) return null;
+  const reordered = order.some((index, k) => index !== k);
+  return { end, reordered };
 }
 
 function checkAsset(asset: AssetCode, rows: Row[], finalQty: Big | null): IntegrityResult {
@@ -88,6 +103,12 @@ function checkAsset(asset: AssetCode, rows: Row[], finalQty: Big | null): Integr
     first = false;
   }
   if (base.impliedOpening && !isZero(base.impliedOpening)) {
+    if (finalQty !== null && near(current, finalQty)) {
+      return {
+        ...base,
+        message: `L'export commence avec ${base.impliedOpening.toString()} ${asset} déjà détenu ; un solde d'ouverture le couvre.`,
+      };
+    }
     return {
       ...base,
       status: 'opening-balance-missing',

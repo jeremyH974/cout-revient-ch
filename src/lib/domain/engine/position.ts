@@ -121,6 +121,22 @@ export class PositionState {
         qty = this.qty;
       } else {
         this.blocked = { eventId: m.eventId, at: m.at, deficit: excess };
+        this.history.push({
+          eventId: m.eventId,
+          at: m.at,
+          kind: m.kind,
+          qty: requested.neg(),
+          valueEur: proceeds,
+          unitPrice: isPositive(requested) ? proceeds.div(requested) : null,
+          counterAsset: m.counterAsset,
+          quotePrice: m.quotePrice,
+          feeEur: m.feeEur,
+          rebateEur: m.rebateEur,
+          realized: null,
+          pruAfter: this.pru,
+          qtyAfter: this.qty,
+          warnings: [...warnings, 'Opération bloquée : historique d’achat manquant.'],
+        });
         this.warnings.push(
           `Historique d'achat manquant : cession de ${qty.toString()} ${this.asset} le ${m.at} alors que ${this.qty.toString()} seulement sont détenus.`,
         );

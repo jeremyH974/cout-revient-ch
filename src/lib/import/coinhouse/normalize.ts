@@ -2,7 +2,7 @@
  * Normalisation des lignes brutes Coinhouse en événements du grand livre.
  * Fonction pure, rejouée sur le grand livre complet à chaque chargement.
  */
-import { D, isZero, toDecimalString } from '../../domain/money';
+import { D, ZERO, isZero, toDecimalString, type Big } from '../../domain/money';
 import type {
   EventId,
   LedgerEvent,
@@ -52,28 +52,9 @@ export function normalizeCoinhouseRows(
     groups.set(row.id, group);
   }
 
-  const delistings: RawCoinhouseRow[] = [];
-  const migrations: RawCoinhouseRow[] = [];
-  for (const [id, group] of groups) {
-    const first = group[0]!;
-    const type = normalizeType(first.type);
-    if (type === 'echange') events.push(buildTradeEvent(id, group));
-    else if (type === 'echange delisting' && group.length === 1) delistings.push(first);
-    else if (type === 'migration' && group.length === 1) migrations.push(first);
-    else if (group.length === 1) events.push(buildSingleEvent(first));
-    else
-      events.push(
-        unqualifiedFromRows(`ch:${id}`, group, `Type de transaction inconnu : « ${first.type} ».`),
-      );
-  }
-
-  for (const row of singles) {
-    if (normalizeType(row.type) !== 'abonnement') {
-      events.push(buildSingleEvent(row));
-      continue;
-    }
+  const pushFee = (row: RawCoinhouseRow): void => {
     const amount = D(row.valueEur ?? row.qty).abs();
-    if (isZero(amount)) continue;
+    if (isZero(amount)) return;
     events.push({
       kind: 'fee',
       id: `ch:fee:${row.key}`,
@@ -85,6 +66,26 @@ export function normalizeCoinhouseRows(
       amountEur: toDecimalString(amount),
       label: 'Abonnement Coinhouse',
     });
+  };
+  const delistings: RawCoinhouseRow[] = [];
+  const migrations: RawCoinhouseRow[] = [];
+  for (const [id, group] of groups) {
+    const first = group[0]!;
+    const type = normalizeType(first.type);
+    if (type === 'echange') events.push(buildTradeEvent(id, group));
+    else if (type === 'abonnement') group.forEach(pushFee);
+    else if (type === 'echange delisting' && group.length === 1) delistings.push(first);
+    else if (type === 'migration' && group.length === 1) migrations.push(first);
+    else if (group.length === 1) events.push(buildSingleEvent(first));
+    else
+      events.push(
+        unqualifiedFromRows(`ch:${id}`, group, `Type de transaction inconnu : « ${first.type} ».`),
+      );
+  }
+
+  for (const row of singles) {
+    if (normalizeType(row.type) === 'abonnement') pushFee(row);
+    else events.push(buildSingleEvent(row));
   }
 
   // Delisting + Migration (même compte, 0 à 3 jours après) = migration d'un actif vers un autre.
@@ -92,13 +93,18 @@ export function normalizeCoinhouseRows(
   migrations.sort((a, b) => a.at.localeCompare(b.at));
   const paired = new Set<RowKey>();
   for (const d of delistings) {
-    const m = migrations.find(
+    const candidates = migrations.filter(
       (x) =>
         !paired.has(x.key) &&
         x.account === d.account &&
         x.at >= d.at &&
         daysBetween(d.at, x.at) <= MIGRATION_WINDOW_DAYS,
     );
+    const distance = (x: RawCoinhouseRow): Big =>
+      d.valueEur && x.valueEur ? D(d.valueEur).abs().minus(D(x.valueEur).abs()).abs() : ZERO;
+    const m = candidates.sort(
+      (a, b) => distance(a).cmp(distance(b)) || a.at.localeCompare(b.at),
+    )[0];
     if (!m) {
       events.push(unqualifiedFromRows(`ch:${d.id}`, [d], 'Delisting sans migration associée.'));
       continue;

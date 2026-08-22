@@ -109,6 +109,9 @@ export function detectCoinhouseFormat(header: string[]): FormatDetection {
   };
 }
 
+/** `1 234,5` ou `-0,5` : nombre reformaté par un tableur. */
+const DECIMAL_COMMA = /^-?\d{1,3}(?:[ \u00a0\u202f]\d{3})*,\d+$|^-?\d+,\d+$/;
+
 /** Indices qu'un fichier a été ouvert puis ré-enregistré par un tableur (précision perdue). */
 export function detectExcelMangling(table: CsvTable, columns: ColumnMap): string[] {
   const warnings: string[] = [];
@@ -124,7 +127,7 @@ export function detectExcelMangling(table: CsvTable, columns: ColumnMap): string
   for (const row of table.rows) {
     for (const c of numericColumns) {
       const cell = row[c]?.trim() ?? '';
-      if (/^-?\d+,\d+$/.test(cell)) decimalComma = true;
+      if (DECIMAL_COMMA.test(cell)) decimalComma = true;
       if (/\d[eE][+-]?\d/.test(cell)) scientific = true;
     }
     if (columns.date !== null) {

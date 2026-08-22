@@ -99,13 +99,18 @@ const byValueDesc = (a: PositionReport, b: PositionReport): number =>
 
 export function computePortfolio(input: ComputeInput): PortfolioReport {
   const run = runLedger(input.events, input.settings);
+  // Contrôle de solde : quantités des seuls événements Coinhouse (les saisies « hors Coinhouse » sont exclues).
   const finalQty: Record<AssetCode, string> = {};
-  for (const [asset, state] of run.positions) finalQty[asset] = state.qty.toString();
+  for (const [asset, qty] of run.coinhouseQty) finalQty[asset] = qty.toString();
   const integrity = input.balances ? checkBalances(input.balances, finalQty) : {};
 
   const all: PositionReport[] = [];
   for (const [asset, state] of run.positions) {
-    if (isFiat(asset) || (state.history.length === 0 && state.unqualifiedCount === 0)) continue;
+    if (
+      isFiat(asset) ||
+      (state.history.length === 0 && state.unqualifiedCount === 0 && !state.blocked)
+    )
+      continue;
     all.push(buildPosition(state, input.prices[asset] ?? null, integrity[asset] ?? null));
   }
   all.sort(byValueDesc);
@@ -119,7 +124,8 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
 
   const sumBy = (items: PositionReport[], pick: (p: PositionReport) => Big | null): Big =>
     items.reduce((acc, p) => acc.plus(pick(p) ?? ZERO), ZERO);
-  const priced = open.filter((p) => p.value !== null);
+  // Les positions « poussière » restent valorisées : leur latent (≈ −coût) fait partie du total.
+  const priced = live.filter((p) => p.value !== null);
   const realized = sumBy(live, (p) => p.realized);
   const unrealized = sumBy(priced, (p) => p.unrealized);
   const otherIncome = sumBy(live, (p) => p.otherIncome);
@@ -130,7 +136,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   if (input.settings.includeSubscriptionsInPnl) total = total.minus(run.subscriptionsEur);
   const totals: PortfolioTotals = {
     value,
-    costBasis: sumBy(open, (p) => p.costBasis),
+    costBasis: sumBy(live, (p) => p.costBasis),
     investedTotal,
     proceedsTotal,
     netInvested: investedTotal.minus(proceedsTotal),

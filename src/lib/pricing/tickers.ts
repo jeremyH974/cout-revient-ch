@@ -47,7 +47,7 @@ export const TICKERS: Record<AssetCode, TickerInfo> = {
   eurcv: T('EUR CoinVertible', null, null),
   fet: T('Fetch.ai', 'fetch-ai', 'FET'),
   floki: T('Floki', 'floki', 'FLOKI'),
-  gmx: T('GMX', 'gmx', 'GMX'),
+  gmx: T('GMX', 'gmx', null),
   gno: T('Gnosis', 'gnosis', 'GNO'),
   hype: T('Hyperliquid', 'hyperliquid', 'HYPE'),
   inj: T('Injective', 'injective-protocol', 'INJ'),

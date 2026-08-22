@@ -1,6 +1,6 @@
 /** Export tableur : `;` + BOM UTF-8 + virgule décimale (s'ouvre directement dans Excel FR). */
 import type { PortfolioReport, PositionReport } from '../domain/engine';
-import type { Big } from '../domain/money';
+import { D, type Big } from '../domain/money';
 
 const BOM = '﻿';
 const cell = (value: Big | null | undefined, dp = 8): string =>
@@ -43,7 +43,7 @@ export function positionsToCsv(report: PortfolioReport): string {
       cell(p.qty),
       cell(p.pru, 6),
       cell(p.costBasis, 2),
-      p.price ? cell(p.price.priceEur as unknown as Big | null, 6) : '',
+      p.price ? cell(D(p.price.priceEur), 6) : '',
       cell(p.value, 2),
       cell(p.unrealized, 2),
       p.unrealizedPct ? cell(p.unrealizedPct.times('100'), 2) : '',
