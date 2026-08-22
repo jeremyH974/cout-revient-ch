@@ -36,6 +36,21 @@ transactions.csv`). Sur iPhone : appui long → _Enregistrer dans Fichiers_.
 | **ROI**         | Total ÷ somme de tous vos achats.                                                                                                          |
 | **Net investi** | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                          |
 
+### Rapport PDF
+
+Depuis le portefeuille ou les réglages, « Rapport PDF » ouvre une vue imprimable (`#/report`) et
+génère un PDF A4 (page de garde, synthèse, répartition, positions ouvertes, stablecoins, positions
+clôturées, méthodologie) entièrement dans le navigateur : rien n'est envoyé. Le mode discret masque
+les montants ; « Imprimer / Enregistrer en PDF » est l'alternative sans bibliothèque.
+
+## Devise d'affichage
+
+L'euro est la devise des données Coinhouse. Le bouton **€ / $** affiche tout en dollars en
+convertissant **chaque mouvement au taux de référence BCE de son jour** (et les prix actuels au
+dernier taux connu) : le PRU en dollars reflète le change réel de vos achats, ce qu'une simple
+conversion des totaux ne ferait pas. Taux fournis par l'API ouverte Frankfurter (BCE), mis en cache
+et inclus dans la sauvegarde.
+
 ## Développement
 
 ```bash
