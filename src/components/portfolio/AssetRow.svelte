@@ -15,32 +15,53 @@
   const p = $derived(position);
 </script>
 
-<a class="row" href={router.href({ name: 'asset', asset: p.asset })} role="row">
-  <span class="cell id"
-    ><CoinBadge asset={p.asset} /><span class="names"
-      ><strong>{p.asset.toUpperCase()}</strong><span class="muted small">{assetName(p.asset)}</span
+<!--
+  Une position = un lien (vers la fiche de l'actif) dans une liste : les rôles de tableau ne
+  conviennent pas à des lignes cliquables. Les libellés invisibles (« Prix », « Valeur »…) donnent
+  aux lecteurs d'écran ce que l'en-tête visuel fournit sur grand écran.
+-->
+<li class="item">
+  <a class="row" href={router.href({ name: 'asset', asset: p.asset })}>
+    <span class="cell id"
+      ><CoinBadge asset={p.asset} /><span class="names"
+        ><strong>{p.asset.toUpperCase()}</strong><span class="muted small"
+          >{assetName(p.asset)}</span
+        ></span
       ></span
-    ></span
-  >
-  <span class="cell qty"
-    ><Qty value={p.qty} abbreviate /><span class="muted small"
-      >PRU {p.pru ? price(p.pru) : '—'}</span
-    ></span
-  >
-  <span class="cell price muted">{p.price ? price(p.price.priceEur) : '—'}</span>
-  <span class="cell value"><Money value={p.value} compact /></span>
-  <span class="cell latent"
-    ><Money value={p.unrealized} sign colored compact /><span class="small"
-      ><Pct value={p.unrealizedPct} /> <span class="muted">vs PRU</span></span
-    ></span
-  >
-  <span class="cell realized"><Money value={p.realized} sign colored compact /></span>
-  <span class="cell total"><Money value={p.total} sign colored strong compact /></span>
-  {#if p.status === 'no-price'}<span class="flag warn">Prix indisponible</span>{/if}
-  {#if p.status === 'needs-qualification'}<span class="flag warn">À qualifier</span>{/if}
-</a>
+    >
+    <span class="cell qty"
+      ><span class="sr-only">Quantité</span><Qty value={p.qty} abbreviate /><span
+        class="muted small">PRU {p.pru ? price(p.pru) : '—'}</span
+      ></span
+    >
+    <span class="cell price muted"
+      ><span class="sr-only">Prix</span>{p.price ? price(p.price.priceEur) : '—'}</span
+    >
+    <span class="cell value"
+      ><span class="sr-only">Valeur</span><Money value={p.value} compact /></span
+    >
+    <span class="cell latent"
+      ><span class="sr-only">Latent</span><Money value={p.unrealized} sign colored compact /><span
+        class="small"><Pct value={p.unrealizedPct} /> <span class="muted">vs PRU</span></span
+      ></span
+    >
+    <span class="cell realized"
+      ><span class="label">Réalisé</span><Money value={p.realized} sign colored compact /></span
+    >
+    <span class="cell total"
+      ><span class="sr-only">Total</span><Money value={p.total} sign colored strong compact /></span
+    >
+    {#if p.status === 'no-price'}<span class="flag warn">Prix indisponible</span>{/if}
+    {#if p.status === 'needs-qualification'}<span class="flag warn">À qualifier</span>{/if}
+  </a>
+</li>
 
 <style>
+  .item {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
   .row {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -98,8 +119,7 @@
     text-align: right;
     align-items: flex-end;
   }
-  .realized::before {
-    content: 'réalisé';
+  .label {
     font-size: var(--fs-xs);
     color: var(--fg-muted);
   }
@@ -117,6 +137,14 @@
     font-size: var(--fs-xs);
     color: var(--warn);
   }
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
   @media (min-width: 768px) {
     .row {
       grid-template-columns: 2fr 1.4fr 1fr 1fr 1.2fr 1fr 1fr;
@@ -133,8 +161,14 @@
       text-align: right;
       align-items: flex-end;
     }
-    .realized::before {
-      content: none;
+    /* Sur grand écran l'en-tête de colonnes suffit visuellement : le libellé reste lu à l'oral. */
+    .label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
     }
     .total {
       font-size: var(--fs-md);

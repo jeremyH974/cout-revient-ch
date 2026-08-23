@@ -56,27 +56,33 @@
   </label>
 </div>
 
-<section class="list" role="table" aria-label="Positions">
-  <div class="head" role="row">
+<section class="list">
+  <div class="head" aria-hidden="true">
     <span>Actif</span><span>Quantité · PRU</span><span>Prix</span><span>Valeur</span><span
       >Latent</span
     ><span>Réalisé</span><span>Total</span>
   </div>
-  {#each positions as p (p.asset)}
-    <AssetRow position={p} />
+  {#if positions.length > 0}
+    <ul class="rows" aria-label="Positions">
+      {#each positions as p (p.asset)}
+        <AssetRow position={p} />
+      {/each}
+    </ul>
   {:else}
     <p class="empty muted">Aucune position ouverte{query ? ' pour cette recherche' : ''}.</p>
-  {/each}
+  {/if}
 </section>
 
 {#if stablecoins.length > 0}
   <section class="list">
-    <h2 class="section">
+    <h2 class="section" id="stablecoins-title">
       Stablecoins <span class="muted small">— cash en attente, valorisé au cours de l'euro</span>
     </h2>
-    {#each stablecoins as p (p.asset)}
-      <AssetRow position={p} />
-    {/each}
+    <ul class="rows" aria-labelledby="stablecoins-title">
+      {#each stablecoins as p (p.asset)}
+        <AssetRow position={p} />
+      {/each}
+    </ul>
   </section>
 {/if}
 
@@ -154,6 +160,11 @@
   }
   .list {
     margin: 0 0 var(--space-3);
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
   .head {
     display: none;

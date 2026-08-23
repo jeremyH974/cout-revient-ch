@@ -14,6 +14,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- Accessibilité : la liste des positions est une vraie liste de liens (plus de rôles de tableau
+  incorrects sur des liens), avec des libellés lus par les lecteurs d'écran (quantité, prix, valeur,
+  latent, réalisé, total) ; l'en-tête visuel de colonnes est décoratif.
 - Logos des cryptos : chargement immédiat (plus de `loading="lazy"`, qui laissait les badges vides
   dans un onglet masqué) et un réessai automatique en contournant les caches avant de retomber sur
   les initiales ; les échecs restants sont listés dans le diagnostic copiable (URL et statut HTTP)
