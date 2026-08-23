@@ -90,6 +90,17 @@
     « Contre-valeur (EUR) » de la ligne crypto est en réalité en USDC dans l'export). Les USDC sont
     suivis comme une ligne à part : leur gain ou perte est l'effet de change euro/dollar.
   </p>
+  <h2>Importer d'autres plateformes (Koinly / Waltio)</h2>
+  <p>
+    Un CSV au format « Koinly Universal » ou l'export interne Koinly (<em
+      >Transactions → Bulk edit → Export</em
+    >, lu aussi par Waltio) s'importe depuis cet écran, dans un compte dédié à choisir ou à créer.
+    Un retrait et un dépôt du même actif entre deux de vos comptes sont appariés automatiquement
+    (jusqu'à 72 h d'écart) : le coût d'acquisition voyage vers le dépôt, sans plus-value fantôme ;
+    corrigez ou forcez un appariement depuis <strong>Comptes</strong>.
+    <strong>Réglages → « Format Koinly / Waltio (CSV) »</strong> exporte à l'inverse toutes vos opérations
+    dans ce même format, pour un autre outil.
+  </p>
   <h2>Qu'est-ce que l'espace Trading (Hyperliquid) ?</h2>
   <p>
     Un second espace, séparé du PRU : collez une <strong>adresse publique</strong> Hyperliquid

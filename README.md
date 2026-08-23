@@ -33,6 +33,10 @@ transactions.csv`). Sur iPhone : appui long → _Enregistrer dans Fichiers_.
 5. Importez-le dans l'application. Vous pouvez ré-importer un nouvel export à tout moment : les
    opérations déjà connues sont ignorées.
 
+**Une autre plateforme** (Kraken, Binance, Ledger…) s'importe via un CSV au format Koinly/Waltio
+dans un compte dédié, avec appariement automatique des virements entre vos comptes ; détails dans
+[docs/pivot-import.md](docs/pivot-import.md).
+
 ## Ce que l'outil calcule
 
 | Indicateur      | Définition                                                                                                                                 |

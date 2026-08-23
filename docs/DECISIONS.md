@@ -187,3 +187,77 @@
     plutôt que sommés dans la mauvaise devise. La courbe d'équité du tableau de bord vient de la
     réponse `portfolio` de la plateforme (persistée à la synchronisation, convertie au taux BCE de
     chaque jour) : l'application ne fabrique pas d'historique qu'elle n'a pas.
+
+24. **Import « format pivot » : deux en-têtes Koinly acceptés, valeurs recalculées par les règles
+    de l'app, jamais une estimation silencieuse** (23/08/2026, proposition v2 § 3 bis, remplace
+    P17). Plutôt qu'un importeur natif par plateforme (Kraken, Coinbase, Bitvavo, Revolut, Ledger
+    Live…) — chantier sans fin, et un risque : une clé d'exchange stockée dans le site
+    (docs/ROADMAP.md § 5) — l'app lit le format que Koinly documente publiquement pour tout import
+    externe, le CSV « Custom CSV Universal », et l'export que produit Koinly lui-même (Transactions
+    → Bulk edit → Export), que Waltio lit aussi directement. Un membre qui utilise déjà un outil
+    fiscal (Koinly, ou Waltio via son import Koinly) récupère ainsi ses autres plateformes sans
+    qu'aucune clé d'exchange n'entre dans ce site. Les deux formats convergent vers la même ligne
+    brute (`src/lib/import/pivot/detect.ts`, `rows.ts`) ; les colonnes propres à l'export interne
+    (ID, Type, wallet ids…) sont reconnues mais ignorées, jamais signalées comme « inconnues ».
+
+    Comme pour l'export Coinhouse (décision n° 4), la contre-valeur EUR n'est jamais celle que le
+    fichier pourrait suggérer implicitement : elle est recalculée par les mêmes règles que le reste
+    de l'app (jambe EUR directe, stables et USD au taux BCE du jour, décision n° 18) ; la colonne
+    `Net Worth` du fichier n'est utilisée qu'en dernier recours, pour un échange crypto↔crypto sans
+    jambe cash, avec un avertissement affiché — jamais silencieusement. Sans contre-valeur sûre
+    (taux BCE manquant à cette date, devise non gérée), la ligne part dans le flux « à qualifier »
+    existant plutôt que d'afficher un chiffre inventé. Le dédoublonnage se fait par hachage du
+    contenu métier de la ligne (`rows.ts`, FNV-1a), pas par `TxHash` seul : le TxHash est facultatif
+    dans les deux formats et une même transaction on-chain peut légitimement produire plusieurs
+    lignes ; deux lignes réellement identiques dans un même fichier restent deux opérations
+    distinctes (suffixe `#n` déterministe). Les lignes 100 % fiat (EUR, USD, GBP, CHF sans jambe
+    crypto) sont ignorées, faute de modèle de trésorerie fiat pour ce format — sauf une sortie
+    explicitement étiquetée frais (« cost », « fee », « tax »…), qui devient un événement `fee` à
+    part entière. Assumé en v1 : le JSON d'activités Ghostfolio et le XLSX propriétaire de Waltio
+    (distinct du fichier Koinly qu'il sait aussi lire) restent hors périmètre ; GBP et CHF sont
+    reconnus comme fiat mais non convertibles (aucun taux BCE dans la chaîne de prix, décision
+    n° 18) — une ligne dans ces devises part à qualifier plutôt que d'être ignorée à tort. Détail
+    complet des deux formats et des sources : docs/pivot-import.md.
+
+25. **Virements internes appariés entre comptes : fenêtre et tolérance propres à l'app (pas celles,
+    différentes, de Koinly), coût transporté en entier, rien n'est persisté** (23/08/2026,
+    proposition v2 § 3 bis). Un retrait sans produit renseigné (`proceedsEur: null`) et un dépôt
+    sans coût renseigné (`costEur: null`) du même actif, dans deux comptes différents, sont
+    candidats à l'appariement (`src/lib/domain/transfers.ts`) : la sortie se fait au coût (réalisé
+    nul) et la totalité du coût de la cession devient le coût d'acquisition du dépôt — jamais une
+    vente, jamais un gain fantôme, dans la même logique que les cessions déjà traitées au coût
+    (migrations, décision n° 8). Critères retenus, appariement glouton et déterministe (Δt
+    croissant, puis écart de quantité, puis identifiants) : même actif, comptes différents, dépôt
+    reçu entre 2 h avant le retrait (décalage d'horloge entre deux plateformes indépendantes) et
+    72 h après (confirmation on-chain puis traitement plateforme), écart de quantité ≤ max(2 %,
+    0,000001) du montant retiré (frais réseau).
+
+    Koinly documente des critères pour sa propre fusion automatique de virements — même actif,
+    ≤ 12 h, retrait strictement avant dépôt, écart ≤ ~20 % — mais ce mécanisme s'applique à des
+    mouvements déjà internes à un seul compte Koinly ; l'aide Koinly signale en outre un changement
+    du traitement du coût du virement au 16/12/2024, signe que ce n'est pas un repère stable. Notre
+    importeur pivot reçoit des lignes brutes indépendantes, potentiellement issues de deux
+    fichiers/comptes distincts de l'app, sans marqueur « ceci est un virement » auquel se fier : la
+    fenêtre et la tolérance sont donc un choix propre à l'app, pas une reprise du chiffre Koinly —
+    plus large côté « après » (72 h plutôt que 12 h, pour couvrir un export/import manuel en plus de
+    la confirmation on-chain), plus stricte côté quantité (2 % plutôt que ~20 %, pour éviter
+    d'apparier deux mouvements seulement coïncidents), et seule l'app tolère un dépôt horodaté avant
+    son retrait (décalage d'horloge entre deux plateformes que Koinly, interne à un seul produit,
+    n'a pas à gérer). Le principe du coût transporté en entier, lui, rejoint ce que Koinly documente
+    depuis son changement de fin 2024 (le frais de virement augmente le coût moyen du lot transféré
+    plutôt que de s'ajouter comme un investissement séparé) : une convergence indépendante, pas une
+    copie.
+
+    Le moteur (`engine/compute.ts`) diffère l'application d'un dépôt apparié tant que le coût de son
+    retrait n'est pas connu (`pendingTransfers`/`deferredDeposits`), pour encaisser un dépôt
+    horodaté avant son retrait sans casser l'ordre chronologique du grand livre consolidé ; la vue
+    par compte (`computePortfolioByAccount`) ne peut pas rejouer ce report puisque chaque compte y
+    est un grand livre autonome — elle calcule d'abord le run consolidé, puis estampille le coût
+    obtenu sur le dépôt (`costEur` ordinaire, lien retiré) avant de rejouer chaque compte
+    séparément. Rien de cet appariement n'est persisté : recalculé à chaque chargement à partir des
+    événements et de `transferOverrides` (délier une paire avec `'none'`, ou en forcer une
+    manuellement depuis l'écran Comptes) — une correction du critère automatique s'applique donc
+    immédiatement, sans ré-import. Assumé : au-delà de la fenêtre ou de la tolérance, un retrait ou
+    un dépôt reste seul (candidat « orphelin », signalé dans Comptes et en auto-vérification) et se
+    comporte comme avant cette décision — cession au coût (réalisé nul) ou dépôt à coût 0 € —
+    jusqu'à correction manuelle.

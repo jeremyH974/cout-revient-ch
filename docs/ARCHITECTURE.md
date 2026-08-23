@@ -27,7 +27,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (boucle chronologique), `engine/aggregate.ts` (`computePortfolio` : rapport consolidé sur tout le
   grand livre ; `computePortfolioByAccount` : le même grand livre groupé par `accountId`, un rapport
   — donc un PRU — par compte, le contrôle de solde n'étant transmis qu'au compte Coinhouse),
-  `engine/integrity.ts` (colonne Solde).
+  `engine/integrity.ts` (colonne Solde), `transfers.ts` (virements internes appariés entre comptes,
+  coût transporté vers le dépôt, jamais persisté, docs/DECISIONS.md n° 25).
 - `src/lib/domain/trading` — second moteur pur (même contrainte : aucun import Svelte/DOM, seule
   dépendance big.js), vocabulaire volontairement distinct de l'Investissement (jamais de PRU ici).
   `types.ts` (`Execution` : fill spot ou perp ; `FundingPayment` ; `CashFlow` ; `OpenPosition` ;
@@ -35,7 +36,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   frais, funding, net = réalisé − frais perps + funding, dépôts nets, P&L latent, équité, et
   réconciliation `accountValue ≈ Σ flux + Σ closedPnl − Σ frais perps + Σ funding + latent` —
   auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
-  plusieurs comptes, docs/DECISIONS.md n° 22).
+  plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (grille mensuelle du P&L réalisé net
+  par jour de clôture, carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte`).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
@@ -45,6 +47,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   runtime champ par champ sur chaque réponse (`api-types.ts`), normalisation vers `domain/trading` et,
   en option (`spotAsInvestment`), vers des `TradeEvent` de l'Investissement (`normalize.ts`). Détail
   complet : docs/hyperliquid-import.md, docs/DECISIONS.md n° 22.
+- `src/lib/import/pivot` — import CSV « pivot » (CSV Universal Koinly, ou export interne Koinly lu
+  par Waltio) dans des comptes `kind: 'csv'` de l'espace Investissement : détection de format
+  (`detect.ts`), lignes brutes dédoublonnées par hachage de contenu (`rows.ts`), normalisation vers
+  `LedgerEvent[]` avec les mêmes règles de valeur EUR que le reste de l'app (`events.ts`). Détail
+  complet : docs/pivot-import.md, docs/DECISIONS.md n° 24.
+- `src/lib/export` — CSV tableur pour tableur FR (`csv-export.ts`) et CSV pivot Koinly/Waltio
+  réimportable ailleurs, valeurs EUR de l'app (`koinly-csv.ts`, docs/pivot-import.md).
 - `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé), Coinbase (par
   actif), Kraken (groupé), Hyperliquid (mids USDC : HYPE, PURR et tokens spot Hyperliquid) et
   DefiLlama (filet de sécurité, par identifiant CoinGecko) ; cascade avec cache et prix manuels.

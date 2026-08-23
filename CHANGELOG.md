@@ -47,6 +47,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   spot vers le PRU de l'espace Investissement, contrepartie USDC convertie en euros au taux BCE du
   jour.
 - Moteur Trading séparé du moteur d'investissement (`domain/trading`), jamais mêlé au PRU.
+- Import CSV « pivot » (CSV Universal Koinly, ou export interne Koinly lu aussi par Waltio) dans des
+  comptes dédiés de l'espace Investissement, multi-plateformes : dédoublonnage par hachage de
+  contenu, ré-import idempotent, écran « À qualifier » partagé avec l'import Coinhouse.
+- Virements internes appariés entre deux comptes (retrait sans produit et dépôt sans coût du même
+  actif, fenêtre 72 h, écart ≤ frais réseau) : le coût d'acquisition voyage vers le dépôt, aucune
+  plus-value fantôme ; correction manuelle et auto-vérification dans l'écran Comptes.
+- Export « Format Koinly / Waltio (CSV) » (Réglages) : toutes les opérations de l'app au format CSV
+  Universal, valeurs EUR déjà calculées, réimportable dans un autre outil.
+- Calendrier de P&L dans Trading → Statistiques : P&L réalisé net par jour de clôture, navigation
+  par mois, jour cliquable vers ses trades.
 
 ### Changed
 
