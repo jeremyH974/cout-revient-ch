@@ -89,4 +89,37 @@
       font-size: var(--fs-sm);
     }
   }
+
+  /* ≥ 1024 px : rail de navigation à gauche (Material 3 / HIG), la gouttière est réservée par
+     `.app { padding-left }` dans App.svelte. Mêmes destinations, jamais la couleur seule. */
+  @media (min-width: 1024px) {
+    .nav {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: auto;
+      width: 96px;
+      grid-template-columns: 1fr;
+      grid-auto-rows: min-content;
+      align-content: start;
+      justify-content: stretch;
+      gap: var(--space-2);
+      padding: var(--space-5) var(--space-2) var(--space-4);
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+    }
+    a {
+      flex-direction: column;
+      gap: 4px;
+      min-height: 64px;
+      justify-content: center;
+      padding: var(--space-2);
+      font-size: var(--fs-xs);
+      border-radius: var(--radius-sm);
+    }
+    a.active {
+      background: color-mix(in srgb, currentColor 12%, transparent);
+    }
+  }
 </style>
