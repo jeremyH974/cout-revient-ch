@@ -15,6 +15,7 @@
   import { fmtPct } from '$lib/format/fr';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Money from '../../components/shared/Money.svelte';
+  import PnlCalendar from '../../components/trading/PnlCalendar.svelte';
   import TradingTabs from '../../components/trading/TradingTabs.svelte';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
@@ -175,6 +176,11 @@
         : compté{stats.excluded > 1 ? 's' : ''} dans les taux de réussite, pas dans les montants.
       </p>
     {/if}
+  </section>
+
+  <section class="card">
+    <h2>Calendrier de P&L</h2>
+    <PnlCalendar trips={app.roundTrips} />
   </section>
 
   <section class="card">
