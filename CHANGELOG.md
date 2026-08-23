@@ -12,8 +12,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   commit, ajout de CodeQL, de la revue des dépendances sur les pull requests et du Scorecard OpenSSF
   (badges dans le README).
 
+### Fixed
+
+- Logos des cryptos : chargement immédiat (plus de `loading="lazy"`, qui laissait les badges vides
+  dans un onglet masqué) et un réessai automatique en contournant les caches avant de retomber sur
+  les initiales ; les échecs restants sont listés dans le diagnostic copiable (URL et statut HTTP)
+  pour identifier les blocages côté navigateur.
+
 ### Added
 
+- Aide et retours : section dans les réglages (et sur la carte d'échec d'import) avec un diagnostic
+  copiable qui ne contient ni montant ni quantité (version, commit déployé, navigateur, colonnes des
+  fichiers importés, compteurs, statuts d'intégrité, libellés d'opérations inconnus) et un lien vers
+  les gabarits de signalement GitHub (fichier non reconnu, bug, idée) ; `SECURITY.md`.
 - Graphiques : couleur par zone — vert en gain, rouge en perte, avec bascule exacte au
   croisement de la référence (zéro pour le latent, capital investi pour la valeur, PRU pour le
   prix) ; PRU tracé en trait plein avec étiquette et zone gain/perte entre prix et PRU ; légende ;

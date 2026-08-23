@@ -75,3 +75,30 @@ export function iconUrl(asset: AssetCode): string | null {
   const code = asset.toLowerCase();
   return KNOWN_ICONS.has(code) ? `${import.meta.env.BASE_URL}icons/${code}.svg` : null;
 }
+
+export interface IconFailure {
+  asset: string;
+  url: string;
+  /** Résultat d'une requête de contrôle (statut HTTP et type), ou l'erreur réseau. */
+  probe: string;
+}
+
+/** Logos qui n'ont pas pu être affichés (après réessai) : lu par le diagnostic copiable. */
+export const iconFailures: IconFailure[] = [];
+
+export function recordIconFailure(asset: string, url: string): void {
+  if (iconFailures.some((f) => f.asset === asset)) return;
+  const failure: IconFailure = { asset, url, probe: 'en cours' };
+  iconFailures.push(failure);
+  if (typeof fetch !== 'function') {
+    failure.probe = 'fetch indisponible';
+    return;
+  }
+  fetch(url, { cache: 'no-store' })
+    .then((r) => {
+      failure.probe = `${r.status} ${r.headers.get('content-type') ?? 'sans type'}`;
+    })
+    .catch((error: unknown) => {
+      failure.probe = `erreur réseau : ${error instanceof Error ? error.message : String(error)}`;
+    });
+}
