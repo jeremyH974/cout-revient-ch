@@ -5,6 +5,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Changed
+
+- Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
+  Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
+  trading et statistiques de performance. La version 1.0.0 reste la version publiée d'ici là.
+
+## [1.0.0] - 2026-08-23
+
 ### Security
 
 - Données d'exemple entièrement synthétiques : le jeu de démonstration (et fixture de tests) est
