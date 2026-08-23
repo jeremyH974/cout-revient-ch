@@ -19,9 +19,21 @@ import {
   type PortfolioReport,
   type PriceQuoteInput,
 } from '$lib/domain/engine';
+import { D, toDecimalString, type Big } from '$lib/domain/money';
+import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
+import {
+  emptyJournalEntry,
+  isEmptyJournalEntry,
+  journaledTrips,
+  type JournalEntry,
+  type JournaledTrip,
+  type ManualTrade,
+} from '$lib/domain/trading/journal';
+import { buildRoundTrips } from '$lib/domain/trading/round-trips';
 import {
   COINHOUSE_ACCOUNT_ID,
   MANUAL_ACCOUNT_ID,
+  MANUAL_TRADING_ACCOUNT_ID,
   type Account,
   type AccountId,
   type AssetCode,
@@ -34,6 +46,12 @@ import {
 import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
+import { normalizeAddress } from '$lib/import/hyperliquid/api-types';
+import { createHlClient, type HlClient } from '$lib/import/hyperliquid/client';
+import { DEMO_HL_ACCOUNT_ID, emptyHlAccountData, hlAccountId } from '$lib/import/hyperliquid/data';
+import { fixtureClient, type HlFixture } from '$lib/import/hyperliquid/fixture-client';
+import { normalizeHlAccount, type NormalizedHlAccount } from '$lib/import/hyperliquid/normalize';
+import { syncAccount, type SyncProgress } from '$lib/import/hyperliquid/sync';
 import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
@@ -48,6 +66,7 @@ import {
   type FolderPermission,
 } from '$lib/storage/backup-folder';
 import { requestPersistentStorage } from '$lib/storage/local-storage';
+import type { TradingCheckInput } from '$lib/support/self-check';
 import {
   clearPersistedState,
   loadPersistedState,
@@ -77,6 +96,17 @@ export interface FolderBackupStatus {
   permission: FolderPermission | null;
   lastWriteAt: string | null;
   error: string | null;
+}
+
+/** Synchronisation d'un compte Hyperliquid (adresse publique). */
+export interface SyncStatus {
+  syncing: boolean;
+  progress: SyncProgress | null;
+  error: string | null;
+  /** Une borne de pages a été atteinte : relancer pour continuer. */
+  truncated: boolean;
+  /** Éléments nouveaux (fills + funding + mouvements) à la dernière synchronisation. */
+  added: number;
 }
 
 export interface QualifiedSummary {
@@ -115,6 +145,9 @@ export class AppState {
   });
   private folderHandle: FileSystemDirectoryHandle | null = null;
   private folderTimer: ReturnType<typeof setTimeout> | null = null;
+  syncStatus = $state<Record<AccountId, SyncStatus>>({});
+  /** Client `info` Hyperliquid ; en démonstration, un client hors ligne servant la fixture. */
+  private hlClient: HlClient | null = null;
 
   events = $derived.by((): LedgerEvent[] => {
     const { events } = normalizeCoinhouseRows(
@@ -123,7 +156,134 @@ export class AppState {
     );
     for (const manual of Object.values(this.state.manualEvents))
       events.push(manualToLedgerEvent(manual));
+    // Spot Hyperliquid routé vers l'Investissement (option « traiter le spot comme de l'investissement »).
+    for (const normalized of Object.values(this.hlNormalized))
+      events.push(...normalized.investEvents);
     return events;
+  });
+
+  /** Comptes Hyperliquid déclarés (espace Trading). */
+  hlAccounts = $derived.by((): Account[] =>
+    Object.values(this.state.accounts)
+      .filter((a) => a.kind === 'hyperliquid')
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+  );
+
+  /** Bruts Hyperliquid normalisés par compte (exécutions, funding, flux, instantané, spot → invest). */
+  hlNormalized = $derived.by((): Record<AccountId, NormalizedHlAccount> => {
+    const usd = rateLookup(this.state.fx.rates.USD ?? {});
+    const result: Record<AccountId, NormalizedHlAccount> = {};
+    for (const account of this.hlAccounts) {
+      const data = this.state.hyperliquid.accounts[account.id];
+      if (!data) continue;
+      result[account.id] = normalizeHlAccount(data, {
+        accountId: account.id,
+        spotPairs: this.state.hyperliquid.spotPairs,
+        spotAsInvestment: account.spotAsInvestment === true,
+        eurUsdRate: (day) => usd.rate(day),
+      });
+    }
+    return result;
+  });
+
+  /** Rapport Trading (USDC) : équités sommées, P&L séparés de l'Investissement. */
+  tradingReport = $derived.by((): TradingReport =>
+    computeTrading(Object.values(this.hlNormalized).map((n) => n.trading)),
+  );
+
+  hasTrading = $derived(this.hlAccounts.length > 0);
+
+  /**
+   * Aller-retours (perps reconstruits par compte + trades manuels) fusionnés avec le journal,
+   * du plus récent au plus ancien.
+   */
+  roundTrips = $derived.by((): JournaledTrip[] => {
+    const trips = Object.values(this.hlNormalized).flatMap((n) =>
+      buildRoundTrips(n.trading.executions, n.trading.funding),
+    );
+    return journaledTrips(trips, Object.values(this.state.manualTrades), this.state.journal);
+  });
+
+  tripOf(id: string): JournaledTrip | undefined {
+    return this.roundTrips.find((t) => t.trip.id === id);
+  }
+
+  journalOf(tradeId: string): JournalEntry {
+    return this.state.journal[tradeId] ?? emptyJournalEntry(tradeId);
+  }
+
+  /** Enregistre (ou efface, si vide) l'entrée de journal d'un trade. */
+  saveJournal(entry: JournalEntry): void {
+    const next = { ...this.state.journal };
+    if (isEmptyJournalEntry(entry)) delete next[entry.tradeId];
+    else next[entry.tradeId] = entry;
+    this.state.journal = next;
+  }
+
+  addManualTrade(input: Omit<ManualTrade, 'id'>): ManualTrade {
+    this.exitDemo();
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const trade: ManualTrade = { ...input, id };
+    this.state.manualTrades = { ...this.state.manualTrades, [id]: trade };
+    return trade;
+  }
+
+  updateManualTrade(trade: ManualTrade): void {
+    if (!this.state.manualTrades[trade.id]) return;
+    this.state.manualTrades = { ...this.state.manualTrades, [trade.id]: trade };
+  }
+
+  /** Supprime un trade manuel et l'entrée de journal qui lui est rattachée. */
+  removeManualTrade(id: string): void {
+    const { [id]: _removed, ...rest } = this.state.manualTrades;
+    void _removed;
+    this.state.manualTrades = rest;
+    const journalId = `man:${id}`;
+    if (journalId in this.state.journal) {
+      const { [journalId]: _entry, ...journal } = this.state.journal;
+      void _entry;
+      this.state.journal = journal;
+    }
+  }
+
+  /** Entrée « trading » des auto-vérifications (`runSelfChecks`) : un élément par compte. */
+  tradingChecks = $derived.by((): TradingCheckInput[] =>
+    this.hlAccounts.map((account) => {
+      const report = this.tradingReport.accounts.find((a) => a.accountId === account.id);
+      const normalized = this.hlNormalized[account.id];
+      return {
+        label: account.label,
+        gap: report?.reconciliation?.gap ?? null,
+        lastSyncAt: this.state.hyperliquid.accounts[account.id]?.lastSyncAt ?? null,
+        syncError: this.syncStatus[account.id]?.error ?? null,
+        unknownLedgerTypes: normalized?.unknownLedgerTypes ?? [],
+        fxMissing: normalized?.fxMissing ?? 0,
+      };
+    }),
+  );
+
+  /**
+   * Montant USDC (assimilé USD, décision n° 18) → devise d'affichage : identité en dollars,
+   * division par le taux BCE EUR→USD du jour en euros ; `null` tant qu'aucun taux n'est connu.
+   */
+  usdcToDisplay = $derived.by((): ((value: Big) => Big | null) => {
+    if (this.currency === 'USD') return (value) => value;
+    const convert = toEurConverter(this.state.fx.rates.USD ?? {}, nowIso().slice(0, 10));
+    return (value) => {
+      const converted = convert(toDecimalString(value));
+      return converted === null ? null : D(converted);
+    };
+  });
+
+  /** Montant d'une devise de cotation (USDC/USD ou EUR) → devise d'affichage. */
+  quoteToDisplay = $derived.by((): ((quote: string, value: Big) => Big | null) => {
+    const usdc = this.usdcToDisplay;
+    const usdRate = rateLookup(this.state.fx.rates.USD ?? {}).rate(nowIso().slice(0, 10));
+    return (quote, value) => {
+      if (quote.toUpperCase() === 'EUR')
+        return this.currency === 'EUR' ? value : usdRate === null ? null : value.times(usdRate);
+      return usdc(value);
+    };
   });
 
   /** Cotations utilisées par le moteur : prix manuels > cotations fraîches > cache. */
@@ -177,7 +337,10 @@ export class AppState {
   );
 
   hasData = $derived(
-    Object.keys(this.state.rawRows).length > 0 || Object.keys(this.state.manualEvents).length > 0,
+    Object.keys(this.state.rawRows).length > 0 ||
+      Object.keys(this.state.manualEvents).length > 0 ||
+      Object.keys(this.state.manualTrades).length > 0 ||
+      this.hlAccounts.length > 0,
   );
 
   /**
@@ -205,11 +368,26 @@ export class AppState {
         createdAt: '',
       });
     }
+    const manualTrades = Object.values(this.state.manualTrades);
+    if (manualTrades.some((t) => t.accountId === MANUAL_TRADING_ACCOUNT_ID)) {
+      list.push({
+        id: MANUAL_TRADING_ACCOUNT_ID,
+        kind: 'manual',
+        label: 'Trades manuels',
+        space: 'trading',
+        createdAt: '',
+      });
+    }
     const declared = Object.values(this.state.accounts).sort((a, b) =>
       a.createdAt.localeCompare(b.createdAt),
     );
     return [...list, ...declared];
   });
+
+  /** Comptes de l'espace Investissement (dont les comptes Hyperliquid routés en `spotAsInvestment`). */
+  investAccounts = $derived.by((): Account[] =>
+    this.accounts.filter((a) => a.space === 'invest' || a.spotAsInvestment === true),
+  );
 
   accountLabels = $derived.by((): Record<AccountId, string> =>
     Object.fromEntries(this.accounts.map((a) => [a.id, a.label])),
@@ -227,8 +405,11 @@ export class AppState {
 
   /** Nombre de saisies rattachées à un compte (un compte utilisé ne se supprime pas). */
   manualCountOf(accountId: AccountId): number {
-    return Object.values(this.state.manualEvents).filter((m) => manualAccountId(m) === accountId)
-      .length;
+    return (
+      Object.values(this.state.manualEvents).filter((m) => manualAccountId(m) === accountId)
+        .length +
+      Object.values(this.state.manualTrades).filter((t) => t.accountId === accountId).length
+    );
   }
 
   addAccount(input: Pick<Account, 'label' | 'space'> & Partial<Pick<Account, 'kind'>>): Account {
@@ -258,11 +439,118 @@ export class AppState {
     const { [id]: _removed, ...rest } = this.state.accounts;
     void _removed;
     this.state.accounts = rest;
+    if (id in this.state.hyperliquid.accounts) {
+      const { [id]: _data, ...others } = this.state.hyperliquid.accounts;
+      void _data;
+      this.state.hyperliquid = { ...this.state.hyperliquid, accounts: others };
+      const { [id]: _status, ...statuses } = this.syncStatus;
+      void _status;
+      this.syncStatus = statuses;
+    }
     return true;
   }
-  heldAssets = $derived.by((): AssetCode[] =>
-    [...this.report.positions, ...this.report.stablecoins].map((p) => p.asset),
-  );
+
+  // --- Hyperliquid (lecture seule, adresse publique) --------------------------------------------
+
+  addHyperliquidAccount(input: {
+    address: string;
+    label: string;
+    spotAsInvestment: boolean;
+  }): { ok: true; account: Account } | { ok: false; error: string } {
+    const address = normalizeAddress(input.address);
+    if (!address)
+      return {
+        ok: false,
+        error: 'Adresse invalide : attendu « 0x » suivi de 40 caractères hexadécimaux.',
+      };
+    const id = hlAccountId(address);
+    if (this.state.accounts[id] && !this.state.ui.demoMode)
+      return { ok: false, error: 'Cette adresse est déjà suivie.' };
+    this.exitDemo();
+    const short = `${address.slice(0, 6)}…${address.slice(-4)}`;
+    const account: Account = {
+      id,
+      kind: 'hyperliquid',
+      label: input.label.trim().slice(0, 60) || `Hyperliquid ${short}`,
+      space: 'trading',
+      address,
+      createdAt: nowIso(),
+    };
+    if (input.spotAsInvestment) account.spotAsInvestment = true;
+    this.state.accounts = { ...this.state.accounts, [id]: account };
+    this.state.hyperliquid = {
+      ...this.state.hyperliquid,
+      accounts: { ...this.state.hyperliquid.accounts, [id]: emptyHlAccountData(address) },
+    };
+    void requestPersistentStorage();
+    return { ok: true, account };
+  }
+
+  setSpotAsInvestment(id: AccountId, value: boolean): void {
+    const existing = this.state.accounts[id];
+    if (!existing) return;
+    const { spotAsInvestment: _flag, ...rest } = existing;
+    void _flag;
+    this.state.accounts = {
+      ...this.state.accounts,
+      [id]: value ? { ...rest, spotAsInvestment: true } : rest,
+    };
+  }
+
+  private client(): HlClient {
+    this.hlClient ??= createHlClient();
+    return this.hlClient;
+  }
+
+  /** Synchronise un compte Hyperliquid (ou tous) : fills, funding, mouvements, instantané. */
+  async syncHyperliquid(accountId?: AccountId): Promise<void> {
+    const targets = this.hlAccounts.filter((a) => !accountId || a.id === accountId);
+    await Promise.all(targets.map((a) => this.syncOne(a)));
+    // Taux BCE EUR→USD : conversion des montants USDC à l'affichage et du spot → investissement.
+    if (targets.length > 0) void this.ensureRates('USD');
+  }
+
+  private async syncOne(account: Account): Promise<void> {
+    const id = account.id;
+    if (this.syncStatus[id]?.syncing) return;
+    const status = (patch: Partial<SyncStatus>): void => {
+      const current = this.syncStatus[id] ?? {
+        syncing: false,
+        progress: null,
+        error: null,
+        truncated: false,
+        added: 0,
+      };
+      this.syncStatus = { ...this.syncStatus, [id]: { ...current, ...patch } };
+    };
+    status({ syncing: true, progress: null, error: null });
+    const previous = this.state.hyperliquid.accounts[id];
+    const result = await syncAccount(
+      this.client(),
+      previous ? $state.snapshot(previous) : null,
+      account.address ?? '',
+      { now: nowMs, onProgress: (progress) => status({ progress }) },
+    );
+    this.state.hyperliquid = {
+      accounts: { ...this.state.hyperliquid.accounts, [id]: result.data },
+      spotPairs: { ...this.state.hyperliquid.spotPairs, ...result.spotPairs },
+    };
+    status({
+      syncing: false,
+      progress: null,
+      error: result.error,
+      truncated: result.truncated,
+      added: result.added.fills + result.added.funding + result.added.ledger,
+    });
+  }
+
+  heldAssets = $derived.by((): AssetCode[] => {
+    const assets = [...this.report.positions, ...this.report.stablecoins].map((p) => p.asset);
+    for (const account of this.tradingReport.accounts)
+      for (const holding of account.snapshot?.spot ?? [])
+        if (!assets.includes(holding.asset)) assets.push(holding.asset);
+    return assets;
+  });
 
   /**
    * Charge l'état persisté (IndexedDB, sinon miroir localStorage) et installe la persistance
@@ -345,7 +633,9 @@ export class AppState {
     if (snapshot.ui.demoMode) return;
     if (
       Object.keys(snapshot.rawRows).length === 0 &&
-      Object.keys(snapshot.manualEvents).length === 0
+      Object.keys(snapshot.manualEvents).length === 0 &&
+      Object.keys(snapshot.manualTrades).length === 0 &&
+      Object.keys(snapshot.hyperliquid.accounts).length === 0
     )
       return;
     if (this.folderTimer) clearTimeout(this.folderTimer);
@@ -415,20 +705,55 @@ export class AppState {
   async loadDemo(): Promise<ReturnType<typeof importCoinhouseCsv>> {
     const { default: text } = await import('../../tests/fixtures/coinhouse/export-demo.csv?raw');
     const result = this.importCsv(text, 'export-demo.csv');
-    if (result.ok) this.setUi({ demoMode: true });
+    if (result.ok) {
+      this.setUi({ demoMode: true });
+      await this.loadDemoTrading();
+    }
     return result;
+  }
+
+  /**
+   * Volet Trading de la démo : un compte Hyperliquid fictif (adresse de la fixture synthétique,
+   * `npm run fixture:hl`) synchronisé hors ligne par le même code que la vraie API.
+   */
+  private async loadDemoTrading(): Promise<void> {
+    const { default: text } = await import('../../tests/fixtures/hyperliquid/demo.json?raw');
+    const fixture = JSON.parse(text) as HlFixture;
+    const address = normalizeAddress(fixture.address);
+    if (!address) return;
+    const id = hlAccountId(address);
+    const account: Account = {
+      id,
+      kind: 'hyperliquid',
+      label: 'Hyperliquid (démo)',
+      space: 'trading',
+      address,
+      createdAt: nowIso(),
+    };
+    this.state.accounts = { ...this.state.accounts, [id]: account };
+    this.state.hyperliquid = {
+      ...this.state.hyperliquid,
+      accounts: { ...this.state.hyperliquid.accounts, [id]: emptyHlAccountData(address) },
+    };
+    this.hlClient = fixtureClient(fixture);
+    await this.syncHyperliquid(id);
   }
 
   /** Quitte la démo : efface les données fictives en conservant les préférences d'affichage. */
   exitDemo(): void {
     if (!this.state.ui.demoMode) return;
     const ui: UiSettings = { ...this.state.ui, demoMode: false, lastBackupAt: null };
-    // Les comptes déclarés pendant la démo sont ceux de l'utilisateur, pas des données d'exemple
-    // (le jeu de démonstration n'en contient aucun) : ils survivent à la sortie de la démo.
+    // Les comptes déclarés pendant la démo sont ceux de l'utilisateur, pas des données d'exemple :
+    // ils survivent à la sortie de la démo, avec leurs bruts ; seul le compte Hyperliquid de la
+    // démo (adresse fictive) disparaît.
     const accounts = $state.snapshot(this.state.accounts);
+    delete accounts[DEMO_HL_ACCOUNT_ID];
+    const hyperliquid = $state.snapshot(this.state.hyperliquid);
+    delete hyperliquid.accounts[DEMO_HL_ACCOUNT_ID];
     this.clearAll();
     this.state.ui = ui;
     this.state.accounts = accounts;
+    this.state.hyperliquid = hyperliquid;
   }
 
   importCsv(text: string, fileName: string, now = nowMs()): ReturnType<typeof importCoinhouseCsv> {
@@ -616,6 +941,8 @@ export class AppState {
     void clearPersistedState();
     this.state = emptyState();
     this.liveQuotes = {};
+    this.syncStatus = {};
+    this.hlClient = null;
   }
 }
 

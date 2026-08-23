@@ -8,6 +8,11 @@ export type Route =
   | { name: 'add' }
   | { name: 'report' }
   | { name: 'trading' }
+  | { name: 'trades' }
+  | { name: 'trade'; id: string }
+  | { name: 'tradeAdd' }
+  | { name: 'tradeStats' }
+  | { name: 'fills' }
   | { name: 'more' }
   | { name: 'accounts' }
   | { name: 'settings' }
@@ -19,6 +24,27 @@ export type RouteName = Route['name'];
 
 const assetRoute = (code: string | undefined): Route =>
   code ? { name: 'asset', asset: decodeURIComponent(code).toLowerCase() } : { name: 'portfolio' };
+
+/** Sous-chemins de l'espace Trading : `#/trading`, `#/trading/trades`, `#/trading/trade/<id>`… */
+function parseTrading(sub: string | undefined, arg: string | undefined): Route {
+  switch (sub) {
+    case undefined:
+    case '':
+      return { name: 'trading' };
+    case 'trades':
+      return { name: 'trades' };
+    case 'trade':
+      return arg ? { name: 'trade', id: decodeURIComponent(arg) } : { name: 'trades' };
+    case 'add':
+      return { name: 'tradeAdd' };
+    case 'stats':
+      return { name: 'tradeStats' };
+    case 'fills':
+      return { name: 'fills' };
+    default:
+      return { name: 'trading' };
+  }
+}
 
 /** Sous-chemins de l'espace Investissement : `#/invest`, `#/invest/asset/btc`, `#/invest/import`… */
 function parseInvest(sub: string | undefined, arg: string | undefined): Route {
@@ -55,7 +81,7 @@ export function parseHash(hash: string): Route {
     case 'invest':
       return parseInvest(second, third);
     case 'trading':
-      return { name: 'trading' };
+      return parseTrading(second, third);
     case 'more':
       return { name: 'more' };
     case 'accounts':
@@ -100,6 +126,16 @@ export function toHash(route: Route): string {
       return '#/invest/add';
     case 'report':
       return '#/invest/report';
+    case 'trades':
+      return '#/trading/trades';
+    case 'trade':
+      return `#/trading/trade/${encodeURIComponent(route.id)}`;
+    case 'tradeAdd':
+      return '#/trading/add';
+    case 'tradeStats':
+      return '#/trading/stats';
+    case 'fills':
+      return '#/trading/fills';
     default:
       return `#/${route.name}`;
   }

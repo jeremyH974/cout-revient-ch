@@ -2,6 +2,9 @@
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
+import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
+import { emptyHlState, type HlState } from '../import/hyperliquid/data';
+import { sanitizeHlState } from '../import/hyperliquid/sanitize';
 import {
   DEFAULT_ENGINE_SETTINGS,
   type Account,
@@ -73,6 +76,12 @@ export interface StoredStateV1 {
   assetSettings: Record<AssetCode, AssetSettings>;
   /** Comptes déclarés par l'utilisateur (les comptes implicites `ch:main` / `man:default` n'y sont pas). */
   accounts: Record<AccountId, Account>;
+  /** Bruts Hyperliquid par compte (fills, funding, grand livre, instantané) et paires spot. */
+  hyperliquid: HlState;
+  /** Journal de trading : une entrée par trade (aller-retour reconstruit ou trade manuel). */
+  journal: Record<string, JournalEntry>;
+  /** Trades saisis à la main (plateformes sans API) ; le P&L est calculé, jamais stocké. */
+  manualTrades: Record<string, ManualTrade>;
   engineSettings: EngineSettings;
   priceCache: Record<AssetCode, PriceQuoteInput>;
   /** Taux de change BCE mis en cache (EUR → devises d'affichage). */
@@ -105,6 +114,9 @@ export function emptyState(): StoredStateV1 {
     taxAnnotations: {},
     assetSettings: {},
     accounts: {},
+    hyperliquid: emptyHlState(),
+    journal: {},
+    manualTrades: {},
     engineSettings: { ...DEFAULT_ENGINE_SETTINGS },
     priceCache: {},
     fx: { ...EMPTY_FX_CACHE, rates: {}, updatedAt: {} },
@@ -138,6 +150,11 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     taxAnnotations: isRecord(state.taxAnnotations) ? state.taxAnnotations : {},
     assetSettings: isRecord(state.assetSettings) ? state.assetSettings : {},
     accounts: isRecord(state.accounts) ? state.accounts : {},
+    hyperliquid: isRecord(state.hyperliquid)
+      ? { ...empty.hyperliquid, ...state.hyperliquid }
+      : empty.hyperliquid,
+    journal: isRecord(state.journal) ? state.journal : {},
+    manualTrades: isRecord(state.manualTrades) ? state.manualTrades : {},
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
     fx: isRecord(state.fx) ? { ...empty.fx, ...state.fx } : empty.fx,
   };
@@ -215,6 +232,67 @@ function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
 }
 
 const ACCOUNT_ID = /^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$/;
+
+// --- Journal de trading et trades manuels (P21) -----------------------------------------------
+
+const textOrEmpty = (v: unknown, maxLength: number): string =>
+  typeof v === 'string' ? v.slice(0, maxLength) : '';
+const RATINGS = new Set([1, 2, 3, 4, 5]);
+
+function sanitizePlan(raw: unknown): TradePlan | null {
+  if (!isRecord(raw)) return null;
+  const plan: TradePlan = {
+    entry: decOrNull(raw['entry']),
+    stop: decOrNull(raw['stop']),
+    target: decOrNull(raw['target']),
+    risk: decOrNull(raw['risk']),
+  };
+  return plan.entry === null && plan.stop === null && plan.target === null && plan.risk === null
+    ? null
+    : plan;
+}
+
+function sanitizeJournalEntry(tradeId: string, raw: unknown): JournalEntry | null {
+  if (!isRecord(raw) || tradeId === '' || tradeId.length > 200) return null;
+  return {
+    tradeId,
+    thesis: textOrEmpty(raw['thesis'], 4000),
+    review: textOrEmpty(raw['review'], 4000),
+    setup:
+      typeof raw['setup'] === 'string' && raw['setup'] !== '' ? raw['setup'].slice(0, 60) : null,
+    tags: textList(raw['tags']) ?? [],
+    mistakes: textList(raw['mistakes']) ?? [],
+    rating: RATINGS.has(raw['rating'] as number) ? (raw['rating'] as JournalEntry['rating']) : null,
+    plan: sanitizePlan(raw['plan']),
+  };
+}
+
+const DIRECTIONS = new Set(['long', 'short']);
+const QUOTES = new Set(['USD', 'EUR']);
+
+function sanitizeManualTrade(id: string, raw: unknown): ManualTrade | null {
+  if (!isRecord(raw)) return null;
+  if (typeof raw['symbol'] !== 'string' || raw['symbol'].trim() === '') return null;
+  if (typeof raw['direction'] !== 'string' || !DIRECTIONS.has(raw['direction'])) return null;
+  if (typeof raw['accountId'] !== 'string' || !ACCOUNT_ID.test(raw['accountId'])) return null;
+  if (typeof raw['openedAt'] !== 'string' || !NAIVE.test(raw['openedAt'])) return null;
+  if (!isDecimal(raw['qty']) || !isDecimal(raw['entryPrice'])) return null;
+  const closedAt =
+    typeof raw['closedAt'] === 'string' && NAIVE.test(raw['closedAt']) ? raw['closedAt'] : null;
+  return {
+    id,
+    accountId: raw['accountId'],
+    symbol: raw['symbol'].trim().slice(0, 20),
+    direction: raw['direction'] as ManualTrade['direction'],
+    qty: raw['qty'],
+    entryPrice: raw['entryPrice'],
+    exitPrice: decOrNull(raw['exitPrice']),
+    openedAt: raw['openedAt'],
+    closedAt,
+    fees: decOrNull(raw['fees']) ?? '0',
+    quote: QUOTES.has(raw['quote'] as string) ? (raw['quote'] as ManualTrade['quote']) : 'USD',
+  };
+}
 const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
 
@@ -336,6 +414,20 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     if (account) accounts[id] = account;
     else dropped++;
   }
+  const hl = sanitizeHlState(state.hyperliquid);
+  dropped += hl.dropped;
+  const journal: Record<string, JournalEntry> = {};
+  for (const [tradeId, raw] of Object.entries(state.journal)) {
+    const entry = sanitizeJournalEntry(tradeId, raw);
+    if (entry) journal[tradeId] = entry;
+    else dropped++;
+  }
+  const manualTrades: Record<string, ManualTrade> = {};
+  for (const [id, raw] of Object.entries(state.manualTrades)) {
+    const trade = sanitizeManualTrade(id, raw);
+    if (trade) manualTrades[id] = trade;
+    else dropped++;
+  }
   const fxRates: FxCache['rates'] = {};
   for (const [currency, raw] of Object.entries(state.fx.rates)) {
     if (!isRecord(raw)) continue;
@@ -373,6 +465,9 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       priceCache,
       assetSettings,
       accounts,
+      hyperliquid: hl.state,
+      journal,
+      manualTrades,
       fx,
     },
     dropped,

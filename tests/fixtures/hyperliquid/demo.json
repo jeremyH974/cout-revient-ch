@@ -1,0 +1,4172 @@
+{
+ "address": "0x000000000000000000000000000000000000d3a0",
+ "userFillsByTime": [
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1498",
+   "sz": "1000.0",
+   "side": "B",
+   "time": 1772964000000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0xc7c2544c48975184cb5d6ef1fa8b798de93e848edede2739a0c1d2e261a9ed90",
+   "oid": 500220000001,
+   "crossed": true,
+   "fee": "0.7",
+   "tid": 900450001000,
+   "feeToken": "PURR",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1535",
+   "sz": "800.0",
+   "side": "B",
+   "time": 1774179000000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x79a868de58f3a74cd215acb43b6198dd627cd3d5ee54aae95a4c31220091bfc6",
+   "oid": 500220000002,
+   "crossed": false,
+   "fee": "0.56",
+   "tid": 900450001001,
+   "feeToken": "PURR",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "27.302",
+   "sz": "5.0",
+   "side": "A",
+   "time": 1775815200000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0xd277d067c3d3e8a34781304b6471c9738ceb32653b47bc5cc4846a866086f2e0",
+   "oid": 500220000003,
+   "crossed": true,
+   "fee": "0.095557",
+   "tid": 900450001002,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1634",
+   "sz": "719.496",
+   "side": "A",
+   "time": 1776243600000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0x99c8d0c6ebbf95031796a96a430e61ac62be14f9442749ae613a006bc5c82726",
+   "oid": 500220000004,
+   "crossed": false,
+   "fee": "0.082296",
+   "tid": 900450001003,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "28.682",
+   "sz": "3.5",
+   "side": "B",
+   "time": 1777388400000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x17d3253ea304ee616f1d414076ef8410b72c921a441a8bd08471f9b3307befc4",
+   "oid": 500220000005,
+   "crossed": true,
+   "fee": "0.00245",
+   "tid": 900450001004,
+   "feeToken": "HYPE",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1648",
+   "sz": "550.0",
+   "side": "B",
+   "time": 1777989600000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x63d1c05497c0f5e245d8cf640746b4fb97da7cb6fa71e22038a3d7bb63219f70",
+   "oid": 500220000006,
+   "crossed": false,
+   "fee": "0.385",
+   "tid": 900450001005,
+   "feeToken": "PURR",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "28.42",
+   "sz": "9.248775",
+   "side": "A",
+   "time": 1779274800000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0xb2bb927013eaa912ed69a578172d403854eef945e7c17b038780b6629e1317c2",
+   "oid": 500220000007,
+   "crossed": true,
+   "fee": "0.183995",
+   "tid": 900450001006,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1727",
+   "sz": "814.4295",
+   "side": "A",
+   "time": 1780308000000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0xce0f9abb93af10cee2f63d572a7d9dee847f9620239c7aa2a777db9fd650b14a",
+   "oid": 500220000008,
+   "crossed": false,
+   "fee": "0.098456",
+   "tid": 900450001007,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "28.702",
+   "sz": "3.0",
+   "side": "B",
+   "time": 1781101800000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x1415252e03ea60062a4e266551cf69c00a557a1d6519a93874161c435afeb0ae",
+   "oid": 500220000009,
+   "crossed": true,
+   "fee": "0.0021",
+   "tid": 900450001008,
+   "feeToken": "HYPE",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1812",
+   "sz": "600.0",
+   "side": "B",
+   "time": 1782403200000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x5d6ad28151fffd4347fcfb073fef4e1732ba1df32c3782080edab061b15e9ff2",
+   "oid": 500220000010,
+   "crossed": true,
+   "fee": "0.42",
+   "tid": 900450001009,
+   "feeToken": "PURR",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "30.436",
+   "sz": "4.89867",
+   "side": "A",
+   "time": 1783245600000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0xd4e80e2c550bd173d1ba5442793cc8646a8bca38a4d56b35ed0a531e8df7c58e",
+   "oid": 500220000011,
+   "crossed": false,
+   "fee": "0.104367",
+   "tid": 900450001010,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1849",
+   "sz": "424.20285",
+   "side": "A",
+   "time": 1784552400000,
+   "startPosition": "0.0",
+   "dir": "Sell",
+   "closedPnl": "0.0",
+   "hash": "0xe32dd8a9642f7797f5764f53abb31c472b33ee57c5eecda76d8f18caa88e82fb",
+   "oid": 500220000012,
+   "crossed": true,
+   "fee": "0.054905",
+   "tid": 900450001011,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "62000.0",
+   "sz": "0.05",
+   "side": "B",
+   "time": 1785574800000,
+   "startPosition": "0.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xfd2f513ba489528c72b2e0d8bb4a85c31d6350bae35056c019eddd33790b42cd",
+   "oid": 500220000000,
+   "crossed": true,
+   "fee": "1.445",
+   "tid": 900450001012,
+   "feeToken": "USDC",
+   "builderFee": "0.05",
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "62300.0",
+   "sz": "0.05",
+   "side": "B",
+   "time": 1785603600000,
+   "startPosition": "0.05",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xd1a6a0e702094f108edd039fa4c5d1acd318b3c154e0e58bcd99f999f55054b3",
+   "oid": 500220000000,
+   "crossed": false,
+   "fee": "0.46725",
+   "tid": 900450001013,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "62800.0",
+   "sz": "0.05",
+   "side": "B",
+   "time": 1785661200000,
+   "startPosition": "0.1",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xa4f47dec1253a523390d5021cecf14f10ed71fa9d222ddb2c015a490de424e27",
+   "oid": 500220000000,
+   "crossed": true,
+   "fee": "1.413",
+   "tid": 900450001014,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "63200.0",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785718800000,
+   "startPosition": "0.15",
+   "dir": "Close Long",
+   "closedPnl": "8.333333",
+   "hash": "0x3d2c0805f4a5b06e2837b99d7e6a9ac9241a26c94302c22b34750375e4af80a8",
+   "oid": 500220000013,
+   "crossed": true,
+   "fee": "0.2844",
+   "tid": 900450001015,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "63372.7",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785726000000,
+   "startPosition": "0.14",
+   "dir": "Close Long",
+   "closedPnl": "10.060333",
+   "hash": "0xd5e96621f0b13df395b6cf2f42212b6795477c019107ffc94c8648fada6db474",
+   "oid": 500220000014,
+   "crossed": true,
+   "fee": "0.285177",
+   "tid": 900450001016,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "63545.5",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785733200000,
+   "startPosition": "0.13",
+   "dir": "Close Long",
+   "closedPnl": "11.788333",
+   "hash": "0xd835d0ca3074e9446a66bf9082125accd7e2eadac51fc8efbc7c768ec441be43",
+   "oid": 500220000015,
+   "crossed": false,
+   "fee": "0.095318",
+   "tid": 900450001017,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "63718.2",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785740400000,
+   "startPosition": "0.12",
+   "dir": "Close Long",
+   "closedPnl": "13.515333",
+   "hash": "0x92283963881b3d866b4f53b89f2dcc586e4af9d1722db027e757026285d5cb72",
+   "oid": 500220000016,
+   "crossed": true,
+   "fee": "0.286732",
+   "tid": 900450001018,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "63890.9",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785747600000,
+   "startPosition": "0.11",
+   "dir": "Close Long",
+   "closedPnl": "15.242333",
+   "hash": "0x415db69bde2174b1b2e78a56bd4ddab28126ed0db4beb20efc8dc6e138ec3701",
+   "oid": 500220000017,
+   "crossed": true,
+   "fee": "0.287509",
+   "tid": 900450001019,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64063.6",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785754800000,
+   "startPosition": "0.1",
+   "dir": "Close Long",
+   "closedPnl": "16.969333",
+   "hash": "0xba06d615a8716ffee7bad9306a4fc1ca616604941e6e4a514508d8dee9ce0e41",
+   "oid": 500220000018,
+   "crossed": false,
+   "fee": "0.096095",
+   "tid": 900450001020,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64236.4",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785762000000,
+   "startPosition": "0.09",
+   "dir": "Close Long",
+   "closedPnl": "18.697333",
+   "hash": "0xe16faf364fff86ea39298044f672fcc4ffc996a7e8eea2bec8ef9258061de662",
+   "oid": 500220000019,
+   "crossed": true,
+   "fee": "0.289064",
+   "tid": 900450001021,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64409.1",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785769200000,
+   "startPosition": "0.08",
+   "dir": "Close Long",
+   "closedPnl": "20.424333",
+   "hash": "0x35a901d716201fb75b792eb7795380dcdeb32549349c740a7068ff897e66f365",
+   "oid": 500220000020,
+   "crossed": true,
+   "fee": "0.289841",
+   "tid": 900450001022,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64581.8",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785776400000,
+   "startPosition": "0.07",
+   "dir": "Close Long",
+   "closedPnl": "22.151333",
+   "hash": "0x32fc378afbb0f3c77f5a843615710ba2a2493143042ddbd36a9eb4032ffd13a3",
+   "oid": 500220000021,
+   "crossed": false,
+   "fee": "0.096873",
+   "tid": 900450001023,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64754.5",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785783600000,
+   "startPosition": "0.06",
+   "dir": "Close Long",
+   "closedPnl": "23.878333",
+   "hash": "0x56ee48c1015202d14c0cf22c4042c7c42ca619c8e8b971814516775378684018",
+   "oid": 500220000022,
+   "crossed": true,
+   "fee": "0.291395",
+   "tid": 900450001024,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "64927.3",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785790800000,
+   "startPosition": "0.05",
+   "dir": "Close Long",
+   "closedPnl": "25.606333",
+   "hash": "0xfcc2b39c800d9774433ebe198a2d9acfaf207bb30889a9c6e19d95cef8cad147",
+   "oid": 500220000023,
+   "crossed": true,
+   "fee": "0.292173",
+   "tid": 900450001025,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "65100.0",
+   "sz": "0.01",
+   "side": "A",
+   "time": 1785798000000,
+   "startPosition": "0.04",
+   "dir": "Close Long",
+   "closedPnl": "27.333333",
+   "hash": "0x7cabef90c6da6e07bb955cf7a1fbf50905a67641ee74f078964fd436a7cafdde",
+   "oid": 500220000024,
+   "crossed": false,
+   "fee": "0.09765",
+   "tid": 900450001026,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "BTC",
+   "px": "65900.0",
+   "sz": "0.03",
+   "side": "A",
+   "time": 1785831300000,
+   "startPosition": "0.03",
+   "dir": "Close Long",
+   "closedPnl": "106.0",
+   "hash": "0x962520ee416afb6d1ce0e1fa58fd1c7a786e37860f47f0f11a4835eda474e19f",
+   "oid": 500220000025,
+   "crossed": false,
+   "fee": "-0.05931",
+   "tid": 900450001027,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2300.0",
+   "sz": "0.5",
+   "side": "A",
+   "time": 1785920400000,
+   "startPosition": "0.0",
+   "dir": "Open Short",
+   "closedPnl": "0.0",
+   "hash": "0x3b336d3e78ac09fe35dc4fc035f707cd997ea31333ba421a6d83d44b6d015197",
+   "oid": 500220000026,
+   "crossed": true,
+   "fee": "0.5175",
+   "tid": 900450001028,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2320.0",
+   "sz": "0.4",
+   "side": "A",
+   "time": 1785934800000,
+   "startPosition": "-0.5",
+   "dir": "Open Short",
+   "closedPnl": "0.0",
+   "hash": "0x8e825a85949e7c3704d939463e85a8941f431832b95948ee67dd934834b9918b",
+   "oid": 500220000027,
+   "crossed": false,
+   "fee": "-0.02784",
+   "tid": 900450001029,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "@107",
+   "px": "31.511",
+   "sz": "2.2",
+   "side": "B",
+   "time": 1785945600000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x9549f7dc29db5a62a7b5be010ab6386e482ed7df16851578d9fc1fb4a1c223e8",
+   "oid": 500220000028,
+   "crossed": false,
+   "fee": "0.00154",
+   "tid": 900450001030,
+   "feeToken": "HYPE",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2340.0",
+   "sz": "0.3",
+   "side": "A",
+   "time": 1785949200000,
+   "startPosition": "-0.9",
+   "dir": "Open Short",
+   "closedPnl": "0.0",
+   "hash": "0x81be3ad2ece2f4e78ee4dbcc151c0b00e53a649388537534331e13b61ad20967",
+   "oid": 500220000029,
+   "crossed": true,
+   "fee": "0.3159",
+   "tid": 900450001031,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2400.0",
+   "sz": "2.0",
+   "side": "B",
+   "time": 1786017600000,
+   "startPosition": "-1.2",
+   "dir": "Short > Long",
+   "closedPnl": "-100.0",
+   "hash": "0x1c35ed197658597918e7c2ffde916ae45715810b4b3bea909f549e3042ef3666",
+   "oid": 500220000030,
+   "crossed": true,
+   "fee": "2.16",
+   "tid": 900450001032,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2390.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786024800000,
+   "startPosition": "0.8",
+   "dir": "Close Long",
+   "closedPnl": "-0.9",
+   "hash": "0x7a9df9a44a773608dc5733c1209b2d5f5b409b2bb5d760b554e9cefa5c13c6eb",
+   "oid": 500220000031,
+   "crossed": true,
+   "fee": "0.096795",
+   "tid": 900450001033,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2380.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786030200000,
+   "startPosition": "0.71",
+   "dir": "Close Long",
+   "closedPnl": "-1.8",
+   "hash": "0xb6552280770e2131f749e13945e488ee2b2d997daf1e1c8f560fc01d152006ff",
+   "oid": 500220000032,
+   "crossed": false,
+   "fee": "0.03213",
+   "tid": 900450001034,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2375.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786035600000,
+   "startPosition": "0.62",
+   "dir": "Close Long",
+   "closedPnl": "-2.25",
+   "hash": "0xeb133e66dae608af738c88f08ceb3b538202d92e515a25a9257eaa41fdc51b9e",
+   "oid": 500220000033,
+   "crossed": true,
+   "fee": "0.096188",
+   "tid": 900450001035,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2365.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786041000000,
+   "startPosition": "0.53",
+   "dir": "Close Long",
+   "closedPnl": "-3.15",
+   "hash": "0x408e232e739a70cf1a678e161bc44329be4abcb8c05a27701cb7965af2ff7cd1",
+   "oid": 500220000034,
+   "crossed": false,
+   "fee": "0.031928",
+   "tid": 900450001036,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2360.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786046400000,
+   "startPosition": "0.44",
+   "dir": "Close Long",
+   "closedPnl": "-3.6",
+   "hash": "0x14c9afd7d0783e3ad9fd1d329cddff430a97d19ff532ae6440d8d16c502395ac",
+   "oid": 500220000035,
+   "crossed": true,
+   "fee": "0.09558",
+   "tid": 900450001037,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2355.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786051800000,
+   "startPosition": "0.35",
+   "dir": "Close Long",
+   "closedPnl": "-4.05",
+   "hash": "0x8196d8efcbda1d8dce304aa180c11fa12ab636f0e921c1bf2c56db532507bb02",
+   "oid": 500220000036,
+   "crossed": false,
+   "fee": "0.031793",
+   "tid": 900450001038,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2352.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786057200000,
+   "startPosition": "0.26",
+   "dir": "Close Long",
+   "closedPnl": "-4.32",
+   "hash": "0x4931a1b12315d8707b64a130b26b57e7094e5b6405cc8dd3c74fc383eb054347",
+   "oid": 500220000037,
+   "crossed": true,
+   "fee": "0.095256",
+   "tid": 900450001039,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2345.0",
+   "sz": "0.09",
+   "side": "A",
+   "time": 1786062600000,
+   "startPosition": "0.17",
+   "dir": "Close Long",
+   "closedPnl": "-4.95",
+   "hash": "0x2c0a6dcb3c6c282f6f7a2d8904da50c3f5bf488550067ca487d8bbe8f573db68",
+   "oid": 500220000038,
+   "crossed": false,
+   "fee": "0.031658",
+   "tid": 900450001040,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "ETH",
+   "px": "2340.0",
+   "sz": "0.08",
+   "side": "A",
+   "time": 1786096800000,
+   "startPosition": "0.08",
+   "dir": "Close Long",
+   "closedPnl": "-4.8",
+   "hash": "0x99c889da98133d8f2f7426e98780bf722fafe11bcfa300b91b93d9e7ef723abe",
+   "oid": 500220000039,
+   "crossed": true,
+   "fee": "0.08424",
+   "tid": 900450001041,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "32.4",
+   "sz": "15.0",
+   "side": "B",
+   "time": 1786179600000,
+   "startPosition": "0.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x9e8b21f869d2c4a18b8c2cbf67393a0fc1666c20b987ae0c442d897c734547bd",
+   "oid": 500220000040,
+   "crossed": true,
+   "fee": "0.2187",
+   "tid": 900450001042,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "32.6",
+   "sz": "10.0",
+   "side": "B",
+   "time": 1786194000000,
+   "startPosition": "15.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xa6cbdc5ddac9e49573caa9b6d222d6f397717d272e6db04808baaf2ad2298ae6",
+   "oid": 500220000041,
+   "crossed": false,
+   "fee": "0.0489",
+   "tid": 900450001043,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "32.8",
+   "sz": "15.0",
+   "side": "B",
+   "time": 1786208400000,
+   "startPosition": "25.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xcac7655e2cde8810aa2d4b9f6c4177de29a6bf28c9648d89b06b288d69ff1125",
+   "oid": 500220000042,
+   "crossed": true,
+   "fee": "0.2214",
+   "tid": 900450001044,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "33.0",
+   "sz": "10.0",
+   "side": "B",
+   "time": 1786266000000,
+   "startPosition": "40.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x3876ec37cede1cf567626ff78013d9a997f45cf40e7227945c5cac3bf615b15e",
+   "oid": 500220000043,
+   "crossed": true,
+   "fee": "0.1485",
+   "tid": 900450001045,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "PURR/USDC",
+   "px": "0.1947",
+   "sz": "400.0",
+   "side": "B",
+   "time": 1786354200000,
+   "startPosition": "0.0",
+   "dir": "Buy",
+   "closedPnl": "0.0",
+   "hash": "0x2baafbd5399535dcd059a55c41e3e5b728b1a53fa51abd7138f4f8b4f56f3328",
+   "oid": 500220000044,
+   "crossed": true,
+   "fee": "0.28",
+   "tid": 900450001046,
+   "feeToken": "PURR",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "29.5",
+   "sz": "30.0",
+   "side": "A",
+   "time": 1786366800000,
+   "startPosition": "50.0",
+   "dir": "Close Long",
+   "closedPnl": "-95.4",
+   "hash": "0x488248000199427b1aa2f1986d8bab980d3278bbdff2cb2dc7288c2520e03cf0",
+   "oid": 500220000045,
+   "crossed": true,
+   "fee": "0.39825",
+   "tid": 900450001047,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": {
+    "liquidatedUser": "0x000000000000000000000000000000000000d3a0",
+    "markPx": "29.5",
+    "method": "market"
+   },
+   "cloid": null
+  },
+  {
+   "coin": "HYPE",
+   "px": "29.0",
+   "sz": "20.0",
+   "side": "A",
+   "time": 1786366920000,
+   "startPosition": "20.0",
+   "dir": "Close Long",
+   "closedPnl": "-73.6",
+   "hash": "0x61239f76613cfbfcddec1abaf4f3401fcafaaaee7481812018904f67b0527bb7",
+   "oid": 500220000046,
+   "crossed": true,
+   "fee": "0.261",
+   "tid": 900450001048,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": {
+    "liquidatedUser": "0x000000000000000000000000000000000000d3a0",
+    "markPx": "29.0",
+    "method": "market"
+   },
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "95.39",
+   "sz": "0.601",
+   "side": "B",
+   "time": 1786699020000,
+   "startPosition": "0.0",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xbebed82e4b3c163da64287600f99b8243c9e6eb171373b8a1319b6a9d44bcdaf",
+   "oid": 500220000047,
+   "crossed": true,
+   "fee": "0.025798",
+   "tid": 900450001049,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "95.89",
+   "sz": "0.585",
+   "side": "B",
+   "time": 1786717020000,
+   "startPosition": "0.601",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x324b451f68c46338ded02db5db23bf2f082c40fcdc1196461a006d24c1cd6a06",
+   "oid": 500220000048,
+   "crossed": false,
+   "fee": "0.008414",
+   "tid": 900450001050,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "95.77",
+   "sz": "0.598",
+   "side": "B",
+   "time": 1786735020000,
+   "startPosition": "1.186",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x2729582ecedaa1f307202c9bf336dc9592c163f934eb061cdd5000535772f7e6",
+   "oid": 500220000049,
+   "crossed": true,
+   "fee": "0.025772",
+   "tid": 900450001051,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "96.62",
+   "sz": "0.541",
+   "side": "B",
+   "time": 1786753020000,
+   "startPosition": "1.784",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x22835923ae4ac20bfa70afbbc55b7ad8ca4ee00b3f4a449d56bdc1ae6784412c",
+   "oid": 500220000050,
+   "crossed": false,
+   "fee": "0.007841",
+   "tid": 900450001052,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "96.75",
+   "sz": "0.682",
+   "side": "B",
+   "time": 1786771020000,
+   "startPosition": "2.325",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xe874dc03fec248d54a4dccf0d80d3fd0590a122123603b560f08318f38b6c537",
+   "oid": 500220000051,
+   "crossed": true,
+   "fee": "0.029693",
+   "tid": 900450001053,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "96.6",
+   "sz": "0.668",
+   "side": "B",
+   "time": 1786789020000,
+   "startPosition": "3.007",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xe10c3c81ff877b3b06a8f9b0cdce0383e58dafbce77471b4224634f5ce1fa371",
+   "oid": 500220000052,
+   "crossed": false,
+   "fee": "0.009679",
+   "tid": 900450001054,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "97.5",
+   "sz": "0.408",
+   "side": "B",
+   "time": 1786807020000,
+   "startPosition": "3.675",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x7c2e80f00bb911fe09af06145914779fa2b21c2b2a7b4210eef425148b7c0167",
+   "oid": 500220000053,
+   "crossed": true,
+   "fee": "0.017901",
+   "tid": 900450001055,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "99.22",
+   "sz": "0.558",
+   "side": "B",
+   "time": 1786825020000,
+   "startPosition": "4.083",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xa73bdcb494afab53dd658dd518be68f0262a424ef6c716804a53ec097d649542",
+   "oid": 500220000054,
+   "crossed": false,
+   "fee": "0.008305",
+   "tid": 900450001056,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "99.69",
+   "sz": "0.578",
+   "side": "B",
+   "time": 1786843020000,
+   "startPosition": "4.641",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xd3c084ebffdfa9b449b59cafa7d79c72c9373465910babc3debc40924b7c2f6f",
+   "oid": 500220000055,
+   "crossed": true,
+   "fee": "0.025929",
+   "tid": 900450001057,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "98.68",
+   "sz": "0.713",
+   "side": "B",
+   "time": 1786861020000,
+   "startPosition": "5.219",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x524fe321bd2a308fe2368fb2d943c6d5de022016db90795b16d22574bef139c5",
+   "oid": 500220000056,
+   "crossed": false,
+   "fee": "0.010554",
+   "tid": 900450001058,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "99.94",
+   "sz": "0.407",
+   "side": "B",
+   "time": 1786879020000,
+   "startPosition": "5.932",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x911cd95b7af05ea794a9e68e9fd593e1fc230c3f54fa02627a0a3bc0ea6d0235",
+   "oid": 500220000057,
+   "crossed": true,
+   "fee": "0.018304",
+   "tid": 900450001059,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "99.92",
+   "sz": "0.437",
+   "side": "B",
+   "time": 1786897020000,
+   "startPosition": "6.339",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xdf89be19e232d3cf25112dfc139396cdb40b505e355df9eefd256be9f891bc5a",
+   "oid": 500220000058,
+   "crossed": false,
+   "fee": "0.00655",
+   "tid": 900450001060,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "101.42",
+   "sz": "0.547",
+   "side": "B",
+   "time": 1786915020000,
+   "startPosition": "6.776",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xd424d4d20d857c8d602cebe907adcde40f9f861b196633050e13e4d95465abb5",
+   "oid": 500220000059,
+   "crossed": true,
+   "fee": "0.024965",
+   "tid": 900450001061,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "100.7",
+   "sz": "0.766",
+   "side": "B",
+   "time": 1786933020000,
+   "startPosition": "7.323",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xddc2e962a9bb1759d70b631802c61ef9eb6255f4917fa0ee2338f86a4aca5dd2",
+   "oid": 500220000060,
+   "crossed": false,
+   "fee": "0.01157",
+   "tid": 900450001062,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "102.66",
+   "sz": "0.772",
+   "side": "B",
+   "time": 1786951020000,
+   "startPosition": "8.089",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x8f3a8dd50fa860dc6bc7bbf723c01fbed2a7d11411cdc8461af9eb61cb3e00d3",
+   "oid": 500220000061,
+   "crossed": true,
+   "fee": "0.035664",
+   "tid": 900450001063,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "103.24",
+   "sz": "0.591",
+   "side": "B",
+   "time": 1786969020000,
+   "startPosition": "8.861",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xbcd8f093895c093ee75b73c41b6b1b51cf6ab70d5a1162d74737522860213863",
+   "oid": 500220000062,
+   "crossed": false,
+   "fee": "0.009152",
+   "tid": 900450001064,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "102.77",
+   "sz": "0.762",
+   "side": "B",
+   "time": 1786987020000,
+   "startPosition": "9.452",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x6ff679e7e289e08a641293a93965d718d2134305be8a5e20b5e577dd3f62cd3c",
+   "oid": 500220000063,
+   "crossed": true,
+   "fee": "0.03524",
+   "tid": 900450001065,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "102.75",
+   "sz": "0.509",
+   "side": "B",
+   "time": 1787005020000,
+   "startPosition": "10.214",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x50b4e584b7da56d9f4da43cdc96137d57817a92b95e186e0c63bd399431835a6",
+   "oid": 500220000064,
+   "crossed": false,
+   "fee": "0.007845",
+   "tid": 900450001066,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "103.14",
+   "sz": "0.639",
+   "side": "B",
+   "time": 1787023020000,
+   "startPosition": "10.723",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x43608daf170cda072f7f8889778b8dc3542eb2dd7cc50f3e97489d72f0a6c370",
+   "oid": 500220000065,
+   "crossed": true,
+   "fee": "0.029658",
+   "tid": 900450001067,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "103.51",
+   "sz": "0.453",
+   "side": "B",
+   "time": 1787041020000,
+   "startPosition": "11.362",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x3a963672f99826470564fcb55325dfa284e4f85178c6580c6fd81dfeea0f8ad2",
+   "oid": 500220000066,
+   "crossed": false,
+   "fee": "0.007034",
+   "tid": 900450001068,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "104.22",
+   "sz": "0.436",
+   "side": "B",
+   "time": 1787059020000,
+   "startPosition": "11.815",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x13bc60a3c2c5a7785fa72e95c7922c44dc7db6a844a44a58bd305086fb1ba69c",
+   "oid": 500220000067,
+   "crossed": true,
+   "fee": "0.020448",
+   "tid": 900450001069,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "106.18",
+   "sz": "0.789",
+   "side": "B",
+   "time": 1787077020000,
+   "startPosition": "12.251",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x39ada999b75ec2fae11bcd091bc5b8b868df3423518d3bad15fb8ba76742b0ae",
+   "oid": 500220000068,
+   "crossed": false,
+   "fee": "0.012566",
+   "tid": 900450001070,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "106.83",
+   "sz": "0.575",
+   "side": "B",
+   "time": 1787095020000,
+   "startPosition": "13.04",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xceda3b2dbc331a9db29faa1918631d57a01d96968f5fde5527e81fe48d2dfc1b",
+   "oid": 500220000069,
+   "crossed": true,
+   "fee": "0.027642",
+   "tid": 900450001071,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "107.04",
+   "sz": "0.439",
+   "side": "B",
+   "time": 1787113020000,
+   "startPosition": "13.615",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0x73c6b8301dd8097cffd035321467e1473618c250f4fed8586bf34e03d90007fa",
+   "oid": 500220000070,
+   "crossed": false,
+   "fee": "0.007049",
+   "tid": 900450001072,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  },
+  {
+   "coin": "SOL",
+   "px": "107.47",
+   "sz": "0.597",
+   "side": "B",
+   "time": 1787131020000,
+   "startPosition": "14.054",
+   "dir": "Open Long",
+   "closedPnl": "0.0",
+   "hash": "0xc609e71e3dee0f3b1b0f8abb3531227d5fda420605a3a00ad50e4f5dbe3065cd",
+   "oid": 500220000071,
+   "crossed": true,
+   "fee": "0.028872",
+   "tid": 900450001073,
+   "feeToken": "USDC",
+   "builderFee": null,
+   "liquidation": null,
+   "cloid": null
+  }
+ ],
+ "userFunding": [
+  {
+   "time": 1785600000000,
+   "hash": "0x4f852a505118ee8299aec50cd3e7a852561ef99aa7df1764727d44b6eabc32db",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.32784",
+    "szi": "0.05",
+    "fundingRate": "0.00010245",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785628800000,
+   "hash": "0x98360313e69ae5525b0fc80b0fd53f5a47838da9ab26c42dbd39d5b87022c653",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.638592",
+    "szi": "0.1",
+    "fundingRate": "0.00009978",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785657600000,
+   "hash": "0x455639f21c84fe09387b8ea2de330153ecb00ebb60d67ad96ce64dbce5b2af61",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.773696",
+    "szi": "0.1",
+    "fundingRate": "0.00012089",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785686400000,
+   "hash": "0x41493d5ea17d5e960bc44feb4ab9a936435bacb2e44f51be39313d58558142e1",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.875904",
+    "szi": "0.15",
+    "fundingRate": "0.00009124",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785715200000,
+   "hash": "0xfdd20e432b8d228fdad6e1c21fde000e15ca0008c2622431bae3c62061c21be0",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-1.130592",
+    "szi": "0.15",
+    "fundingRate": "0.00011777",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785744000000,
+   "hash": "0x39691f47e05f2b1b843035c36d402f4337875267c99bc213d9081ca02d0e901b",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.973139",
+    "szi": "0.11",
+    "fundingRate": "0.00013823",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785772800000,
+   "hash": "0xc17b25fc51e8b06bb0d40417bfbc522b1828a9557d1cf4e048820490739c0f45",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.437651",
+    "szi": "0.07",
+    "fundingRate": "0.00009769",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785801600000,
+   "hash": "0x503f6727d9219dd57f3ebb9e179a56f49fb9c1f25fd6f1757760a4aad9604459",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.198989",
+    "szi": "0.03",
+    "fundingRate": "0.00010364",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785830400000,
+   "hash": "0xdfa1bcd7b1b19f4b606c91bb38b5d8081edf16f614c0dba035c330f4aebc4bd9",
+   "delta": {
+    "type": "funding",
+    "coin": "BTC",
+    "usdc": "-0.175104",
+    "szi": "0.03",
+    "fundingRate": "0.0000912",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785945600000,
+   "hash": "0xf28ae30b47e9e2aa13644edef666bf9955325c0ed6d9c544998e2aafb2553c19",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "0.197203",
+    "szi": "-0.9",
+    "fundingRate": "0.00009324",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1785974400000,
+   "hash": "0x6bf9019aa42b017621f31c780d79bc6b5ce5c97e4d3e04e00e2f78115645efd4",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "0.26993",
+    "szi": "-1.2",
+    "fundingRate": "0.00009572",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786003200000,
+   "hash": "0x3d63743b29aea99ee13dd684b1e18e9e80834e7d8826ebd90d8e17f8bf9d1ad9",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "0.30143",
+    "szi": "-1.2",
+    "fundingRate": "0.00010689",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786032000000,
+   "hash": "0x80df58bd10d288bdde17be6cf11a707cc651dade5483e8c089c672c244b4f23e",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "-0.155986",
+    "szi": "0.62",
+    "fundingRate": "0.00010706",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786060800000,
+   "hash": "0xd10b4d18518b9b77d31f594ed321407283d37a623e850dbb0f117e91e0be53ea",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "-0.038787",
+    "szi": "0.17",
+    "fundingRate": "0.00009709",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786089600000,
+   "hash": "0x7e4d0b523a73d753d6d320af36f156d42ea467f1d572ad2723ee85b38f4263ef",
+   "delta": {
+    "type": "funding",
+    "coin": "ETH",
+    "usdc": "-0.015781",
+    "szi": "0.08",
+    "fundingRate": "0.00008394",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786204800000,
+   "hash": "0x276cbe605be7163173c6c094b008c72dbae73eaf97cb092c16090038ec2fca97",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.084931",
+    "szi": "25.0",
+    "fundingRate": "0.00010421",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786233600000,
+   "hash": "0x164f22c521315723506c2e66a44480f5f65316b55c37087af388b083d0fba6ad",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.160731",
+    "szi": "40.0",
+    "fundingRate": "0.00012326",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786262400000,
+   "hash": "0x6f019ec64dfd6e3037c944d31a9ebacc60c0c0fba1ed07cdbbde016b070e0df9",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.121089",
+    "szi": "40.0",
+    "fundingRate": "0.00009286",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786291200000,
+   "hash": "0x64326f0ef07180468a76b37dc6a06dff14d355917f059b3ea8796b1a276f1f41",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.158061",
+    "szi": "50.0",
+    "fundingRate": "0.00009697",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786320000000,
+   "hash": "0x60eaab9678ebf6d0c4f3bbc486a18bd4dfc7c40c44cca13d059de81c89be4f07",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.160506",
+    "szi": "50.0",
+    "fundingRate": "0.00009847",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786348800000,
+   "hash": "0x8fad1da24a7c82bbef37438f4ce2563e74324265b90111401c1d25e34ac05b4c",
+   "delta": {
+    "type": "funding",
+    "coin": "HYPE",
+    "usdc": "-0.225119",
+    "szi": "50.0",
+    "fundingRate": "0.00013811",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786723200000,
+   "hash": "0xa48df776d74a49fa4c9f3fcbf1da8a2ccd38da499d481b2121b0504a8223638d",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.016515",
+    "szi": "1.186",
+    "fundingRate": "0.00013652",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786752000000,
+   "hash": "0xe47d0682813c7d2a38e7c2e4963c3682c99a720a9c79550505bd5a96136054d4",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.022668",
+    "szi": "1.784",
+    "fundingRate": "0.00012457",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786780800000,
+   "hash": "0xbbd1294cde5cc072f3ccc81240a20cc9868ba53d949438e1049c3f98f7e5c4a5",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.028386",
+    "szi": "3.007",
+    "fundingRate": "0.00009255",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786809600000,
+   "hash": "0x7f8ce0b35134f35927bb776016e5f0356596d31d1be2accd552504a4bf6ef944",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.057855",
+    "szi": "4.083",
+    "fundingRate": "0.00013892",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786838400000,
+   "hash": "0xe9d74246345db92910e3312fe17c1cddea274d4f10678421c425b938c99495e6",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.051215",
+    "szi": "4.641",
+    "fundingRate": "0.00010819",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786867200000,
+   "hash": "0x1c912f63f2606813eb36a675212509a4a48c2c581889a5aa5ef829dd7f5c0836",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.048762",
+    "szi": "5.932",
+    "fundingRate": "0.00008059",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786896000000,
+   "hash": "0xb7a6f8a4fa50153f71d3acaafc0001c509a8f9aef2fae433d4bcfaac8fa0dcb3",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.0869",
+    "szi": "6.339",
+    "fundingRate": "0.0001344",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786924800000,
+   "hash": "0x7a78abd4463af0a6f8925bf3efc0c9512b8789fca1517c4fb62a1c738a3bc43a",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.080379",
+    "szi": "7.323",
+    "fundingRate": "0.00010761",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786953600000,
+   "hash": "0xef8b0f215adaf500c6783d6d91fde016d5424003fb19e13604814274ad536cf3",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.108811",
+    "szi": "8.861",
+    "fundingRate": "0.00012039",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1786982400000,
+   "hash": "0x08fefe0efc623140bc4b09fd0af22814a4e49af9352105078c358b73e1ab007c",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.095986",
+    "szi": "9.452",
+    "fundingRate": "0.00009956",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787011200000,
+   "hash": "0x288b920a665ef02c45cf274ebe583d22465938c5b72471817f5e373ef53f1c30",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.133",
+    "szi": "10.723",
+    "fundingRate": "0.0001216",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787040000000,
+   "hash": "0x3f74c2ee942fad313769d32ead8c50de684a5bf5b9b9154ec27fd7ed24eb5ae5",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.11296",
+    "szi": "11.362",
+    "fundingRate": "0.00009747",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787068800000,
+   "hash": "0xf82677b062ad945ce2b6196ee9267e13c5a3ca4e7fe43fa679c5843121f2be85",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.10088",
+    "szi": "12.251",
+    "fundingRate": "0.00008073",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787097600000,
+   "hash": "0x9c96ac119904325d0bea1c6f8a8b42f7bbeb6585d147597e580917b16ec97b98",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.122805",
+    "szi": "13.615",
+    "fundingRate": "0.00008843",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787126400000,
+   "hash": "0x31e65b6ba4662c40146e17b1ffef492b3a42c3ee2bb77dcca153cc1d1331a225",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.194842",
+    "szi": "14.054",
+    "fundingRate": "0.00013592",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787155200000,
+   "hash": "0xe7fc093e1f9a362d9902b09f835217327fb8b7c22a8f400898f6e28163ecb172",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.175398",
+    "szi": "14.651",
+    "fundingRate": "0.00011737",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787184000000,
+   "hash": "0x3f9eabc58bb3dda92e607eb958688f2071b1779d9744afab3f44c9b5ab51e3b8",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.1842",
+    "szi": "14.651",
+    "fundingRate": "0.00012326",
+    "nSamples": 1
+   }
+  },
+  {
+   "time": 1787212800000,
+   "hash": "0xf1164238b12da6b2bca03f36b896136a2b870f3de8fd26fd27c785bed4b27bd5",
+   "delta": {
+    "type": "funding",
+    "coin": "SOL",
+    "usdc": "-0.132225",
+    "szi": "14.651",
+    "fundingRate": "0.00008848",
+    "nSamples": 1
+   }
+  }
+ ],
+ "userNonFundingLedgerUpdates": [
+  {
+   "time": 1772445600000,
+   "hash": "0x4b1cf37256ee43b0c85a81fa8c0869cfa1da6491d5534b5b30b41cf5f03ab558",
+   "delta": {
+    "type": "deposit",
+    "usdc": "5000.0"
+   }
+  },
+  {
+   "time": 1772701200000,
+   "hash": "0xd17adca1885903e8f4fc6848b437aa08a9d243d893d45ec1656a919d9997097f",
+   "delta": {
+    "type": "accountClassTransfer",
+    "usdc": "800.0",
+    "toPerp": false
+   }
+  },
+  {
+   "time": 1775044800000,
+   "hash": "0x5fc7abc983f7db559aa80e9b8624a2fa3971e17d1ba214f5642aaa64b2533b19",
+   "delta": {
+    "type": "spotTransfer",
+    "token": "HYPE",
+    "amount": "20.0",
+    "usdcValue": "526.24",
+    "user": "0x00000000000000000000000000000000f00dfeed",
+    "destination": "0x000000000000000000000000000000000000d3a0",
+    "fee": "0.0",
+    "nativeTokenFee": "0.0",
+    "nonce": 771000001,
+    "feeToken": "HYPE"
+   }
+  },
+  {
+   "time": 1778421600000,
+   "hash": "0xfa0871c6e2ad98250d164b1f64e7f45f7cc40450ee99ef33fabdb7e94a02f9f4",
+   "delta": {
+    "type": "deposit",
+    "usdc": "3000.0"
+   }
+  },
+  {
+   "time": 1781510400000,
+   "hash": "0xe69b3a8b66b9bd0808b2a84742d6af49f30e3f15c1a06e9896c03f97282052e2",
+   "delta": {
+    "type": "accountClassTransfer",
+    "usdc": "200.0",
+    "toPerp": true
+   }
+  },
+  {
+   "time": 1782921600000,
+   "hash": "0x3f696096b7672bdfb73da3dd5e356d9ad590a78bc6921606196b692cd7c26bc5",
+   "delta": {
+    "type": "withdraw",
+    "usdc": "1500.0",
+    "nonce": 771000002,
+    "fee": "1.0"
+   }
+  }
+ ],
+ "clearinghouseState": {
+  "marginSummary": {
+   "accountValue": "6034.8580085",
+   "totalNtlPos": "1611.61",
+   "totalRawUsd": "6034.8580085",
+   "totalMarginUsed": "322.322"
+  },
+  "crossMarginSummary": {
+   "accountValue": "6034.8580085",
+   "totalNtlPos": "1611.61",
+   "totalRawUsd": "6034.8580085",
+   "totalMarginUsed": "322.322"
+  },
+  "crossMaintenanceMarginUsed": "128.9288",
+  "withdrawable": "5712.5360085",
+  "assetPositions": [
+   {
+    "type": "oneWay",
+    "position": {
+     "coin": "SOL",
+     "szi": "14.651",
+     "leverage": {
+      "type": "cross",
+      "value": 5
+     },
+     "entryPx": "100.9505",
+     "positionValue": "1611.61",
+     "unrealizedPnl": "132.5842245",
+     "returnOnEquity": "0.411341",
+     "liquidationPx": "82.779",
+     "marginUsed": "322.322",
+     "maxLeverage": 50,
+     "cumFunding": {
+      "allTime": "-1.753787",
+      "sinceOpen": "-1.753787",
+      "sinceChange": "-0.491823"
+     }
+    }
+   }
+  ],
+  "time": 1787227200000
+ },
+ "spotClearinghouseState": {
+  "balances": [
+   {
+    "coin": "USDC",
+    "token": 0,
+    "total": "678.832057635",
+    "hold": "0.0",
+    "entryNtl": "0.0"
+   },
+   {
+    "coin": "PURR",
+    "token": 1,
+    "total": "1389.52665",
+    "hold": "0.0",
+    "entryNtl": "242.954"
+   },
+   {
+    "coin": "HYPE",
+    "token": 150,
+    "total": "9.546465",
+    "hold": "0.0",
+    "entryNtl": "269.5079"
+   }
+  ]
+ },
+ "spotMeta": {
+  "tokens": [
+   {
+    "name": "USDC",
+    "index": 0,
+    "szDecimals": 8,
+    "weiDecimals": 8,
+    "tokenId": "0x00000000000000000000000000000001",
+    "isCanonical": true
+   },
+   {
+    "name": "PURR",
+    "index": 1,
+    "szDecimals": 0,
+    "weiDecimals": 5,
+    "tokenId": "0x00000000000000000000000000000002",
+    "isCanonical": true
+   },
+   {
+    "name": "HYPE",
+    "index": 150,
+    "szDecimals": 2,
+    "weiDecimals": 8,
+    "tokenId": "0x00000000000000000000000000000003",
+    "isCanonical": true
+   }
+  ],
+  "universe": [
+   {
+    "tokens": [
+     1,
+     0
+    ],
+    "name": "PURR/USDC",
+    "index": 0,
+    "isCanonical": true
+   },
+   {
+    "tokens": [
+     150,
+     0
+    ],
+    "name": "@107",
+    "index": 107,
+    "isCanonical": false
+   }
+  ]
+ },
+ "allMids": {
+  "BTC": "66000",
+  "ETH": "2200",
+  "SOL": "110",
+  "HYPE": "33",
+  "PURR/USDC": "0.2",
+  "@107": "33"
+ },
+ "portfolio": [
+  [
+   "day",
+   {
+    "accountValueHistory": [
+     [
+      1787140800000,
+      "5552.069368"
+     ],
+     [
+      1787144400000,
+      "5587.812102"
+     ],
+     [
+      1787148000000,
+      "5570.258667"
+     ],
+     [
+      1787151600000,
+      "5629.180377"
+     ],
+     [
+      1787155200000,
+      "5629.030282"
+     ],
+     [
+      1787158800000,
+      "5642.393237"
+     ],
+     [
+      1787162400000,
+      "5690.250395"
+     ],
+     [
+      1787166000000,
+      "5677.708462"
+     ],
+     [
+      1787169600000,
+      "5718.519392"
+     ],
+     [
+      1787173200000,
+      "5738.871734"
+     ],
+     [
+      1787176800000,
+      "5740.47734"
+     ],
+     [
+      1787180400000,
+      "5785.823682"
+     ],
+     [
+      1787184000000,
+      "5787.41187"
+     ],
+     [
+      1787187600000,
+      "5811.204214"
+     ],
+     [
+      1787191200000,
+      "5841.924245"
+     ],
+     [
+      1787194800000,
+      "5844.835046"
+     ],
+     [
+      1787198400000,
+      "5879.113967"
+     ],
+     [
+      1787202000000,
+      "5894.335588"
+     ],
+     [
+      1787205600000,
+      "5909.903963"
+     ],
+     [
+      1787209200000,
+      "5939.300723"
+     ],
+     [
+      1787212800000,
+      "5951.30427"
+     ],
+     [
+      1787216400000,
+      "5974.911779"
+     ],
+     [
+      1787220000000,
+      "5995.77453"
+     ],
+     [
+      1787223600000,
+      "6013.760529"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1787140800000,
+      "0"
+     ],
+     [
+      1787144400000,
+      "35.742735"
+     ],
+     [
+      1787148000000,
+      "18.1893"
+     ],
+     [
+      1787151600000,
+      "77.111009"
+     ],
+     [
+      1787155200000,
+      "76.960914"
+     ],
+     [
+      1787158800000,
+      "90.323869"
+     ],
+     [
+      1787162400000,
+      "138.181027"
+     ],
+     [
+      1787166000000,
+      "125.639095"
+     ],
+     [
+      1787169600000,
+      "166.450024"
+     ],
+     [
+      1787173200000,
+      "186.802366"
+     ],
+     [
+      1787176800000,
+      "188.407972"
+     ],
+     [
+      1787180400000,
+      "233.754315"
+     ],
+     [
+      1787184000000,
+      "235.342502"
+     ],
+     [
+      1787187600000,
+      "259.134846"
+     ],
+     [
+      1787191200000,
+      "289.854877"
+     ],
+     [
+      1787194800000,
+      "292.765678"
+     ],
+     [
+      1787198400000,
+      "327.044599"
+     ],
+     [
+      1787202000000,
+      "342.26622"
+     ],
+     [
+      1787205600000,
+      "357.834595"
+     ],
+     [
+      1787209200000,
+      "387.231355"
+     ],
+     [
+      1787212800000,
+      "399.234902"
+     ],
+     [
+      1787216400000,
+      "422.842411"
+     ],
+     [
+      1787220000000,
+      "443.705162"
+     ],
+     [
+      1787223600000,
+      "461.691161"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "week",
+   {
+    "accountValueHistory": [
+     [
+      1786622400000,
+      "5552.069368"
+     ],
+     [
+      1786644000000,
+      "5608.620821"
+     ],
+     [
+      1786665600000,
+      "5530.730868"
+     ],
+     [
+      1786687200000,
+      "5646.55802"
+     ],
+     [
+      1786708800000,
+      "5612.029249"
+     ],
+     [
+      1786730400000,
+      "5611.674868"
+     ],
+     [
+      1786752000000,
+      "5701.315156"
+     ],
+     [
+      1786773600000,
+      "5632.599372"
+     ],
+     [
+      1786795200000,
+      "5704.795972"
+     ],
+     [
+      1786816800000,
+      "5722.876558"
+     ],
+     [
+      1786838400000,
+      "5689.355416"
+     ],
+     [
+      1786860000000,
+      "5776.697079"
+     ],
+     [
+      1786881600000,
+      "5741.687876"
+     ],
+     [
+      1786903200000,
+      "5769.27935"
+     ],
+     [
+      1786924800000,
+      "5818.148197"
+     ],
+     [
+      1786946400000,
+      "5782.919498"
+     ],
+     [
+      1786968000000,
+      "5844.616287"
+     ],
+     [
+      1786989600000,
+      "5846.170713"
+     ],
+     [
+      1787011200000,
+      "5847.230332"
+     ],
+     [
+      1787032800000,
+      "5899.053002"
+     ],
+     [
+      1787054400000,
+      "5883.679975"
+     ],
+     [
+      1787076000000,
+      "5916.172602"
+     ],
+     [
+      1787097600000,
+      "5938.789138"
+     ],
+     [
+      1787119200000,
+      "5938.131974"
+     ],
+     [
+      1787140800000,
+      "5973.368359"
+     ],
+     [
+      1787162400000,
+      "5981.16547"
+     ],
+     [
+      1787184000000,
+      "5998.565114"
+     ],
+     [
+      1787205600000,
+      "6019.603775"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1786622400000,
+      "0"
+     ],
+     [
+      1786644000000,
+      "56.551453"
+     ],
+     [
+      1786665600000,
+      "-21.338499"
+     ],
+     [
+      1786687200000,
+      "94.488652"
+     ],
+     [
+      1786708800000,
+      "59.959881"
+     ],
+     [
+      1786730400000,
+      "59.6055"
+     ],
+     [
+      1786752000000,
+      "149.245788"
+     ],
+     [
+      1786773600000,
+      "80.530004"
+     ],
+     [
+      1786795200000,
+      "152.726605"
+     ],
+     [
+      1786816800000,
+      "170.80719"
+     ],
+     [
+      1786838400000,
+      "137.286049"
+     ],
+     [
+      1786860000000,
+      "224.627711"
+     ],
+     [
+      1786881600000,
+      "189.618508"
+     ],
+     [
+      1786903200000,
+      "217.209982"
+     ],
+     [
+      1786924800000,
+      "266.078829"
+     ],
+     [
+      1786946400000,
+      "230.850131"
+     ],
+     [
+      1786968000000,
+      "292.546919"
+     ],
+     [
+      1786989600000,
+      "294.101346"
+     ],
+     [
+      1787011200000,
+      "295.160964"
+     ],
+     [
+      1787032800000,
+      "346.983634"
+     ],
+     [
+      1787054400000,
+      "331.610607"
+     ],
+     [
+      1787076000000,
+      "364.103234"
+     ],
+     [
+      1787097600000,
+      "386.719771"
+     ],
+     [
+      1787119200000,
+      "386.062606"
+     ],
+     [
+      1787140800000,
+      "421.298991"
+     ],
+     [
+      1787162400000,
+      "429.096103"
+     ],
+     [
+      1787184000000,
+      "446.495746"
+     ],
+     [
+      1787205600000,
+      "467.534407"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "month",
+   {
+    "accountValueHistory": [
+     [
+      1784635200000,
+      "5552.069368"
+     ],
+     [
+      1784721600000,
+      "5646.974444"
+     ],
+     [
+      1784808000000,
+      "5472.035925"
+     ],
+     [
+      1784894400000,
+      "5686.555008"
+     ],
+     [
+      1784980800000,
+      "5598.221117"
+     ],
+     [
+      1785067200000,
+      "5578.549417"
+     ],
+     [
+      1785153600000,
+      "5741.874384"
+     ],
+     [
+      1785240000000,
+      "5582.600532"
+     ],
+     [
+      1785326400000,
+      "5711.175631"
+     ],
+     [
+      1785412800000,
+      "5729.143064"
+     ],
+     [
+      1785499200000,
+      "5640.119133"
+     ],
+     [
+      1785585600000,
+      "5802.029581"
+     ],
+     [
+      1785672000000,
+      "5708.873914"
+     ],
+     [
+      1785758400000,
+      "5746.591832"
+     ],
+     [
+      1785844800000,
+      "5830.031019"
+     ],
+     [
+      1785931200000,
+      "5733.615538"
+     ],
+     [
+      1786017600000,
+      "5845.855181"
+     ],
+     [
+      1786104000000,
+      "5827.810811"
+     ],
+     [
+      1786190400000,
+      "5807.687468"
+     ],
+     [
+      1786276800000,
+      "5902.043903"
+     ],
+     [
+      1786363200000,
+      "5843.03881"
+     ],
+     [
+      1786449600000,
+      "5894.849624"
+     ],
+     [
+      1786536000000,
+      "5924.496902"
+     ],
+     [
+      1786622400000,
+      "5894.731321"
+     ],
+     [
+      1786708800000,
+      "5959.244718"
+     ],
+     [
+      1786795200000,
+      "5948.27933"
+     ],
+     [
+      1786881600000,
+      "5963.736355"
+     ],
+     [
+      1786968000000,
+      "5997.713163"
+     ],
+     [
+      1787054400000,
+      "5995.100514"
+     ],
+     [
+      1787140800000,
+      "6020.636764"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1784635200000,
+      "0"
+     ],
+     [
+      1784721600000,
+      "94.905076"
+     ],
+     [
+      1784808000000,
+      "-80.033443"
+     ],
+     [
+      1784894400000,
+      "134.48564"
+     ],
+     [
+      1784980800000,
+      "46.151749"
+     ],
+     [
+      1785067200000,
+      "26.48005"
+     ],
+     [
+      1785153600000,
+      "189.805016"
+     ],
+     [
+      1785240000000,
+      "30.531164"
+     ],
+     [
+      1785326400000,
+      "159.106263"
+     ],
+     [
+      1785412800000,
+      "177.073696"
+     ],
+     [
+      1785499200000,
+      "88.049766"
+     ],
+     [
+      1785585600000,
+      "249.960214"
+     ],
+     [
+      1785672000000,
+      "156.804546"
+     ],
+     [
+      1785758400000,
+      "194.522464"
+     ],
+     [
+      1785844800000,
+      "277.961651"
+     ],
+     [
+      1785931200000,
+      "181.54617"
+     ],
+     [
+      1786017600000,
+      "293.785813"
+     ],
+     [
+      1786104000000,
+      "275.741443"
+     ],
+     [
+      1786190400000,
+      "255.618101"
+     ],
+     [
+      1786276800000,
+      "349.974535"
+     ],
+     [
+      1786363200000,
+      "290.969442"
+     ],
+     [
+      1786449600000,
+      "342.780256"
+     ],
+     [
+      1786536000000,
+      "372.427535"
+     ],
+     [
+      1786622400000,
+      "342.661954"
+     ],
+     [
+      1786708800000,
+      "407.17535"
+     ],
+     [
+      1786795200000,
+      "396.209962"
+     ],
+     [
+      1786881600000,
+      "411.666987"
+     ],
+     [
+      1786968000000,
+      "445.643795"
+     ],
+     [
+      1787054400000,
+      "443.031146"
+     ],
+     [
+      1787140800000,
+      "468.567397"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "allTime",
+   {
+    "accountValueHistory": [
+     [
+      1772323200000,
+      "5552.069368"
+     ],
+     [
+      1772695800000,
+      "5683.376388"
+     ],
+     [
+      1773068400000,
+      "5404.873896"
+     ],
+     [
+      1773441000000,
+      "5721.180628"
+     ],
+     [
+      1773813600000,
+      "5571.966969"
+     ],
+     [
+      1774186200000,
+      "5527.392008"
+     ],
+     [
+      1774558800000,
+      "5773.100529"
+     ],
+     [
+      1774931400000,
+      "5504.005765"
+     ],
+     [
+      1775304000000,
+      "5698.311392"
+     ],
+     [
+      1775676600000,
+      "5714.233431"
+     ],
+     [
+      1776049200000,
+      "5549.781897"
+     ],
+     [
+      1776421800000,
+      "5810.077973"
+     ],
+     [
+      1776794400000,
+      "5633.361868"
+     ],
+     [
+      1777167000000,
+      "5682.735344"
+     ],
+     [
+      1777539600000,
+      "5817.314977"
+     ],
+     [
+      1777912200000,
+      "5620.899826"
+     ],
+     [
+      1778284800000,
+      "5815.189147"
+     ],
+     [
+      1778657400000,
+      "5761.556186"
+     ],
+     [
+      1779030000000,
+      "5699.085646"
+     ],
+     [
+      1779402600000,
+      "5876.34155"
+     ],
+     [
+      1779775200000,
+      "5723.961972"
+     ],
+     [
+      1780147800000,
+      "5817.000397"
+     ],
+     [
+      1780520400000,
+      "5864.133903"
+     ],
+     [
+      1780893000000,
+      "5754.604467"
+     ],
+     [
+      1781265600000,
+      "5904.575865"
+     ],
+     [
+      1781638200000,
+      "5833.17784"
+     ],
+     [
+      1782010800000,
+      "5839.304509"
+     ],
+     [
+      1782383400000,
+      "5932.230041"
+     ],
+     [
+      1782756000000,
+      "5838.913215"
+     ],
+     [
+      1783128600000,
+      "5925.253552"
+     ],
+     [
+      1783501200000,
+      "5925.697846"
+     ],
+     [
+      1783873800000,
+      "5891.966856"
+     ],
+     [
+      1784246400000,
+      "5973.986215"
+     ],
+     [
+      1784619000000,
+      "5930.970587"
+     ],
+     [
+      1784991600000,
+      "5960.197292"
+     ],
+     [
+      1785364200000,
+      "5991.121967"
+     ],
+     [
+      1785736800000,
+      "5968.474785"
+     ],
+     [
+      1786109400000,
+      "6008.70572"
+     ],
+     [
+      1786482000000,
+      "6009.883271"
+     ],
+     [
+      1786854600000,
+      "6020.051934"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1772323200000,
+      "0"
+     ],
+     [
+      1772695800000,
+      "131.30702"
+     ],
+     [
+      1773068400000,
+      "-147.195472"
+     ],
+     [
+      1773441000000,
+      "169.111261"
+     ],
+     [
+      1773813600000,
+      "19.897601"
+     ],
+     [
+      1774186200000,
+      "-24.67736"
+     ],
+     [
+      1774558800000,
+      "221.031162"
+     ],
+     [
+      1774931400000,
+      "-48.063602"
+     ],
+     [
+      1775304000000,
+      "146.242024"
+     ],
+     [
+      1775676600000,
+      "162.164063"
+     ],
+     [
+      1776049200000,
+      "-2.287471"
+     ],
+     [
+      1776421800000,
+      "258.008605"
+     ],
+     [
+      1776794400000,
+      "81.2925"
+     ],
+     [
+      1777167000000,
+      "130.665976"
+     ],
+     [
+      1777539600000,
+      "265.245609"
+     ],
+     [
+      1777912200000,
+      "68.830458"
+     ],
+     [
+      1778284800000,
+      "263.11978"
+     ],
+     [
+      1778657400000,
+      "209.486818"
+     ],
+     [
+      1779030000000,
+      "147.016278"
+     ],
+     [
+      1779402600000,
+      "324.272182"
+     ],
+     [
+      1779775200000,
+      "171.892604"
+     ],
+     [
+      1780147800000,
+      "264.93103"
+     ],
+     [
+      1780520400000,
+      "312.064535"
+     ],
+     [
+      1780893000000,
+      "202.5351"
+     ],
+     [
+      1781265600000,
+      "352.506497"
+     ],
+     [
+      1781638200000,
+      "281.108472"
+     ],
+     [
+      1782010800000,
+      "287.235141"
+     ],
+     [
+      1782383400000,
+      "380.160674"
+     ],
+     [
+      1782756000000,
+      "286.843847"
+     ],
+     [
+      1783128600000,
+      "373.184184"
+     ],
+     [
+      1783501200000,
+      "373.628478"
+     ],
+     [
+      1783873800000,
+      "339.897488"
+     ],
+     [
+      1784246400000,
+      "421.916847"
+     ],
+     [
+      1784619000000,
+      "378.901219"
+     ],
+     [
+      1784991600000,
+      "408.127925"
+     ],
+     [
+      1785364200000,
+      "439.052599"
+     ],
+     [
+      1785736800000,
+      "416.405417"
+     ],
+     [
+      1786109400000,
+      "456.636352"
+     ],
+     [
+      1786482000000,
+      "457.813904"
+     ],
+     [
+      1786854600000,
+      "467.982566"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "perpDay",
+   {
+    "accountValueHistory": [
+     [
+      1787140800000,
+      "5552.069368"
+     ],
+     [
+      1787144400000,
+      "5587.812102"
+     ],
+     [
+      1787148000000,
+      "5570.258667"
+     ],
+     [
+      1787151600000,
+      "5629.180377"
+     ],
+     [
+      1787155200000,
+      "5629.030282"
+     ],
+     [
+      1787158800000,
+      "5642.393237"
+     ],
+     [
+      1787162400000,
+      "5690.250395"
+     ],
+     [
+      1787166000000,
+      "5677.708462"
+     ],
+     [
+      1787169600000,
+      "5718.519392"
+     ],
+     [
+      1787173200000,
+      "5738.871734"
+     ],
+     [
+      1787176800000,
+      "5740.47734"
+     ],
+     [
+      1787180400000,
+      "5785.823682"
+     ],
+     [
+      1787184000000,
+      "5787.41187"
+     ],
+     [
+      1787187600000,
+      "5811.204214"
+     ],
+     [
+      1787191200000,
+      "5841.924245"
+     ],
+     [
+      1787194800000,
+      "5844.835046"
+     ],
+     [
+      1787198400000,
+      "5879.113967"
+     ],
+     [
+      1787202000000,
+      "5894.335588"
+     ],
+     [
+      1787205600000,
+      "5909.903963"
+     ],
+     [
+      1787209200000,
+      "5939.300723"
+     ],
+     [
+      1787212800000,
+      "5951.30427"
+     ],
+     [
+      1787216400000,
+      "5974.911779"
+     ],
+     [
+      1787220000000,
+      "5995.77453"
+     ],
+     [
+      1787223600000,
+      "6013.760529"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1787140800000,
+      "0"
+     ],
+     [
+      1787144400000,
+      "35.742735"
+     ],
+     [
+      1787148000000,
+      "18.1893"
+     ],
+     [
+      1787151600000,
+      "77.111009"
+     ],
+     [
+      1787155200000,
+      "76.960914"
+     ],
+     [
+      1787158800000,
+      "90.323869"
+     ],
+     [
+      1787162400000,
+      "138.181027"
+     ],
+     [
+      1787166000000,
+      "125.639095"
+     ],
+     [
+      1787169600000,
+      "166.450024"
+     ],
+     [
+      1787173200000,
+      "186.802366"
+     ],
+     [
+      1787176800000,
+      "188.407972"
+     ],
+     [
+      1787180400000,
+      "233.754315"
+     ],
+     [
+      1787184000000,
+      "235.342502"
+     ],
+     [
+      1787187600000,
+      "259.134846"
+     ],
+     [
+      1787191200000,
+      "289.854877"
+     ],
+     [
+      1787194800000,
+      "292.765678"
+     ],
+     [
+      1787198400000,
+      "327.044599"
+     ],
+     [
+      1787202000000,
+      "342.26622"
+     ],
+     [
+      1787205600000,
+      "357.834595"
+     ],
+     [
+      1787209200000,
+      "387.231355"
+     ],
+     [
+      1787212800000,
+      "399.234902"
+     ],
+     [
+      1787216400000,
+      "422.842411"
+     ],
+     [
+      1787220000000,
+      "443.705162"
+     ],
+     [
+      1787223600000,
+      "461.691161"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "perpWeek",
+   {
+    "accountValueHistory": [
+     [
+      1786622400000,
+      "5552.069368"
+     ],
+     [
+      1786644000000,
+      "5608.620821"
+     ],
+     [
+      1786665600000,
+      "5530.730868"
+     ],
+     [
+      1786687200000,
+      "5646.55802"
+     ],
+     [
+      1786708800000,
+      "5612.029249"
+     ],
+     [
+      1786730400000,
+      "5611.674868"
+     ],
+     [
+      1786752000000,
+      "5701.315156"
+     ],
+     [
+      1786773600000,
+      "5632.599372"
+     ],
+     [
+      1786795200000,
+      "5704.795972"
+     ],
+     [
+      1786816800000,
+      "5722.876558"
+     ],
+     [
+      1786838400000,
+      "5689.355416"
+     ],
+     [
+      1786860000000,
+      "5776.697079"
+     ],
+     [
+      1786881600000,
+      "5741.687876"
+     ],
+     [
+      1786903200000,
+      "5769.27935"
+     ],
+     [
+      1786924800000,
+      "5818.148197"
+     ],
+     [
+      1786946400000,
+      "5782.919498"
+     ],
+     [
+      1786968000000,
+      "5844.616287"
+     ],
+     [
+      1786989600000,
+      "5846.170713"
+     ],
+     [
+      1787011200000,
+      "5847.230332"
+     ],
+     [
+      1787032800000,
+      "5899.053002"
+     ],
+     [
+      1787054400000,
+      "5883.679975"
+     ],
+     [
+      1787076000000,
+      "5916.172602"
+     ],
+     [
+      1787097600000,
+      "5938.789138"
+     ],
+     [
+      1787119200000,
+      "5938.131974"
+     ],
+     [
+      1787140800000,
+      "5973.368359"
+     ],
+     [
+      1787162400000,
+      "5981.16547"
+     ],
+     [
+      1787184000000,
+      "5998.565114"
+     ],
+     [
+      1787205600000,
+      "6019.603775"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1786622400000,
+      "0"
+     ],
+     [
+      1786644000000,
+      "56.551453"
+     ],
+     [
+      1786665600000,
+      "-21.338499"
+     ],
+     [
+      1786687200000,
+      "94.488652"
+     ],
+     [
+      1786708800000,
+      "59.959881"
+     ],
+     [
+      1786730400000,
+      "59.6055"
+     ],
+     [
+      1786752000000,
+      "149.245788"
+     ],
+     [
+      1786773600000,
+      "80.530004"
+     ],
+     [
+      1786795200000,
+      "152.726605"
+     ],
+     [
+      1786816800000,
+      "170.80719"
+     ],
+     [
+      1786838400000,
+      "137.286049"
+     ],
+     [
+      1786860000000,
+      "224.627711"
+     ],
+     [
+      1786881600000,
+      "189.618508"
+     ],
+     [
+      1786903200000,
+      "217.209982"
+     ],
+     [
+      1786924800000,
+      "266.078829"
+     ],
+     [
+      1786946400000,
+      "230.850131"
+     ],
+     [
+      1786968000000,
+      "292.546919"
+     ],
+     [
+      1786989600000,
+      "294.101346"
+     ],
+     [
+      1787011200000,
+      "295.160964"
+     ],
+     [
+      1787032800000,
+      "346.983634"
+     ],
+     [
+      1787054400000,
+      "331.610607"
+     ],
+     [
+      1787076000000,
+      "364.103234"
+     ],
+     [
+      1787097600000,
+      "386.719771"
+     ],
+     [
+      1787119200000,
+      "386.062606"
+     ],
+     [
+      1787140800000,
+      "421.298991"
+     ],
+     [
+      1787162400000,
+      "429.096103"
+     ],
+     [
+      1787184000000,
+      "446.495746"
+     ],
+     [
+      1787205600000,
+      "467.534407"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "perpMonth",
+   {
+    "accountValueHistory": [
+     [
+      1784635200000,
+      "5552.069368"
+     ],
+     [
+      1784721600000,
+      "5646.974444"
+     ],
+     [
+      1784808000000,
+      "5472.035925"
+     ],
+     [
+      1784894400000,
+      "5686.555008"
+     ],
+     [
+      1784980800000,
+      "5598.221117"
+     ],
+     [
+      1785067200000,
+      "5578.549417"
+     ],
+     [
+      1785153600000,
+      "5741.874384"
+     ],
+     [
+      1785240000000,
+      "5582.600532"
+     ],
+     [
+      1785326400000,
+      "5711.175631"
+     ],
+     [
+      1785412800000,
+      "5729.143064"
+     ],
+     [
+      1785499200000,
+      "5640.119133"
+     ],
+     [
+      1785585600000,
+      "5802.029581"
+     ],
+     [
+      1785672000000,
+      "5708.873914"
+     ],
+     [
+      1785758400000,
+      "5746.591832"
+     ],
+     [
+      1785844800000,
+      "5830.031019"
+     ],
+     [
+      1785931200000,
+      "5733.615538"
+     ],
+     [
+      1786017600000,
+      "5845.855181"
+     ],
+     [
+      1786104000000,
+      "5827.810811"
+     ],
+     [
+      1786190400000,
+      "5807.687468"
+     ],
+     [
+      1786276800000,
+      "5902.043903"
+     ],
+     [
+      1786363200000,
+      "5843.03881"
+     ],
+     [
+      1786449600000,
+      "5894.849624"
+     ],
+     [
+      1786536000000,
+      "5924.496902"
+     ],
+     [
+      1786622400000,
+      "5894.731321"
+     ],
+     [
+      1786708800000,
+      "5959.244718"
+     ],
+     [
+      1786795200000,
+      "5948.27933"
+     ],
+     [
+      1786881600000,
+      "5963.736355"
+     ],
+     [
+      1786968000000,
+      "5997.713163"
+     ],
+     [
+      1787054400000,
+      "5995.100514"
+     ],
+     [
+      1787140800000,
+      "6020.636764"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1784635200000,
+      "0"
+     ],
+     [
+      1784721600000,
+      "94.905076"
+     ],
+     [
+      1784808000000,
+      "-80.033443"
+     ],
+     [
+      1784894400000,
+      "134.48564"
+     ],
+     [
+      1784980800000,
+      "46.151749"
+     ],
+     [
+      1785067200000,
+      "26.48005"
+     ],
+     [
+      1785153600000,
+      "189.805016"
+     ],
+     [
+      1785240000000,
+      "30.531164"
+     ],
+     [
+      1785326400000,
+      "159.106263"
+     ],
+     [
+      1785412800000,
+      "177.073696"
+     ],
+     [
+      1785499200000,
+      "88.049766"
+     ],
+     [
+      1785585600000,
+      "249.960214"
+     ],
+     [
+      1785672000000,
+      "156.804546"
+     ],
+     [
+      1785758400000,
+      "194.522464"
+     ],
+     [
+      1785844800000,
+      "277.961651"
+     ],
+     [
+      1785931200000,
+      "181.54617"
+     ],
+     [
+      1786017600000,
+      "293.785813"
+     ],
+     [
+      1786104000000,
+      "275.741443"
+     ],
+     [
+      1786190400000,
+      "255.618101"
+     ],
+     [
+      1786276800000,
+      "349.974535"
+     ],
+     [
+      1786363200000,
+      "290.969442"
+     ],
+     [
+      1786449600000,
+      "342.780256"
+     ],
+     [
+      1786536000000,
+      "372.427535"
+     ],
+     [
+      1786622400000,
+      "342.661954"
+     ],
+     [
+      1786708800000,
+      "407.17535"
+     ],
+     [
+      1786795200000,
+      "396.209962"
+     ],
+     [
+      1786881600000,
+      "411.666987"
+     ],
+     [
+      1786968000000,
+      "445.643795"
+     ],
+     [
+      1787054400000,
+      "443.031146"
+     ],
+     [
+      1787140800000,
+      "468.567397"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ],
+  [
+   "perpAllTime",
+   {
+    "accountValueHistory": [
+     [
+      1772323200000,
+      "5552.069368"
+     ],
+     [
+      1772695800000,
+      "5683.376388"
+     ],
+     [
+      1773068400000,
+      "5404.873896"
+     ],
+     [
+      1773441000000,
+      "5721.180628"
+     ],
+     [
+      1773813600000,
+      "5571.966969"
+     ],
+     [
+      1774186200000,
+      "5527.392008"
+     ],
+     [
+      1774558800000,
+      "5773.100529"
+     ],
+     [
+      1774931400000,
+      "5504.005765"
+     ],
+     [
+      1775304000000,
+      "5698.311392"
+     ],
+     [
+      1775676600000,
+      "5714.233431"
+     ],
+     [
+      1776049200000,
+      "5549.781897"
+     ],
+     [
+      1776421800000,
+      "5810.077973"
+     ],
+     [
+      1776794400000,
+      "5633.361868"
+     ],
+     [
+      1777167000000,
+      "5682.735344"
+     ],
+     [
+      1777539600000,
+      "5817.314977"
+     ],
+     [
+      1777912200000,
+      "5620.899826"
+     ],
+     [
+      1778284800000,
+      "5815.189147"
+     ],
+     [
+      1778657400000,
+      "5761.556186"
+     ],
+     [
+      1779030000000,
+      "5699.085646"
+     ],
+     [
+      1779402600000,
+      "5876.34155"
+     ],
+     [
+      1779775200000,
+      "5723.961972"
+     ],
+     [
+      1780147800000,
+      "5817.000397"
+     ],
+     [
+      1780520400000,
+      "5864.133903"
+     ],
+     [
+      1780893000000,
+      "5754.604467"
+     ],
+     [
+      1781265600000,
+      "5904.575865"
+     ],
+     [
+      1781638200000,
+      "5833.17784"
+     ],
+     [
+      1782010800000,
+      "5839.304509"
+     ],
+     [
+      1782383400000,
+      "5932.230041"
+     ],
+     [
+      1782756000000,
+      "5838.913215"
+     ],
+     [
+      1783128600000,
+      "5925.253552"
+     ],
+     [
+      1783501200000,
+      "5925.697846"
+     ],
+     [
+      1783873800000,
+      "5891.966856"
+     ],
+     [
+      1784246400000,
+      "5973.986215"
+     ],
+     [
+      1784619000000,
+      "5930.970587"
+     ],
+     [
+      1784991600000,
+      "5960.197292"
+     ],
+     [
+      1785364200000,
+      "5991.121967"
+     ],
+     [
+      1785736800000,
+      "5968.474785"
+     ],
+     [
+      1786109400000,
+      "6008.70572"
+     ],
+     [
+      1786482000000,
+      "6009.883271"
+     ],
+     [
+      1786854600000,
+      "6020.051934"
+     ],
+     [
+      1787227200000,
+      "6034.8580085"
+     ]
+    ],
+    "pnlHistory": [
+     [
+      1772323200000,
+      "0"
+     ],
+     [
+      1772695800000,
+      "131.30702"
+     ],
+     [
+      1773068400000,
+      "-147.195472"
+     ],
+     [
+      1773441000000,
+      "169.111261"
+     ],
+     [
+      1773813600000,
+      "19.897601"
+     ],
+     [
+      1774186200000,
+      "-24.67736"
+     ],
+     [
+      1774558800000,
+      "221.031162"
+     ],
+     [
+      1774931400000,
+      "-48.063602"
+     ],
+     [
+      1775304000000,
+      "146.242024"
+     ],
+     [
+      1775676600000,
+      "162.164063"
+     ],
+     [
+      1776049200000,
+      "-2.287471"
+     ],
+     [
+      1776421800000,
+      "258.008605"
+     ],
+     [
+      1776794400000,
+      "81.2925"
+     ],
+     [
+      1777167000000,
+      "130.665976"
+     ],
+     [
+      1777539600000,
+      "265.245609"
+     ],
+     [
+      1777912200000,
+      "68.830458"
+     ],
+     [
+      1778284800000,
+      "263.11978"
+     ],
+     [
+      1778657400000,
+      "209.486818"
+     ],
+     [
+      1779030000000,
+      "147.016278"
+     ],
+     [
+      1779402600000,
+      "324.272182"
+     ],
+     [
+      1779775200000,
+      "171.892604"
+     ],
+     [
+      1780147800000,
+      "264.93103"
+     ],
+     [
+      1780520400000,
+      "312.064535"
+     ],
+     [
+      1780893000000,
+      "202.5351"
+     ],
+     [
+      1781265600000,
+      "352.506497"
+     ],
+     [
+      1781638200000,
+      "281.108472"
+     ],
+     [
+      1782010800000,
+      "287.235141"
+     ],
+     [
+      1782383400000,
+      "380.160674"
+     ],
+     [
+      1782756000000,
+      "286.843847"
+     ],
+     [
+      1783128600000,
+      "373.184184"
+     ],
+     [
+      1783501200000,
+      "373.628478"
+     ],
+     [
+      1783873800000,
+      "339.897488"
+     ],
+     [
+      1784246400000,
+      "421.916847"
+     ],
+     [
+      1784619000000,
+      "378.901219"
+     ],
+     [
+      1784991600000,
+      "408.127925"
+     ],
+     [
+      1785364200000,
+      "439.052599"
+     ],
+     [
+      1785736800000,
+      "416.405417"
+     ],
+     [
+      1786109400000,
+      "456.636352"
+     ],
+     [
+      1786482000000,
+      "457.813904"
+     ],
+     [
+      1786854600000,
+      "467.982566"
+     ],
+     [
+      1787227200000,
+      "482.788641"
+     ]
+    ],
+    "vlm": "123456.7"
+   }
+  ]
+ ]
+}

@@ -5,6 +5,7 @@
  * détails ne contiennent que des compteurs et des tickers (compatibles avec le mode discret).
  */
 import type { PortfolioReport, PositionReport, PriceQuoteInput } from '../domain/engine/report';
+import type { Big } from '../domain/money';
 import type { AssetCode } from '../domain/types';
 
 export type CheckLevel = 'ok' | 'warn' | 'fail' | 'info';
@@ -33,9 +34,24 @@ export interface SelfCheckInput {
   };
   /** Plateforme (facultatif) : iPhone/iPad non installé = données effaçables par Safari après 7 jours. */
   platform?: { ios: boolean; standalone: boolean };
+  /** Comptes de trading (Hyperliquid) : réconciliation d'équité et fraîcheur de synchronisation. */
+  trading?: TradingCheckInput[];
   /** ISO 8601. */
   now: string;
 }
+
+export interface TradingCheckInput {
+  label: string;
+  /** `accountValue − (flux + réalisé − frais + funding + latent)` ; `null` sans instantané. */
+  gap: Big | null;
+  lastSyncAt: string | null;
+  syncError: string | null;
+  unknownLedgerTypes: string[];
+  fxMissing: number;
+}
+
+/** Tolérance de réconciliation d'un compte perps (USDC) : arrondis de la plateforme. */
+const TRADING_TOLERANCE = '0.01';
 
 const TOLERANCE = '0.000001';
 const DAY_MS = 86_400_000;
@@ -289,6 +305,62 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       action:
         'Partagez → « Sur l’écran d’accueil » pour installer l’app, et gardez une sauvegarde dans Fichiers.',
     });
+  }
+
+  // 7. Trading : chaque compte Hyperliquid doit se réconcilier avec son instantané.
+  for (const account of input.trading ?? []) {
+    const id = `trading:${account.label}`;
+    if (account.syncError) {
+      checks.push({
+        id,
+        label: `Trading · ${account.label}`,
+        level: 'warn',
+        detail: 'La dernière synchronisation s’est interrompue : historique peut-être incomplet.',
+        action: 'Relancez « Actualiser » dans l’espace Trading.',
+      });
+    } else if (account.gap === null) {
+      checks.push({
+        id,
+        label: `Trading · ${account.label}`,
+        level: 'info',
+        detail: 'Pas encore synchronisé.',
+        action: 'Lancez « Actualiser » dans l’espace Trading.',
+      });
+    } else if (!account.gap.abs().lte(TRADING_TOLERANCE)) {
+      checks.push({
+        id,
+        label: `Trading · ${account.label}`,
+        level: 'warn',
+        detail: `Équité et historique ne se recoupent pas${account.unknownLedgerTypes.length > 0 ? ` (mouvements non interprétés : ${account.unknownLedgerTypes.join(', ')})` : ''}.`,
+        action:
+          'Relancez une synchronisation ; si l’écart persiste, signalez-le avec le diagnostic.',
+      });
+    } else if (account.lastSyncAt && ageDays(account.lastSyncAt, input.now) > 7) {
+      checks.push({
+        id,
+        label: `Trading · ${account.label}`,
+        level: 'info',
+        detail: `Dernière synchronisation il y a ${Math.floor(ageDays(account.lastSyncAt, input.now))} jours.`,
+        action: 'Lancez « Actualiser » dans l’espace Trading.',
+      });
+    } else {
+      checks.push({
+        id,
+        label: `Trading · ${account.label}`,
+        level: 'ok',
+        detail: 'Équité = dépôts nets + réalisé − frais + funding + latent.',
+      });
+    }
+    if (account.fxMissing > 0) {
+      checks.push({
+        id: `${id}:fx`,
+        label: `Trading · ${account.label}`,
+        level: 'warn',
+        detail: `${plural(account.fxMissing, 'fill spot non converti', 'fills spot non convertis')} en euros (taux BCE indisponible).`,
+        action:
+          'Revenez en ligne et relancez « Actualiser » : les opérations spot seront intégrées.',
+      });
+    }
   }
 
   return checks;

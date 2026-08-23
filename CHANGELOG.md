@@ -7,6 +7,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Espace Trading complet : tableau de bord (synthèse dépôts nets / équité / P&L total, courbe
+  d'équité et de P&L fournie par la plateforme et conservée hors ligne, résultat par période,
+  positions ouvertes reliées à leur aller-retour, avoirs spot, auto-vérification de réconciliation),
+  onglets Trades, Fills et Statistiques.
+- Journal de trading : aller-retours reconstruits automatiquement depuis les fills (retournements,
+  liquidations, historique partiel signalé), saisie manuelle d'un trade, thèse/revue, setups,
+  erreurs, note, plan entrée / stop / objectif → résultat en R, export CSV des trades.
+- Statistiques de performance : espérance (devise et R), taux de réussite, profit factor, payoff,
+  drawdown maximal, séries, ventilations (setup, actif, sens, jour, heure, durée, compte),
+  avertissement d'échantillon sous 30 trades clos, résumé anonymisé à coller dans une IA.
+- Vue d'ensemble au format synthèse : valeur nette (investissement + équité de trading), colonnes
+  par espace, répartition du capital et flux vers/depuis le trading.
+- Rail de navigation à gauche sur grand écran (≥ 1024 px).
+
 - Bouton « Actualiser » sur la synthèse avec fraîcheur et source des prix, badge « périmé ».
 - Fournisseurs de prix Kraken, Hyperliquid (HYPE, PURR et tokens spot Hyperliquid) et DefiLlama,
   prix en USD convertis au taux BCE du jour.
@@ -19,6 +33,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - Sauvegarde robuste : état principal dans IndexedDB (plus de plafond de 5 Mo), miroir localStorage,
   sauvegarde automatique dans un dossier choisi (Chrome/Edge), chiffrement optionnel de la
   sauvegarde par phrase secrète, partage vers Fichiers et rappel « écran d'accueil » sur iPhone.
+- Import Hyperliquid en lecture seule par adresse publique (jamais de clé) : synchronisation
+  incrémentale des fills spot et perps, du funding et des mouvements du compte, bruts persistés pour
+  dépasser la fenêtre d'historique conservée par l'API.
+- Espace Trading : tableau de bord par compte Hyperliquid — équité, P&L net par période (réalisé
+  brut − frais + funding), positions ouvertes, avoirs spot, derniers fills, réconciliation
+  permanente de l'équité affichée à l'écran.
+- Option « traiter le spot comme de l'investissement » sur un compte Hyperliquid : route ses fills
+  spot vers le PRU de l'espace Investissement, contrepartie USDC convertie en euros au taux BCE du
+  jour.
+- Moteur Trading séparé du moteur d'investissement (`domain/trading`), jamais mêlé au PRU.
 
 ### Changed
 

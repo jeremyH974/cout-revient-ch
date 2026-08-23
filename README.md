@@ -69,6 +69,14 @@ dernier taux connu) : le PRU en dollars reflète le change réel de vos achats, 
 conversion des totaux ne ferait pas. Taux fournis par l'API ouverte Frankfurter (BCE), mis en cache
 et inclus dans la sauvegarde.
 
+## Trading : Hyperliquid en lecture seule
+
+Un second espace, séparé du PRU : collez une **adresse publique** Hyperliquid (jamais de clé) dans
+l'écran Comptes pour voir l'équité de votre compte, vos positions ouvertes, vos avoirs spot et un
+P&L net (réalisé − frais + funding), avec une réconciliation vérifiée à chaque actualisation. Seule
+l'adresse est envoyée, et uniquement à `api.hyperliquid.xyz` ; détails dans
+[docs/hyperliquid-import.md](docs/hyperliquid-import.md).
+
 ## Aide et retours
 
 Un fichier refusé, un chiffre douteux, une idée : **Réglages → Aide et retours → « Signaler

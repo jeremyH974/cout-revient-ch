@@ -1,5 +1,7 @@
 import type { BrowserContext } from '@playwright/test';
+import { generateHlFixture } from '../../../scripts/generate-hl-fixture';
 import { addDays } from '../../../src/lib/fx/service';
+import { answerInfo } from '../../../src/lib/import/hyperliquid/fixture-client';
 
 /**
  * Aucune requête ne sort vers Internet pendant les tests : chaque appel externe reçoit une réponse
@@ -51,6 +53,9 @@ const HYPERLIQUID_MIDS: Record<string, string> = {
   BTC: '66000',
   [FALLTHROUGH_ASSET.hyperliquidCoin]: '2.2',
 };
+
+/** Jeu de démonstration Hyperliquid synthétique (P20) : mêmes réponses `info` que le mode démo. */
+const HL_FIXTURE = generateHlFixture();
 
 /** Produits Coinbase Exchange « X-EUR » pour tous les tickers de la fixture (positions et clôturées). */
 const COINBASE_TICKERS = [
@@ -232,18 +237,10 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
       return json({ error: [], result: {} });
     }
     if (url.hostname === 'api.hyperliquid.xyz') {
-      const body = route.request().postDataJSON() as { type?: string } | null;
-      if (body?.type === 'allMids') return json(HYPERLIQUID_MIDS);
-      if (body?.type === 'spotMeta') {
-        return json({
-          tokens: [
-            { name: 'USDC', index: 0 },
-            { name: 'HYPE', index: 150 },
-          ],
-          universe: [{ tokens: [150, 0], name: '@107', index: 107, isCanonical: false }],
-        });
-      }
-      return json({});
+      const body = route.request().postDataJSON() as Record<string, unknown> | null;
+      if (body?.['type'] === 'allMids') return json({ ...HL_FIXTURE.allMids, ...HYPERLIQUID_MIDS });
+      if (body?.['type'] === 'spotMeta') return json(HL_FIXTURE.spotMeta);
+      return json(answerInfo(HL_FIXTURE, body ?? {}) ?? {});
     }
     if (url.hostname === 'coins.llama.fi') return json({ coins: {} });
     if (url.hostname.startsWith('api.frankfurter.')) return json(frankfurterRates(url));

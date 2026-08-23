@@ -151,6 +151,58 @@ await check(
   },
 );
 
+// Import Hyperliquid (P20) : formes des réponses `info` consommées par `src/lib/import/hyperliquid`,
+// interrogées sur l'adresse fictive de la fixture (aucune activité : formes vides mais exactes).
+const HL_DEMO_ADDRESS = '0x000000000000000000000000000000000000d3a0';
+const hlPost = (body) => ({
+  method: 'POST',
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(body),
+});
+
+await check(
+  'Hyperliquid spotMeta',
+  'https://api.hyperliquid.xyz/info',
+  (json) => {
+    if (!json || !Array.isArray(json.tokens) || !Array.isArray(json.universe))
+      return ['tokens/universe absents'];
+    const usdc = json.tokens.find((t) => t?.name === 'USDC');
+    if (!usdc || usdc.index !== 0) return ['jeton USDC absent ou index ≠ 0'];
+    const pair = json.universe[0];
+    if (!pair || !Array.isArray(pair.tokens) || typeof pair.name !== 'string' || !isNum(pair.index))
+      return ['universe[0] sans tokens/name/index'];
+    return [];
+  },
+  hlPost({ type: 'spotMeta' }),
+);
+
+await check(
+  'Hyperliquid clearinghouseState',
+  'https://api.hyperliquid.xyz/info',
+  (json) => {
+    const m = json?.marginSummary;
+    if (!m || !isNumericString(m.accountValue)) return ['marginSummary.accountValue absent'];
+    if (!Array.isArray(json.assetPositions)) return ['assetPositions absent'];
+    if (!isNumericString(json.withdrawable)) return ['withdrawable absent'];
+    return [];
+  },
+  hlPost({ type: 'clearinghouseState', user: HL_DEMO_ADDRESS }),
+);
+
+await check(
+  'Hyperliquid spotClearinghouseState',
+  'https://api.hyperliquid.xyz/info',
+  (json) => (Array.isArray(json?.balances) ? [] : ['balances absent']),
+  hlPost({ type: 'spotClearinghouseState', user: HL_DEMO_ADDRESS }),
+);
+
+await check(
+  'Hyperliquid userFillsByTime',
+  'https://api.hyperliquid.xyz/info',
+  (json) => (Array.isArray(json) ? [] : ['réponse non tableau']),
+  hlPost({ type: 'userFillsByTime', user: HL_DEMO_ADDRESS, startTime: 0 }),
+);
+
 await check(
   'DefiLlama current (coingecko:bitcoin)',
   'https://coins.llama.fi/prices/current/coingecko:bitcoin?searchWidth=4h',

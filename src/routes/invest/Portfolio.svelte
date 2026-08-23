@@ -87,12 +87,12 @@
       <option value="asset">Nom</option>
     </select>
   </label>
-  {#if app.accounts.length > 1}
+  {#if app.investAccounts.length > 1}
     <label class="sort">
       <span class="sr-only">Plateforme</span>
       <select bind:value={accountFilter} aria-label="Plateforme">
         <option value="">Toutes plateformes</option>
-        {#each app.accounts as a (a.id)}
+        {#each app.investAccounts as a (a.id)}
           <option value={a.id}>{a.label}</option>
         {/each}
       </select>

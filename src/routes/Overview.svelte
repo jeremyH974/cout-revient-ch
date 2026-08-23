@@ -9,6 +9,7 @@
   import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks } from '$lib/support/self-check';
   import AppBar from '../components/layout/AppBar.svelte';
+  import Info from '../components/shared/Info.svelte';
   import Money from '../components/shared/Money.svelte';
   import Pct from '../components/shared/Pct.svelte';
   import PriceFreshness from '../components/shared/PriceFreshness.svelte';
@@ -16,6 +17,35 @@
 
   const t = $derived(app.report.totals);
   const openCount = $derived(app.report.positions.length + app.report.stablecoins.length);
+  const trading = $derived(app.tradingReport);
+  /** Équité de trading dans la devise d'affichage ; `null` tant qu'aucun taux USD n'est connu. */
+  const tradingEquity = $derived(app.hasTrading ? app.usdcToDisplay(trading.equity) : null);
+  const tradingNet = $derived(
+    app.hasTrading
+      ? app.usdcToDisplay(
+          trading.totals.realized.minus(trading.totals.perpFees).plus(trading.totals.funding),
+        )
+      : null,
+  );
+  /** Valeur nette = valeur des positions + équité de trading (des soldes, jamais des P&L). */
+  const netWorth = $derived(
+    tradingEquity === null ? t.value : (t.value?.plus(tradingEquity) ?? tradingEquity),
+  );
+  /** Répartition du capital (%) entre les deux espaces ; `null` si un des deux est inconnu. */
+  const split = $derived.by((): { invest: number; trading: number } | null => {
+    if (!app.hasTrading || tradingEquity === null || t.value === null) return null;
+    const total = t.value.plus(tradingEquity);
+    if (!total.gt('0')) return null;
+    const invest = Number(t.value.div(total).times('100').toFixed(1));
+    return { invest, trading: Math.round((100 - invest) * 10) / 10 };
+  });
+  /** Flux vers/depuis le trading (dépôts et retraits USDC des comptes Hyperliquid, tout l'historique). */
+  const flows = $derived.by(() => {
+    if (!app.hasTrading) return null;
+    const deposits = app.usdcToDisplay(trading.totals.deposits);
+    const withdrawals = app.usdcToDisplay(trading.totals.withdrawals);
+    return deposits === null || withdrawals === null ? null : { deposits, withdrawals };
+  });
   const alerts = $derived(
     runSelfChecks({
       report: app.hasData ? app.report : null,
@@ -31,6 +61,7 @@
         saveError: app.saveError,
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
+      trading: app.tradingChecks,
       now: nowIso(),
     }).filter((c) => c.level === 'warn' || c.level === 'fail'),
   );
@@ -39,23 +70,59 @@
 <AppBar title="Vue d'ensemble" />
 
 <section class="card hero">
-  <p class="label">Valeur nette</p>
-  <p class="big"><Money value={t.value} compact strong /></p>
-  <p class="muted small">
-    Valeur de vos positions d'investissement au dernier prix connu. L'équité de trading s'y ajoutera
-    quand l'espace Trading sera alimenté.
-  </p>
   <div class="tools">
-    <button
-      class="tool"
-      type="button"
-      onclick={() => void app.refreshPrices(true)}
-      disabled={app.priceStatus.loading || app.state.ui.priceSource === 'off'}
-    >
-      Actualiser
-    </button>
-    <PriceFreshness />
+    <p class="label">Synthèse</p>
+    <div class="actions">
+      <button
+        class="tool"
+        type="button"
+        onclick={() => void app.refreshPrices(true)}
+        disabled={app.priceStatus.loading || app.state.ui.priceSource === 'off'}
+      >
+        Actualiser
+      </button>
+    </div>
   </div>
+  <PriceFreshness />
+  <div class="trio">
+    <div>
+      <p class="label">
+        <span>Valeur nette</span>
+        <Info title="Valeur nette"
+          >Valeur des positions d'investissement (dernier prix connu) + équité de trading (compte
+          perps, USDC au taux BCE du jour). On additionne des soldes — jamais des résultats de
+          nature différente.</Info
+        >
+      </p>
+      <p class="big"><Money value={netWorth} compact strong /></p>
+    </div>
+    <div>
+      <p class="label">Investissement</p>
+      <p class="big"><Money value={t.value} compact /></p>
+      <p class="muted small">
+        Latent <Money value={t.unrealized} sign colored compact /> · réalisé
+        <Money value={t.realized} sign colored compact />
+      </p>
+    </div>
+    <div>
+      <p class="label">Trading</p>
+      {#if app.hasTrading}
+        <p class="big"><Money value={tradingEquity} compact /></p>
+        <p class="muted small">
+          P&L net <Money value={tradingNet} sign colored compact /> · latent
+          <Money value={app.usdcToDisplay(trading.unrealized)} sign colored compact />
+        </p>
+      {:else}
+        <p class="big muted">—</p>
+        <p class="muted small">Aucun compte de trading connecté.</p>
+      {/if}
+    </div>
+  </div>
+  {#if app.hasTrading && tradingEquity === null}
+    <p class="muted small">
+      Taux de change en cours de chargement : équité de trading non comptée.
+    </p>
+  {/if}
 </section>
 
 <div class="spaces">
@@ -91,17 +158,73 @@
   <a
     class="card space trading"
     href={router.href({ name: 'trading' })}
-    aria-label="Découvrir l'espace Trading"
+    aria-label={app.hasTrading ? "Ouvrir l'espace Trading" : "Découvrir l'espace Trading"}
   >
     <h2>Trading</h2>
-    <p class="muted small">Trades, P&L net, journal, statistiques</p>
-    <p class="soon">
-      À venir : import Hyperliquid en lecture seule (adresse publique), saisie manuelle d'un trade,
-      espérance en R, taux de réussite, drawdown.
-    </p>
-    <span class="go">Découvrir l'espace Trading →</span>
+    {#if app.hasTrading}
+      <p class="muted small">
+        {app.hlAccounts.length} compte{app.hlAccounts.length > 1 ? 's' : ''} · {trading.totals
+          .fills} fills
+      </p>
+      <dl>
+        <div>
+          <dt>Équité</dt>
+          <dd><Money value={tradingEquity} compact /></dd>
+        </div>
+        <div>
+          <dt>Latent</dt>
+          <dd><Money value={app.usdcToDisplay(trading.unrealized)} sign colored compact /></dd>
+        </div>
+        <div>
+          <dt>P&L net</dt>
+          <dd><Money value={tradingNet} sign colored compact /></dd>
+        </div>
+      </dl>
+      <span class="go">Ouvrir l'espace Trading →</span>
+    {:else}
+      <p class="muted small">Trades, P&L net, journal, statistiques</p>
+      <p class="soon">
+        À venir : import Hyperliquid en lecture seule (adresse publique), saisie manuelle d'un
+        trade, espérance en R, taux de réussite, drawdown.
+      </p>
+      <span class="go">Découvrir l'espace Trading →</span>
+    {/if}
   </a>
 </div>
+
+{#if split || flows}
+  <section class="card capital">
+    <h2>Capital</h2>
+    {#if split}
+      <div
+        class="bar"
+        role="img"
+        aria-label="Répartition du capital : investissement {split.invest} %, trading {split.trading} %"
+      >
+        <span class="invest" style="width: {split.invest}%"></span>
+        <span class="trading" style="width: {split.trading}%"></span>
+      </div>
+      <p class="muted small legend">
+        <span
+          ><span class="swatch invest" aria-hidden="true"></span>Investissement {split.invest.toLocaleString(
+            'fr-FR',
+          )} %</span
+        >
+        <span
+          ><span class="swatch trading" aria-hidden="true"></span>Trading {split.trading.toLocaleString(
+            'fr-FR',
+          )} %</span
+        >
+      </p>
+    {/if}
+    {#if flows}
+      <p class="muted small">
+        Capital envoyé au trading (dépôts) : <Money value={flows.deposits} compact /> · rapatrié (retraits)
+        : <Money value={flows.withdrawals} compact />.
+      </p>
+    {/if}
+  </section>
+{/if}
 
 {#if alerts.length > 0}
   <section class="card">
@@ -129,7 +252,27 @@
 <style>
   .hero {
     display: grid;
+    gap: var(--space-3);
+  }
+  .trio {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+  .trio > div {
+    display: grid;
+    gap: var(--space-1);
+    align-content: start;
+  }
+  .actions {
+    display: flex;
+    align-items: center;
     gap: var(--space-2);
+  }
+  @media (max-width: 480px) {
+    .trio {
+      grid-template-columns: 1fr;
+    }
   }
   .label {
     font-size: var(--fs-xs);
@@ -137,6 +280,10 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--fg-muted);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin: 0;
   }
   .big {
     font-size: var(--fs-xl);
@@ -146,6 +293,7 @@
   .tools {
     display: flex;
     flex-wrap: wrap;
+    justify-content: space-between;
     align-items: center;
     gap: var(--space-2) var(--space-3);
   }
@@ -183,6 +331,51 @@
   }
   .space.trading {
     border-left-color: var(--accent-trading);
+  }
+  .capital {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .capital h2 {
+    margin: 0;
+    font-size: var(--fs-md);
+  }
+  .bar {
+    display: flex;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--bg-sunken);
+  }
+  .bar .invest {
+    background: var(--accent-invest);
+  }
+  .bar .trading {
+    background: var(--accent-trading);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    margin: 0;
+  }
+  .legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .swatch.invest {
+    background: var(--accent-invest);
+  }
+  .swatch.trading {
+    background: var(--accent-trading);
   }
   .space:hover .go {
     text-decoration: underline;

@@ -29,7 +29,8 @@
     "e2e:ui": "playwright test --ui",
     "lhci": "vite build && lhci autorun",
     "monitor": "playwright test --config playwright.monitor.config.ts && node scripts/api-contract.mjs",
-    "fixture": "node scripts/generate-fixture.ts"
+    "fixture": "node scripts/generate-fixture.ts",
+    "fixture:hl": "node scripts/generate-hl-fixture.ts"
   },
   "dependencies": {
     "big.js": "7.0.1",

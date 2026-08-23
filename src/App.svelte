@@ -11,6 +11,11 @@
   import Privacy from './routes/Privacy.svelte';
   import Settings from './routes/Settings.svelte';
   import Trading from './routes/Trading.svelte';
+  import TradeAdd from './routes/trading/TradeAdd.svelte';
+  import TradeStats from './routes/trading/TradeStats.svelte';
+  import Fills from './routes/trading/Fills.svelte';
+  import TradeDetail from './routes/trading/TradeDetail.svelte';
+  import Trades from './routes/trading/Trades.svelte';
   import Welcome from './routes/Welcome.svelte';
   import AssetDetail from './routes/invest/AssetDetail.svelte';
   import Import from './routes/invest/Import.svelte';
@@ -109,6 +114,16 @@
         <Welcome />
       {:else if route.name === 'portfolio'}
         <Portfolio />
+      {:else if route.name === 'trades'}
+        <Trades />
+      {:else if route.name === 'trade'}
+        <TradeDetail id={route.id} />
+      {:else if route.name === 'tradeAdd'}
+        <TradeAdd />
+      {:else if route.name === 'tradeStats'}
+        <TradeStats />
+      {:else if route.name === 'fills'}
+        <Fills />
       {:else if route.name === 'trading'}
         <Trading />
       {:else if route.name === 'more'}
@@ -172,6 +187,15 @@
     flex: 1;
     width: 100%;
     padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  }
+  /* ≥ 1024 px : le rail de navigation (BottomNav) occupe une gouttière fixe à gauche. */
+  @media (min-width: 1024px) {
+    .app {
+      padding-left: 96px;
+    }
+    main {
+      padding-bottom: var(--space-6);
+    }
   }
   .update {
     background: var(--accent);

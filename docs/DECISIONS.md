@@ -130,3 +130,60 @@
     IndexedDB natif) ; stub explicite par test (`vi.stubGlobal('indexedDB', new IDBFactory())`)
     plutôt que `fake-indexeddb/auto`, pour rester local au fichier de test grâce à l'isolation par
     fichier de Vitest (`isolate: true`).
+
+22. **Import Hyperliquid en lecture seule : adresse publique, bruts persistés, perps hors moteur
+    CUMP** (23/08/2026, proposition v2 § 4 et § 6.2-6.4, P20). Un compte Hyperliquid n'est identifié
+    que par son **adresse publique** (`0x` + 40 hexadécimaux, normalisée en minuscules,
+    `hl:<adresse>`) : jamais de clé ni de signature (l'API `info` est intégralement en lecture seule),
+    l'adresse n'est envoyée qu'à `api.hyperliquid.xyz` et n'est stockée que localement — cohérent avec
+    la décision n° 1. Les bruts (fills, funding, mouvements du grand livre, instantané de compte,
+    curseurs de synchronisation) sont persistés dans l'état (`StoredStateV1.hyperliquid: HlState`,
+    conteneur additif) plutôt qu'un simple dérivé, parce que l'API Hyperliquid ne conserve qu'un
+    historique glissant de fills par adresse : l'application devient la mémoire longue. IndexedDB
+    (décision n° 21) absorbe le volume ; sauvegarde JSON, fusion (`json-io.ts`, union par `tid` et par
+    clé composite pour funding/ledger) et chiffrement restent inchangés, seulement étendus au nouveau
+    conteneur. Horodatage : `time` (ms UTC) conservé tel quel, `at` (`NaiveDateTime`) dérivé en
+    **heure de Paris** par `Intl.DateTimeFormat` (`import/hyperliquid/time.ts`, déterministe, jamais
+    `new Date()` sur une chaîne) pour que le tri mixte avec les événements Coinhouse d'une même
+    journée reste juste.
+
+    Les fills **perps** alimentent un second moteur pur, `domain/trading` (jamais `investedTotal` ni
+    `proceedsTotal` de l'Investissement) : P&L net = Σ `closedPnl` (brut de frais, vérifié
+    empiriquement par reconstruction d'aller-retours) − Σ frais + Σ funding. La réconciliation
+    `accountValue ≈ Σ flux de trésorerie + Σ closedPnl − Σ frais perps + Σ funding + Σ P&L latent` est
+    recalculée à chaque rapport (`computeTradingAccount`) et affichée comme **auto-vérification
+    permanente** sur le tableau de bord Trading (tolérance 0,01 USDC), plutôt que comme un test isolé.
+    Les fills **spot** vont par défaut aux « Avoirs spot » du Trading (quantité, valeur, sans PRU) ;
+    l'option `spotAsInvestment` (par compte) les transforme en `TradeEvent` de l'Investissement, la
+    contrepartie USDC étant modélisée comme du cash converti en euros au taux BCE du jour (décision
+    n° 18), jamais comme une position stablecoin séparée — les frais d'un achat sont prélevés sur le
+    jeton reçu (quantité nette), un frais payé dans un jeton tiers n'est pas valorisé (avertissement à
+    l'écran) et un fill sans aucun taux EUR→USD connu ce jour-là est omis plutôt que converti au
+    mauvais taux. Dépôts et retraits USDC (`userNonFundingLedgerUpdates`) sont des flux de trésorerie
+    du compte de trading, jamais un achat de stablecoin.
+
+    Assumé en v1 : les mouvements `send` (transfert inter-DEX) et `spotGenesis` (airdrop) sont listés
+    pour mémoire sans effet sur les totaux, faute de sens comptable observé en sonde ; `USDH` n'est
+    pas valorisé (seul `USDC` vaut USD, décision n° 18) ; vaults et sous-comptes ne sont pas suivis
+    automatiquement — ce sont des adresses distinctes, à déclarer une par une. Détail complet des
+    champs et de la synchronisation : `docs/hyperliquid-import.md`.
+
+23. **Journal et statistiques de trading : le journal est une donnée première, les aller-retours et
+    les statistiques sont recalculés** (23/08/2026, P21/P22). Les aller-retours (flat → position →
+    flat) sont reconstruits par `src/lib/domain/trading/round-trips.ts` à partir des exécutions :
+    un retournement clôt et rouvre dans la même exécution (frais au prorata, `closedPnl` à la
+    clôture), le funding est rattaché par fenêtre temporelle, et `startPosition` sert de garde —
+    un historique tronqué (l'API ne conserve que les 10 000 fills récents) produit un aller-retour
+    « incomplet » sans moyenne d'entrée plutôt que des chiffres faux. Identifiants stables et
+    uniques par (compte, symbole, instant, numéro d'ordre) : plusieurs aller-retours peuvent naître
+    à la même milliseconde. Périmètre v1 : perps seulement — le spot vit dans « Avoirs spot » ou
+    dans l'Investissement. Le journal (`StoredStateV1.journal`, une entrée par trade) et les trades
+    manuels (`manualTrades`, P&L toujours calculé, jamais saisi) sont des conteneurs additifs de
+    l'état, fusionnés par identifiant. R = P&L net ÷ risque initial (explicite, sinon
+    |entrée − stop| × taille maximale). Les statistiques (`stats.ts`) sont des standards de
+    praticiens (espérance, profit factor, payoff, drawdown, séries), jamais présentées comme
+    prédictives : sous 30 trades clos (`MIN_SAMPLE`), l'interface affiche un avertissement à la
+    place d'un verdict ; les trades non convertibles dans la devise d'affichage sont comptés à part
+    plutôt que sommés dans la mauvaise devise. La courbe d'équité du tableau de bord vient de la
+    réponse `portfolio` de la plateforme (persistée à la synchronisation, convertie au taux BCE de
+    chaque jour) : l'application ne fabrique pas d'historique qu'elle n'a pas.

@@ -28,8 +28,23 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   grand livre ; `computePortfolioByAccount` : le même grand livre groupé par `accountId`, un rapport
   — donc un PRU — par compte, le contrôle de solde n'étant transmis qu'au compte Coinhouse),
   `engine/integrity.ts` (colonne Solde).
+- `src/lib/domain/trading` — second moteur pur (même contrainte : aucun import Svelte/DOM, seule
+  dépendance big.js), vocabulaire volontairement distinct de l'Investissement (jamais de PRU ici).
+  `types.ts` (`Execution` : fill spot ou perp ; `FundingPayment` ; `CashFlow` ; `OpenPosition` ;
+  `SpotHolding` ; `TradingSnapshot`), `compute.ts` (`computeTradingAccount` : totaux réalisé brut,
+  frais, funding, net = réalisé − frais perps + funding, dépôts nets, P&L latent, équité, et
+  réconciliation `accountValue ≈ Σ flux + Σ closedPnl − Σ frais perps + Σ funding + latent` —
+  auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
+  plusieurs comptes, docs/DECISIONS.md n° 22).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
+- `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
+  120 ms d'espacement, nouvel essai avec délai exponentiel et jitter sur 429/5xx, `Retry-After`
+  respecté), synchronisation incrémentale par curseur (`sync.ts` : fills par pages de 2 000, funding
+  et grand livre par pages de 100, borne inclusive et dédoublonnage par clé — idempotente), gardes
+  runtime champ par champ sur chaque réponse (`api-types.ts`), normalisation vers `domain/trading` et,
+  en option (`spotAsInvestment`), vers des `TradeEvent` de l'Investissement (`normalize.ts`). Détail
+  complet : docs/hyperliquid-import.md, docs/DECISIONS.md n° 22.
 - `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé), Coinbase (par
   actif), Kraken (groupé), Hyperliquid (mids USDC : HYPE, PURR et tokens spot Hyperliquid) et
   DefiLlama (filet de sécurité, par identifiant CoinGecko) ; cascade avec cache et prix manuels.
@@ -48,7 +63,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   **déclarés** par l'utilisateur (id `man:<aléatoire>`, assaini par motif
   `^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$`) ; les comptes **implicites** (Coinhouse `ch:main`, saisies
   « hors Coinhouse » `man:default`) ne sont jamais persistés, ils existent dès qu'un événement les
-  référence (`AppState.accounts`, dérivé).
+  référence (`AppState.accounts`, dérivé). `hyperliquid: HlState` (conteneur additif,
+  docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
+  (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
+  `json-io.ts`, jamais remplacé en bloc.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR).
@@ -58,8 +76,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   de retour de barre d'application : `routes/Overview.svelte` (Vue d'ensemble, `#/`, aussi le
   `start_url` de la PWA — additionne des soldes, jamais des résultats de nature différente),
   `routes/invest/*.svelte` (Investissement, `#/invest…` : portefeuille, fiche actif, import, saisie
-  manuelle, rapport), `routes/Trading.svelte` (Trading, `#/trading`, état vide en attendant l'import
-  Hyperliquid) et `routes/More.svelte` (Plus, `#/more` : import, saisie, rapport, **comptes**
+  manuelle, rapport), `routes/Trading.svelte` (Trading, `#/trading` : état vide tant qu'aucun compte
+  Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par période, positions ouvertes,
+  avoirs spot, derniers fills, réconciliation permanente) et `routes/More.svelte` (Plus, `#/more` :
+  import, saisie, rapport, **comptes**
   (`routes/Accounts.svelte`, `#/accounts` : liste des comptes implicites et déclarés,
   ajout/suppression d'un compte déclaré), réglages, aide, nouveautés, confidentialité).
   `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les hashes v1
@@ -74,6 +94,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   de migration ou de valorisation des récompenses.
 - Sur le jeu de démonstration synthétique (`npm run fixture`, 21 actifs) et sur un export réel
   (local, ignoré par git) : 0 bloqué, 0 à qualifier, tous les soldes cohérents, ré-import idempotent.
+- Trading (par compte Hyperliquid synchronisé) : réconciliation permanente de l'équité (tolérance
+  0,01 USDC, formule complète dans docs/hyperliquid-import.md) — c'est elle qui a permis de trancher
+  empiriquement que `closedPnl` est brut de frais.
 
 ## Tests
 

@@ -21,6 +21,7 @@
         saveError: app.saveError,
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
+      trading: app.tradingChecks,
       now: nowIso(),
     }),
   );

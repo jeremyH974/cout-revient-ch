@@ -26,6 +26,9 @@ const text = (value: string): string => `"${value.replace(/"/g, '""')}"`;
 const join = (cells: string[]): string => cells.join(';');
 const file = (header: string[], rows: string[][]): string =>
   BOM + [join(header), ...rows.map(join)].join(EOL) + EOL;
+/** Origine d'une ligne d'historique d'après le préfixe de son identifiant d'événement. */
+const sourceLabel = (eventId: string): string =>
+  eventId.startsWith('man:') ? 'Manuel' : eventId.startsWith('hl:') ? 'Hyperliquid' : 'Coinhouse';
 const day = (naive: string): string => naive.slice(0, 10).split('-').reverse().join('/');
 const time = (naive: string): string => naive.slice(11, 16);
 
@@ -146,7 +149,7 @@ export function operationsToCsv(
           num(h.realized, 2),
           num(h.pruAfter, 10),
           num(h.qtyAfter),
-          text(h.eventId.startsWith('man:') ? 'Manuel' : 'Coinhouse'),
+          text(sourceLabel(h.eventId)),
           text(accountLabel(h.accountId, accountLabels)),
           text(h.eventId.replace(/^(ch|man):/, '')),
           text(h.warnings.join(' | ')),

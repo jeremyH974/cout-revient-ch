@@ -90,6 +90,16 @@
     « Contre-valeur (EUR) » de la ligne crypto est en réalité en USDC dans l'export). Les USDC sont
     suivis comme une ligne à part : leur gain ou perte est l'effet de change euro/dollar.
   </p>
+  <h2>Qu'est-ce que l'espace Trading (Hyperliquid) ?</h2>
+  <p>
+    Un second espace, séparé du PRU : collez une <strong>adresse publique</strong> Hyperliquid
+    (jamais de clé) dans l'écran Comptes pour voir l'équité de votre compte, vos positions ouvertes,
+    vos avoirs spot et un P&L net (réalisé − frais + funding), avec une réconciliation vérifiée à
+    chaque actualisation. Seule l'adresse est envoyée, et uniquement à Hyperliquid (<a
+      href={router.href({ name: 'privacy' })}>Confidentialité</a
+    >) ; cochez « traiter le spot comme de l'investissement » sur le compte pour que ses achats spot
+    comptent aussi dans le PRU.
+  </p>
   <h2>Un problème, une idée ?</h2>
   <p>
     Dans <strong>Réglages → Aide et retours</strong>, copiez le diagnostic (il ne contient ni

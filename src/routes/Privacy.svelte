@@ -23,6 +23,11 @@
       (prix manuels).
     </li>
     <li>Le téléchargement du site lui-même depuis GitHub Pages (qui voit votre adresse IP).</li>
+    <li>
+      Si vous suivez un compte Hyperliquid (espace Trading), son <strong>adresse publique</strong>
+      (jamais de clé) : envoyée uniquement à <code>api.hyperliquid.xyz</code> pour lire vos fills, positions
+      et soldes, et stockée seulement sur cet appareil, jamais ailleurs.
+    </li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>
   <p>

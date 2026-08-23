@@ -37,7 +37,7 @@ export const SPACES: readonly Space[] = [
     label: 'Trading',
     home: { name: 'trading' },
     backLabel: 'Retour au trading',
-    routes: ['trading'],
+    routes: ['trading', 'trades', 'trade', 'tradeAdd', 'tradeStats', 'fills'],
   },
   {
     id: 'more',

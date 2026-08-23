@@ -54,7 +54,7 @@ export interface Leg {
   qty: DecimalString;
 }
 
-export type EventSource = 'coinhouse-csv' | 'manual';
+export type EventSource = 'coinhouse-csv' | 'manual' | 'hyperliquid-api';
 
 /** `coinhouse` : participe au contrôle de solde ; `external` : hors plateforme, exclu. */
 export type EventScope = 'coinhouse' | 'external';
@@ -87,6 +87,8 @@ export interface Account {
 export const COINHOUSE_ACCOUNT_ID: AccountId = 'ch:main';
 /** Compte implicite des saisies manuelles « hors Coinhouse » antérieures aux comptes. */
 export const MANUAL_ACCOUNT_ID: AccountId = 'man:default';
+/** Compte implicite des trades saisis à la main (espace Trading, plateformes sans API). */
+export const MANUAL_TRADING_ACCOUNT_ID: AccountId = 'man:trading';
 
 export interface EventBase {
   id: EventId;
