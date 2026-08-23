@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openDemo } from './helpers/demo';
+import { openDemo, waitForPrices } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
 
 /**
@@ -24,6 +24,7 @@ async function openDataset(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
   await page.getByRole('link', { name: 'Voir mon portefeuille' }).click();
   await expect(page.getByRole('list', { name: 'Positions' })).toBeVisible();
+  await waitForPrices(page);
 }
 
 test.beforeEach(async ({ context }, testInfo) => {
@@ -78,8 +79,12 @@ async function readRows(list: Locator): Promise<Row[]> {
     const li = items.nth(i);
     const qtyText = await li.locator('.cell.qty .num').innerText();
     const pruText = (await li.locator('.cell.qty .small').innerText()).replace(/^PRU\s*/, '');
-    // Le libellé « Prix » (lecteurs d'écran) précède la valeur.
-    const priceText = (await li.locator('.cell.price').innerText()).replace(/^Prix\s*/, '').trim();
+    // Le libellé « Prix » (lecteurs d'écran) précède la valeur ; la source et l'âge du prix
+    // (« CoinGecko · il y a 2 min ») suivent sur une seconde ligne.
+    const priceText = (await li.locator('.cell.price').innerText())
+      .replace(/^Prix\s*/, '')
+      .split('\n')[0]!
+      .trim();
     const [latent, latentPct] = await nums(li.locator('.cell.latent'));
     rows.push({
       asset: await li.locator('.cell.id strong').innerText(),
