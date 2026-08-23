@@ -3,3 +3,6 @@ contact_links:
   - name: Aide de l'application
     url: https://jeremyh974.github.io/cout-revient-ch/#/help
     about: Comment obtenir l'export Coinhouse et ce que veulent dire les chiffres.
+  - name: Discussions — questions, idées, sondages
+    url: https://github.com/jeremyH974/cout-revient-ch/discussions
+    about: Pour échanger sans ouvrir de signalement (retours du Discord bienvenus).

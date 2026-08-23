@@ -75,7 +75,9 @@ Un fichier refusé, un chiffre douteux, une idée : **Réglages → Aide et reto
 (formulaire pré-rempli) »** ouvre un signalement GitHub déjà renseigné avec le diagnostic (il ne
 contient ni montant ni quantité : version, navigateur, colonnes de votre fichier, compteurs,
 erreurs récentes). Ne joignez jamais votre export. Les idées passent par
-[le sélecteur de gabarits](https://github.com/jeremyH974/cout-revient-ch/issues/new/choose).
+[le sélecteur de gabarits](https://github.com/jeremyH974/cout-revient-ch/issues/new/choose) ;
+questions, idées et sondages se discutent dans
+[les Discussions](https://github.com/jeremyH974/cout-revient-ch/discussions).
 
 ## Qualité et amélioration continue
 

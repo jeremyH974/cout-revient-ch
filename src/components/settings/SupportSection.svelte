@@ -5,7 +5,7 @@
   import { buildDiagnostic } from '$lib/support/diagnostic';
   import { recentErrors } from '$lib/support/errors';
   import { collectEnvironment, type EnvironmentSnapshot } from '$lib/support/environment';
-  import { NEW_ISSUE_URL, issueUrl } from '$lib/support/links';
+  import { DISCUSSIONS_URL, NEW_ISSUE_URL, issueUrl } from '$lib/support/links';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -103,6 +103,9 @@
     >
     <a class="link" href={NEW_ISSUE_URL} target="_blank" rel="noopener noreferrer"
       >Proposer une idée</a
+    >
+    <a class="link" href={DISCUSSIONS_URL} target="_blank" rel="noopener noreferrer"
+      >Discussions (questions, sondages)</a
     >
   </div>
   <details>

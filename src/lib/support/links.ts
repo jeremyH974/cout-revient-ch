@@ -1,6 +1,8 @@
 /** Liens publics du projet (dépôt, signalement, site). */
 export const REPO_URL = 'https://github.com/jeremyH974/cout-revient-ch';
 export const NEW_ISSUE_URL = `${REPO_URL}/issues/new/choose`;
+/** Questions, idées et sondages, sans ouvrir de signalement. */
+export const DISCUSSIONS_URL = `${REPO_URL}/discussions`;
 export const SITE_URL = 'https://jeremyh974.github.io/cout-revient-ch/';
 
 export type IssueTemplate = 'bug' | 'fichier-non-reconnu' | 'idee';
