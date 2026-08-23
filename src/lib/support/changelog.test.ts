@@ -52,3 +52,27 @@ describe('lecture du changelog', () => {
     expect(releases.every((r) => r.sections.every((s) => s.items.length > 0))).toBe(true);
   });
 });
+
+describe('sections répétées', () => {
+  it('fusionne deux « Added » d’une même version (titres uniques pour le rendu)', () => {
+    const md = [
+      '## [Unreleased]',
+      '',
+      '### Added',
+      '',
+      '- a',
+      '',
+      '### Fixed',
+      '',
+      '- b',
+      '',
+      '### Added',
+      '',
+      '- c',
+      '',
+    ].join(String.fromCharCode(10));
+    const [release] = parseChangelog(md);
+    expect(release?.sections.map((s) => s.title)).toEqual(['Ajouté', 'Corrigé']);
+    expect(release?.sections[0]?.items).toEqual(['a', 'c']);
+  });
+});

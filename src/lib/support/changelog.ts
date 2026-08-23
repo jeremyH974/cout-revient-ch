@@ -39,8 +39,14 @@ export function parseChangelog(markdown: string): ChangelogRelease[] {
     }
     const h3 = /^### (.+)$/.exec(line);
     if (h3 && release) {
-      section = { title: SECTION_LABELS[h3[1]!.trim()] ?? h3[1]!.trim(), items: [] };
-      release.sections.push(section);
+      const title = SECTION_LABELS[h3[1]!.trim()] ?? h3[1]!.trim();
+      // Un titre répété dans la même version (« Added » en deux endroits) fusionne ses entrées :
+      // les sections d'une version restent uniques, ce qui sert de clé au rendu.
+      section = release.sections.find((s) => s.title === title) ?? null;
+      if (!section) {
+        section = { title, items: [] };
+        release.sections.push(section);
+      }
       continue;
     }
     const item = /^- (.+)$/.exec(line);
