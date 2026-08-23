@@ -21,8 +21,17 @@
   /** Prix de marque déduit de l'instantané : valeur notionnelle ÷ taille. */
   const mark = $derived(divOrNull(D(p.value).abs(), D(p.size)));
   const upnl = $derived(D(p.unrealizedPnl));
-  /** Rendement sur la marge engagée (ROE), pas sur le notionnel. */
-  const roe = $derived(D(p.marginUsed).gt(ZERO) ? upnl.div(p.marginUsed) : null);
+  /**
+   * ROE % comme sur la plateforme : P&L latent ÷ marge INITIALE (valeur d'entrée ÷ levier),
+   * pas la marge au prix de marque — vérifié sur données réelles le 23/08/2026
+   * (BTC 40x : 2 022 ÷ (152 872 ÷ 40) = +52,9 %, le chiffre affiché par Hyperliquid).
+   */
+  const initialMargin = $derived.by((): Big => {
+    if (p.entryPrice !== null && p.leverage > 0)
+      return D(p.entryPrice).times(p.size).div(String(p.leverage));
+    return D(p.marginUsed);
+  });
+  const roe = $derived(initialMargin.gt(ZERO) ? upnl.div(initialMargin) : null);
 </script>
 
 <li class="item">
@@ -59,7 +68,7 @@
         colored
         strong
         compact
-      /><span class="small"><Pct value={roe} /> <span class="muted">sur marge</span></span></span
+      /><span class="small"><Pct value={roe} /> <span class="muted">ROE</span></span></span
     >
   </svelte:element>
 </li>

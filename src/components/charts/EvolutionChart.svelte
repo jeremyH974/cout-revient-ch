@@ -50,6 +50,8 @@
     currency = 'EUR',
     markers = [],
     levels = [],
+    step = false,
+    holes = true,
     height = 220,
     zeroLine = false,
     colorMode = 'trend',
@@ -64,6 +66,10 @@
     markers?: ChartMarker[];
     /** Niveaux de référence horizontaux (toujours inclus dans l'échelle verticale). */
     levels?: ChartLevel[];
+    /** Tracé en marches d'escalier (séries échantillonnées par une plateforme). */
+    step?: boolean;
+    /** false : ne jamais rompre le tracé (échantillonnage irrégulier assumé, ex. `portfolio`). */
+    holes?: boolean;
     height?: number;
     /** Référence = 0 (latent) ; sinon la courbe secondaire (investi, PRU) sert de référence. */
     zeroLine?: boolean;
@@ -123,7 +129,10 @@
   });
   const days = $derived(points.map((p) => p.day));
   /** Abscisses proportionnelles au temps ; les jours ou pas omis deviennent des trous. */
-  const layout = $derived(layoutX(days, PAD.left, width - PAD.right));
+  const layout = $derived.by(() => {
+    const raw = layoutX(days, PAD.left, width - PAD.right);
+    return holes ? raw : { xs: raw.xs, holeBefore: raw.holeBefore.map(() => false) };
+  });
   const x = (i: number): number => layout.xs[i] ?? PAD.left;
   const hole = (i: number): boolean => layout.holeBefore[i] ?? false;
   const y = (v: number): number =>
@@ -140,7 +149,14 @@
     return zeroLine ? 0 : p.secondary;
   };
   const linePath = $derived(
-    points.map((p, i) => `${i === 0 || hole(i) ? 'M' : 'L'}${pt(i, p.primary)}`).join(' '),
+    points
+      .map((p, i) => {
+        if (i === 0 || hole(i)) return `M${pt(i, p.primary)}`;
+        // Marches : palier au niveau précédent jusqu'à l'abscisse du point, puis saut vertical.
+        const riser = step ? `L${r1(x(i))},${r1(y(points[i - 1]!.primary))} ` : '';
+        return `${riser}L${pt(i, p.primary)}`;
+      })
+      .join(' '),
   );
   const secondaryPath = $derived(
     points
@@ -159,6 +175,7 @@
     const fwd: string[] = [];
     const back: string[] = [];
     for (let i = s.from; i <= s.to; i++) {
+      if (step && i > s.from) fwd.push(`${r1(x(i))},${r1(y(points[i - 1]!.primary))}`);
       fwd.push(pt(i, points[i]!.primary));
       back.unshift(pt(i, ref(i) ?? 0));
     }

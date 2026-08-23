@@ -110,6 +110,11 @@
         secondary: null,
       });
     }
+    // Équité : référence = valeur au départ de la période → vert au-dessus, rouge en dessous.
+    if (curveMetric === 'equity' && points.length > 0) {
+      const start = points[0]!.primary;
+      for (const point of points) point.secondary = start;
+    }
     return points;
   });
 
@@ -262,8 +267,13 @@
         points={curvePoints}
         currency={app.currency}
         zeroLine={curveMetric === 'pnl'}
-        colorMode={curveMetric === 'pnl' ? 'sign' : 'trend'}
-        labels={{ primary: curveMetric === 'pnl' ? 'P&L' : 'Équité', secondary: null }}
+        colorMode={curveMetric === 'pnl' ? 'sign' : 'vsSecondary'}
+        step
+        holes={false}
+        labels={{
+          primary: curveMetric === 'pnl' ? 'P&L' : 'Équité',
+          secondary: curveMetric === 'pnl' ? null : 'départ',
+        }}
         discreet={app.state.ui.discreet}
       />
       <p class="muted small">
