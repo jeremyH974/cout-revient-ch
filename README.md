@@ -64,6 +64,13 @@ dernier taux connu) : le PRU en dollars reflète le change réel de vos achats, 
 conversion des totaux ne ferait pas. Taux fournis par l'API ouverte Frankfurter (BCE), mis en cache
 et inclus dans la sauvegarde.
 
+## Aide et retours
+
+Un fichier refusé, un chiffre douteux, une idée :
+[ouvrez un signalement](https://github.com/jeremyH974/cout-revient-ch/issues/new/choose) avec le
+diagnostic copié depuis **Réglages → Aide et retours** (il ne contient ni montant ni quantité :
+version, navigateur, colonnes de votre fichier, compteurs). Ne joignez jamais votre export.
+
 ## Développement
 
 ```bash

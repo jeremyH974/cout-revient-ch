@@ -29,6 +29,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (par actif), cascade avec cache et prix manuels.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, localStorage (clé
   `crch:v1:state`), sauvegarde JSON et fusion.
+- `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
+  jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR).
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
 - `src/routes`, `src/components` — présentation uniquement.

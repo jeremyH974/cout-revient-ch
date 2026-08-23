@@ -6,6 +6,7 @@
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
+  import SupportSection from '../components/settings/SupportSection.svelte';
   import Sheet from '../components/shared/Sheet.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
@@ -188,6 +189,13 @@
   </section>
 
   <EngineSettings />
+
+  <section class="card group">
+    <h2>Aide et retours</h2>
+    <SupportSection
+      intro="Un fichier refusé, un chiffre douteux, une idée ? Copiez le diagnostic (il ne contient ni montant ni quantité) et collez-le dans votre message."
+    />
+  </section>
 
   <section class="card group danger">
     <h2>Zone dangereuse</h2>

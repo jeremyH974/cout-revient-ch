@@ -21,6 +21,11 @@
     <li>Le téléchargement du site lui-même depuis GitHub Pages (qui voit votre adresse IP).</li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>
+  <p>
+    Le diagnostic copiable proposé dans les réglages (pour signaler un problème) ne contient ni
+    montant ni quantité : seulement la version, votre navigateur, les colonnes de votre fichier et
+    des compteurs. Il ne part que si vous le collez vous-même quelque part.
+  </p>
   <h2>Tout effacer</h2>
   <p>Réglages → Zone dangereuse → Effacer toutes les données.</p>
   <h2>Avertissement</h2>

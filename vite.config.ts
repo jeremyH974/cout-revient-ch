@@ -70,7 +70,11 @@ export default defineConfig({
     port: Number(process.env['PORT']) || 5173,
     strictPort: false,
   },
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    // Commit déployé (GitHub Actions), « dev » en local : affiché dans le diagnostic copiable.
+    __BUILD_SHA__: JSON.stringify((process.env['GITHUB_SHA'] ?? 'dev').slice(0, 7)),
+  },
   resolve: {
     alias: { $lib: fileURLToPath(new URL('./src/lib', import.meta.url)) },
   },

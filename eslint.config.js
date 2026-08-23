@@ -14,7 +14,12 @@ export default ts.config(
   ...svelte.configs.prettier,
   {
     languageOptions: {
-      globals: { ...globals.browser, ...globals.node, __APP_VERSION__: 'readonly' },
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+        __APP_VERSION__: 'readonly',
+        __BUILD_SHA__: 'readonly',
+      },
     },
   },
   {

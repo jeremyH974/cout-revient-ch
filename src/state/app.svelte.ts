@@ -167,6 +167,9 @@ export class AppState {
           fileName,
           rows: result.report.parsedRows,
           newRows: result.report.newRows,
+          format: result.report.format,
+          header: result.report.header,
+          unknownColumns: result.report.unknownColumns,
         },
       ];
       void requestPersistentStorage();

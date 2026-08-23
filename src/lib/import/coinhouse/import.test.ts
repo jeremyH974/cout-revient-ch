@@ -27,6 +27,8 @@ function expectFullExport(text: string): void {
   expect(result.ok).toBe(true);
   if (!result.ok) return;
   expect(result.report.format).toBe('coinhouse-2026-08');
+  expect(result.report.header).toEqual([...COINHOUSE_HEADER_2026_08]);
+  expect(result.report.unknownColumns).toEqual([]);
   expect(result.report.parsedRows).toBe(201);
   expect(result.report.issues).toEqual([]);
   expect(result.report.counts).toEqual({

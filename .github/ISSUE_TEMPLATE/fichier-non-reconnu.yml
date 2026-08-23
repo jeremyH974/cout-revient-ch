@@ -1,0 +1,37 @@
+name: Fichier non reconnu ou opérations à qualifier
+description: L'import refuse votre export Coinhouse, ou des opérations restent « à qualifier ».
+title: '[Import] '
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Ne joignez jamais votre fichier CSV** : il contient vos montants. Seules la première ligne
+        (les noms de colonnes) et le diagnostic de l'application sont nécessaires.
+  - type: textarea
+    id: header
+    attributes:
+      label: Première ligne du fichier (noms de colonnes)
+      description: Ouvrez le fichier dans un éditeur de texte (pas Excel) et copiez uniquement la première ligne.
+      placeholder: ID Coinhouse,Date,Type,Quantité,Devise,Prix du marché,Contre-valeur (EUR),…
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostic
+    attributes:
+      label: Diagnostic de l'application
+      description: Réglages → Aide et retours → « Copier le diagnostic » (ou le bouton de la carte d'erreur). Il ne contient ni montant ni quantité.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: types
+    attributes:
+      label: Types d'opérations concernés (facultatif)
+      description: Tels qu'affichés par Coinhouse (« Récompense de staking », « Dépôt »…), sans montants.
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Confidentialité
+      options:
+        - label: Je n'ai joint ni mon fichier ni aucun montant.
+          required: true

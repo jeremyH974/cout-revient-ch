@@ -1,0 +1,23 @@
+name: Idée d'amélioration
+description: Une fonctionnalité ou un affichage qui vous manque.
+title: '[Idée] '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Votre idée
+      description: Quel problème cela résoudrait-il pour vous ? Un exemple concret aide beaucoup.
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Domaine
+      options:
+        - Import Coinhouse
+        - Calculs (PRU, plus-values)
+        - Graphiques
+        - Exports (CSV, PDF)
+        - Fiscalité
+        - Autre

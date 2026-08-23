@@ -7,6 +7,9 @@ import { parseCoinhouseRows, type RowIssue } from './rows';
 
 export interface ImportReport {
   format: string;
+  /** En-têtes tels que lus dans le fichier (diagnostic : jamais de données). */
+  header: string[];
+  unknownColumns: string[];
   totalRows: number;
   parsedRows: number;
   newRows: number;
@@ -27,7 +30,7 @@ export interface ImportReport {
 
 export type ImportResult =
   | { ok: true; rows: Record<RowKey, RawCoinhouseRow>; report: ImportReport }
-  | { ok: false; error: string; details: string[] };
+  | { ok: false; error: string; details: string[]; header: string[] };
 
 /** Deux lignes sont « identiques » si tout leur contenu métier coïncide (hors métadonnées d'import). */
 export function rowsEqual(a: RawCoinhouseRow, b: RawCoinhouseRow): boolean {
@@ -62,7 +65,12 @@ export function importCoinhouseCsv(
             `Colonnes manquantes : ${detection.missing.join(', ')}.`,
             `Colonnes trouvées : ${detection.found.join(', ') || '(aucune)'}.`,
           ];
-    return { ok: false, error: 'Ce fichier ne ressemble pas à un export Coinhouse.', details };
+    return {
+      ok: false,
+      error: 'Ce fichier ne ressemble pas à un export Coinhouse.',
+      details,
+      header: table.header,
+    };
   }
   const warnings = detectExcelMangling(table, detection.columns);
   if (detection.unknownColumns.length > 0) {
@@ -74,6 +82,7 @@ export function importCoinhouseCsv(
       ok: false,
       error: 'Aucune ligne exploitable dans ce fichier.',
       details: parsed.issues.map((i) => `Ligne ${i.lineNo} : ${i.message}`),
+      header: table.header,
     };
   }
 
@@ -113,6 +122,8 @@ export function importCoinhouseCsv(
     rows: merged,
     report: {
       format: detection.format,
+      header: table.header,
+      unknownColumns: detection.unknownColumns,
       totalRows: table.rows.length,
       parsedRows: parsed.rows.length,
       newRows,

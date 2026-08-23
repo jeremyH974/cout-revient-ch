@@ -63,6 +63,13 @@
     « Contre-valeur (EUR) » de la ligne crypto est en réalité en USDC dans l'export). Les USDC sont
     suivis comme une ligne à part : leur gain ou perte est l'effet de change euro/dollar.
   </p>
+  <h2>Un problème, une idée ?</h2>
+  <p>
+    Dans <strong>Réglages → Aide et retours</strong>, copiez le diagnostic (il ne contient ni
+    montant ni quantité, seulement la version, votre navigateur, les colonnes de votre fichier et
+    des compteurs) et collez-le dans un signalement sur GitHub ou dans le Discord. Ne joignez jamais
+    votre fichier CSV.
+  </p>
   <h2>Limites</h2>
   <p>
     Les récompenses de staking, dépôts et retraits apparaissent dans « À qualifier » si l'export

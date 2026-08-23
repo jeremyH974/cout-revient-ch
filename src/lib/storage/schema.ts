@@ -24,6 +24,10 @@ export interface ImportBatchMeta {
   fileName: string;
   rows: number;
   newRows: number;
+  /** Diagnostic (jamais de données) ; absent sur les imports antérieurs à cette version. */
+  format?: string;
+  header?: string[];
+  unknownColumns?: string[];
 }
 
 export interface AssetSettings {
@@ -197,10 +201,46 @@ function validQualification(raw: unknown): raw is Qualification {
   );
 }
 
+const MAX_LIST = 40;
+const MAX_TEXT = 120;
+const textList = (v: unknown): string[] | null =>
+  Array.isArray(v)
+    ? v
+        .filter((x): x is string => typeof x === 'string')
+        .slice(0, MAX_LIST)
+        .map((s) => s.slice(0, MAX_TEXT))
+    : null;
+
+function sanitizeImport(raw: unknown): ImportBatchMeta | null {
+  if (!isRecord(raw)) return null;
+  const { id, at, fileName } = raw;
+  if (typeof id !== 'string' || typeof at !== 'string' || typeof fileName !== 'string') return null;
+  if (typeof raw['rows'] !== 'number' || typeof raw['newRows'] !== 'number') return null;
+  const meta: ImportBatchMeta = {
+    id,
+    at,
+    fileName: fileName.slice(0, 200),
+    rows: raw['rows'],
+    newRows: raw['newRows'],
+  };
+  if (typeof raw['format'] === 'string') meta.format = raw['format'].slice(0, 60);
+  const header = textList(raw['header']);
+  if (header) meta.header = header;
+  const unknownColumns = textList(raw['unknownColumns']);
+  if (unknownColumns) meta.unknownColumns = unknownColumns;
+  return meta;
+}
+
 /** Écarte les entrées invalides plutôt que de laisser le moteur planter ; renvoie le nombre écarté. */
 export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dropped: number } {
   let state = input;
   let dropped = 0;
+  const imports: ImportBatchMeta[] = [];
+  for (const raw of state.imports) {
+    const meta = sanitizeImport(raw);
+    if (meta) imports.push(meta);
+    else dropped++;
+  }
   const rawRows: Record<RowKey, RawCoinhouseRow> = {};
   for (const [key, raw] of Object.entries(state.rawRows)) {
     const row = sanitizeRow(key, raw);
@@ -262,7 +302,16 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
   if (!METRICS.includes(state.ui.assetChartMetric))
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
   return {
-    state: { ...state, rawRows, manualEvents, qualifications, priceCache, assetSettings, fx },
+    state: {
+      ...state,
+      imports,
+      rawRows,
+      manualEvents,
+      qualifications,
+      priceCache,
+      assetSettings,
+      fx,
+    },
     dropped,
   };
 }

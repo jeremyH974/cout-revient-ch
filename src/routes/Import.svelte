@@ -4,13 +4,14 @@
   import { fmtDate } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
+  import SupportSection from '../components/settings/SupportSection.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
 
   let busy = $state(false);
   let dragging = $state(false);
   let report = $state<ImportReport | null>(null);
-  let failure = $state<{ error: string; details: string[] } | null>(null);
+  let failure = $state<{ error: string; details: string[]; header: string[] } | null>(null);
   let backupDone = $state(false);
 
   async function handleFile(file: File | undefined): Promise<void> {
@@ -25,9 +26,9 @@
         report = result.report;
         toasts.push(`${result.report.newRows} nouvelle(s) ligne(s) importée(s).`, 'success');
         void app.refreshPrices();
-      } else failure = { error: result.error, details: result.details };
+      } else failure = { error: result.error, details: result.details, header: result.header };
     } catch (error) {
-      failure = { error: 'Lecture du fichier impossible.', details: [String(error)] };
+      failure = { error: 'Lecture du fichier impossible.', details: [String(error)], header: [] };
     } finally {
       busy = false;
     }
@@ -95,6 +96,10 @@
         Contre-valeur (EUR)… Si vous avez ouvert le fichier dans Excel, ré-importez la pièce jointe
         d'origine.
       </p>
+      <SupportSection
+        failure={{ error: failure.error, header: failure.header }}
+        intro="Fichier non reconnu ? Copiez le diagnostic (il contient les colonnes trouvées, jamais vos montants) et signalez-le : l'export Coinhouse a peut-être changé."
+      />
     </section>
   {/if}
 
