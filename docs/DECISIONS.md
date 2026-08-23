@@ -18,8 +18,8 @@
 10. **Fiscalité FR hors v1** : le PRU par actif n'est pas la plus-value de l'art. 150 VH bis ;
     disclaimer explicite ; les cessions sont conservées pour un futur mode fiscal.
 11. **Arithmétique décimale stricte** (big.js, `Big.strict`) ; arrondi uniquement à l'affichage.
-12. **Aucun CSV réel dans git** ; fixture anonymisée (IDs régénérés, dates décalées, montants
-    rescalés, soldes recalculés) ; test local optionnel sur le fichier réel.
+12. **Aucun CSV réel dans git** ; jeu de démonstration et de tests entièrement synthétique
+    (voir n° 17) ; test local optionnel sur le fichier réel, ignoré par git.
 13. **Chaîne d'approvisionnement verrouillée** (23/08/2026, après le retour du ver npm
     « Shai-Hulud » qui a touché des dépendances indirectes du projet) : `.npmrc` refuse les scripts
     d'installation (`ignore-scripts`) et n'installe une version qu'après 7 jours de publication
@@ -28,15 +28,15 @@
     CodeQL, Dependency review et OpenSSF Scorecard tournent gratuitement sur le dépôt public.
     Le site publié reste un bundle statique sans CDN : un paquet compromis ne pourrait atteindre
     les utilisateurs que via ce pipeline, d'où la priorité.
-14. **Mode démo = la fixture anonymisée, sans copie** (23/08/2026) : `AppState.loadDemo()` importe
-    `tests/fixtures/coinhouse/export-anonymized.csv?raw` en chunk paresseux (le garde-fou « aucun
+14. **Mode démo = le jeu de démonstration du dépôt, sans copie** (23/08/2026) : `AppState.loadDemo()`
+    importe `tests/fixtures/coinhouse/export-demo.csv?raw` en chunk paresseux (le garde-fou « aucun
     CSV hors tests/fixtures » reste intact), marque `ui.demoMode`, et toute entrée de données
     réelles (import, saisie manuelle, restauration) passe par `exitDemo()` pour ne jamais mélanger
     fictif et réel. Le diagnostic copiable (§ Aide et retours) ne contient ni montant ni quantité :
     seuls des compteurs, statuts, libellés et colonnes — vérifié par un test sur la fixture.
 15. **ROI rapporté au capital maximal engagé** (23/08/2026, revue indépendante) : diviser par
-    « Σ achats » comptait plusieurs fois le même euro dès qu'il transitait par l'USDC (55 260 €
-    « achetés » pour 29 759 € apportés sur la fixture) et se diluait à chaque rachat. Le ROI du
+    « Σ achats » comptait plusieurs fois le même euro dès qu'il transitait par l'USDC (près du
+    double des apports réels sur un portefeuille passant par l'USDC) et se diluait à chaque rachat. Le ROI du
     portefeuille = total ÷ plus haut niveau atteint par (apports − retraits en euros) ; par actif =
     total ÷ plus haut niveau de (achats − produits). Une migration à coût reporté est un transfert
     (ni achat ni produit), les remises de frais sont converties au taux implicite des frais
@@ -54,3 +54,15 @@
     abonnements sont libellés « hors P&L » ou « déduits du P&L » selon le réglage ; en mode discret,
     montants et quantités sont masqués mais prix, PRU et pourcentages restent visibles (PDF compris)
     et les CSV ne sont jamais masqués ; les noms de fichiers portent la date locale.
+
+17. **Données d'exemple 100 % synthétiques, jamais dérivées d'un export réel** (23/08/2026, incident
+    de confidentialité). La première fixture « anonymisée » était une copie homothétique de l'export
+    réel du mainteneur (mêmes opérations, montants multipliés par une constante, dates décalées d'un
+    nombre de jours constant, cours de marché conservés) et ces constantes figuraient dans le script
+    public : la transformation était réversible et le fichier, embarqué dans la démo du site, exposait
+    l'historique complet. Remplacée par `scripts/generate-fixture.ts` (`npm run fixture`) : scénario
+    inventé, générateur déterministe, seuls des niveaux de cours publics approximatifs servent de
+    points d'ancrage ; un test vérifie que le fichier commis est la sortie exacte du générateur.
+    L'ancien fichier et le script d'anonymisation ont été retirés, puis purgés de l'historique git
+    (réécriture des commits, artefacts de CI supprimés). Règle : aucune donnée de démonstration ou de
+    test publiée ne doit provenir d'un export réel, même transformée.

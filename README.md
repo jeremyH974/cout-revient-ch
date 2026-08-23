@@ -17,7 +17,8 @@ ce qu'ils ont déjà encaissé et ce qu'ils gagneraient en vendant maintenant.
 > par actif).
 
 **Pas encore d'export sous la main ?** Sur la page d'accueil, « Essayer avec des données
-d'exemple » charge un portefeuille fictif (l'export anonymisé du dépôt) pour découvrir l'outil ;
+d'exemple » charge un portefeuille fictif (jeu de données synthétique, inventé de toutes pièces)
+pour découvrir l'outil ;
 « Quitter la démo » l'efface.
 
 ## Comment obtenir votre export Coinhouse
@@ -114,9 +115,9 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   [docs/DECISIONS.md](docs/DECISIONS.md).
 - `docs/coinhouse-export.md` : format et sémantique de l'export (colonne « Contre-valeur (EUR) »
   de la jambe crypto exprimée en USDC quand on paie en USDC, etc.).
-- Tests : `npm test`. Le fichier `tests/fixtures/coinhouse/export-anonymized.csv` est une fixture
-  anonymisée (`npm run anonymize -- <export.csv>`). Un export réel placé à la racine du projet
-  (ignoré par git) est testé en plus, localement.
+- Tests : `npm test`. Le fichier `tests/fixtures/coinhouse/export-demo.csv` est un jeu de données
+  entièrement synthétique, produit par `npm run fixture` (aucune donnée réelle, même transformée).
+  Un export réel placé à la racine du projet (ignoré par git) est testé en plus, localement.
 - Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
 
 ### Qualité automatisée

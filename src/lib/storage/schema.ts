@@ -49,7 +49,7 @@ export interface UiSettings {
   assetChartMetric: Metric;
   lastBackupAt: string | null;
   disclaimerAcceptedAt: string | null;
-  /** Données d'exemple (fixture anonymisée) chargées pour essayer l'outil : bandeau + garde-fous. */
+  /** Données d'exemple (jeu synthétique) chargées pour essayer l'outil : bandeau + garde-fous. */
   demoMode: boolean;
   /** Dernière version dont l'utilisateur a vu (ou ignoré) les nouveautés ; null = première visite. */
   lastSeenVersion: string | null;

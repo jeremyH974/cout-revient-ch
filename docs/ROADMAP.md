@@ -178,8 +178,8 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
 
 **P3 — Mode démo (0,5 session)**
 
-- Quoi : bouton « Essayer avec des données d'exemple » sur l'accueil, chargeant la fixture anonymisée
-  déjà présente dans le dépôt, avec bandeau « Données fictives » et sortie en un clic.
+- Quoi : bouton « Essayer avec des données d'exemple » sur l'accueil, chargeant le jeu de démonstration
+  synthétique du dépôt, avec bandeau « Données fictives » et sortie en un clic.
 - Pourquoi : la démo sans compte est le premier levier d'adoption (Ghostfolio [S34], demande Finary
   [S35]) ; un membre voit l'outil avant d'avoir reçu son export par e-mail.
 - Réussite : depuis le lien Discord, voir un portefeuille complet en moins de 10 s sans rien fournir.

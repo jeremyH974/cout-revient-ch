@@ -8,7 +8,7 @@ import { balanceRecords } from '../../src/lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '../../src/lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../../src/lib/import/coinhouse/normalize';
 
-const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const REAL = 'historique des transactions (4).csv';
 
 function reportFor(path: string) {
@@ -41,15 +41,15 @@ function reportFor(path: string) {
   };
 }
 
-function expectConsistent(path: string): void {
+function expectConsistent(path: string, expected: { assets: number; rows: number }): void {
   const { report, rows } = reportFor(path);
   const all = [...report.positions, ...report.stablecoins, ...report.closed];
   expect(report.blocked).toEqual([]);
   expect(report.unqualified).toEqual([]);
   expect(report.totals.unpricedAssets).toEqual([]);
-  // 27 actifs hors eur, tous avec un contrôle de solde OK.
+  // Tous les actifs hors eur ont un contrôle de solde OK.
   const checked = all.filter((p) => p.integrity !== null);
-  expect(checked).toHaveLength(27);
+  expect(checked).toHaveLength(expected.assets);
   expect(
     checked
       .filter((p) => p.integrity!.status !== 'ok')
@@ -69,17 +69,19 @@ function expectConsistent(path: string): void {
     expect(lhs.minus(rhs).abs().lt('0.000000001'), p.asset).toBe(true);
   }
   // Les soldes finaux du moteur égalent les derniers soldes exportés (vérifié par integrity).
-  expect(rows.length).toBe(201);
+  expect(rows.length).toBe(expected.rows);
   // Abonnements listés à part, jamais dans le P&L par défaut.
   expect(t.subscriptionsEur.gt(ZERO)).toBe(true);
   expect(D(t.cashIn.toString()).gt(ZERO)).toBe(true);
 }
 
-describe('moteur sur la fixture anonymisée', () => {
-  it('0 bloqué, 0 à qualifier, 27 soldes cohérents, invariants vérifiés', () =>
-    expectConsistent(FIXTURE));
+describe('moteur sur le jeu de démonstration synthétique', () => {
+  it('0 bloqué, 0 à qualifier, 21 soldes cohérents, invariants vérifiés', () =>
+    expectConsistent(FIXTURE, { assets: 21, rows: 205 }));
 });
 
 describe('moteur sur l’export réel (local, ignoré par git)', () => {
-  it.skipIf(!existsSync(REAL))('mêmes garanties que la fixture', () => expectConsistent(REAL));
+  it.skipIf(!existsSync(REAL))('mêmes garanties que la fixture', () =>
+    expectConsistent(REAL, { assets: 27, rows: 201 }),
+  );
 });

@@ -10,7 +10,7 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm run check` — lint + typecheck (svelte-check) + tests ; **doit être vert avant tout commit**
 - `npm test` / `npm run test:watch` / `npm run test:coverage`
 - `npm run build` / `npm run preview`
-- `npm run anonymize -- <export.csv>` — génère la fixture anonymisée
+- `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
 - `npm run e2e` — build puis tests Playwright (`tests/e2e/*.spec.ts`, Chromium desktop + mobile,
   WebKit sur les parcours visuels) ; `npm run e2e:ui` pour l'explorateur ; `npm run lhci` — build
   puis Lighthouse CI (seuils dans `lighthouserc.json`). Les deux tournent en CI avant tout déploiement.
@@ -38,8 +38,8 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 
 ## Tests
 
-- Unitaires et propriétés (Vitest + fast-check) : `*.test.ts` colocalisés, fixture anonymisée dans
-  `tests/fixtures/`. Les tests E2E s'appellent `*.spec.ts` (Vitest ne ramasse que `*.test.ts`) et
+- Unitaires et propriétés (Vitest + fast-check) : `*.test.ts` colocalisés, jeu de démonstration
+  synthétique dans `tests/fixtures/`. Les tests E2E s'appellent `*.spec.ts` (Vitest ne ramasse que `*.test.ts`) et
   comparent l'écran au moteur (`tests/e2e/helpers/expected.ts`), jamais à des chiffres en dur ;
   toute requête externe est stubée (`tests/e2e/helpers/network.ts`), aucun test ne sort sur Internet.
 - Accessibilité : axe (WCAG 2.2 AA) sur chaque route dans `tests/e2e/a11y.spec.ts` ; une violation
@@ -50,7 +50,8 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - **Jamais de CSV réel dans git.** `.gitignore` exclut `*.csv` sauf `tests/fixtures/**`, et
   `scripts/check-no-personal-csv.js` fait échouer `lint` sinon. L'export personnel de l'utilisateur
   reste à la racine (ignoré) et sert aux tests locaux optionnels (`it.skipIf`).
-- Les fixtures sont anonymisées (IDs régénérés, dates décalées, montants rescalés, soldes recalculés).
+- **Les fixtures sont 100 % synthétiques** (`scripts/generate-fixture.ts`) : jamais dérivées d'un export
+  réel, même « anonymisé » (une transformation homothétique est réversible — voir `docs/DECISIONS.md` n° 17).
 
 ## Vérification
 

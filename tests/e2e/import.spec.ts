@@ -8,11 +8,12 @@ test.beforeEach(async ({ context }) => {
 });
 
 test('import par le sélecteur de fichier, puis ré-import sans doublon', async ({ page }) => {
-  const { report } = fixtureReport();
+  const { report, rows } = fixtureReport();
+  const n = rows.length;
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
-  await expect(page.getByText(/201 nouvelle\(s\) ligne\(s\) · 0 déjà connue\(s\)/)).toBeVisible();
+  await expect(page.getByText(`${n} nouvelle(s) ligne(s) · 0 déjà connue(s)`)).toBeVisible();
 
   // Même contenu sous un autre nom : le navigateur n'émet pas `change` pour un fichier identique.
   await page.setInputFiles('input[type="file"]', {
@@ -20,7 +21,7 @@ test('import par le sélecteur de fichier, puis ré-import sans doublon', async 
     mimeType: 'text/csv',
     buffer: readFileSync(FIXTURE),
   });
-  await expect(page.getByText(/0 nouvelle\(s\) ligne\(s\) · 201 déjà connue\(s\)/)).toBeVisible();
+  await expect(page.getByText(`0 nouvelle(s) ligne(s) · ${n} déjà connue(s)`)).toBeVisible();
 
   await page.getByRole('link', { name: 'Voir mon portefeuille' }).click();
   await expect(page.getByRole('list', { name: 'Positions' }).getByRole('listitem')).toHaveCount(

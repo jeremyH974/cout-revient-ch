@@ -41,8 +41,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   latent +200, total +350).
 - `total = valeur + Σ produits − Σ acquisitions`, par actif et globalement, quel que soit le mode
   de migration ou de valorisation des récompenses.
-- Sur la fixture anonymisée et sur l'export réel (local) : 0 bloqué, 0 à qualifier, 27 soldes
-  cohérents, ré-import idempotent.
+- Sur le jeu de démonstration synthétique (`npm run fixture`, 21 actifs) et sur un export réel
+  (local, ignoré par git) : 0 bloqué, 0 à qualifier, tous les soldes cohérents, ré-import idempotent.
 
 ## Tests
 

@@ -7,6 +7,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Security
 
+- Données d'exemple entièrement synthétiques : le jeu de démonstration (et fixture de tests) est
+  désormais inventé par un générateur déterministe (`npm run fixture`) ; l'ancien export « anonymisé »,
+  dérivé d'un export réel par une transformation réversible, est retiré du dépôt et de son historique.
 - Chaîne d'approvisionnement : scripts d'installation npm désactivés et délai de 7 jours avant toute
   nouvelle version (`.npmrc`), même délai côté Dependabot, actions GitHub épinglées par empreinte de
   commit, ajout de CodeQL, de la revue des dépendances sur les pull requests et du Scorecard OpenSSF

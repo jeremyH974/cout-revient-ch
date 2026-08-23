@@ -29,7 +29,7 @@
     "e2e:ui": "playwright test --ui",
     "lhci": "vite build && lhci autorun",
     "monitor": "playwright test --config playwright.monitor.config.ts && node scripts/api-contract.mjs",
-    "anonymize": "node scripts/anonymize-csv.ts"
+    "fixture": "node scripts/generate-fixture.ts"
   },
   "dependencies": {
     "big.js": "7.0.1",

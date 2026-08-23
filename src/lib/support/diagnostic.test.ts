@@ -8,7 +8,7 @@ import { normalizeCoinhouseRows } from '../import/coinhouse/normalize';
 import { DEFAULT_UI_SETTINGS } from '../storage/schema';
 import { buildDiagnostic, type DiagnosticInput } from './diagnostic';
 
-const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 
 function fixtureInput(): { input: DiagnosticInput; rows: RawCoinhouseRow[] } {
   const result = importCoinhouseCsv(readFileSync(FIXTURE, 'utf8'), {}, 'imp:diag');

@@ -169,13 +169,13 @@ export class AppState {
   }
 
   /**
-   * Charge l'export anonymisé du dépôt (données fictives) pour essayer l'outil sans fichier.
+   * Charge le jeu de démonstration du dépôt (entièrement synthétique, `npm run fixture`) pour
+   * essayer l'outil sans fichier.
    * Le CSV arrive dans un chunk séparé, chargé à la demande.
    */
   async loadDemo(): Promise<ReturnType<typeof importCoinhouseCsv>> {
-    const { default: text } =
-      await import('../../tests/fixtures/coinhouse/export-anonymized.csv?raw');
-    const result = this.importCsv(text, 'export-anonymized.csv');
+    const { default: text } = await import('../../tests/fixtures/coinhouse/export-demo.csv?raw');
+    const result = this.importCsv(text, 'export-demo.csv');
     if (result.ok) this.setUi({ demoMode: true });
     return result;
   }

@@ -9,7 +9,7 @@ import { importCoinhouseCsv } from '../import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../import/coinhouse/normalize';
 import { runSelfChecks, summarize, type SelfCheckInput } from './self-check';
 
-const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const NOW = '2026-08-23T12:00:00.000Z';
 
 function fixture(prices: Record<string, PriceQuoteInput>): PortfolioReport {

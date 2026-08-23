@@ -4,7 +4,7 @@ import { COINHOUSE_HEADER_2026_08 } from './detect';
 import { importCoinhouseCsv } from './index';
 import { normalizeCoinhouseRows } from './normalize';
 
-const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const REAL = 'historique des transactions (4).csv';
 const H = COINHOUSE_HEADER_2026_08.join(',');
 
@@ -22,53 +22,65 @@ const buyEur = (
   `${id},${at},Echange,-${eur},eur,1,-${eur},${fee},${fee},0.0,,""`,
 ];
 
-function expectFullExport(text: string): void {
+interface ExpectedCounts {
+  rows: number;
+  trades: number;
+  assets: number;
+}
+
+function expectFullExport(text: string, expected: ExpectedCounts): void {
   const result = importCoinhouseCsv(text, {}, 'imp:test');
   expect(result.ok).toBe(true);
   if (!result.ok) return;
   expect(result.report.format).toBe('coinhouse-2026-08');
   expect(result.report.header).toEqual([...COINHOUSE_HEADER_2026_08]);
   expect(result.report.unknownColumns).toEqual([]);
-  expect(result.report.parsedRows).toBe(201);
+  expect(result.report.parsedRows).toBe(expected.rows);
   expect(result.report.issues).toEqual([]);
   expect(result.report.counts).toEqual({
-    trades: 98,
+    trades: expected.trades,
     migrations: 1,
     fees: 2,
     unqualified: 0,
     orphanLegs: 0,
   });
-  expect(result.report.assets).toHaveLength(28);
+  expect(result.report.assets).toHaveLength(expected.assets);
   // Ré-import du même fichier : rien de nouveau.
   const again = importCoinhouseCsv(text, result.rows, 'imp:again');
   expect(again.ok && again.report.newRows).toBe(0);
-  expect(again.ok && again.report.duplicateRows).toBe(201);
+  expect(again.ok && again.report.duplicateRows).toBe(expected.rows);
 }
 
-describe('import Coinhouse — fixture anonymisée', () => {
-  it('lit 201 lignes : 98 échanges, 1 migration, 2 abonnements, 0 à qualifier', () => {
-    expectFullExport(readFileSync(FIXTURE, 'utf8'));
+describe('import Coinhouse — jeu de démonstration synthétique', () => {
+  it('lit 205 lignes : 100 échanges, 1 migration, 2 abonnements, 0 à qualifier', () => {
+    expectFullExport(readFileSync(FIXTURE, 'utf8'), { rows: 205, trades: 100, assets: 22 });
   });
 
   it('valorise un achat payé en USDC avec la contre-valeur EUR de la jambe USDC', () => {
     const result = importCoinhouseCsv(readFileSync(FIXTURE, 'utf8'), {}, 'imp');
     if (!result.ok) throw new Error(result.error);
-    const { events } = normalizeCoinhouseRows(Object.values(result.rows));
-    const bch = events.find((e) => e.kind === 'trade' && e.in.asset === 'bch');
-    expect(bch?.kind).toBe('trade');
-    if (bch?.kind !== 'trade') return;
-    expect(bch.out.asset).toBe('usdc');
-    expect(bch.valueEur).toBe('75.01624769116320732');
-    expect(bch.quotePrice).toEqual({ asset: 'usdc', price: '228.67' });
-    expect(bch.fee?.asset).toBe('usdc');
-    expect(Number(bch.fee?.gross)).toBeGreaterThan(0);
-    expect(bch.warnings).toEqual([]);
+    const rows = Object.values(result.rows);
+    const { events } = normalizeCoinhouseRows(rows);
+    const sol = events.find((e) => e.kind === 'trade' && e.in.asset === 'sol');
+    expect(sol?.kind).toBe('trade');
+    if (sol?.kind !== 'trade') return;
+    expect(sol.out.asset).toBe('usdc');
+    // Valeur EUR = |Contre-valeur (EUR)| de la jambe USDC, jamais celle de la jambe SOL (en USDC).
+    const legs = rows.filter((r) => r.id === sol.id.replace('ch:', ''));
+    const usdcLeg = legs.find((r) => r.asset === 'usdc')!;
+    const solLeg = legs.find((r) => r.asset === 'sol')!;
+    expect(sol.valueEur).toBe(usdcLeg.valueEur!.replace('-', ''));
+    expect(sol.valueEur).not.toBe(solLeg.valueEur!.replace('-', ''));
+    expect(sol.quotePrice).toEqual({ asset: 'usdc', price: solLeg.marketPrice });
+    expect(sol.fee?.asset).toBe('usdc');
+    expect(Number(sol.fee?.gross)).toBeGreaterThan(0);
+    expect(sol.warnings).toEqual([]);
   });
 });
 
 describe('import Coinhouse — export réel (local, ignoré par git)', () => {
-  it.skipIf(!existsSync(REAL))('donne les mêmes comptes que la fixture', () => {
-    expectFullExport(readFileSync(REAL, 'utf8'));
+  it.skipIf(!existsSync(REAL))('donne les mêmes garanties que la fixture', () => {
+    expectFullExport(readFileSync(REAL, 'utf8'), { rows: 201, trades: 98, assets: 28 });
   });
 });
 

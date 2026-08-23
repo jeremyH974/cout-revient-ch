@@ -18,7 +18,7 @@ import { balanceRecords } from '../../src/lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '../../src/lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../../src/lib/import/coinhouse/normalize';
 
-const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const REAL = 'historique des transactions (4).csv';
 const EPS = new Big('0.000000001');
 

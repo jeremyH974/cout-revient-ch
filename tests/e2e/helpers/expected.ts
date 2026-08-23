@@ -11,7 +11,7 @@ import { importCoinhouseCsv } from '../../../src/lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../../../src/lib/import/coinhouse/normalize';
 import { fmtMoney, fmtPrice } from '../../../src/lib/format/fr';
 
-export const FIXTURE = 'tests/fixtures/coinhouse/export-anonymized.csv';
+export const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 
 /** Espaces fines et insécables d'Intl → espaces simples, comme Playwright normalise le DOM. */
 export const normalize = (s: string): string => s.replace(/[\u202f\u00a0]/g, ' ');
