@@ -5,14 +5,14 @@
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import { nowMs } from '$lib/clock';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import AssetRow from '../components/portfolio/AssetRow.svelte';
-  import SummaryHeader from '../components/portfolio/SummaryHeader.svelte';
-  import EvolutionCard from '../components/charts/EvolutionCard.svelte';
-  import SelfChecks from '../components/settings/SelfChecks.svelte';
-  import Money from '../components/shared/Money.svelte';
-  import Qty from '../components/shared/Qty.svelte';
-  import { app } from '../state/app.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import AssetRow from '../../components/portfolio/AssetRow.svelte';
+  import SummaryHeader from '../../components/portfolio/SummaryHeader.svelte';
+  import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
+  import SelfChecks from '../../components/settings/SelfChecks.svelte';
+  import Money from '../../components/shared/Money.svelte';
+  import Qty from '../../components/shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
 
   type SortKey = 'value' | 'total' | 'unrealizedPct' | 'realized' | 'asset';
   let query = $state('');

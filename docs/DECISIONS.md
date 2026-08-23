@@ -77,3 +77,17 @@
     affichées (fiche actif, ligne de fraîcheur de la synthèse), quel que soit le fournisseur qui a
     répondu. CoinMarketCap, pourtant plus complet, a été écarté : son API ne s'appelle pas depuis
     un navigateur (pas de CORS, contrairement aux cinq fournisseurs retenus).
+
+19. **Navigation en espaces séparés, reliés par une Vue d'ensemble qui additionne des soldes,
+    jamais des résultats de nature différente** (23/08/2026, proposition v2 § 6.0). Investissement
+    (PRU, plus-values latentes et réalisées) et Trading (P&L net par trade, en R) sont deux natures
+    de résultat incomparables : les fondre dans un total unique masquerait plus qu'il n'éclairerait.
+    La Vue d'ensemble (`#/`, aussi le `start_url` de la PWA) reste donc un point d'entrée qui
+    n'additionne que des grandeurs de même nature (valeur des positions, demain le solde de trading)
+    et renvoie vers chaque espace pour le détail. Navigation à quatre destinations
+    (`src/lib/spaces.ts`, registre `SPACES`) : Vue d'ensemble, Investissement, Trading (en
+    préparation, état vide informatif), Plus (écrans secondaires : réglages, aide, nouveautés,
+    confidentialité) — chacune avec son accent de couleur et son libellé de retour de barre
+    d'application. Les hashes v1 (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`)
+    restent pris en charge comme alias dans `parseHash` : liens partagés, favoris et écrans
+    d'accueil déjà installés ne cassent pas.

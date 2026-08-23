@@ -43,7 +43,7 @@
       'success',
     );
     void app.refreshPrices();
-    router.navigate({ name: 'portfolio' });
+    router.navigate({ name: 'overview' });
   }
   function clearAll(): void {
     app.clearAll();

@@ -259,8 +259,8 @@ test('fiche actif et onglet Calcul reprennent exactement la ligne du portefeuill
     );
     expect(plain(totalFormula)).toContain(`= ${heroTotal}`);
   }
-  // Le ROI global et la devise n'ont pas changé en chemin.
-  await page.goto('#/');
+  // Le ROI global et la devise n'ont pas changé en chemin (la synthèse vit dans l'espace Investissement).
+  await page.goto('#/invest');
   expect((await readSummary(page)).roiPct).toBe(s.roiPct);
 });
 

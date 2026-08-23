@@ -19,7 +19,16 @@ test.beforeEach(async ({ context }) => {
 });
 
 test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
-  for (const route of ['#/welcome', '#/import', '#/add', '#/help', '#/privacy', '#/settings']) {
+  for (const route of [
+    '#/welcome',
+    '#/import',
+    '#/add',
+    '#/help',
+    '#/privacy',
+    '#/settings',
+    '#/trading',
+    '#/more',
+  ]) {
     test(`sans données : ${route}`, async ({ page }) => {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
@@ -27,7 +36,16 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     });
   }
 
-  for (const route of ['#/', '#/asset/btc', '#/settings', '#/report']) {
+  for (const route of [
+    '#/',
+    '#/asset/btc',
+    '#/settings',
+    '#/report',
+    '#/invest',
+    '#/trading',
+    '#/more',
+    '#/invest/asset/btc',
+  ]) {
     test(`avec la démo : ${route}`, async ({ page }) => {
       await openDemo(page);
       await page.goto(route);

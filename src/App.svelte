@@ -3,16 +3,19 @@
   import { router } from '$lib/router.svelte';
   import BottomNav from './components/layout/BottomNav.svelte';
   import Toasts from './components/layout/Toasts.svelte';
-  import AssetDetail from './routes/AssetDetail.svelte';
   import Help from './routes/Help.svelte';
-  import Import from './routes/Import.svelte';
-  import ManualEntry from './routes/ManualEntry.svelte';
+  import More from './routes/More.svelte';
   import News from './routes/News.svelte';
-  import Portfolio from './routes/Portfolio.svelte';
+  import Overview from './routes/Overview.svelte';
   import Privacy from './routes/Privacy.svelte';
-  import Report from './routes/Report.svelte';
   import Settings from './routes/Settings.svelte';
+  import Trading from './routes/Trading.svelte';
   import Welcome from './routes/Welcome.svelte';
+  import AssetDetail from './routes/invest/AssetDetail.svelte';
+  import Import from './routes/invest/Import.svelte';
+  import ManualEntry from './routes/invest/ManualEntry.svelte';
+  import Portfolio from './routes/invest/Portfolio.svelte';
+  import Report from './routes/invest/Report.svelte';
   import { recordError } from '$lib/support/errors';
   import SupportSection from './components/settings/SupportSection.svelte';
   import { app } from './state/app.svelte';
@@ -54,9 +57,14 @@
   });
 
   $effect(() => {
+    // Sans données, les écrans qui en dépendent renvoient à l'accueil ; l'espace Trading (état
+    // vide informatif) et le menu « Plus » restent accessibles.
     if (
       !app.hasData &&
-      (route.name === 'portfolio' || route.name === 'asset' || route.name === 'report')
+      (route.name === 'overview' ||
+        route.name === 'portfolio' ||
+        route.name === 'asset' ||
+        route.name === 'report')
     ) {
       router.navigate({ name: 'welcome' });
     }
@@ -98,6 +106,12 @@
     <svelte:boundary onerror={(error) => recordError(error, 'page')}>
       {#if route.name === 'welcome'}
         <Welcome />
+      {:else if route.name === 'portfolio'}
+        <Portfolio />
+      {:else if route.name === 'trading'}
+        <Trading />
+      {:else if route.name === 'more'}
+        <More />
       {:else if route.name === 'asset'}
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}
@@ -115,7 +129,7 @@
       {:else if route.name === 'news'}
         <News />
       {:else}
-        <Portfolio />
+        <Overview />
       {/if}
       {#snippet failed(error, reset)}
         <section class="card crash" role="alert">
@@ -133,7 +147,7 @@
             <button
               class="secondary"
               type="button"
-              onclick={() => router.navigate({ name: 'portfolio' })}>Retour au portefeuille</button
+              onclick={() => router.navigate({ name: 'overview' })}>Retour à l'accueil</button
             >
           </div>
           <SupportSection intro="Le diagnostic ci-dessous inclut l’erreur rencontrée." />

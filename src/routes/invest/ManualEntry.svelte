@@ -5,10 +5,10 @@
   import { fmtDateTime, fmtMasked, fmtMoney } from '$lib/format/fr';
   import { parseNaiveDateTime } from '$lib/import/coinhouse/rows';
   import { TICKERS } from '$lib/pricing/tickers';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import Qty from '../components/shared/Qty.svelte';
-  import { app } from '../state/app.svelte';
-  import { toasts } from '../state/ui.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import Qty from '../../components/shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
+  import { toasts } from '../../state/ui.svelte';
 
   type Kind = ManualEvent['kind'];
   const kinds: { value: Kind; label: string; amount: string | null }[] = [

@@ -3,9 +3,9 @@
   import { nowIso } from '$lib/clock';
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import { app } from '../state/app.svelte';
-  import { toasts } from '../state/ui.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import { app } from '../../state/app.svelte';
+  import { toasts } from '../../state/ui.svelte';
 
   let generatedAt = $state(nowIso());
   let busy = $state(false);

@@ -3,10 +3,10 @@
   import { downloadText } from '$lib/export/download';
   import { fmtDate } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import SupportSection from '../components/settings/SupportSection.svelte';
-  import { app } from '../state/app.svelte';
-  import { toasts } from '../state/ui.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import SupportSection from '../../components/settings/SupportSection.svelte';
+  import { app } from '../../state/app.svelte';
+  import { toasts } from '../../state/ui.svelte';
 
   let busy = $state(false);
   let dragging = $state(false);

@@ -11,6 +11,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - Fournisseurs de prix Kraken, Hyperliquid (HYPE, PURR et tokens spot Hyperliquid) et DefiLlama,
   prix en USD convertis au taux BCE du jour.
 - Clé CoinGecko Demo optionnelle dans les réglages.
+- Navigation en espaces : Vue d'ensemble (accueil), Investissement, Trading (en préparation), Plus ;
+  anciens liens (`#/asset/btc`, `#/import`…) toujours valables.
 
 ### Changed
 

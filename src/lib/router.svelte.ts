@@ -1,54 +1,102 @@
 /** Routeur par fragment (#/…) : zéro dépendance, compatible hébergement statique. */
 export type Route =
   | { name: 'welcome' }
+  | { name: 'overview' }
   | { name: 'portfolio' }
   | { name: 'asset'; asset: string }
   | { name: 'import' }
   | { name: 'add' }
+  | { name: 'report' }
+  | { name: 'trading' }
+  | { name: 'more' }
   | { name: 'settings' }
   | { name: 'privacy' }
   | { name: 'help' }
-  | { name: 'report' }
   | { name: 'news' };
 
-export function parseHash(hash: string): Route {
-  const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
-  const [head = '', tail] = path.split('/');
-  switch (head) {
+export type RouteName = Route['name'];
+
+const assetRoute = (code: string | undefined): Route =>
+  code ? { name: 'asset', asset: decodeURIComponent(code).toLowerCase() } : { name: 'portfolio' };
+
+/** Sous-chemins de l'espace Investissement : `#/invest`, `#/invest/asset/btc`, `#/invest/import`… */
+function parseInvest(sub: string | undefined, arg: string | undefined): Route {
+  switch (sub) {
+    case undefined:
     case '':
-    case 'portfolio':
       return { name: 'portfolio' };
-    case 'welcome':
-      return { name: 'welcome' };
     case 'asset':
-      return tail
-        ? { name: 'asset', asset: decodeURIComponent(tail).toLowerCase() }
-        : { name: 'portfolio' };
+      return assetRoute(arg);
     case 'import':
       return { name: 'import' };
     case 'add':
       return { name: 'add' };
+    case 'report':
+      return { name: 'report' };
+    default:
+      return { name: 'portfolio' };
+  }
+}
+
+/**
+ * Hashes canoniques (v2) : `#/` = Vue d'ensemble (aussi le `start_url` de la PWA, sans hash) ;
+ * `#/invest…` = espace Investissement ; `#/trading…` = espace Trading ; `#/more` = écrans
+ * secondaires. Les hashes v1 (`#/asset/btc`, `#/import`, `#/add`, `#/report`, `#/portfolio`)
+ * restent compris : liens partagés sur Discord, favoris et écrans d'accueil installés ne cassent pas.
+ */
+export function parseHash(hash: string): Route {
+  const path = hash.replace(/^#\/?/, '').replace(/\/+$/, '');
+  const [head = '', second, third] = path.split('/');
+  switch (head) {
+    case '':
+    case 'overview':
+      return { name: 'overview' };
+    case 'invest':
+      return parseInvest(second, third);
+    case 'trading':
+      return { name: 'trading' };
+    case 'more':
+      return { name: 'more' };
+    case 'welcome':
+      return { name: 'welcome' };
     case 'settings':
       return { name: 'settings' };
     case 'privacy':
       return { name: 'privacy' };
     case 'help':
       return { name: 'help' };
-    case 'report':
-      return { name: 'report' };
     case 'news':
       return { name: 'news' };
-    default:
+    // Alias v1 (conservés tant que des liens circulent).
+    case 'portfolio':
       return { name: 'portfolio' };
+    case 'asset':
+      return assetRoute(second);
+    case 'import':
+      return { name: 'import' };
+    case 'add':
+      return { name: 'add' };
+    case 'report':
+      return { name: 'report' };
+    default:
+      return { name: 'overview' };
   }
 }
 
 export function toHash(route: Route): string {
   switch (route.name) {
-    case 'portfolio':
+    case 'overview':
       return '#/';
+    case 'portfolio':
+      return '#/invest';
     case 'asset':
-      return `#/asset/${encodeURIComponent(route.asset)}`;
+      return `#/invest/asset/${encodeURIComponent(route.asset)}`;
+    case 'import':
+      return '#/invest/import';
+    case 'add':
+      return '#/invest/add';
+    case 'report':
+      return '#/invest/report';
     default:
       return `#/${route.name}`;
   }
@@ -56,7 +104,7 @@ export function toHash(route: Route): string {
 
 function createRouter() {
   const hasWindow = typeof window !== 'undefined';
-  let route = $state<Route>(hasWindow ? parseHash(window.location.hash) : { name: 'portfolio' });
+  let route = $state<Route>(hasWindow ? parseHash(window.location.hash) : { name: 'overview' });
   if (hasWindow) {
     window.addEventListener('hashchange', () => {
       route = parseHash(window.location.hash);

@@ -15,7 +15,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
                                                                               ▼
                                     domain/engine (compute → position → aggregate) ─▶ PortfolioReport
                                                                               │
-                                                    state/app.svelte.ts ($derived) ─▶ routes/*.svelte
+                                        state/app.svelte.ts ($derived) ─▶ router.svelte.ts (#/…) ─▶ routes/*.svelte
 ```
 
 ## Couches
@@ -39,7 +39,16 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR).
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
-- `src/routes`, `src/components` — présentation uniquement.
+- `src/routes`, `src/components` — présentation uniquement. Navigation en quatre espaces
+  (`src/lib/spaces.ts`, registre `SPACES`), chacun avec son libellé, sa couleur d'accent et sa cible
+  de retour de barre d'application : `routes/Overview.svelte` (Vue d'ensemble, `#/`, aussi le
+  `start_url` de la PWA — additionne des soldes, jamais des résultats de nature différente),
+  `routes/invest/*.svelte` (Investissement, `#/invest…` : portefeuille, fiche actif, import, saisie
+  manuelle, rapport), `routes/Trading.svelte` (Trading, `#/trading`, état vide en attendant l'import
+  Hyperliquid) et `routes/More.svelte` (Plus, `#/more` : réglages, aide, nouveautés,
+  confidentialité). `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les
+  hashes v1 (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge
+  comme alias pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
 
 ## Invariants testés
 
