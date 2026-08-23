@@ -215,8 +215,25 @@
   }
   .trio {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    /* Sur téléphone : Détenu et Investi côte à côte, Valeur seule sur une deuxième ligne. Trois
+       colonnes serrées débordaient avec les polices larges (Linux, Android) et faisaient dézoomer
+       la page. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
+  }
+  .trio > div {
+    min-width: 0;
+  }
+  .trio > div:last-child {
+    grid-column: 1 / -1;
+  }
+  @media (min-width: 768px) {
+    .trio {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .trio > div:last-child {
+      grid-column: auto;
+    }
   }
   .label {
     font-size: var(--fs-xs);
@@ -248,6 +265,7 @@
     z-index: 5;
   }
   .tabs button {
+    min-width: 0;
     min-height: var(--tap);
     color: var(--fg-muted);
     border-bottom: 2px solid transparent;
