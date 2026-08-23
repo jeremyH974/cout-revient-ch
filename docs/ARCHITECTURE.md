@@ -55,6 +55,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   attendues sont calculées par le moteur à partir de la fixture (`helpers/expected.ts`) ; toutes les
   requêtes externes reçoivent des réponses déterministes (`helpers/network.ts`). Accessibilité axe
   (WCAG 2.2 AA) sur chaque route, PWA (manifeste, service worker, CSP, aucune erreur console).
+  **Cohérence transversale** (`coherence.spec.ts`) : les chiffres affichés se recoupent d'un écran à
+  l'autre (synthèse = Σ lignes + clôturées, fiche actif et onglet Calcul = ligne, rapport et export
+  CSV = synthèse, graphique = synthèse), à l'arrondi près ; rejouable localement sur un export réel
+  avec `COHERENCE_CSV=<fichier.csv>` (jamais en CI).
 - **Lighthouse CI** (`lighthouserc.json`) : accessibilité, bonnes pratiques, SEO ≥ 0,95 (erreur),
   performance ≥ 0,9 (avertissement). Rapports en artefacts de CI ; `deploy` attend `check` et `e2e`.
 

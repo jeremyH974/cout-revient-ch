@@ -15,6 +15,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   commit, ajout de CodeQL, de la revue des dépendances sur les pull requests et du Scorecard OpenSSF
   (badges dans le README).
 
+### Added
+
+- Bouton « Rapport PDF » en tête de la carte Synthèse du portefeuille (il n'était proposé qu'en pied
+  de page).
+- Test de cohérence transversale (`tests/e2e/coherence.spec.ts`) : synthèse, lignes, positions
+  clôturées, fiche actif, onglet Calcul, rapport, export CSV et graphique doivent donner les mêmes
+  chiffres, à l'arrondi près ; rejouable localement sur un export réel.
+
 ### Changed
 
 - ROI rapporté au capital maximal engagé (portefeuille : apports − retraits en euros à leur plus

@@ -48,6 +48,16 @@ const COINBASE_TICKERS = [
 
 const DAY_S = 86_400;
 
+/** Hachage FNV-1a 32 bits : prix stable par identifiant, sans table. */
+function fnv(text: string): number {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash >>> 0;
+}
+
 function stubPrice(seconds: number): number {
   // Cours synthétique, strictement positif, qui varie d'un jour à l'autre.
   return 100 + ((Math.floor(seconds / DAY_S) * 7) % 23);
@@ -96,8 +106,9 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
         const body: Record<string, { eur: number; last_updated_at: number }> = {};
         const now = Math.floor(Date.now() / 1000);
         for (const id of ids) {
-          const price = STUB_PRICES_EUR[id];
-          if (price !== undefined) body[id] = { eur: price, last_updated_at: now };
+          // Identifiant hors fixture (export réel local) : prix déterministe, strictement positif.
+          const price = STUB_PRICES_EUR[id] ?? 0.5 + (fnv(id) % 2000) / 100;
+          body[id] = { eur: price, last_updated_at: now };
         }
         return json(body);
       }

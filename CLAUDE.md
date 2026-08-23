@@ -41,6 +41,8 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - Unitaires et propriétés (Vitest + fast-check) : `*.test.ts` colocalisés, jeu de démonstration
   synthétique dans `tests/fixtures/`. Les tests E2E s'appellent `*.spec.ts` (Vitest ne ramasse que `*.test.ts`) et
   comparent l'écran au moteur (`tests/e2e/helpers/expected.ts`), jamais à des chiffres en dur ;
+  `coherence.spec.ts` vérifie que les écrans se recoupent entre eux (rejouable sur un export réel
+  local : `COHERENCE_CSV="<export.csv>" npx playwright test coherence --project=chromium`) ;
   toute requête externe est stubée (`tests/e2e/helpers/network.ts`), aucun test ne sort sur Internet.
 - Accessibilité : axe (WCAG 2.2 AA) sur chaque route dans `tests/e2e/a11y.spec.ts` ; une violation
   est un échec de CI, corrigez le balisage plutôt que d'exclure la règle.
