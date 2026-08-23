@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { router } from '$lib/router.svelte';
   import { app } from '../../state/app.svelte';
   import Info from '../shared/Info.svelte';
   import Money from '../shared/Money.svelte';
@@ -13,6 +14,27 @@
 </script>
 
 <section class="summary card">
+  <div class="tools">
+    <h2 class="title">Synthèse</h2>
+    <a class="tool" href={router.href({ name: 'report' })}>
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"
+        ><path
+          d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linejoin="round"
+        /><path
+          d="M14 3v5h5M9 13h6M9 17h6"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        /></svg
+      >
+      Rapport PDF
+    </a>
+  </div>
   <div class="trio">
     <div>
       <p class="label">
@@ -138,6 +160,40 @@
     font-size: var(--fs-sm);
     display: grid;
     gap: var(--space-1);
+  }
+  /* Actions de synthèse : le rapport PDF doit se voir dès le haut de page, pas seulement en pied. */
+  .tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+  .title {
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--fg-muted);
+  }
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: var(--fs-sm);
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .tool:hover {
+    border-color: var(--accent);
+    color: var(--accent);
   }
   @media (min-width: 768px) {
     .trio {

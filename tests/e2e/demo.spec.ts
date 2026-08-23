@@ -23,6 +23,13 @@ test('accueil → démo → portefeuille : lignes et PRU identiques au moteur', 
     await expect(row).toHaveCount(1);
     await expect(row).toContainText(`PRU ${pruText(p)}`);
   }
+
+  // Le rapport PDF est proposé dès la carte de synthèse, pas seulement en pied de page.
+  const pdfLink = page.locator('section.summary').getByRole('link', { name: 'Rapport PDF' });
+  await expect(pdfLink).toBeVisible();
+  await pdfLink.click();
+  await expect(page).toHaveURL(/#\/report$/);
+  await expect(page.getByRole('button', { name: 'Télécharger le PDF' })).toBeVisible();
 });
 
 test('la démo survit à un rechargement et se quitte proprement', async ({ page }) => {
