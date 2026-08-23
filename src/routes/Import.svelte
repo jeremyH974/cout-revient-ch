@@ -35,8 +35,9 @@
   }
 
   function downloadBackup(): void {
+    const prefix = app.state.ui.demoMode ? 'demo-' : '';
     downloadText(
-      `cout-revient-ch-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`,
+      `${prefix}cout-revient-ch-sauvegarde-${new Date().toISOString().slice(0, 10)}.json`,
       app.exportBackup(),
       'application/json',
     );
@@ -58,6 +59,12 @@
 <AppBar title="Importer" back={app.hasData} />
 
 <div class="page">
+  {#if app.state.ui.demoMode}
+    <p class="demo-note" role="note">
+      Vous êtes en démo : importer votre fichier remplacera les données d’exemple par vos
+      opérations.
+    </p>
+  {/if}
   <label
     class="drop"
     class:dragging
@@ -209,6 +216,14 @@
   }
   .nudge {
     border-color: var(--warn);
+  }
+  .demo-note {
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--warn);
+    border-radius: var(--radius-sm);
+    color: var(--warn);
+    font-size: var(--fs-sm);
   }
   .actions {
     margin-top: var(--space-2);

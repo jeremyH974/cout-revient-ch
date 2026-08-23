@@ -49,6 +49,8 @@ export interface UiSettings {
   assetChartMetric: Metric;
   lastBackupAt: string | null;
   disclaimerAcceptedAt: string | null;
+  /** Données d'exemple (fixture anonymisée) chargées pour essayer l'outil : bandeau + garde-fous. */
+  demoMode: boolean;
 }
 
 export interface StoredStateV1 {
@@ -77,6 +79,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   assetChartMetric: 'pru',
   lastBackupAt: null,
   disclaimerAcceptedAt: null,
+  demoMode: false,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -301,6 +304,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };
   if (!METRICS.includes(state.ui.assetChartMetric))
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
+  if (typeof state.ui.demoMode !== 'boolean')
+    state = { ...state, ui: { ...state.ui, demoMode: false } };
   return {
     state: {
       ...state,

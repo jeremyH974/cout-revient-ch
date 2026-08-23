@@ -13,9 +13,15 @@
   import Settings from './routes/Settings.svelte';
   import Welcome from './routes/Welcome.svelte';
   import { app } from './state/app.svelte';
-  import { update } from './state/ui.svelte';
+  import { toasts, update } from './state/ui.svelte';
 
   const route = $derived(router.route);
+
+  function leaveDemo(): void {
+    app.exitDemo();
+    toasts.push('Démo terminée : les données d’exemple ont été effacées.');
+    router.navigate({ name: 'welcome' });
+  }
 
   let systemDark = $state(true);
   onMount(() => {
@@ -59,6 +65,12 @@
   {#if app.loadError}
     <div class="update error" role="alert">
       Données locales illisibles ({app.loadError}). Restaurez une sauvegarde depuis les réglages.
+    </div>
+  {/if}
+  {#if app.state.ui.demoMode}
+    <div class="update demo" role="status">
+      Données d’exemple (fictives) — importez votre export pour voir vos chiffres.
+      <button type="button" onclick={leaveDemo}>Quitter la démo</button>
     </div>
   {/if}
   <main>
@@ -115,6 +127,10 @@
   .update.error {
     background: var(--loss);
     color: #fff;
+  }
+  .update.demo {
+    background: var(--warn);
+    color: #1a1208;
   }
   @media (min-width: 768px) {
     main {

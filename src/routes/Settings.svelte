@@ -23,8 +23,9 @@
   );
 
   function backup(): void {
+    const prefix = app.state.ui.demoMode ? 'demo-' : '';
     downloadText(
-      `cout-revient-ch-sauvegarde-${stamp()}.json`,
+      `${prefix}cout-revient-ch-sauvegarde-${stamp()}.json`,
       app.exportBackup(),
       'application/json',
     );

@@ -28,3 +28,9 @@
     CodeQL, Dependency review et OpenSSF Scorecard tournent gratuitement sur le dépôt public.
     Le site publié reste un bundle statique sans CDN : un paquet compromis ne pourrait atteindre
     les utilisateurs que via ce pipeline, d'où la priorité.
+14. **Mode démo = la fixture anonymisée, sans copie** (23/08/2026) : `AppState.loadDemo()` importe
+    `tests/fixtures/coinhouse/export-anonymized.csv?raw` en chunk paresseux (le garde-fou « aucun
+    CSV hors tests/fixtures » reste intact), marque `ui.demoMode`, et toute entrée de données
+    réelles (import, saisie manuelle, restauration) passe par `exitDemo()` pour ne jamais mélanger
+    fictif et réel. Le diagnostic copiable (§ Aide et retours) ne contient ni montant ni quantité :
+    seuls des compteurs, statuts, libellés et colonnes — vérifié par un test sur la fixture.

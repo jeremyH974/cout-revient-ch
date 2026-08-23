@@ -1,5 +1,24 @@
 <script lang="ts">
   import { router } from '$lib/router.svelte';
+  import { app } from '../state/app.svelte';
+  import { toasts } from '../state/ui.svelte';
+
+  let loadingDemo = $state(false);
+
+  async function tryDemo(): Promise<void> {
+    loadingDemo = true;
+    try {
+      const result = await app.loadDemo();
+      if (!result.ok) return toasts.push(result.error, 'error');
+      toasts.push('Données d’exemple chargées : tout est fictif.', 'info');
+      router.navigate({ name: 'portfolio' });
+      void app.refreshPrices();
+    } catch {
+      toasts.push('Impossible de charger les données d’exemple.', 'error');
+    } finally {
+      loadingDemo = false;
+    }
+  }
 </script>
 
 <div class="welcome">
@@ -44,6 +63,9 @@
   <div class="actions">
     <a class="primary" href={router.href({ name: 'import' })}>Importer mon export CSV</a>
     <a class="secondary" href={router.href({ name: 'add' })}>Saisir mes opérations à la main</a>
+    <button class="secondary" type="button" disabled={loadingDemo} onclick={() => void tryDemo()}
+      >{loadingDemo ? 'Chargement…' : 'Essayer avec des données d’exemple'}</button
+    >
   </div>
 
   <p class="legal muted">
@@ -117,6 +139,14 @@
   .secondary {
     border: 1px solid var(--border);
     color: var(--fg);
+    background: transparent;
+    cursor: pointer;
+    font-size: inherit;
+    width: 100%;
+  }
+  .secondary:disabled {
+    opacity: 0.6;
+    cursor: wait;
   }
   .legal {
     font-size: var(--fs-xs);

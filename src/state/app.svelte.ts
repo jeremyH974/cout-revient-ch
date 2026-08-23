@@ -154,7 +154,28 @@ export class AppState {
     });
   }
 
+  /**
+   * Charge l'export anonymisé du dépôt (données fictives) pour essayer l'outil sans fichier.
+   * Le CSV arrive dans un chunk séparé, chargé à la demande.
+   */
+  async loadDemo(): Promise<ReturnType<typeof importCoinhouseCsv>> {
+    const { default: text } =
+      await import('../../tests/fixtures/coinhouse/export-anonymized.csv?raw');
+    const result = this.importCsv(text, 'export-anonymized.csv');
+    if (result.ok) this.setUi({ demoMode: true });
+    return result;
+  }
+
+  /** Quitte la démo : efface les données fictives en conservant les préférences d'affichage. */
+  exitDemo(): void {
+    if (!this.state.ui.demoMode) return;
+    const ui: UiSettings = { ...this.state.ui, demoMode: false, lastBackupAt: null };
+    this.clearAll();
+    this.state.ui = ui;
+  }
+
   importCsv(text: string, fileName: string, now = nowMs()): ReturnType<typeof importCoinhouseCsv> {
+    this.exitDemo();
     const importId = `imp:${now.toString(36)}`;
     const result = importCoinhouseCsv(text, this.state.rawRows, importId);
     if (result.ok) {
@@ -178,6 +199,7 @@ export class AppState {
   }
 
   addManual(event: ManualEvent): void {
+    this.exitDemo();
     this.state.manualEvents = { ...this.state.manualEvents, [event.id]: event };
   }
 
@@ -281,6 +303,7 @@ export class AppState {
   ): { ok: true } | { ok: false; error: string } {
     const parsed = parseBackup(text);
     if (!parsed.ok) return parsed;
+    this.exitDemo();
     this.state =
       mode === 'replace' ? parsed.state : mergeStates($state.snapshot(this.state), parsed.state);
     return { ok: true };

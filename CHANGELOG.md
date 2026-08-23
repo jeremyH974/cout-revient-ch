@@ -21,6 +21,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Mode démo : « Essayer avec des données d'exemple » sur l'accueil charge l'export anonymisé du
+  dépôt (chunk séparé, chargé à la demande) avec un bandeau « Données d'exemple (fictives) » et un
+  bouton « Quitter la démo » ; importer un fichier, saisir une opération ou restaurer une sauvegarde
+  efface d'abord les données fictives (préférences d'affichage conservées) ; sauvegardes préfixées
+  `demo-`.
 - Aide et retours : section dans les réglages (et sur la carte d'échec d'import) avec un diagnostic
   copiable qui ne contient ni montant ni quantité (version, commit déployé, navigateur, colonnes des
   fichiers importés, compteurs, statuts d'intégrité, libellés d'opérations inconnus) et un lien vers

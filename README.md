@@ -16,6 +16,10 @@ ce qu'ils ont déjà encaissé et ce qu'ils gagneraient en vendant maintenant.
 > imposable en France suit la méthode globale de l'article 150 VH bis du CGI, différente du PRU
 > par actif).
 
+**Pas encore d'export sous la main ?** Sur la page d'accueil, « Essayer avec des données
+d'exemple » charge un portefeuille fictif (l'export anonymisé du dépôt) pour découvrir l'outil ;
+« Quitter la démo » l'efface.
+
 ## Comment obtenir votre export Coinhouse
 
 1. Dans l'application Coinhouse, ouvrez l'onglet **Vos transactions**.
