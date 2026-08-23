@@ -49,5 +49,6 @@ export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): St
     qualifications: { ...incoming.qualifications, ...current.qualifications },
     taxAnnotations: { ...incoming.taxAnnotations, ...current.taxAnnotations },
     assetSettings: { ...incoming.assetSettings, ...current.assetSettings },
+    accounts: { ...incoming.accounts, ...current.accounts },
   };
 }

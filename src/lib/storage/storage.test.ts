@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Account, AccountId } from '../domain/types';
 import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import { STORAGE_KEY, clearState, loadState, saveState } from './local-storage';
 import { migrateState } from './migrations';
-import { emptyState, sanitizeState } from './schema';
+import { emptyState, sanitizeState, type StoredStateV1 } from './schema';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -144,5 +145,114 @@ describe('clé CoinGecko Demo', () => {
       });
       expect(res.state.ui.coingeckoDemoKey).toBeNull();
     }
+  });
+});
+
+describe('comptes', () => {
+  it('sanitizeState : id/genre/espace/libellé valides conservés, invalides écartés, libellé tronqué à 60', () => {
+    const accounts = {
+      'man:ok': {
+        kind: 'manual',
+        label: '  Ledger  ',
+        space: 'invest',
+        createdAt: '2026-08-23T10:00:00Z',
+      },
+      'man:badid!': {
+        kind: 'manual',
+        label: 'Identifiant invalide (caractère « ! »)',
+        space: 'invest',
+        createdAt: '',
+      },
+      'man:badkind': { kind: 'bogus', label: 'Genre invalide', space: 'invest', createdAt: '' },
+      'man:badspace': {
+        kind: 'manual',
+        label: 'Espace invalide',
+        space: 'savings',
+        createdAt: '',
+      },
+      'man:emptylabel': { kind: 'manual', label: '   ', space: 'invest', createdAt: '' },
+      'man:longlabel': { kind: 'manual', label: 'x'.repeat(65), space: 'trading', createdAt: '' },
+    };
+    const state: StoredStateV1 = {
+      ...emptyState(),
+      accounts: accounts as unknown as Record<AccountId, Account>,
+    };
+    const result = sanitizeState(state);
+    expect(Object.keys(result.state.accounts).sort()).toEqual(['man:longlabel', 'man:ok']);
+    expect(result.state.accounts['man:ok']!.label).toBe('Ledger');
+    expect(result.state.accounts['man:longlabel']!.label).toHaveLength(60);
+    expect(result.dropped).toBe(4);
+  });
+
+  it("sanitizeState : ManualEvent.accountId conservé seulement s'il respecte le format id de compte", () => {
+    const manual = (accountId?: unknown) => ({
+      kind: 'buy',
+      at: '2026-01-01T10:00:00',
+      asset: 'btc',
+      qty: '1',
+      amountEur: '100',
+      scope: 'coinhouse',
+      note: '',
+      ...(accountId === undefined ? {} : { accountId }),
+    });
+    const state: StoredStateV1 = {
+      ...emptyState(),
+      manualEvents: {
+        ok: manual('man:x1'),
+        badFormat: manual('not a valid id'),
+        notString: manual(42),
+        absent: manual(),
+      } as unknown as StoredStateV1['manualEvents'],
+    };
+    const result = sanitizeState(state);
+    expect(Object.keys(result.state.manualEvents).sort()).toEqual([
+      'absent',
+      'badFormat',
+      'notString',
+      'ok',
+    ]);
+    expect(result.state.manualEvents['ok']!.accountId).toBe('man:x1');
+    expect(result.state.manualEvents['badFormat']!.accountId).toBeUndefined();
+    expect(result.state.manualEvents['notString']!.accountId).toBeUndefined();
+    expect(result.state.manualEvents['absent']!.accountId).toBeUndefined();
+    expect(result.dropped).toBe(0);
+  });
+
+  it("mergeStates : union des comptes, le compte courant l'emporte sur un conflit d'id", () => {
+    const current = emptyState();
+    current.accounts['man:x1'] = {
+      id: 'man:x1',
+      kind: 'manual',
+      label: 'Courant',
+      space: 'invest',
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    current.accounts['man:x2'] = {
+      id: 'man:x2',
+      kind: 'manual',
+      label: 'Seulement courant',
+      space: 'invest',
+      createdAt: '2026-01-01T00:00:00Z',
+    };
+    const incoming = emptyState();
+    incoming.accounts['man:x1'] = {
+      id: 'man:x1',
+      kind: 'manual',
+      label: 'Entrant',
+      space: 'trading',
+      createdAt: '2026-01-02T00:00:00Z',
+    };
+    incoming.accounts['man:x3'] = {
+      id: 'man:x3',
+      kind: 'manual',
+      label: 'Seulement entrant',
+      space: 'invest',
+      createdAt: '2026-01-02T00:00:00Z',
+    };
+    const merged = mergeStates(current, incoming);
+    expect(Object.keys(merged.accounts).sort()).toEqual(['man:x1', 'man:x2', 'man:x3']);
+    expect(merged.accounts['man:x1']!.label).toBe('Courant');
+    expect(merged.accounts['man:x2']!.label).toBe('Seulement courant');
+    expect(merged.accounts['man:x3']!.label).toBe('Seulement entrant');
   });
 });

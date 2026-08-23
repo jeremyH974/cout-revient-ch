@@ -4,6 +4,8 @@ import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
 import {
   DEFAULT_ENGINE_SETTINGS,
+  type Account,
+  type AccountId,
   type AssetCode,
   type DecimalString,
   type EngineSettings,
@@ -69,6 +71,8 @@ export interface StoredStateV1 {
   /** Réservé au futur mode fiscal (valeur globale du portefeuille au jour de chaque cession). */
   taxAnnotations: Record<EventId, { portfolioValueEur: DecimalString | null }>;
   assetSettings: Record<AssetCode, AssetSettings>;
+  /** Comptes déclarés par l'utilisateur (les comptes implicites `ch:main` / `man:default` n'y sont pas). */
+  accounts: Record<AccountId, Account>;
   engineSettings: EngineSettings;
   priceCache: Record<AssetCode, PriceQuoteInput>;
   /** Taux de change BCE mis en cache (EUR → devises d'affichage). */
@@ -100,6 +104,7 @@ export function emptyState(): StoredStateV1 {
     qualifications: {},
     taxAnnotations: {},
     assetSettings: {},
+    accounts: {},
     engineSettings: { ...DEFAULT_ENGINE_SETTINGS },
     priceCache: {},
     fx: { ...EMPTY_FX_CACHE, rates: {}, updatedAt: {} },
@@ -132,6 +137,7 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     ui: { ...empty.ui, ...(isRecord(state.ui) ? state.ui : {}) },
     taxAnnotations: isRecord(state.taxAnnotations) ? state.taxAnnotations : {},
     assetSettings: isRecord(state.assetSettings) ? state.assetSettings : {},
+    accounts: isRecord(state.accounts) ? state.accounts : {},
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
     fx: isRecord(state.fx) ? { ...empty.fx, ...state.fx } : empty.fx,
   };
@@ -201,8 +207,34 @@ function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
     qty: m['qty'],
     amountEur: decOrNull(m['amountEur']),
     scope: m['scope'] === 'external' ? 'external' : 'coinhouse',
+    ...(typeof m['accountId'] === 'string' && ACCOUNT_ID.test(m['accountId'])
+      ? { accountId: m['accountId'] }
+      : {}),
     note: typeof m['note'] === 'string' ? m['note'] : '',
   };
+}
+
+const ACCOUNT_ID = /^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$/;
+const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv']);
+const ACCOUNT_SPACES = new Set(['invest', 'trading']);
+
+function sanitizeAccount(id: string, raw: unknown): Account | null {
+  if (!isRecord(raw) || !ACCOUNT_ID.test(id)) return null;
+  const a = raw;
+  if (typeof a['kind'] !== 'string' || !ACCOUNT_KINDS.has(a['kind'])) return null;
+  if (typeof a['space'] !== 'string' || !ACCOUNT_SPACES.has(a['space'])) return null;
+  if (typeof a['label'] !== 'string' || a['label'].trim() === '') return null;
+  const account: Account = {
+    id,
+    kind: a['kind'] as Account['kind'],
+    label: a['label'].trim().slice(0, 60),
+    space: a['space'] as Account['space'],
+    createdAt: typeof a['createdAt'] === 'string' ? a['createdAt'] : '',
+  };
+  if (a['spotAsInvestment'] === true) account.spotAsInvestment = true;
+  if (typeof a['address'] === 'string' && a['address'].length <= 120)
+    account.address = a['address'];
+  return account;
 }
 
 function validQualification(raw: unknown): raw is Qualification {
@@ -298,6 +330,12 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       coingeckoId: typeof raw['coingeckoId'] === 'string' ? raw['coingeckoId'] : null,
     };
   }
+  const accounts: Record<AccountId, Account> = {};
+  for (const [id, raw] of Object.entries(state.accounts)) {
+    const account = sanitizeAccount(id, raw);
+    if (account) accounts[id] = account;
+    else dropped++;
+  }
   const fxRates: FxCache['rates'] = {};
   for (const [currency, raw] of Object.entries(state.fx.rates)) {
     if (!isRecord(raw)) continue;
@@ -334,6 +372,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       qualifications,
       priceCache,
       assetSettings,
+      accounts,
       fx,
     },
     dropped,

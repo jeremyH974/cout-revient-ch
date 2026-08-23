@@ -29,6 +29,7 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     at,
     source: 'manual',
     scope: 'coinhouse',
+    accountId: 'ch:main',
     rowKeys: [],
     warnings: [],
     kind: 'trade',

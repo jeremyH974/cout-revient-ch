@@ -22,6 +22,11 @@
       needsData: true,
     },
     {
+      route: { name: 'accounts' },
+      label: 'Comptes',
+      detail: 'Coinhouse, saisies manuelles, autres plateformes',
+    },
+    {
       route: { name: 'settings' },
       label: 'Réglages',
       detail: 'Prix, devise, sauvegarde, auto-vérifications',

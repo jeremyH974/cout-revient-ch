@@ -105,7 +105,7 @@
         onclick={() =>
           downloadText(
             `cout-revient-ch-operations-${stamp()}.csv`,
-            operationsToCsv(app.report, app.currency),
+            operationsToCsv(app.report, app.currency, undefined, app.accountLabels),
             'text/csv;charset=utf-8',
           )}>Opérations avec PRU (CSV)</button
       >

@@ -20,6 +20,7 @@ const base = () => ({
   id: `t${++seq}`,
   source: 'manual' as const,
   scope: 'coinhouse' as const,
+  accountId: 'ch:main' as const,
   rowKeys: [],
   warnings: [],
 });

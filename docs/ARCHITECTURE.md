@@ -21,9 +21,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 ## Couches
 
 - `src/lib/domain` — moteur pur TypeScript (aucun import Svelte/DOM, seule dépendance big.js).
-  `money.ts` (arithmétique décimale, mode strict), `types.ts` (événements du grand livre),
+  `money.ts` (arithmétique décimale, mode strict), `types.ts` (événements du grand livre, tout
+  événement porte un `accountId` — comptes de première classe, docs/DECISIONS.md n° 20),
   `engine/position.ts` (CUMP invariant à la vente, lots au prorata), `engine/compute.ts`
-  (boucle chronologique), `engine/aggregate.ts` (rapport), `engine/integrity.ts` (colonne Solde).
+  (boucle chronologique), `engine/aggregate.ts` (`computePortfolio` : rapport consolidé sur tout le
+  grand livre ; `computePortfolioByAccount` : le même grand livre groupé par `accountId`, un rapport
+  — donc un PRU — par compte, le contrôle de solde n'étant transmis qu'au compte Coinhouse),
+  `engine/integrity.ts` (colonne Solde).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé), Coinbase (par
@@ -34,7 +38,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   api.coinbase.com, api.exchange.coinbase.com, api.kraken.com, api.hyperliquid.xyz,
   coins.llama.fi, api.frankfurter.dev/.app.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, localStorage (clé
-  `crch:v1:state`), sauvegarde JSON et fusion.
+  `crch:v1:state`), sauvegarde JSON et fusion. `accounts: Record<AccountId, Account>` ne contient
+  que les comptes **déclarés** par l'utilisateur (id `man:<aléatoire>`, assaini par motif
+  `^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$`) ; les comptes **implicites** (Coinhouse `ch:main`, saisies
+  « hors Coinhouse » `man:default`) ne sont jamais persistés, ils existent dès qu'un événement les
+  référence (`AppState.accounts`, dérivé).
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR).
@@ -45,10 +53,12 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `start_url` de la PWA — additionne des soldes, jamais des résultats de nature différente),
   `routes/invest/*.svelte` (Investissement, `#/invest…` : portefeuille, fiche actif, import, saisie
   manuelle, rapport), `routes/Trading.svelte` (Trading, `#/trading`, état vide en attendant l'import
-  Hyperliquid) et `routes/More.svelte` (Plus, `#/more` : réglages, aide, nouveautés,
-  confidentialité). `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les
-  hashes v1 (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge
-  comme alias pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
+  Hyperliquid) et `routes/More.svelte` (Plus, `#/more` : import, saisie, rapport, **comptes**
+  (`routes/Accounts.svelte`, `#/accounts` : liste des comptes implicites et déclarés,
+  ajout/suppression d'un compte déclaré), réglages, aide, nouveautés, confidentialité).
+  `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les hashes v1
+  (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge comme alias
+  pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
 
 ## Invariants testés
 

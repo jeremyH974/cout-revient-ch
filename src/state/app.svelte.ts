@@ -13,19 +13,28 @@ import {
  * Store applicatif (Svelte 5 runes) : état persisté + dérivés (événements, rapport, prix).
  * Les routes ne calculent rien : elles lisent `app.report`.
  */
-import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '$lib/domain/engine';
-import type {
-  AssetCode,
-  EventId,
-  LedgerEvent,
-  ManualEvent,
-  Qualification,
-  RowKey,
+import {
+  computePortfolio,
+  computePortfolioByAccount,
+  type PortfolioReport,
+  type PriceQuoteInput,
+} from '$lib/domain/engine';
+import {
+  COINHOUSE_ACCOUNT_ID,
+  MANUAL_ACCOUNT_ID,
+  type Account,
+  type AccountId,
+  type AssetCode,
+  type EventId,
+  type LedgerEvent,
+  type ManualEvent,
+  type Qualification,
+  type RowKey,
 } from '$lib/domain/types';
 import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
-import { manualToLedgerEvent } from '$lib/import/manual';
+import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
 import {
@@ -140,6 +149,87 @@ export class AppState {
   hasData = $derived(
     Object.keys(this.state.rawRows).length > 0 || Object.keys(this.state.manualEvents).length > 0,
   );
+
+  /**
+   * Comptes : les deux comptes implicites (Coinhouse dès qu'un export existe, « Saisies manuelles »
+   * dès qu'une saisie hors Coinhouse existe) puis les comptes déclarés, par date de création.
+   */
+  accounts = $derived.by((): Account[] => {
+    const list: Account[] = [];
+    if (Object.keys(this.state.rawRows).length > 0) {
+      list.push({
+        id: COINHOUSE_ACCOUNT_ID,
+        kind: 'coinhouse',
+        label: 'Coinhouse',
+        space: 'invest',
+        createdAt: '',
+      });
+    }
+    const manual = Object.values(this.state.manualEvents);
+    if (manual.some((m) => manualAccountId(m) === MANUAL_ACCOUNT_ID)) {
+      list.push({
+        id: MANUAL_ACCOUNT_ID,
+        kind: 'manual',
+        label: 'Saisies manuelles (hors Coinhouse)',
+        space: 'invest',
+        createdAt: '',
+      });
+    }
+    const declared = Object.values(this.state.accounts).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+    return [...list, ...declared];
+  });
+
+  accountLabels = $derived.by((): Record<AccountId, string> =>
+    Object.fromEntries(this.accounts.map((a) => [a.id, a.label])),
+  );
+
+  /** Rapport par compte (vue « par plateforme ») ; calculé à la demande. */
+  reportsByAccount = $derived.by((): Map<AccountId, PortfolioReport> =>
+    computePortfolioByAccount({
+      events: this.displayEvents,
+      prices: this.displayQuotes,
+      settings: this.state.engineSettings,
+      balances: balanceRecords(Object.values(this.state.rawRows)),
+    }),
+  );
+
+  /** Nombre de saisies rattachées à un compte (un compte utilisé ne se supprime pas). */
+  manualCountOf(accountId: AccountId): number {
+    return Object.values(this.state.manualEvents).filter((m) => manualAccountId(m) === accountId)
+      .length;
+  }
+
+  addAccount(input: Pick<Account, 'label' | 'space'> & Partial<Pick<Account, 'kind'>>): Account {
+    const id = `man:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const account: Account = {
+      id,
+      kind: input.kind ?? 'manual',
+      label: input.label.trim().slice(0, 60),
+      space: input.space,
+      createdAt: nowIso(),
+    };
+    this.state.accounts = { ...this.state.accounts, [id]: account };
+    return account;
+  }
+
+  renameAccount(id: AccountId, label: string): void {
+    const existing = this.state.accounts[id];
+    if (!existing) return;
+    this.state.accounts = {
+      ...this.state.accounts,
+      [id]: { ...existing, label: label.trim().slice(0, 60) },
+    };
+  }
+
+  removeAccount(id: AccountId): boolean {
+    if (!this.state.accounts[id] || this.manualCountOf(id) > 0) return false;
+    const { [id]: _removed, ...rest } = this.state.accounts;
+    void _removed;
+    this.state.accounts = rest;
+    return true;
+  }
   heldAssets = $derived.by((): AssetCode[] =>
     [...this.report.positions, ...this.report.stablecoins].map((p) => p.asset),
   );
@@ -194,8 +284,12 @@ export class AppState {
   exitDemo(): void {
     if (!this.state.ui.demoMode) return;
     const ui: UiSettings = { ...this.state.ui, demoMode: false, lastBackupAt: null };
+    // Les comptes déclarés pendant la démo sont ceux de l'utilisateur, pas des données d'exemple
+    // (le jeu de démonstration n'en contient aucun) : ils survivent à la sortie de la démo.
+    const accounts = $state.snapshot(this.state.accounts);
     this.clearAll();
     this.state.ui = ui;
+    this.state.accounts = accounts;
   }
 
   importCsv(text: string, fileName: string, now = nowMs()): ReturnType<typeof importCoinhouseCsv> {

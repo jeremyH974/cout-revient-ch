@@ -13,6 +13,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - Clé CoinGecko Demo optionnelle dans les réglages.
 - Navigation en espaces : Vue d'ensemble (accueil), Investissement, Trading (en préparation), Plus ;
   anciens liens (`#/asset/btc`, `#/import`…) toujours valables.
+- Comptes : écran « Comptes » (Plus), rattachement des saisies manuelles à un compte, filtre
+  « Plateforme » sur les positions avec PRU par plateforme, colonne « Compte » dans l'export des
+  opérations.
 
 ### Changed
 

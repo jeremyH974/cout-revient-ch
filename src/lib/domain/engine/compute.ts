@@ -54,6 +54,7 @@ export interface LedgerRun {
 
 const move = (event: LedgerEvent, kind: Movement['kind'], extra?: Partial<Movement>): Movement => ({
   eventId: event.id,
+  accountId: event.accountId,
   at: event.at,
   kind,
   counterAsset: null,

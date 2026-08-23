@@ -8,6 +8,7 @@ const base = (id: string) => ({
   id,
   source: 'manual' as const,
   scope: 'coinhouse' as const,
+  accountId: 'ch:main' as const,
   rowKeys: [],
   warnings: [],
 });
@@ -72,12 +73,35 @@ describe('exports CSV', () => {
     expect(rows).toHaveLength(4);
     expect(rows[0]).toContain('PRU après (€)');
     expect(rows[1]).toMatch(
-      /^01\/01\/2026;10:00;"BTC";"Achat";1;100;100;"EUR";;"";0;0;;100;1;"Manuel";"a";""$/,
+      /^01\/01\/2026;10:00;"BTC";"Achat";1;100;100;"EUR";;"";0;0;;100;1;"Manuel";"Coinhouse";"a";""$/,
     );
     expect(rows[3]).toMatch(
-      /^03\/01\/2026;10:00;"BTC";"Vente";-1;300;300;"EUR";;"";0;0;150;150;1;"Manuel";"c";""$/,
+      /^03\/01\/2026;10:00;"BTC";"Vente";-1;300;300;"EUR";;"";0;0;150;150;1;"Manuel";"Coinhouse";"c";""$/,
     );
     expect(lines(operationsToCsv(report, 'EUR', 'eth'))).toHaveLength(1);
+  });
+
+  it('« Compte » : en-tête juste après « Source », étiquette fournie ou identifiant brut à défaut', () => {
+    const header = lines(operationsToCsv(report, 'EUR'))[0]!;
+    expect(header).toContain('Source;Compte');
+
+    const acctReport = computePortfolio({
+      events: [{ ...buy('man:z', '2026-01-05T10:00:00', 'btc', '1', '100'), accountId: 'man:x1' }],
+      prices: {
+        btc: {
+          asset: 'btc',
+          priceEur: '250',
+          at: '2026-08-22T10:00:00Z',
+          source: 'test',
+          stale: false,
+        },
+      },
+      settings: DEFAULT_ENGINE_SETTINGS,
+    });
+    const withLabel = lines(operationsToCsv(acctReport, 'EUR', undefined, { 'man:x1': 'Ledger' }));
+    expect(withLabel[1]).toContain('"Ledger"');
+    const withoutLabel = lines(operationsToCsv(acctReport, 'EUR'));
+    expect(withoutLabel[1]).toContain('"man:x1"');
   });
 
   it('lots et série', () => {

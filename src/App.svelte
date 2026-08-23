@@ -3,6 +3,7 @@
   import { router } from '$lib/router.svelte';
   import BottomNav from './components/layout/BottomNav.svelte';
   import Toasts from './components/layout/Toasts.svelte';
+  import Accounts from './routes/Accounts.svelte';
   import Help from './routes/Help.svelte';
   import More from './routes/More.svelte';
   import News from './routes/News.svelte';
@@ -112,6 +113,8 @@
         <Trading />
       {:else if route.name === 'more'}
         <More />
+      {:else if route.name === 'accounts'}
+        <Accounts />
       {:else if route.name === 'asset'}
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}

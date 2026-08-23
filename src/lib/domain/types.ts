@@ -59,11 +59,41 @@ export type EventSource = 'coinhouse-csv' | 'manual';
 /** `coinhouse` : participe au contrôle de solde ; `external` : hors plateforme, exclu. */
 export type EventScope = 'coinhouse' | 'external';
 
+/** Identifiant d'un compte (plateforme ou saisie) : `ch:main`, `man:default`, `man:<uuid>`, `hl:<adresse>`… */
+export type AccountId = string;
+export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv';
+/** Espace d'appartenance d'un compte (proposition v2, § 6.0). */
+export type AccountSpace = 'invest' | 'trading';
+
+/**
+ * Compte de première classe : tout événement en porte un. Le PRU existe par compte (vue « par
+ * plateforme ») et consolidé (grand livre entier) ; le contrôle de solde Coinhouse reste piloté par
+ * `EventScope`.
+ */
+export interface Account {
+  id: AccountId;
+  kind: AccountKind;
+  label: string;
+  space: AccountSpace;
+  /** Trading seulement : router les achats spot « à garder » vers l'espace Investissement. */
+  spotAsInvestment?: boolean;
+  /** Adresse publique (Hyperliquid, on-chain) ; jamais une clé. */
+  address?: string;
+  /** ISO 8601. */
+  createdAt: string;
+}
+
+/** Compte implicite des lignes de l'export Coinhouse. */
+export const COINHOUSE_ACCOUNT_ID: AccountId = 'ch:main';
+/** Compte implicite des saisies manuelles « hors Coinhouse » antérieures aux comptes. */
+export const MANUAL_ACCOUNT_ID: AccountId = 'man:default';
+
 export interface EventBase {
   id: EventId;
   at: NaiveDateTime;
   source: EventSource;
   scope: EventScope;
+  accountId: AccountId;
   rowKeys: RowKey[];
   warnings: string[];
 }
@@ -179,6 +209,8 @@ export interface ManualEvent {
    */
   amountEur: DecimalString | null;
   scope: EventScope;
+  /** Compte de rattachement ; absent (saisies v1) = déduit de `scope`. */
+  accountId?: AccountId;
   note: string;
 }
 

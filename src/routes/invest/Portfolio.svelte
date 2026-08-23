@@ -47,9 +47,15 @@
     const q = query.trim().toLowerCase();
     return q === '' || p.asset.includes(q) || assetName(p.asset).toLowerCase().includes(q);
   };
-  const positions = $derived([...app.report.positions].filter(matches).sort(sorters[sort]));
-  const stablecoins = $derived(app.report.stablecoins.filter(matches));
-  const closed = $derived(app.report.closed.filter(matches));
+  /** Filtre « par plateforme » : '' = vue consolidée (PRU global), sinon le rapport du compte seul. */
+  let accountFilter = $state('');
+  const filteredReport = $derived(
+    accountFilter === '' ? app.report : (app.reportsByAccount.get(accountFilter) ?? app.report),
+  );
+  const filterLabel = $derived(app.accountLabels[accountFilter] ?? '');
+  const positions = $derived([...filteredReport.positions].filter(matches).sort(sorters[sort]));
+  const stablecoins = $derived(filteredReport.stablecoins.filter(matches));
+  const closed = $derived(filteredReport.closed.filter(matches));
   // Une position « poussière » (résidu < 0,01 €) est clôturée, mais son latent résiduel compte
   // dans le P&L total : on l'affiche pour que la somme des sections retrouve l'en-tête.
   const closedTotal = $derived(closed.reduce((acc, p) => acc.plus(p.total ?? p.realized), ZERO));
@@ -81,7 +87,24 @@
       <option value="asset">Nom</option>
     </select>
   </label>
+  {#if app.accounts.length > 1}
+    <label class="sort">
+      <span class="sr-only">Plateforme</span>
+      <select bind:value={accountFilter} aria-label="Plateforme">
+        <option value="">Toutes plateformes</option>
+        {#each app.accounts as a (a.id)}
+          <option value={a.id}>{a.label}</option>
+        {/each}
+      </select>
+    </label>
+  {/if}
 </div>
+{#if accountFilter !== ''}
+  <p class="small muted scope-note">
+    Positions de <strong>{filterLabel}</strong> seule : PRU et réalisé de cette plateforme. La synthèse
+    ci-dessus reste consolidée (PRU global, toutes plateformes).
+  </p>
+{/if}
 
 <section class="list">
   <div class="head" aria-hidden="true">
@@ -297,6 +320,9 @@
   }
   .grow {
     flex: 1;
+  }
+  .scope-note {
+    margin: 0 0 var(--space-2);
   }
   .unqualified {
     justify-content: space-between;

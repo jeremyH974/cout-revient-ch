@@ -91,3 +91,18 @@
     d'application. Les hashes v1 (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`)
     restent pris en charge comme alias dans `parseHash` : liens partagés, favoris et écrans
     d'accueil déjà installés ne cassent pas.
+
+20. **Comptes de première classe** (23/08/2026, proposition v2 § 6.0, tranche 2 de P19). Tout
+    événement du grand livre porte désormais un compte (`EventBase.accountId`,
+    `ManualEvent.accountId?` pour les saisies) : le compte Coinhouse (`ch:main`) est implicite dès
+    qu'un export existe, les saisies manuelles « hors Coinhouse » antérieures aux comptes se
+    rattachent à un second compte implicite (`man:default`) plutôt que de rester orphelines, et
+    l'utilisateur peut déclarer d'autres comptes d'investissement (`AppState.addAccount`, écran
+    « Comptes »). La vue consolidée (`computePortfolio`) reste le grand livre entier — PRU global,
+    chiffres v1 inchangés au centime près ; la vue « par plateforme »
+    (`computePortfolioByAccount`) rejoue le grand livre de chaque compte séparément, donc son propre
+    PRU et son propre réalisé. Assumé : après une vente, la somme des coûts par compte ne reconstitue
+    pas exactement le coût consolidé (chaque compte porte son propre coût moyen pondéré) — seule la
+    quantité s'additionne à l'identique, voir `src/lib/domain/engine/accounts.test.ts`. Le contrôle
+    de solde Coinhouse (`checkBalances`) reste limité au compte Coinhouse :
+    `computePortfolioByAccount` ne transmet `balances` qu'à `ch:main`.

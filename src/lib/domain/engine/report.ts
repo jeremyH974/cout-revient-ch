@@ -1,7 +1,14 @@
 /** Types de sortie du moteur (valeurs en Big, jamais persistées). */
 import type { AssetClass } from '../assets';
 import type { Big, DecimalString } from '../money';
-import type { AssetCode, EventId, NaiveDateTime, QuotePrice, UnqualifiedEvent } from '../types';
+import type {
+  AccountId,
+  AssetCode,
+  EventId,
+  NaiveDateTime,
+  QuotePrice,
+  UnqualifiedEvent,
+} from '../types';
 
 export interface PriceQuoteInput {
   asset: AssetCode;
@@ -44,6 +51,8 @@ export type HistoryKind =
 /** Une ligne de l'historique d'un actif, avec le PRU après l'opération. */
 export interface HistoryEntry {
   eventId: EventId;
+  /** Compte d'origine du mouvement (provenance dans les exports). */
+  accountId: AccountId;
   at: NaiveDateTime;
   kind: HistoryKind;
   /** Quantité signée (négatif = sortie). */

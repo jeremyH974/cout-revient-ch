@@ -2,6 +2,7 @@
  * Normalisation des lignes brutes Coinhouse en événements du grand livre.
  * Fonction pure, rejouée sur le grand livre complet à chaque chargement.
  */
+import { COINHOUSE_ACCOUNT_ID } from '../../domain/types';
 import { D, ZERO, isZero, toDecimalString, type Big } from '../../domain/money';
 import type {
   EventId,
@@ -61,6 +62,7 @@ export function normalizeCoinhouseRows(
       at: row.at,
       source: 'coinhouse-csv',
       scope: 'coinhouse',
+      accountId: COINHOUSE_ACCOUNT_ID,
       rowKeys: [row.key],
       warnings: [],
       amountEur: toDecimalString(amount),
@@ -116,6 +118,7 @@ export function normalizeCoinhouseRows(
       at: d.at,
       source: 'coinhouse-csv',
       scope: 'coinhouse',
+      accountId: COINHOUSE_ACCOUNT_ID,
       rowKeys: [d.key, m.key],
       warnings: [],
       out: { asset: d.asset, qty: absDecimal(d.qty) },

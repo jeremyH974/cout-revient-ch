@@ -23,6 +23,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/welcome',
     '#/import',
     '#/add',
+    '#/accounts',
     '#/help',
     '#/privacy',
     '#/settings',
@@ -44,6 +45,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/invest',
     '#/trading',
     '#/more',
+    '#/accounts',
     '#/invest/asset/btc',
   ]) {
     test(`avec la démo : ${route}`, async ({ page }) => {

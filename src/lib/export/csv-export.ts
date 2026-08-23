@@ -3,6 +3,7 @@
  * Colonnes documentées dans docs/exports.md ; montants dans la devise d'affichage.
  */
 import type { HistoryEntry, PortfolioReport, PositionReport } from '../domain/engine';
+import { COINHOUSE_ACCOUNT_ID, MANUAL_ACCOUNT_ID, type AccountId } from '../domain/types';
 import type { Big } from '../domain/money';
 import { roundHalfUp } from '../format/fr';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
@@ -87,10 +88,19 @@ export function positionsToCsv(report: PortfolioReport, currency: Currency = 'EU
 }
 
 /** Historique normalisé : une ligne par opération et par actif, PRU et quantité après chaque ligne. */
+/** Libellé d'un compte pour les exports ; les deux comptes implicites ont un nom fixe. */
+export function accountLabel(accountId: AccountId, labels: Record<AccountId, string> = {}): string {
+  if (labels[accountId]) return labels[accountId];
+  if (accountId === COINHOUSE_ACCOUNT_ID) return 'Coinhouse';
+  if (accountId === MANUAL_ACCOUNT_ID) return 'Manuel';
+  return accountId;
+}
+
 export function operationsToCsv(
   report: PortfolioReport,
   currency: Currency = 'EUR',
   asset?: string,
+  accountLabels: Record<AccountId, string> = {},
 ): string {
   const c = sym(currency);
   const header = [
@@ -110,6 +120,7 @@ export function operationsToCsv(
     `PRU après (${c})`,
     'Quantité après',
     'Source',
+    'Compte',
     'Identifiant',
     'Avertissements',
   ];
@@ -136,6 +147,7 @@ export function operationsToCsv(
           num(h.pruAfter, 10),
           num(h.qtyAfter),
           text(h.eventId.startsWith('man:') ? 'Manuel' : 'Coinhouse'),
+          text(accountLabel(h.accountId, accountLabels)),
           text(h.eventId.replace(/^(ch|man):/, '')),
           text(h.warnings.join(' | ')),
         ],

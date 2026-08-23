@@ -3,7 +3,7 @@
  * lots par acquisition consommés au prorata, compteurs réalisé / investi / produits.
  */
 import { D, ZERO, isPositive, isZero, type Big } from '../money';
-import type { AssetCode, EventId, NaiveDateTime, QuotePrice } from '../types';
+import type { AccountId, AssetCode, EventId, NaiveDateTime, QuotePrice } from '../types';
 import type { BlockedInfo, HistoryEntry, HistoryKind, LotOrigin } from './report';
 
 export interface Lot {
@@ -20,6 +20,7 @@ export interface Lot {
 
 export interface Movement {
   eventId: EventId;
+  accountId: AccountId;
   at: NaiveDateTime;
   kind: HistoryKind;
   counterAsset: AssetCode | null;
@@ -97,6 +98,7 @@ export class PositionState {
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
     this.history.push({
       eventId: m.eventId,
+      accountId: m.accountId,
       at: m.at,
       kind: m.kind,
       qty,
@@ -144,6 +146,7 @@ export class PositionState {
         this.blocked = { eventId: m.eventId, at: m.at, deficit: excess };
         this.history.push({
           eventId: m.eventId,
+          accountId: m.accountId,
           at: m.at,
           kind: m.kind,
           qty: requested.neg(),
@@ -189,6 +192,7 @@ export class PositionState {
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
     this.history.push({
       eventId: m.eventId,
+      accountId: m.accountId,
       at: m.at,
       kind: m.kind,
       qty: qty.neg(),

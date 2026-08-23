@@ -141,7 +141,7 @@
       onclick={() =>
         downloadText(
           `cout-revient-ch-${asset}-operations-${localDay(nowMs())}.csv`,
-          operationsToCsv(app.report, app.currency, asset),
+          operationsToCsv(app.report, app.currency, asset, app.accountLabels),
           'text/csv;charset=utf-8',
         )}>Télécharger l'historique de {asset.toUpperCase()} (CSV)</button
     >
