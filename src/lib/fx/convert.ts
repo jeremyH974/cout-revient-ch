@@ -106,7 +106,11 @@ export function convertQuotes(
 ): Record<AssetCode, PriceQuoteInput> {
   const result: Record<AssetCode, PriceQuoteInput> = {};
   for (const [asset, quote] of Object.entries(quotes)) {
-    const rate = lookup.rate(quote.at.slice(0, 10));
+    // Une cotation sans date fiable (antérieure à la série de taux) est une cotation récente :
+    // on lui applique le dernier taux connu, pas le premier.
+    const day = quote.at.slice(0, 10);
+    const rateDay = lookup.firstDay && day < lookup.firstDay ? (lookup.latestDay ?? day) : day;
+    const rate = lookup.rate(rateDay);
     if (rate) result[asset] = { ...quote, priceEur: mul(quote.priceEur, rate) };
   }
   return result;

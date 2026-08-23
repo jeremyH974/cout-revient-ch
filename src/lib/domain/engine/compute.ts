@@ -15,12 +15,25 @@ const KIND_RANK: Record<LedgerEvent['kind'], number> = {
   unqualified: 6,
 };
 
-/** Tri déterministe : date, puis acquisitions avant cessions, puis source, puis id. */
+/**
+ * À la même seconde, un échange qui PRODUIT du cash ou du stablecoin (vente, EUR → USDC) passe
+ * avant celui qui en CONSOMME (achat payé en USDC) : le règlement Coinhouse enchaîne souvent
+ * « vendre X → acheter Y avec le produit » sous un même horodatage.
+ */
+function flowRank(event: LedgerEvent): number {
+  if (event.kind !== 'trade') return 1;
+  if (isCashLike(event.in.asset)) return 0;
+  if (isCashLike(event.out.asset)) return 1;
+  return 2;
+}
+
+/** Tri déterministe : date, puis acquisitions avant cessions, flux, source, puis id. */
 export function sortEvents(events: readonly LedgerEvent[]): LedgerEvent[] {
   return [...events].sort(
     (a, b) =>
       a.at.localeCompare(b.at) ||
       KIND_RANK[a.kind] - KIND_RANK[b.kind] ||
+      flowRank(a) - flowRank(b) ||
       (a.source === b.source ? 0 : a.source === 'coinhouse-csv' ? -1 : 1) ||
       a.id.localeCompare(b.id),
   );
@@ -31,6 +44,8 @@ export interface LedgerRun {
   unqualified: UnqualifiedEvent[];
   cashIn: Big;
   cashOut: Big;
+  /** Plus haut niveau atteint par `cashIn − cashOut` : base du ROI du portefeuille. */
+  cashEngagedMax: Big;
   subscriptionsEur: Big;
   /** Quantités des seuls événements de scope 'coinhouse', pour le contrôle de solde. */
   coinhouseQty: Map<AssetCode, Big>;
@@ -64,6 +79,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     unqualified: [],
     cashIn: ZERO,
     cashOut: ZERO,
+    cashEngagedMax: ZERO,
     subscriptionsEur: ZERO,
     coinhouseQty: new Map(),
     warnings: [],
@@ -71,6 +87,10 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
   const track = (event: LedgerEvent, asset: AssetCode, signed: Big): void => {
     if (event.scope !== 'coinhouse' || isFiat(asset)) return;
     run.coinhouseQty.set(asset, (run.coinhouseQty.get(asset) ?? ZERO).plus(signed));
+  };
+  const noteCash = (): void => {
+    const engaged = run.cashIn.minus(run.cashOut);
+    if (engaged.gt(run.cashEngagedMax)) run.cashEngagedMax = engaged;
   };
 
   for (const event of sortEvents(events)) {
@@ -85,35 +105,41 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         const inIsCash = isFiat(event.in.asset);
         // Les frais vont à la jambe crypto (ou au stablecoin face à l'euro), jamais aux deux.
         const feeToOut = inIsCash || !isCashLike(event.out.asset);
-        if (outIsCash) run.cashIn = run.cashIn.plus(value);
-        if (inIsCash) run.cashOut = run.cashOut.plus(value);
+        // Les apports/retraits en euros ne sont comptés que si l'opération a été appliquée
+        // (une cession bloquée ou un achat sur un actif bloqué n'entrent pas dans le P&L).
+        let applied = true;
         if (!outIsCash) {
-          pos(event.out.asset).dispose(
-            D(event.out.qty),
-            value,
-            true,
-            move(event, 'sell', {
-              counterAsset: event.in.asset,
-              quotePrice: event.quotePrice,
-              feeEur: feeToOut ? feeEur : ZERO,
-              rebateEur: feeToOut ? rebateEur : ZERO,
-            }),
-          );
+          applied =
+            pos(event.out.asset).dispose(
+              D(event.out.qty),
+              value,
+              true,
+              move(event, 'sell', {
+                counterAsset: event.in.asset,
+                quotePrice: event.quotePrice,
+                feeEur: feeToOut ? feeEur : ZERO,
+                rebateEur: feeToOut ? rebateEur : ZERO,
+              }),
+            ) !== null;
         }
         if (!inIsCash) {
-          pos(event.in.asset).acquire(
-            D(event.in.qty),
-            value,
-            'purchase',
-            true,
-            move(event, 'buy', {
-              counterAsset: event.out.asset,
-              quotePrice: event.quotePrice,
-              feeEur: !feeToOut ? feeEur : ZERO,
-              rebateEur: !feeToOut ? rebateEur : ZERO,
-            }),
-          );
+          applied =
+            pos(event.in.asset).acquire(
+              D(event.in.qty),
+              value,
+              'purchase',
+              true,
+              move(event, 'buy', {
+                counterAsset: event.out.asset,
+                quotePrice: event.quotePrice,
+                feeEur: !feeToOut ? feeEur : ZERO,
+                rebateEur: !feeToOut ? rebateEur : ZERO,
+              }),
+            ) && applied;
         }
+        if (applied && outIsCash) run.cashIn = run.cashIn.plus(value);
+        if (applied && inIsCash) run.cashOut = run.cashOut.plus(value);
+        noteCash();
         break;
       }
       case 'migration': {
@@ -127,20 +153,47 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         const fair = event.fairValueOutEur ?? event.fairValueInEur;
         const realize = settings.migrationMode === 'realize' && fair !== null;
         const valuation = realize ? D(fair) : carried;
+        // Coût reporté : transfert entre actifs, ni achat ni produit (le dénominateur du ROI et
+        // « Σ achats » ne bougent pas) ; la part d'achats transférée suit le coût pour que
+        // `total = valeur + Σ produits − Σ achats` reste vrai actif par actif.
+        // Réalisation à la juste valeur : vraie cession puis vraie acquisition, comptées.
         const disposed = from.dispose(
           qtyOut,
           valuation,
-          true,
+          realize,
           move(event, 'migration-out', { counterAsset: event.in.asset }),
         );
-        if (!disposed) break;
-        pos(event.in.asset).acquire(
+        const to = pos(event.in.asset);
+        if (!disposed) {
+          // Actif d'origine bloqué (historique manquant) : la quantité reçue existe bel et bien ;
+          // on la crée à coût 0 avec avertissement plutôt que de la faire disparaître.
+          to.acquire(
+            D(event.in.qty),
+            ZERO,
+            'migration',
+            false,
+            move(event, 'migration-in', {
+              counterAsset: event.out.asset,
+              warnings: [
+                ...event.warnings,
+                `Coût d'acquisition inconnu : l'historique de ${event.out.asset} est incomplet (0 € retenu).`,
+              ],
+            }),
+          );
+          break;
+        }
+        to.acquire(
           D(event.in.qty),
           valuation,
           'migration',
-          true,
+          realize,
           move(event, 'migration-in', { counterAsset: event.out.asset }),
         );
+        if (!realize) {
+          from.investedTotal = from.investedTotal.minus(carried);
+          to.investedTotal = to.investedTotal.plus(carried);
+          to.noteEngaged();
+        }
         break;
       }
       case 'reward': {

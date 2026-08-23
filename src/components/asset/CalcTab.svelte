@@ -1,22 +1,53 @@
 <script lang="ts">
-  import type { PositionReport } from '$lib/domain/engine';
-  import { fmtDate, fmtPct, fmtQty } from '$lib/format/fr';
-  import { fmtMoney, fmtPrice as fmtPriceBase } from '$lib/format/fr';
+  import type { HistoryEntry, PositionReport } from '$lib/domain/engine';
+  import type { Big } from '$lib/domain/money';
+  import { MASK, fmtDate, fmtMasked, fmtMoney, fmtPct, fmtQty } from '$lib/format/fr';
+  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { app } from '../../state/app.svelte';
-  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
-  const eur = (v: Parameters<typeof fmtMoney>[0], opts?: Parameters<typeof fmtMoney>[2]): string =>
-    fmtMoney(v, app.currency, opts);
 
   let { position }: { position: PositionReport } = $props();
   const p = $derived(position);
-  const sells = $derived(p.history.filter((h) => h.realized !== null).reverse());
+  const discreet = $derived(app.state.ui.discreet);
+  // Mode discret : montants et quantités masqués ; les prix (PRU, cours) restent lisibles.
+  const eur = (v: Big | null, opts?: { sign?: boolean }): string =>
+    v === null ? '—' : discreet ? fmtMasked(app.currency) : fmtMoney(v, app.currency, opts);
+  const qty = (v: Big | null): string => (v === null ? '—' : discreet ? MASK : fmtQty(v));
+  const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
+  const kinds: Record<string, string> = {
+    sell: 'vente',
+    withdrawal: 'retrait',
+    'migration-out': 'migration',
+  };
+  /** PRU retenu pour une cession : (produit − réalisé) ÷ quantité cédée. */
+  const pruAt = (h: HistoryEntry): Big | null =>
+    h.valueEur !== null && h.realized !== null && h.qty.abs().gt('0')
+      ? h.valueEur.minus(h.realized).div(h.qty.abs())
+      : null;
+  const disposals = $derived(p.history.filter((h) => h.realized !== null).reverse());
 </script>
 
 <div class="calc">
   {#if p.closed}
     <section>
-      <h3>Position clôturée</h3>
-      <p>Plus aucune unité détenue : seul le réalisé compte.</p>
+      <h3>
+        Position clôturée{#if p.dust}&nbsp;(résidu){/if}
+      </h3>
+      {#if p.dust}
+        <p>
+          Il reste {qty(p.qty)}
+          {p.asset.toUpperCase()}, soit moins de 0,01 € : la position est classée clôturée, mais ce
+          résidu reste valorisé et son latent compte dans le total.
+        </p>
+        <p class="formula">
+          Latent résiduel = {eur(p.value)} − {eur(p.costBasis)} =
+          <strong>{eur(p.unrealized, { sign: true })}</strong>
+        </p>
+      {:else}
+        <p>
+          Plus aucune unité détenue : le total se limite au réalisé{#if p.otherIncome.gt('0')}
+            et aux récompenses valorisées{/if}.
+        </p>
+      {/if}
     </section>
   {:else}
     <section>
@@ -26,34 +57,37 @@
         Il change uniquement quand vous achetez, jamais quand vous vendez.
       </p>
       <p class="formula">
-        {eur(p.costBasis)} ÷ {fmtQty(p.qty)} = <strong>{p.pru ? price(p.pru) : '—'}</strong>
+        {eur(p.costBasis)} ÷ {qty(p.qty)} = <strong>{p.pru ? price(p.pru) : '—'}</strong>
       </p>
     </section>
     <section>
       <h3>Latent</h3>
       <p>
         Ce que vous gagneriez ou perdriez en vendant tout maintenant : quantité × (prix actuel −
-        PRU).
+        PRU). Le pourcentage rapporte ce latent à l'investi (quantité × PRU) : c'est l'écart du prix
+        au PRU.
       </p>
       <p class="formula">
-        {fmtQty(p.qty)} × ({p.price ? price(p.price.priceEur) : '—'} − {p.pru ? price(p.pru) : '—'})
-        = <strong>{eur(p.unrealized, { sign: true })}</strong> ({fmtPct(p.unrealizedPct)} vs PRU)
+        {qty(p.qty)} × ({p.price ? price(p.price.priceEur) : '—'} − {p.pru ? price(p.pru) : '—'}) =
+        <strong>{eur(p.unrealized, { sign: true })}</strong>
+        ({fmtPct(p.unrealizedPct)} vs PRU)
       </p>
     </section>
   {/if}
   <section>
     <h3>Réalisé</h3>
     <p>
-      Pour chaque vente : produit net de la vente − quantité vendue × PRU au moment de la vente.
+      Pour chaque cession (vente, retrait, migration) : produit net − quantité cédée × PRU au moment
+      de la cession.
     </p>
-    {#if sells.length === 0}
-      <p class="formula">Aucune vente.</p>
+    {#if disposals.length === 0}
+      <p class="formula">Aucune cession.</p>
     {:else}
       <ul>
-        {#each sells as h (h.eventId + h.kind)}
+        {#each disposals as h (h.eventId + h.kind)}
           <li>
-            {fmtDate(h.at)} : {eur(h.valueEur)} − {fmtQty(h.qty.abs())} × PRU =
-            <strong>{eur(h.realized, { sign: true })}</strong>
+            {fmtDate(h.at)} ({kinds[h.kind] ?? h.kind}) : {eur(h.valueEur)} − {qty(h.qty.abs())} ×
+            {price(pruAt(h))} = <strong>{eur(h.realized, { sign: true })}</strong>
           </li>
         {/each}
       </ul>
@@ -69,18 +103,22 @@
         {eur(p.otherIncome, { sign: true })}{/if} =
       <strong>{eur(p.total, { sign: true })}</strong>
     </p>
+    <p>
+      Le ROI rapporte ce total au <strong>capital maximal engagé</strong> sur cet actif : le plus d'euros
+      que vous ayez eu investis en même temps (achats − produits, au plus haut). Vendre puis racheter
+      n'augmente pas cette base.
+    </p>
     <p class="formula">
-      ROI = total ÷ tout ce que vous avez acheté = {eur(p.total, { sign: true })} ÷ {eur(
-        p.investedTotal,
-      )} = <strong>{fmtPct(p.roi)}</strong>
+      ROI = {eur(p.total, { sign: true })} ÷ {eur(p.roiBase)} engagés =
+      <strong>{fmtPct(p.roi)}</strong>
     </p>
   </section>
   <section>
     <h3>Net investi</h3>
     <p>
       Somme des achats − somme des ventes : l'argent encore engagé sur cet actif.{#if p.capitalRecovered}
-        <strong>Capital récupéré</strong> : vous avez déjà retiré plus que vous n'avez mis ; aucun pourcentage
-        n'est calculé sur cette base.{/if}
+        <strong>Capital récupéré</strong> : vous avez déjà retiré au moins autant que vous n'avez mis
+        ; aucun pourcentage n'est calculé sur cette base.{/if}
     </p>
     <p class="formula">
       {eur(p.investedTotal)} − {eur(p.proceedsTotal)} =

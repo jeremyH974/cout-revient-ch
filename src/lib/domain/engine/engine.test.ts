@@ -82,7 +82,9 @@ describe('moteur — exemple canonique', () => {
     expect(s(x.unrealized)).toBe('200');
     expect(s(x.total)).toBe('350');
     expect(s(x.netInvested)).toBe('150');
-    expect(s(x.roi)).toBe(s(D('350').div('450')));
+    // ROI sur le capital maximal engagé : 100 + 200 = 300 € mobilisés au plus (après la vente, 150).
+    expect(s(x.roiBase)).toBe('300');
+    expect(s(x.roi)).toBe(s(D('350').div('300')));
     expect(s(x.unrealizedPct)).toBe(s(D('200').div('300')));
   });
 

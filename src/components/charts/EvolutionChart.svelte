@@ -1,8 +1,10 @@
 <script module lang="ts">
+  import type { ValueFormat } from '$lib/history/metrics';
+
   export interface ChartExtra {
     label: string;
     value: number;
-    format: 'money' | 'percent';
+    format: ValueFormat;
   }
   export interface ChartPoint {
     /** `YYYY-MM-DD`, ou ISO 8601 pour l'intraday. */
@@ -10,6 +12,8 @@
     primary: number;
     secondary: number | null;
     extras?: ChartExtra[];
+    /** Valeur estimée au coût (aucune cotation) : tracée en neutre, sans gain ni perte. */
+    estimated?: boolean;
   }
   export interface ChartMarker {
     day: string;
@@ -19,8 +23,20 @@
 </script>
 
 <script lang="ts">
+  import { D } from '$lib/domain/money';
+  import { fmtDate, fmtMasked, fmtMoney, fmtPct, fmtPrice } from '$lib/format/fr';
   import type { Currency } from '$lib/fx/types';
-  import { fmtDate, fmtMoney } from '$lib/format/fr';
+  import { formatInstant, spansMidnight } from '$lib/history/intraday-series';
+  import { numberToDecimal } from '$lib/pricing/types';
+  import {
+    layoutX,
+    markerIndex,
+    nearestIndex,
+    niceTicks,
+    segmentsOf,
+    tickIndices,
+    type Segment,
+  } from './geometry';
 
   let {
     points,
@@ -32,18 +48,25 @@
     colorMode = 'trend',
     band = false,
     labels = { primary: 'Valeur', secondary: null },
+    discreet = false,
   }: {
     points: ChartPoint[];
-    format?: 'money' | 'percent';
+    /** Nature de la courbe : montant (masquable), pourcentage ou prix unitaire. */
+    format?: ValueFormat;
     currency?: Currency;
     markers?: ChartMarker[];
     height?: number;
     /** Référence = 0 (latent) ; sinon la courbe secondaire (investi, PRU) sert de référence. */
     zeroLine?: boolean;
     colorMode?: ChartColorMode;
-    /** Courbe secondaire mise en avant avec étiquette en bout de courbe (PRU). */
+    /**
+     * Courbe secondaire mise en avant avec étiquette en bout de courbe (PRU) ; seule la zone
+     * entre les deux courbes est colorée gain/perte, les courbes restent neutres.
+     */
     band?: boolean;
     labels?: { primary: string; secondary: string | null };
+    /** Mode discret : montants masqués (« •••• € ») ; prix unitaires et pourcentages lisibles. */
+    discreet?: boolean;
   } = $props();
 
   const uid = `chart-${Math.random().toString(36).slice(2, 8)}`;
@@ -51,12 +74,27 @@
   let hover = $state<number | null>(null);
   const PAD = { top: 28, right: 12, bottom: 26, left: 12 };
 
-  const fmtAs = (v: number, kind: 'money' | 'percent'): string =>
+  /** Nombre SVG → chaîne décimale : jamais de flottant vers big.js ; l'arrondi reste dans fr.ts. */
+  const dec = (v: number): string => numberToDecimal(v) ?? '0';
+  const masked = $derived(discreet && format === 'money');
+  const fmtAs = (v: number, kind: ValueFormat, sign = false): string =>
     kind === 'percent'
-      ? `${v < 0 ? '−' : ''}${Math.abs(v).toFixed(1).replace('.', ',')} %`
-      : fmtMoney(v.toFixed(2), currency, { compact: true });
+      ? fmtPct(D(dec(v)).div('100'), { sign })
+      : kind === 'price'
+        ? fmtPrice(dec(v), currency)
+        : discreet
+          ? fmtMasked(currency)
+          : fmtMoney(dec(v), currency, { compact: true, sign });
   const fmt = (v: number): string => fmtAs(v, format);
-  const label = (day: string): string => (day.length > 10 ? day.slice(11, 16) : fmtDate(day));
+  const isIntraday = $derived((points[0]?.day.length ?? 0) > 10);
+  /** Fenêtre intraday traversant minuit (heure locale) : les heures sont préfixées du jour. */
+  const withDate = $derived(
+    isIntraday &&
+      points.length > 1 &&
+      spansMidnight(points[0]!.day, points[points.length - 1]!.day),
+  );
+  const label = (day: string): string =>
+    day.length > 10 ? formatInstant(day, { withDate }) : fmtDate(day);
 
   const stats = $derived.by(() => {
     const values = points.flatMap((p) =>
@@ -73,48 +111,41 @@
     const span = max - min;
     return { min: min - span * 0.08, max: max + span * 0.08 };
   });
-  const x = $derived((i: number): number =>
-    points.length < 2
-      ? PAD.left
-      : PAD.left + (i * (width - PAD.left - PAD.right)) / (points.length - 1),
-  );
-  const y = $derived((v: number): number =>
+  const days = $derived(points.map((p) => p.day));
+  /** Abscisses proportionnelles au temps ; les jours ou pas omis deviennent des trous. */
+  const layout = $derived(layoutX(days, PAD.left, width - PAD.right));
+  const x = (i: number): number => layout.xs[i] ?? PAD.left;
+  const hole = (i: number): boolean => layout.holeBefore[i] ?? false;
+  const y = (v: number): number =>
     stats
       ? PAD.top + ((stats.max - v) * (height - PAD.top - PAD.bottom)) / (stats.max - stats.min)
-      : 0,
-  );
-  const pt = (i: number, v: number): string => `${x(i).toFixed(1)},${y(v).toFixed(1)}`;
-  /** Valeur de référence d'un point : 0 (latent) ou la courbe secondaire ; null = pas de référence. */
-  const ref = (i: number): number | null => (zeroLine ? 0 : (points[i]?.secondary ?? null));
+      : 0;
+  /** Coordonnée SVG au dixième de pixel (géométrie, pas un montant). */
+  const r1 = (v: number): number => Math.round(v * 10) / 10;
+  const pt = (i: number, v: number): string => `${r1(x(i))},${r1(y(v))}`;
+  /** Référence d'un point : 0 (latent) ou la courbe secondaire ; null = pas de référence (ou estimé). */
+  const ref = (i: number): number | null => {
+    const p = points[i];
+    if (!p || p.estimated) return null;
+    return zeroLine ? 0 : p.secondary;
+  };
   const linePath = $derived(
-    points.map((p, i) => `${i === 0 ? 'M' : 'L'}${pt(i, p.primary)}`).join(' '),
+    points.map((p, i) => `${i === 0 || hole(i) ? 'M' : 'L'}${pt(i, p.primary)}`).join(' '),
   );
   const secondaryPath = $derived(
     points
       .map((p, i) =>
         p.secondary === null
           ? ''
-          : `${i === 0 || points[i - 1]?.secondary === null ? 'M' : 'L'}${pt(i, p.secondary)}`,
+          : `${i === 0 || hole(i) || points[i - 1]?.secondary === null ? 'M' : 'L'}${pt(i, p.secondary)}`,
       )
       .join(' '),
   );
-  /** Plages d'indices contigus disposant d'une référence (gain/perte colorables). */
-  const segments = $derived.by((): { from: number; to: number }[] => {
-    const out: { from: number; to: number }[] = [];
-    let start: number | null = null;
-    points.forEach((_, i) => {
-      if (ref(i) !== null) start ??= i;
-      else if (start !== null) {
-        if (i - 1 > start) out.push({ from: start, to: i - 1 });
-        start = null;
-      }
-    });
-    if (start !== null && points.length - 1 > start)
-      out.push({ from: start, to: points.length - 1 });
-    return out;
-  });
+  const hasHoles = $derived(layout.holeBefore.some(Boolean));
+  /** Plages contiguës (sans trou) disposant d'une référence : gain/perte colorables. */
+  const segments = $derived(segmentsOf(points.length, layout.holeBefore, (i) => ref(i) !== null));
   /** Polygone entre la courbe et sa référence sur une plage. */
-  const bandPath = (s: { from: number; to: number }): string => {
+  const bandPath = (s: Segment): string => {
     const fwd: string[] = [];
     const back: string[] = [];
     for (let i = s.from; i <= s.to; i++) {
@@ -124,12 +155,19 @@
     return `M${fwd.join(' L')} L${back.join(' L')} Z`;
   };
   /** Région au-dessus (gain) ou en dessous (perte) de la référence sur une plage. */
-  const clipPath = (s: { from: number; to: number }, side: 'above' | 'below'): string => {
+  const clipPath = (s: Segment, side: 'above' | 'below'): string => {
     const pts: string[] = [];
     for (let i = s.from; i <= s.to; i++) pts.push(pt(i, ref(i) ?? 0));
     const edge = side === 'above' ? 0 : height;
-    return `M${pts.join(' L')} L${x(s.to).toFixed(1)},${edge} L${x(s.from).toFixed(1)},${edge} Z`;
+    return `M${pts.join(' L')} L${r1(x(s.to))},${edge} L${r1(x(s.from))},${edge} Z`;
   };
+  const bottom = $derived(height - PAD.bottom);
+  /** Aire sous la courbe (tendance) : seulement sans référence et sans trou. */
+  const areaPath = $derived(
+    segments.length === 0 && !hasHoles && points.length >= 2
+      ? `${linePath} L${r1(x(points.length - 1))},${r1(bottom)} L${r1(x(0))},${r1(bottom)} Z`
+      : null,
+  );
   const lastSecondary = $derived.by(() => {
     for (let i = points.length - 1; i >= 0; i--)
       if (points[i]!.secondary !== null) return { i, v: points[i]!.secondary as number };
@@ -162,18 +200,38 @@
     });
     return { lo, hi };
   });
-  const ticks = $derived.by(() => {
-    if (points.length < 2) return [];
-    const n = Math.min(points.length, Math.max(2, Math.floor(width / 120)));
-    return Array.from({ length: n }, (_, k) => Math.round((k * (points.length - 1)) / (n - 1)));
-  });
-  const markerIndex = (day: string): number => points.findIndex((p) => p.day >= day);
+  const ticks = $derived(
+    points.length < 2
+      ? []
+      : tickIndices(layout.xs, Math.min(points.length, Math.max(2, Math.floor(width / 120)))),
+  );
+  /** Graduations verticales « rondes » ; le zéro a sa propre ligne quand il sert de référence. */
+  const yTicks = $derived(
+    stats ? niceTicks(stats.min, stats.max, 3).filter((v) => !zeroLine || v !== 0) : [],
+  );
+  /** Marqueurs dont le jour est réellement tracé (jour exact, dans la fenêtre). */
+  const resolvedMarkers = $derived(
+    markers.map((m) => ({ ...m, i: markerIndex(days, m.day) })).filter((m) => m.i >= 0),
+  );
+  /** Description textuelle d'un point (lecteurs d'écran). */
+  const describe = (i: number): string => {
+    const p = points[i];
+    if (!p) return '';
+    const parts = [label(p.day), `${labels.primary} ${fmt(p.primary)}`];
+    if (labels.secondary && p.secondary !== null)
+      parts.push(`${labels.secondary} ${fmt(p.secondary)}`);
+    for (const e of p.extras ?? []) parts.push(`${e.label} ${fmtAs(e.value, e.format, true)}`);
+    if (p.estimated) parts.push('estimation au coût, aucune cotation');
+    return parts.join(', ');
+  };
 
   function onPointer(event: PointerEvent): void {
     if (points.length < 2) return;
     const rect = (event.currentTarget as SVGElement).getBoundingClientRect();
-    const ratio = (event.clientX - rect.left - PAD.left) / (width - PAD.left - PAD.right);
-    hover = Math.max(0, Math.min(points.length - 1, Math.round(ratio * (points.length - 1))));
+    hover = nearestIndex(layout.xs, event.clientX - rect.left);
+  }
+  function onRange(event: Event): void {
+    hover = Number((event.currentTarget as HTMLInputElement).value);
   }
 </script>
 
@@ -211,25 +269,16 @@
           <clipPath id="{uid}-below-{s.from}"><path d={clipPath(s, 'below')} /></clipPath>
         {/each}
       </defs>
-      <line x1={PAD.left} x2={width - PAD.right} y1={y(stats.max)} y2={y(stats.max)} class="grid" />
+      {#each yTicks as v (v)}
+        <line x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)} class="grid" />
+        {#if !masked}<text x={PAD.left} y={y(v) - 3} class="axis">{fmt(v)}</text>{/if}
+      {/each}
       {#if zeroLine}
         <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} class="zero" />
-      {:else}
-        <line
-          x1={PAD.left}
-          x2={width - PAD.right}
-          y1={y((stats.max + stats.min) / 2)}
-          y2={y((stats.max + stats.min) / 2)}
-          class="grid"
-        />
+        {#if !masked}<text x={PAD.left} y={y(0) - 3} class="axis">{fmt(0)}</text>{/if}
       {/if}
-      {#if segments.length === 0}
-        <path
-          d="{linePath} L{x(points.length - 1).toFixed(1)},{(height - PAD.bottom).toFixed(1)} L{x(
-            0,
-          ).toFixed(1)},{(height - PAD.bottom).toFixed(1)} Z"
-          fill="url(#{uid}-fill)"
-        />
+      {#if areaPath}
+        <path d={areaPath} fill="url(#{uid}-fill)" />
       {/if}
       {#each segments as s (s.from)}
         <path d={bandPath(s)} class="band gain" clip-path="url(#{uid}-above-{s.from})" />
@@ -239,21 +288,18 @@
       <path
         d={linePath}
         class="line neutral"
+        class:plain={band}
         class:down={segments.length === 0 && !positive}
         class:up={segments.length === 0 && positive}
       />
-      {#each segments as s (s.from)}
-        <path d={linePath} class="line gain" clip-path="url(#{uid}-above-{s.from})" />
-        <path d={linePath} class="line loss" clip-path="url(#{uid}-below-{s.from})" />
-      {/each}
-      {#each markers as m, k (k)}
-        {@const i = markerIndex(m.day)}
-        {#if i >= 0}<circle
-            cx={x(i)}
-            cy={y(points[i]!.primary)}
-            r="4"
-            class="marker {m.kind}"
-          />{/if}
+      {#if !band}
+        {#each segments as s (s.from)}
+          <path d={linePath} class="line gain" clip-path="url(#{uid}-above-{s.from})" />
+          <path d={linePath} class="line loss" clip-path="url(#{uid}-below-{s.from})" />
+        {/each}
+      {/if}
+      {#each resolvedMarkers as m, k (k)}
+        <circle cx={x(m.i)} cy={y(points[m.i]!.primary)} r="4" class="marker {m.kind}" />
       {/each}
       {#if band && lastSecondary && labels.secondary}
         <text
@@ -288,7 +334,7 @@
           >{label(points[i]!.day)}</text
         >
       {/each}
-      {#if hover !== null}
+      {#if hover !== null && points[hover]}
         <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={height - PAD.bottom} class="cross" />
         <circle cx={x(hover)} cy={y(points[hover]!.primary)} r="5" class="dot" />
         {#if points[hover]!.secondary !== null}<circle
@@ -299,19 +345,45 @@
           />{/if}
       {/if}
     </svg>
+    <label class="explore">
+      <span>Parcourir les points de la courbe</span>
+      <input
+        type="range"
+        min="0"
+        max={points.length - 1}
+        step="1"
+        value={hover ?? points.length - 1}
+        aria-valuetext={describe(hover ?? points.length - 1)}
+        oninput={onRange}
+        onfocus={onRange}
+        onblur={() => (hover = null)}
+      />
+    </label>
     <ul class="legend" aria-label="Légende">
-      <li><span class="swatch line-swatch gain"></span>{labels.primary} en gain</li>
-      <li>
-        <span class="swatch line-swatch loss"></span>{labels.primary} en perte{#if referenceLabel}&nbsp;(référence
-          : {referenceLabel}){/if}
-      </li>
+      {#if band}
+        <li>
+          <span class="swatch band-swatch gain"></span>{labels.primary} au-dessus du {referenceLabel}
+          (gain)
+        </li>
+        <li><span class="swatch band-swatch loss"></span>{labels.primary} en dessous (perte)</li>
+        <li><span class="swatch line-swatch plain"></span>{labels.primary}</li>
+      {:else}
+        <li><span class="swatch line-swatch gain"></span>{labels.primary} en gain</li>
+        <li>
+          <span class="swatch line-swatch loss"></span>{labels.primary} en perte{#if referenceLabel}&nbsp;(référence
+            : {referenceLabel}){/if}
+        </li>
+      {/if}
       {#if labels.secondary && secondaryPath}<li>
           <span class="swatch secondary-swatch" class:emphasis={band}></span>{labels.secondary}
         </li>{/if}
-      {#if markers.length > 0}<li><span class="swatch marker-swatch buy"></span>achat</li>
+      {#if points.some((p) => p.estimated)}<li>
+          <span class="swatch line-swatch"></span>estimé au coût (aucune cotation)
+        </li>{/if}
+      {#if resolvedMarkers.length > 0}<li><span class="swatch marker-swatch buy"></span>achat</li>
         <li><span class="swatch marker-swatch sell"></span>vente</li>{/if}
     </ul>
-    {#if hover !== null}
+    {#if hover !== null && points[hover]}
       {@const p = points[hover]!}
       <div class="tip" style:left="{Math.min(Math.max(x(hover) - 70, 0), width - 170)}px">
         <strong>{label(p.day)}</strong><br />
@@ -319,8 +391,9 @@
         {fmt(p.primary)}{#if labels.secondary && p.secondary !== null}<br />{labels.secondary}
           {fmt(p.secondary)}{/if}
         {#each p.extras ?? [] as e (e.label)}<br /><span class="muted"
-            >{e.label} {fmtAs(e.value, e.format)}</span
+            >{e.label} {fmtAs(e.value, e.format, true)}</span
           >{/each}
+        {#if p.estimated}<br /><span class="muted">Estimation au coût (aucune cotation)</span>{/if}
       </div>
     {/if}
   {/if}
@@ -343,6 +416,11 @@
   .zero {
     stroke: var(--fg-faint);
   }
+  .axis {
+    font-size: 10px;
+    fill: var(--fg-faint);
+    font-variant-numeric: tabular-nums;
+  }
   .line {
     fill: none;
     stroke-width: 2;
@@ -351,6 +429,9 @@
   }
   .line.neutral {
     stroke: var(--fg-faint);
+  }
+  .line.neutral.plain {
+    stroke: var(--fg);
   }
   .line.neutral.up {
     stroke: var(--gain);
@@ -417,6 +498,30 @@
   .secondary-dot {
     fill: var(--fg-muted);
   }
+  /* Curseur clavier : invisible tant qu'il n'a pas le focus, puis affiché sous la courbe. */
+  .explore {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .explore:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    clip-path: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+  }
+  .explore input {
+    flex: 1;
+  }
   .legend {
     list-style: none;
     margin: var(--space-2) 0 0;
@@ -436,7 +541,7 @@
     display: inline-block;
     width: 18px;
     height: 0;
-    border-top: 2px solid var(--fg-muted);
+    border-top: 2px solid var(--fg-faint);
   }
   .line-swatch.gain {
     border-top-color: var(--gain);
@@ -444,11 +549,25 @@
   .line-swatch.loss {
     border-top-color: var(--loss);
   }
+  .line-swatch.plain {
+    border-top-color: var(--fg);
+  }
   .secondary-swatch {
     border-top: 2px dashed var(--fg-muted);
   }
   .secondary-swatch.emphasis {
     border-top: 2px solid var(--accent);
+  }
+  .band-swatch {
+    height: 10px;
+    border: 0;
+    opacity: 0.45;
+  }
+  .band-swatch.gain {
+    background: var(--gain);
+  }
+  .band-swatch.loss {
+    background: var(--loss);
   }
   .marker-swatch {
     width: 10px;

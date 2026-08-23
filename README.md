@@ -70,10 +70,30 @@ et inclus dans la sauvegarde.
 
 ## Aide et retours
 
-Un fichier refusé, un chiffre douteux, une idée :
-[ouvrez un signalement](https://github.com/jeremyH974/cout-revient-ch/issues/new/choose) avec le
-diagnostic copié depuis **Réglages → Aide et retours** (il ne contient ni montant ni quantité :
-version, navigateur, colonnes de votre fichier, compteurs). Ne joignez jamais votre export.
+Un fichier refusé, un chiffre douteux, une idée : **Réglages → Aide et retours → « Signaler
+(formulaire pré-rempli) »** ouvre un signalement GitHub déjà renseigné avec le diagnostic (il ne
+contient ni montant ni quantité : version, navigateur, colonnes de votre fichier, compteurs,
+erreurs récentes). Ne joignez jamais votre export. Les idées passent par
+[le sélecteur de gabarits](https://github.com/jeremyH974/cout-revient-ch/issues/new/choose).
+
+## Qualité et amélioration continue
+
+- **Auto-vérifications** (Réglages → Vérifications automatiques, rappel en bas du portefeuille) :
+  à chaque affichage, l'application contrôle sa cohérence comptable (total = valeur + produits −
+  achats, actif par actif), ses lots, les soldes de votre export, les prix et la sauvegarde.
+- **Oracle indépendant** : un test recalcule PRU, coûts, réalisé, lots et PRU après chaque ligne
+  depuis le CSV avec un code distinct du moteur et doit concorder à 10⁻⁹ près (fixture et export
+  réel local).
+- **Surveillance automatique** (`.github/workflows/monitor.yml`, toutes les 6 h) : parcours
+  Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken, BCE) ;
+  une issue « [monitoring] » s'ouvre en cas d'échec et se referme au rétablissement.
+  `npm run monitor` lance la même chose localement.
+- **Page Nouveautés** (Réglages → Nouveautés) : le changelog lu dans l'application ; un bandeau
+  signale chaque mise à jour installée.
+- **Erreurs** : une page qui plante affiche une explication, « Réessayer » et le diagnostic
+  (message d'erreur inclus, jamais vos données).
+- **Garde-fous CI** : seuils de couverture, tests de propriétés, E2E, axe, Lighthouse,
+  Dependabot avec délai, CodeQL, Scorecard.
 
 ## Développement
 

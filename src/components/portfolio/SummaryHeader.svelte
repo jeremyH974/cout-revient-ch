@@ -5,6 +5,11 @@
   import Pct from '../shared/Pct.svelte';
 
   const t = $derived(app.report.totals);
+  const unpriced = $derived(t.unpricedAssets.length);
+  const unpricedLabel = $derived(`${unpriced} actif${unpriced > 1 ? 's' : ''} sans prix`);
+  const subscriptionsDeducted = $derived(
+    app.state.engineSettings.includeSubscriptionsInPnl && t.subscriptionsEur.gt('0'),
+  );
 </script>
 
 <section class="summary card">
@@ -12,41 +17,51 @@
     <div>
       <p class="label">
         Investi <Info title="Investi">
-          <p>Coût des unités que vous détenez encore : quantité × PRU, spread et frais inclus.</p>
-          <p>C'est la base du gain/perte latent. Les ventes passées n'y figurent plus.</p>
+          <p>
+            Coût des unités que vous détenez encore et qui ont un prix : quantité × PRU, spread et
+            frais inclus.
+          </p>
+          <p>
+            C'est la base du latent (latent = valeur − investi). Les ventes passées n'y figurent
+            plus ; le coût des actifs sans prix est indiqué à part.
+          </p>
         </Info>
       </p>
       <p class="big"><Money value={t.costBasis} compact /></p>
+      {#if unpriced > 0}
+        <p class="note">hors <Money value={t.unpricedCostBasis} compact /> d'actifs sans prix</p>
+      {/if}
     </div>
     <div>
       <p class="label">Valeur</p>
       <p class="big"><Money value={t.value} compact /></p>
-      {#if t.unpricedAssets.length > 0}
-        <p class="note">
-          hors {t.unpricedAssets.length} actif{t.unpricedAssets.length > 1 ? 's' : ''} sans prix
-        </p>
+      {#if unpriced > 0}
+        <p class="note">hors {unpricedLabel}</p>
       {/if}
     </div>
     <div>
       <p class="label">
         P&L total <Info title="P&L total">
           <p>
-            <strong>Total = réalisé + latent</strong> (+ récompenses valorisées, le cas échéant).
+            <strong>Total = réalisé + latent</strong> (+ récompenses valorisées, − abonnements Coinhouse,
+            selon vos réglages). Les actifs sans prix n'y entrent pas.
           </p>
           <p>
-            Réalisé : gains/pertes déjà encaissés sur vos ventes. Latent : ce que vous gagneriez ou
-            perdriez en vendant tout maintenant.
+            Réalisé : gains/pertes déjà encaissés sur vos cessions. Latent : ce que vous gagneriez
+            ou perdriez en vendant tout maintenant.
           </p>
           <p>
-            Le ROI rapporte ce total à <strong>tout ce que vous avez acheté</strong> (spread et frais
-            inclus) : il ne se déforme pas quand vous rachetez ou vendez une partie.
+            Le ROI rapporte ce total au <strong>capital maximal engagé</strong> : le plus d'euros que
+            vous ayez eu investis en même temps (apports − retraits, au plus haut). Vendre puis racheter
+            n'augmente pas la base, et un euro qui passe par l'USDC n'est compté qu'une fois.
           </p>
         </Info>
       </p>
       <p class="big"><Money value={t.total} compact sign colored strong /></p>
       <p class="note">
         ROI <Pct value={t.roi} />
-        <span class="muted">sur <Money value={t.investedTotal} compact /> achetés</span>
+        <span class="muted">sur <Money value={t.roiBase} compact /> engagés</span>
+        {#if unpriced > 0}<span class="muted">&nbsp;· hors {unpricedLabel}</span>{/if}
       </p>
     </div>
   </div>
@@ -57,18 +72,22 @@
         sign
         colored
       />
+      {#if subscriptionsDeducted}
+        · Abonnements <Money value={t.subscriptionsEur.neg()} />
+        <span class="muted">(déduits du P&L)</span>
+      {/if}
     </p>
     <p class="muted">
-      Apports nets <Money value={t.netCash} />
-      <Info title="Apports nets en euros">
+      Apports nets (espèces) <Money value={t.netCash} />
+      <Info title="Apports nets (espèces)">
         <p>
-          Euros réellement entrés (achats payés en euros) moins euros réellement sortis (ventes
-          encaissées en euros).
+          Espèces réellement entrées (achats payés en euros) moins espèces réellement sorties
+          (ventes encaissées en euros), dans la devise d'affichage.
         </p>
         <p>Les échanges crypto ↔ crypto et via USDC ne comptent pas : aucun euro n'a bougé.</p>
       </Info>
       · Frais <Money value={t.feesEur} />
-      {#if t.subscriptionsEur.gt('0')}
+      {#if t.subscriptionsEur.gt('0') && !subscriptionsDeducted}
         · Abonnements <Money value={t.subscriptionsEur} /> <span class="muted">(hors P&L)</span>
       {/if}
     </p>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
-  import { ZERO } from '$lib/domain/money';
+  import { D, ZERO } from '$lib/domain/money';
   import { fmtDate, fmtRelative } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
@@ -9,7 +9,9 @@
   import AssetRow from '../components/portfolio/AssetRow.svelte';
   import SummaryHeader from '../components/portfolio/SummaryHeader.svelte';
   import EvolutionCard from '../components/charts/EvolutionCard.svelte';
+  import SelfChecks from '../components/settings/SelfChecks.svelte';
   import Money from '../components/shared/Money.svelte';
+  import Qty from '../components/shared/Qty.svelte';
   import { app } from '../state/app.svelte';
 
   type SortKey = 'value' | 'total' | 'unrealizedPct' | 'realized' | 'asset';
@@ -30,6 +32,13 @@
   const positions = $derived([...app.report.positions].filter(matches).sort(sorters[sort]));
   const stablecoins = $derived(app.report.stablecoins.filter(matches));
   const closed = $derived(app.report.closed.filter(matches));
+  // Une position « poussière » (résidu < 0,01 €) est clôturée, mais son latent résiduel compte
+  // dans le P&L total : on l'affiche pour que la somme des sections retrouve l'en-tête.
+  const closedTotal = $derived(closed.reduce((acc, p) => acc.plus(p.total ?? p.realized), ZERO));
+  const residuals = $derived(closed.filter((p) => p.dust));
+  const residualLatent = $derived(
+    residuals.reduce((acc, p) => acc.plus(p.unrealized ?? ZERO), ZERO),
+  );
   const lastImport = $derived(app.state.imports[app.state.imports.length - 1] ?? null);
 </script>
 
@@ -102,9 +111,10 @@
     <h2 class="section">À qualifier ({app.report.unqualified.length})</h2>
     {#each app.report.unqualified as e (e.id)}
       <p class="line small">
-        {fmtDate(e.at)} · {e.rawType} · {e.legs
-          .map((l) => `${l.signedQty} ${l.asset.toUpperCase()}`)
-          .join(' / ')} — {e.reason}
+        {fmtDate(e.at)} · {e.rawType} ·
+        {#each e.legs as l, i (l.asset + i)}{#if i > 0}&nbsp;/
+          {/if}<Qty value={D(l.signedQty)} asset={l.asset} sign />{/each}
+        — {e.reason}
       </p>
     {/each}
   </section>
@@ -114,17 +124,28 @@
   <details class="list">
     <summary class="section"
       >Positions clôturées ({closed.length}) <Money
-        value={closed.reduce((acc, p) => acc.plus(p.realized), ZERO)}
+        value={closedTotal}
         sign
         colored
-      /></summary
+      />{#if residuals.length > 0}
+        <span class="small">dont résidus <Money value={residualLatent} sign colored /></span
+        >{/if}</summary
     >
     {#each closed as p (p.asset)}
       <a class="line" href={router.href({ name: 'asset', asset: p.asset })}>
         <strong>{p.asset.toUpperCase()}</strong>
         <span class="muted small">{assetName(p.asset)}</span>
         <span class="grow"></span>
-        <Money value={p.realized} sign colored />
+        {#if p.dust}
+          <span class="muted small"
+            >réalisé <Money value={p.realized} sign /> · résidu <Qty
+              value={p.qty}
+              asset={p.asset}
+              abbreviate
+            /> latent <Money value={p.unrealized} sign colored /> ·</span
+          >
+        {/if}
+        <Money value={p.total ?? p.realized} sign colored />
       </a>
     {/each}
   </details>
@@ -137,7 +158,8 @@
     ? fmtRelative(app.state.ui.lastBackupAt, nowMs())
     : 'jamais ⚠'} ·
   <a href={router.href({ name: 'import' })}>Ré-importer</a> ·
-  <a href={router.href({ name: 'report' })}>Rapport PDF</a>
+  <a href={router.href({ name: 'report' })}>Rapport PDF</a> ·
+  <a href={router.href({ name: 'settings' })} class="checks-link"><SelfChecks compact /></a>
 </footer>
 
 <style>

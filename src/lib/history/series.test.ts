@@ -2,15 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../domain/money';
 import { eachDay } from './days';
 import {
-  downsample,
+  assetMetricPoints,
   holdingStep,
   holdingsByDay,
   lastPointAtOrBefore,
-  minMax,
+  mergeLivePoint,
   periodPerformance,
   periodWindow,
   sliceSeries,
   valueSeries,
+  type FlowPoint,
   type ValuePoint,
 } from './series';
 
@@ -69,14 +70,14 @@ describe('valueSeries', () => {
     },
   };
 
-  it('Σ qté × prix du jour, dernier prix connu, actifs sans prix exclus et comptés', () => {
+  it('Σ qté × prix du jour, dernier prix connu ; actifs sans prix comptés à leur coût et listés', () => {
     const series = valueSeries({ holdings, prices, days: eachDay('2026-08-17', '2026-08-21') });
     expect(series.map((p) => `${p.day} ${p.value} ${p.cost} [${p.missing.join(',')}]`)).toEqual([
       '2026-08-17 0 0 []',
-      '2026-08-18 60000 50000 [gmx]',
-      '2026-08-19 61000 50000 [eth,gmx]',
-      '2026-08-20 152000 130000 [gmx]',
-      '2026-08-21 153000 130000 [gmx]',
+      '2026-08-18 60050 50050 [gmx]',
+      '2026-08-19 81050 70050 [eth,gmx]',
+      '2026-08-20 152050 130050 [gmx]',
+      '2026-08-21 153050 130050 [gmx]',
     ]);
   });
 
@@ -86,6 +87,112 @@ describe('valueSeries', () => {
     expect(lastPointAtOrBefore(points, '2026-08-18')!.priceEur).toBe('60000');
     expect(lastPointAtOrBefore(points, '2026-12-31')!.priceEur).toBe('61000');
     expect(lastPointAtOrBefore([], '2026-08-18')).toBeNull();
+  });
+
+  it('mergeLivePoint remplace ou ajoute le point du jour sans casser le tri', () => {
+    const points = prices.btc.points;
+    expect(
+      mergeLivePoint(points, '2026-08-19', '62000').map((p) => `${p.day}:${p.priceEur}`),
+    ).toEqual(['2026-08-18:60000', '2026-08-19:62000']);
+    expect(mergeLivePoint(points, '2026-08-20', '63000').map((p) => p.day)).toEqual([
+      '2026-08-18',
+      '2026-08-19',
+      '2026-08-20',
+    ]);
+    expect(mergeLivePoint([], '2026-08-20', '1')).toEqual([{ day: '2026-08-20', priceEur: '1' }]);
+  });
+});
+
+describe('scénario de référence J0..J3 (2 actifs, 3 jours)', () => {
+  // J1 achat 0,1 BTC 5 050 € (PRU 50 500) ; J2 achat 1 ETH 1 910 € ; J3 vente 0,05 BTC 2 560 €.
+  const holdings = holdingsByDay({
+    btc: [op('2026-08-20T10:00:00', '0.1', '50500'), op('2026-08-22T09:00:00', '0.05', '50500')],
+    eth: [op('2026-08-21T11:00:00', '1', '1910')],
+  });
+  const prices = {
+    btc: {
+      points: [
+        { day: '2026-08-20', priceEur: '50000' },
+        { day: '2026-08-21', priceEur: '52000' },
+        { day: '2026-08-22', priceEur: '51000' },
+      ],
+    },
+    eth: {
+      points: [
+        { day: '2026-08-20', priceEur: '2000' },
+        { day: '2026-08-21', priceEur: '1900' },
+        { day: '2026-08-22', priceEur: '2100' },
+      ],
+    },
+  };
+  const series = valueSeries({ holdings, prices, days: eachDay('2026-08-19', '2026-08-22') });
+  const flows: FlowPoint[] = [
+    { day: '2026-08-20', amountEur: D('5050') },
+    { day: '2026-08-21', amountEur: D('1910') },
+    { day: '2026-08-22', amountEur: D('-2560') },
+  ];
+
+  it('valeurs et coûts en fin de jour', () => {
+    expect(series.map((p) => `${p.day} ${p.value} ${p.cost}`)).toEqual([
+      '2026-08-19 0 0',
+      '2026-08-20 5000 5050',
+      '2026-08-21 7100 6960',
+      '2026-08-22 4650 4435',
+    ]);
+  });
+
+  it('« Tout » : gain 250 € (= réalisé 35 + latent 215), Dietz modifié pondéré par le temps restant', () => {
+    const perf = periodPerformance(series, flows)!;
+    expect(perf.netFlows.toString()).toBe('4400');
+    expect(perf.gain.toString()).toBe('250');
+    // 5 050 × 2/3 + 1 910 × 1/3 + (−2 560) × 0 = 4 003,33…
+    expect(perf.weightedFlows.toFixed(2)).toBe('4003.33');
+    expect(perf.pct!.toFixed(4)).toBe('0.0624');
+  });
+
+  it('fenêtre J2..J3 : le retrait du dernier jour ne pèse rien dans la base', () => {
+    const perf = periodPerformance(series.slice(2), flows)!;
+    expect(perf.startValue.toString()).toBe('7100');
+    expect(perf.netFlows.toString()).toBe('-2560');
+    expect(perf.weightedFlows.toString()).toBe('0');
+    expect(perf.gain.toString()).toBe('110');
+    expect(perf.pct!.toFixed(4)).toBe('0.0155');
+  });
+});
+
+describe('actif sans cotation en tête de série (XYZ)', () => {
+  // Achat 1 XYZ à 100 € le J1 ; première clôture connue J3 = 120 €.
+  const step = holdingStep([op('2026-08-20T10:00:00', '1', '100')]);
+  const points = [{ day: '2026-08-22', priceEur: '120' }];
+  const days = eachDay('2026-08-19', '2026-08-22');
+  const flows: FlowPoint[] = [{ day: '2026-08-20', amountEur: D('100') }];
+
+  it('portefeuille : compté au coût tant que le prix manque ; performance +20 € sur J2..J3 comme sur « Tout »', () => {
+    const series = valueSeries({ holdings: { xyz: step }, prices: { xyz: { points } }, days });
+    expect(series.map((p) => `${p.day} ${p.value} ${p.cost} [${p.missing.join(',')}]`)).toEqual([
+      '2026-08-19 0 0 []',
+      '2026-08-20 100 100 [xyz]',
+      '2026-08-21 100 100 [xyz]',
+      '2026-08-22 120 100 []',
+    ]);
+    expect(periodPerformance(series.slice(2), flows)!.gain.toString()).toBe('20');
+    const all = periodPerformance(series, flows)!;
+    expect(all.gain.toString()).toBe('20');
+    // apport le J1 : 2/3 de la période restent → base 66,67 €
+    expect(all.pct!.toFixed(4)).toBe('0.3000');
+  });
+
+  it('actif : jamais valeur 0 face à un investi plein ; points estimés marqués, prix null', () => {
+    const metric = assetMetricPoints({ step, points, days });
+    expect(
+      metric.map((p) => `${p.day} ${p.value} ${p.cost} ${p.price ?? '-'} ${p.estimated}`),
+    ).toEqual([
+      '2026-08-19 0 0 - false',
+      '2026-08-20 100 100 - true',
+      '2026-08-21 100 100 - true',
+      '2026-08-22 120 100 120 false',
+    ]);
+    expect(metric[3]!.qty!.toString()).toBe('1');
   });
 });
 
@@ -107,7 +214,7 @@ describe('périodes', () => {
     expect(sliceSeries(series, { from: null, to: '2026-08-02' })).toHaveLength(2);
   });
 
-  it('periodPerformance neutralise les apports de la période (bornes exclusive/inclusive)', () => {
+  it('periodPerformance neutralise les apports (bornes exclusive/inclusive, Dietz modifié)', () => {
     const series = [
       point('2026-08-18', '1000'),
       point('2026-08-20', '1450'),
@@ -124,33 +231,12 @@ describe('périodes', () => {
     expect(perf.to).toBe('2026-08-22');
     expect(perf.netFlows.toString()).toBe('400');
     expect(perf.gain.toString()).toBe('200');
-    expect(perf.pct!.toFixed(4)).toBe('0.1429');
+    // +500 à mi-période (poids 1/2), −100 le dernier jour (poids 0) : base 1 000 + 250
+    expect(perf.weightedFlows.toString()).toBe('250');
+    expect(perf.pct!.toFixed(4)).toBe('0.1600');
     expect(periodPerformance([], flows)).toBeNull();
     const zeroBase = periodPerformance([point('2026-08-18', '0'), point('2026-08-19', '10')], []);
     expect(zeroBase!.gain.toString()).toBe('10');
     expect(zeroBase!.pct).toBeNull();
-  });
-});
-
-describe('minMax et downsample', () => {
-  it('minMax renvoie les points extrêmes', () => {
-    const series = [point('2026-08-18', '5'), point('2026-08-19', '1'), point('2026-08-20', '9')];
-    const extremes = minMax(series)!;
-    expect(extremes.min.day).toBe('2026-08-19');
-    expect(extremes.max.day).toBe('2026-08-20');
-    expect(minMax([])).toBeNull();
-  });
-
-  it('downsample LTTB garde les extrémités, la taille demandée et les pics', () => {
-    const days = eachDay('2026-01-01', '2026-02-19'); // 50 jours
-    const series = days.map((day, i) => point(day, i === 25 ? '100' : '1'));
-    const sampled = downsample(series, 10);
-    expect(sampled).toHaveLength(10);
-    expect(sampled[0]!.day).toBe('2026-01-01');
-    expect(sampled[9]!.day).toBe('2026-02-19');
-    expect(sampled.some((p) => p.value.eq(D('100')))).toBe(true);
-    expect(downsample(series, 100)).toHaveLength(50);
-    expect(downsample(series, 2).map((p) => p.day)).toEqual(['2026-01-01', '2026-02-19']);
-    expect(downsample([], 5)).toEqual([]);
   });
 });

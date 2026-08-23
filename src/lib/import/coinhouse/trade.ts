@@ -50,7 +50,13 @@ function buildFee(counter: RawCoinhouseRow): TradeFee | null {
   const rebate = D(counter.feeRebate ?? '0');
   const rate = isFiat(counter.asset) ? ONE : counter.marketPrice ? D(counter.marketPrice) : null;
   const grossEur = counter.feeEur ? D(counter.feeEur) : rate ? gross.times(rate) : ZERO;
-  const rebateEur = rate ? rebate.times(rate) : ZERO;
+  // La remise est convertie au taux implicite des frais Coinhouse (frais EUR ÷ frais devise) :
+  // une remise de 100 % donne ainsi un frais net exactement nul, au lieu d'un résidu de change.
+  const rebateEur = isPositive(gross)
+    ? rebate.times(grossEur).div(gross)
+    : rate
+      ? rebate.times(rate)
+      : ZERO;
   return {
     asset: counter.asset,
     gross: toDecimalString(gross),

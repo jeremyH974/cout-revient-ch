@@ -12,8 +12,27 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   commit, ajout de CodeQL, de la revue des dépendances sur les pull requests et du Scorecard OpenSSF
   (badges dans le README).
 
+### Changed
+
+- ROI rapporté au capital maximal engagé (portefeuille : apports − retraits en euros à leur plus
+  haut ; actif : achats − produits à leur plus haut) au lieu de « Σ achats », qui comptait plusieurs
+  fois le même euro transitant par l'USDC et se diluait à chaque rachat (docs/DECISIONS.md n° 15).
+- « Investi » ne couvre plus que les positions cotées (même périmètre que « Valeur », donc
+  Latent = Valeur − Investi) ; le coût des actifs sans prix est annoncé à part.
+
 ### Fixed
 
+- Moteur (audit + oracle indépendant) : une migration à coût reporté n'est plus comptée comme un
+  achat et un produit ; les remises de frais sont converties au taux implicite des frais Coinhouse
+  (plus de frais net négatif de quelques millièmes) ; à la même seconde, un échange qui produit du
+  cash/stablecoin précède celui qui en consomme ; une migration depuis un actif à historique
+  incomplet crée quand même l'actif reçu (coût 0, avertissement) ; les apports/retraits en euros
+  d'une opération non appliquée ne sont plus comptés ; un actif entièrement « à qualifier » est
+  signalé par le contrôle de solde ; une cotation sans date fiable est convertie au dernier taux
+  BCE connu ; vendre une poussière d'un actif jamais détenu est un historique manquant, pas un
+  arrondi.
+- Exports CSV : arrondi au plus proche (demi vers le haut) comme à l'écran, quantités à 9
+  décimales, prix et PRU à 10 (PEPE/BONK ne sont plus tronqués).
 - Accessibilité : la liste des positions est une vraie liste de liens (plus de rôles de tableau
   incorrects sur des liens), avec des libellés lus par les lecteurs d'écran (quantité, prix, valeur,
   latent, réalisé, total) ; l'en-tête visuel de colonnes est décoratif.
@@ -24,6 +43,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Amélioration continue : section « Vérifications automatiques » (cohérence comptable, lots,
+  soldes, opérations à qualifier, prix, sauvegarde) avec rappel en pied de portefeuille ; oracle
+  indépendant qui recalcule tout depuis le CSV ; signalement GitHub pré-rempli avec le diagnostic ;
+  page « Nouveautés » (changelog dans l'application) et bandeau à chaque mise à jour ; page
+  d'erreur avec « Réessayer » et diagnostic (erreurs récentes capturées) ; surveillance
+  automatique toutes les 6 h du site en ligne et des API de prix avec issue ouverte/refermée
+  automatiquement ; seuils de couverture bloquants.
 - Qualité automatisée : tests de bout en bout Playwright (Chromium desktop et mobile, WebKit sur
   les parcours visuels) sur le build de production — démo, import par fichier, PRU comparés au
   moteur, fiche actif, exports CSV/PDF, sauvegarde → effacement → restauration, thème et mode

@@ -28,6 +28,7 @@
     "e2e": "vite build && playwright test",
     "e2e:ui": "playwright test --ui",
     "lhci": "vite build && lhci autorun",
+    "monitor": "playwright test --config playwright.monitor.config.ts && node scripts/api-contract.mjs",
     "anonymize": "node scripts/anonymize-csv.ts"
   },
   "dependencies": {

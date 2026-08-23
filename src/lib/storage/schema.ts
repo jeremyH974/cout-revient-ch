@@ -51,6 +51,8 @@ export interface UiSettings {
   disclaimerAcceptedAt: string | null;
   /** Données d'exemple (fixture anonymisée) chargées pour essayer l'outil : bandeau + garde-fous. */
   demoMode: boolean;
+  /** Dernière version dont l'utilisateur a vu (ou ignoré) les nouveautés ; null = première visite. */
+  lastSeenVersion: string | null;
 }
 
 export interface StoredStateV1 {
@@ -80,6 +82,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   lastBackupAt: null,
   disclaimerAcceptedAt: null,
   demoMode: false,
+  lastSeenVersion: null,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -306,6 +309,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
   if (typeof state.ui.demoMode !== 'boolean')
     state = { ...state, ui: { ...state.ui, demoMode: false } };
+  if (state.ui.lastSeenVersion !== null && typeof state.ui.lastSeenVersion !== 'string')
+    state = { ...state, ui: { ...state.ui, lastSeenVersion: null } };
   return {
     state: {
       ...state,

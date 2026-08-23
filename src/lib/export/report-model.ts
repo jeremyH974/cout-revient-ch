@@ -3,13 +3,14 @@
  *
  * Tout le texte, l'ordre des sections et le formatage des montants sont décidés ici ; les rendus
  * (PDF via jsPDF, vue HTML imprimable) ne font qu'afficher ce modèle. Le mode discret remplace
- * montants et quantités par « •••• ». Les montants passent par un seul point de formatage
+ * montants et quantités par « •••• » ; les prix, PRU et pourcentages restent visibles (ce sont
+ * des prix, pas des montants). Les montants passent par un seul point de formatage
  * (`Formatter.money`) pour préparer la bascule de devise.
  */
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
-import { fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty } from '../format/fr';
+import { MASK, fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty, roundsToZero } from '../format/fr';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
 
@@ -20,7 +21,6 @@ export const DISCLAIMER =
   'gestion : ils ne constituent ni un conseil en investissement, ni un calcul fiscal (la plus-value ' +
   'imposable en France suit la méthode globale de l’article 150 VH bis du CGI).';
 
-const MASK = '••••';
 const NONE = '—';
 
 export type Tone = 'neutral' | 'gain' | 'loss';
@@ -119,10 +119,11 @@ interface Formatter {
 
 function createFormatter(discreet: boolean, currency: Currency): Formatter {
   return {
+    // Le signe est décidé par `fmtMoney` sur la valeur arrondie : « 0,00 € » n'est jamais signé.
     money: (value, sign = false) => {
       if (value === null) return NONE;
       if (discreet) return MASK;
-      return fmtMoney(value, currency, { sign: sign && !value.eq(ZERO) });
+      return fmtMoney(value, currency, { sign });
     },
     qty: (value) => (value === null ? NONE : discreet ? MASK : fmtQty(value)),
     price: (value) => (value === null ? NONE : fmtPrice(value, currency)),
@@ -130,8 +131,9 @@ function createFormatter(discreet: boolean, currency: Currency): Formatter {
   };
 }
 
-const toneOf = (value: Big | null): Tone =>
-  value === null || value.eq(ZERO) ? 'neutral' : value.lt(ZERO) ? 'loss' : 'gain';
+/** Ton d'une valeur telle qu'affichée : neutre si elle s'arrondit à zéro (`dp` = 3 pour un ratio). */
+const toneOf = (value: Big | null, dp = 2): Tone =>
+  value === null || roundsToZero(value, dp) ? 'neutral' : value.lt(ZERO) ? 'loss' : 'gain';
 
 const cell = (text: string, tone: Tone = 'neutral', sub: string | null = null): ReportCell => ({
   text,
@@ -139,10 +141,11 @@ const cell = (text: string, tone: Tone = 'neutral', sub: string | null = null): 
   tone,
 });
 
-function assetCell(code: AssetCode): ReportCell {
+function assetCell(code: AssetCode, extra: string | null = null): ReportCell {
   const ticker = code.toUpperCase();
   const name = assetName(code);
-  return cell(ticker, 'neutral', name === ticker ? null : name);
+  const sub = [name === ticker ? null : name, extra].filter((s): s is string => s !== null);
+  return cell(ticker, 'neutral', sub.length > 0 ? sub.join(' · ') : null);
 }
 
 const sumBy = (items: PositionReport[], pick: (p: PositionReport) => Big | null): Big =>
@@ -195,7 +198,7 @@ const POSITION_COLUMNS: ReportColumn[] = [
   { label: 'Prix', align: 'right' },
   { label: 'Valeur', align: 'right' },
   { label: 'Latent', align: 'right' },
-  { label: 'Latent %', align: 'right' },
+  { label: 'Latent % vs PRU', align: 'right' },
   { label: 'Réalisé', align: 'right' },
   { label: 'Total', align: 'right' },
 ];
@@ -211,11 +214,12 @@ function positionsTable(
   const rows = items.map((p) => [
     assetCell(p.asset),
     cell(f.qty(p.qty)),
-    cell(f.money(p.pru)),
+    // Le PRU est un prix (décimales adaptées, visible en mode discret), pas un montant.
+    cell(f.price(p.pru)),
     cell(f.price(p.price ? D(p.price.priceEur) : null)),
     cell(f.money(p.value)),
     cell(f.money(p.unrealized, true), toneOf(p.unrealized)),
-    cell(f.pct(p.unrealizedPct), toneOf(p.unrealizedPct)),
+    cell(f.pct(p.unrealizedPct), toneOf(p.unrealizedPct, 3)),
     cell(f.money(p.realized, true), toneOf(p.realized)),
     cell(f.money(p.total, true), toneOf(p.total)),
   ]);
@@ -249,7 +253,7 @@ function positionsTable(
             cell(''),
             cell(f.money(value)),
             cell(f.money(unrealized, true), toneOf(unrealized)),
-            cell(f.pct(pct), toneOf(pct)),
+            cell(f.pct(pct), toneOf(pct, 3)),
             cell(f.money(realized, true), toneOf(realized)),
             cell(f.money(total, true), toneOf(total)),
           ]
@@ -259,25 +263,42 @@ function positionsTable(
 }
 
 function closedTable(items: PositionReport[], f: Formatter): ReportTable {
-  const sorted = [...items].sort(
-    (a, b) => b.realized.cmp(a.realized) || a.asset.localeCompare(b.asset),
-  );
+  // Une position « poussière » (résidu < 0,01 €) reste valorisée par le moteur : son latent
+  // résiduel compte dans le P&L total, il est donc montré ici pour que la somme des tableaux
+  // égale la synthèse.
+  const residual = (p: PositionReport): Big | null => (p.dust ? p.unrealized : null);
+  const pnl = (p: PositionReport): Big => p.total ?? p.realized;
+  const sorted = [...items].sort((a, b) => pnl(b).cmp(pnl(a)) || a.asset.localeCompare(b.asset));
   const rows = sorted.map((p) => [
-    assetCell(p.asset),
+    assetCell(p.asset, p.dust ? `résidu ${f.qty(p.qty)} ${p.asset.toUpperCase()}` : null),
     cell(f.money(p.realized, true), toneOf(p.realized)),
+    cell(f.money(residual(p), true), toneOf(residual(p))),
+    cell(f.money(pnl(p), true), toneOf(pnl(p))),
     cell(String(p.history.length)),
     // L'historique est antichronologique : la première entrée est la dernière opération.
     cell(p.history[0] ? fmtDate(p.history[0].at) : NONE),
   ]);
   const realized = sumBy(items, (p) => p.realized);
+  const residuals = sumBy(items, residual);
+  const total = sumBy(items, pnl);
+  const dust = items.filter((p) => p.dust);
   const operations = items.reduce((n, p) => n + p.history.length, 0);
+  const notes = [
+    'Positions entièrement cédées, ou dont le résidu vaut moins de 0,01 € (« poussière ») : ce ' +
+      'résidu reste valorisé et son latent compte dans le P&L total.',
+    dust.length > 0
+      ? `Dont résidus : ${plural(dust.length, 'position', 'positions')}, latent résiduel ${f.money(residuals, true)}.`
+      : null,
+  ].filter((n): n is string => n !== null);
   return {
     kind: 'closed',
     title: 'Positions clôturées',
-    note: 'Positions entièrement cédées (ou résidu inférieur à 0,01 €) : seul le réalisé subsiste.',
+    note: notes.join(' '),
     columns: [
       { label: 'Actif', align: 'left' },
       { label: 'Réalisé', align: 'right' },
+      { label: 'Résidu latent', align: 'right' },
+      { label: 'Total', align: 'right' },
       { label: 'Opérations', align: 'right' },
       { label: 'Dernière opération', align: 'right' },
     ],
@@ -287,6 +308,11 @@ function closedTable(items: PositionReport[], f: Formatter): ReportTable {
         ? [
             cell('Total'),
             cell(f.money(realized, true), toneOf(realized)),
+            cell(
+              dust.length > 0 ? f.money(residuals, true) : NONE,
+              toneOf(dust.length > 0 ? residuals : null),
+            ),
+            cell(f.money(total, true), toneOf(total)),
             cell(String(operations)),
             cell(''),
           ]
@@ -334,8 +360,19 @@ const METHODOLOGY: ReportParagraph[] = [
     title: 'Réalisé, latent, total et ROI',
     text:
       'Réalisé = produit net de chaque cession − quantité cédée × PRU au moment de la cession. ' +
-      'Latent = valeur actuelle − quantité détenue × PRU. Total = réalisé + latent (+ récompenses ' +
-      'valorisées, le cas échéant). ROI = total ÷ somme de toutes les acquisitions à titre onéreux.',
+      'Latent = valeur actuelle − quantité détenue × PRU ; le « % vs PRU » rapporte ce latent à ' +
+      'l’investi (quantité × PRU). Total = réalisé + latent (+ récompenses valorisées, ' +
+      '− abonnements, selon les réglages). ROI = total ÷ capital maximal engagé, c’est-à-dire le ' +
+      'plus d’euros que vous ayez eu investis en même temps (apports − retraits au plus haut pour ' +
+      'le portefeuille ; achats − produits au plus haut pour un actif) : vendre puis racheter ' +
+      'n’augmente pas la base, et un euro qui passe par l’USDC n’est compté qu’une fois.',
+  },
+  {
+    title: 'Positions clôturées et résidus',
+    text:
+      'Une position dont le résidu vaut moins de 0,01 € est classée clôturée ; ce résidu reste ' +
+      'valorisé et son latent (proche de −coût) compte dans le P&L total : il apparaît dans la ' +
+      'colonne « Résidu latent » et dans le sous-total « dont résidus ».',
   },
   {
     title: 'Lots',
@@ -359,11 +396,11 @@ const METHODOLOGY: ReportParagraph[] = [
       '(staking, airdrops) entrent à coût nul par défaut et n’entrent pas dans le dénominateur du ROI.',
   },
   {
-    title: 'Apports nets',
+    title: 'Apports nets (espèces)',
     text:
-      'Euros réellement entrés (achats payés en euros) moins euros réellement sortis (ventes ' +
-      'encaissées en euros). Les échanges crypto contre crypto ou via stablecoin ne comptent pas : ' +
-      'aucun euro n’a bougé.',
+      'Espèces réellement entrées (achats payés en euros) moins espèces réellement sorties (ventes ' +
+      'encaissées en euros), dans la devise du rapport. Les échanges crypto contre crypto ou via ' +
+      'stablecoin ne comptent pas : aucun euro n’a bougé.',
   },
   {
     title: 'Limites',
@@ -404,7 +441,10 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
   ];
 
   const notes: string[] = [];
-  if (opts.discreet) notes.push(`Mode discret : les montants et quantités sont masqués (${MASK}).`);
+  if (opts.discreet)
+    notes.push(
+      `Mode discret : les montants et quantités sont masqués (${MASK}) ; prix, PRU et pourcentages restent lisibles.`,
+    );
   if (t.unpricedAssets.length > 0) {
     notes.push(
       `${plural(t.unpricedAssets.length, 'actif sans cours, exclu', 'actifs sans cours, exclus')} de la valeur et du latent : ${tickers(t.unpricedAssets)}.`,
@@ -421,12 +461,19 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     );
   }
 
+  // Les actifs sans cours sont hors « Investi », « Latent », « P&L total » et « ROI » : on le dit
+  // à côté de chaque chiffre concerné, pas seulement sous « Valeur ».
+  const unpriced = t.unpricedAssets.length;
+  const unpricedHint = unpriced > 0 ? ' · hors actifs sans cours' : '';
   const kpis: ReportKpi[] = [
     {
       label: 'Investi',
       value: f.money(t.costBasis),
       tone: 'neutral',
-      hint: 'quantité détenue × PRU',
+      hint:
+        unpriced > 0
+          ? `quantité × PRU · hors ${f.money(t.unpricedCostBasis)} sans cours`
+          : 'quantité détenue × PRU',
     },
     {
       label: 'Valeur',
@@ -455,21 +502,23 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       label: 'P&L total',
       value: f.money(t.total, true),
       tone: toneOf(t.total),
-      hint: t.otherIncome.gt(ZERO)
-        ? 'réalisé + latent + récompenses valorisées'
-        : 'réalisé + latent',
+      hint:
+        'réalisé + latent' +
+        (t.otherIncome.gt(ZERO) ? ' + récompenses valorisées' : '') +
+        (opts.subscriptionsInPnl ? ' − abonnements' : '') +
+        unpricedHint,
     },
     {
       label: 'ROI',
       value: f.pct(t.roi),
-      tone: toneOf(t.roi),
-      hint: `sur ${f.money(t.investedTotal)} achetés`,
+      tone: toneOf(t.roi, 3),
+      hint: `sur ${f.money(t.roiBase)} engagés${unpricedHint}`,
     },
   ];
 
   const details: ReportKpi[] = [
     {
-      label: 'Apports nets en euros',
+      label: 'Apports nets (espèces)',
       value: f.money(t.netCash),
       tone: 'neutral',
       hint: `${f.money(t.cashIn)} entrés − ${f.money(t.cashOut)} sortis`,
@@ -491,7 +540,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       label: 'Abonnements Coinhouse',
       value: f.money(t.subscriptionsEur),
       tone: 'neutral',
-      hint: opts.subscriptionsInPnl ? 'inclus dans le P&L total' : 'hors P&L',
+      hint: opts.subscriptionsInPnl ? 'déduits du P&L total' : 'hors P&L',
     },
   ];
 

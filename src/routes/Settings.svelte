@@ -1,11 +1,13 @@
 <script lang="ts">
   import { nowMs } from '$lib/clock';
+  import { D } from '$lib/domain/money';
   import { lotsToCsv, operationsToCsv, positionsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
-  import { fmtRelative } from '$lib/format/fr';
+  import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
+  import SelfChecks from '../components/settings/SelfChecks.svelte';
   import SupportSection from '../components/settings/SupportSection.svelte';
   import Sheet from '../components/shared/Sheet.svelte';
   import { app } from '../state/app.svelte';
@@ -17,7 +19,8 @@
   $effect(() => {
     void navigator.storage?.persisted?.().then((v) => (persisted = v));
   });
-  const stamp = (): string => new Date(nowMs()).toISOString().slice(0, 10);
+  // Date locale dans les noms de fichiers (le jour UTC diffère le soir).
+  const stamp = (): string => localDay(nowMs());
   const manualPrices = $derived(
     Object.entries(app.state.assetSettings).filter(([, s]) => s.manualPriceEur),
   );
@@ -142,7 +145,7 @@
     </label>
     {#each manualPrices as [asset, s] (asset)}
       <p class="line small">
-        Prix manuel {asset.toUpperCase()} : {s.manualPriceEur} €
+        Prix manuel {asset.toUpperCase()} : {fmtPrice(D(s.manualPriceEur ?? '0'), 'EUR')}
         <button class="link" type="button" onclick={() => app.setManualPrice(asset, null)}
           >supprimer</button
         >
@@ -173,6 +176,17 @@
         <option value="USD">Dollar ($) — chaque mouvement converti au taux BCE du jour</option>
       </select>
     </label>
+    {#if app.state.ui.displayCurrency !== 'EUR' && app.currency === 'EUR'}
+      <p class="warn small" role="status">
+        Taux BCE {app.state.ui.displayCurrency} indisponibles{#if app.fxStatus.error}&nbsp;({app
+            .fxStatus.error}){/if} : les montants restent affichés en euros.
+      </p>
+    {:else if app.state.ui.displayCurrency !== 'EUR' && app.fxStatus.error}
+      <p class="warn small" role="status">
+        Mise à jour des taux BCE impossible ({app.fxStatus.error}) : derniers taux connus utilisés{#if app.fxLookup.latestDay},
+          jusqu'au {fmtDate(app.fxLookup.latestDay)}{/if}.
+      </p>
+    {/if}
     <label class="check"
       ><input
         type="checkbox"
@@ -192,6 +206,15 @@
   <EngineSettings />
 
   <section class="card group">
+    <h2>Vérifications automatiques</h2>
+    <p class="muted small">
+      L’application contrôle ses propres chiffres à chaque affichage : cohérence comptable, lots,
+      soldes de votre export, prix, sauvegarde. Un voyant rouge est une anomalie à signaler.
+    </p>
+    <SelfChecks />
+  </section>
+
+  <section class="card group">
     <h2>Aide et retours</h2>
     <SupportSection
       intro="Un fichier refusé, un chiffre douteux, une idée ? Copiez le diagnostic (il ne contient ni montant ni quantité) et collez-le dans votre message."
@@ -208,7 +231,7 @@
   <p class="muted small center">
     <a href={router.href({ name: 'help' })}>Aide</a> ·
     <a href={router.href({ name: 'privacy' })}>Confidentialité</a>
-    · version {__APP_VERSION__}
+    · <a href={router.href({ name: 'news' })}>Nouveautés</a> · version {__APP_VERSION__}
   </p>
 </div>
 
@@ -321,6 +344,9 @@
   }
   .small {
     font-size: var(--fs-xs);
+  }
+  .warn {
+    color: var(--warn);
   }
   .center {
     text-align: center;

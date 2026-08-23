@@ -14,6 +14,8 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm run e2e` — build puis tests Playwright (`tests/e2e/*.spec.ts`, Chromium desktop + mobile,
   WebKit sur les parcours visuels) ; `npm run e2e:ui` pour l'explorateur ; `npm run lhci` — build
   puis Lighthouse CI (seuils dans `lighthouserc.json`). Les deux tournent en CI avant tout déploiement.
+  `npm run monitor` — surveillance du site en ligne (`tests/monitor/`) + contrat des API tierces
+  (`scripts/api-contract.mjs`), exécutée toutes les 6 h par `.github/workflows/monitor.yml`.
   Première fois : `npx playwright install chromium webkit`. Sous Windows, `vite preview` n'écoute
   que sur `::1` (d'où `--host 127.0.0.1` dans les configs) et Lighthouse peut échouer au nettoyage
   de son profil Chrome (`EPERM`) : la CI Linux fait foi pour Lighthouse.
@@ -53,4 +55,7 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 ## Vérification
 
 Un changement du moteur n'est terminé que si : exemple canonique OK, invariant
-`total = valeur + Σ produits − Σ achats` OK, 0 `unqualified` et 0 écart de solde sur la fixture.
+`total = valeur + Σ produits − Σ achats` OK, 0 `unqualified` et 0 écart de solde sur la fixture,
+et **oracle indépendant concordant** (`tests/integration/independent-oracle.test.ts`, recalcul
+from scratch à 1e-9 près sur la fixture et sur l'export réel). Tout chiffre affiché doit rester
+cohérent avec les auto-vérifications (`src/lib/support/self-check.ts`).

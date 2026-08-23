@@ -1,13 +1,22 @@
 /**
- * Formatage fr-FR : le SEUL endroit du projet qui arrondit.
- * Signe moins typographique (U+2212), espaces insécables gérées par Intl.
+ * Formatage fr-FR : le SEUL endroit du projet qui arrondit, et toujours une seule fois, à la
+ * précision affichée (half-up). Le signe est décidé après arrondi : une valeur qui s'affiche
+ * « 0,00 € » ne porte ni « + » ni « − ». Signe moins typographique (U+2212), espaces
+ * insécables gérées par Intl.
  */
 import { Big, D, type DecimalString } from '../domain/money';
 import type { NaiveDateTime } from '../domain/types';
-import type { Currency } from '../fx/types';
+import { CURRENCY_INFO, type Currency } from '../fx/types';
 
 const HALF_UP = Big.roundHalfUp;
 const MINUS = '−';
+/** Espace insécable (U+00A0), comme Intl avant le symbole monétaire. */
+const NBSP = String.fromCharCode(0xa0);
+/** Décimales des quantités : l'export Coinhouse va jusqu'à 9, on les montre toutes. */
+const QTY_DP = 9;
+
+/** Masque du mode discret (montants et quantités ; prix, PRU et pourcentages restent visibles). */
+export const MASK = '••••';
 
 function intl(options: Intl.NumberFormatOptions): Intl.NumberFormat {
   return new Intl.NumberFormat('fr-FR', options);
@@ -32,14 +41,25 @@ function money(currency: Currency, minDp: number, maxDp: number): Intl.NumberFor
 const PCT_1 = intl({ style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const PLAIN = intl({ maximumFractionDigits: 20 });
 
-function signed(text: string, negative: boolean, showPlus: boolean): string {
-  const clean = text.replace(/^-/, '');
-  if (negative) return `${MINUS}${clean}`;
-  return showPlus ? `+${clean}` : clean;
+/** Arrondi half-up à `dp` décimales : l'unique opération d'arrondi du projet. */
+export function roundHalfUp(value: Big, dp: number): Big {
+  return value.round(dp, HALF_UP);
 }
 
-function toNumber(value: Big, dp: number): number {
-  return Number(value.round(dp, HALF_UP).toFixed(dp));
+/** Vrai si la valeur s'affiche comme zéro à `dp` décimales : ni signe, ni couleur. */
+export function roundsToZero(value: Big | null, dp = 2): boolean {
+  return value === null || roundHalfUp(value, dp).eq('0');
+}
+
+/** Préfixe le texte (valeur absolue, déjà arrondie) du signe de `rounded` ; « + » sur demande. */
+function signed(text: string, rounded: Big, showPlus: boolean): string {
+  if (rounded.lt('0')) return `${MINUS}${text}`;
+  return showPlus && rounded.gt('0') ? `+${text}` : text;
+}
+
+/** Valeur déjà arrondie → `number` pour Intl (exact tant qu'il y a ≤ 15 chiffres significatifs). */
+function toNumber(rounded: Big, dp: number): number {
+  return Number(rounded.toFixed(dp));
 }
 
 /** Montant dans la devise d'affichage : 2 décimales (0 si ≥ 100 000 en mode compact). */
@@ -50,11 +70,10 @@ export function fmtMoney(
 ): string {
   if (value === null) return '—';
   const big = D(value);
-  const negative = big.lt('0');
-  const abs = big.abs();
-  const formatter =
-    opts.compact && abs.gte('100000') ? money(currency, 0, 0) : money(currency, 2, 2);
-  return signed(formatter.format(toNumber(abs, 2)), negative, opts.sign ?? false);
+  const dp = opts.compact && big.abs().gte('100000') ? 0 : 2;
+  const rounded = roundHalfUp(big, dp);
+  const text = money(currency, dp, dp).format(toNumber(rounded.abs(), dp));
+  return signed(text, rounded, opts.sign ?? false);
 }
 
 /** Raccourci euro (compatibilité). */
@@ -65,11 +84,11 @@ export function fmtEur(
   return fmtMoney(value, 'EUR', opts);
 }
 
-/** Ratio (0,1234) → pourcentage (« +12,3 % »). */
+/** Ratio (0,1234) → pourcentage à une décimale (« +12,3 % »), arrondi une seule fois. */
 export function fmtPct(ratio: Big | DecimalString | null, opts: { sign?: boolean } = {}): string {
   if (ratio === null) return '—';
-  const big = D(ratio);
-  return signed(PCT_1.format(toNumber(big.abs(), 4)), big.lt('0'), opts.sign ?? true);
+  const rounded = roundHalfUp(D(ratio), 3);
+  return signed(PCT_1.format(toNumber(rounded.abs(), 3)), rounded, opts.sign ?? true);
 }
 
 /** Nombre de décimales significatives pour un prix ou une quantité. */
@@ -83,16 +102,29 @@ function adaptiveDecimals(abs: Big, max: number): number {
   return Math.min(max, leadingZeros + 4);
 }
 
-/** Prix unitaire en euros avec décimales adaptées (0,000003 € lisible). */
+/** Prix unitaire dans la devise d'affichage, décimales adaptées (0,000003886 € lisible). */
 export function fmtPrice(value: Big | DecimalString | null, currency: Currency = 'EUR'): string {
   if (value === null) return '—';
   const big = D(value);
-  const abs = big.abs();
-  const dp = adaptiveDecimals(abs, 10);
-  return signed(money(currency, Math.min(dp, 2), dp).format(toNumber(abs, dp)), big.lt('0'), false);
+  const dp = adaptiveDecimals(big.abs(), 10);
+  const rounded = roundHalfUp(big, dp);
+  const text = money(currency, Math.min(dp, 2), dp).format(toNumber(rounded.abs(), dp));
+  return signed(text, rounded, false);
 }
 
-/** Quantité d'actif : jusqu'à 8 décimales, abrégée (« 110 M ») si demandé. */
+/**
+ * Chaîne décimale exacte → « 123 456 789,123456789 » : la partie entière passe par Intl (BigInt,
+ * donc sans perte), la partie décimale est recopiée telle quelle. Un `number` perdrait le 17e
+ * chiffre significatif des grosses quantités.
+ */
+function groupedDecimal(abs: Big): string {
+  const [int = '0', frac = ''] = abs.toFixed(QTY_DP).split('.');
+  const digits = frac.replace(/0+$/, '');
+  const grouped = PLAIN.format(BigInt(int));
+  return digits ? `${grouped},${digits}` : grouped;
+}
+
+/** Quantité d'actif : jusqu'à 9 décimales exactes, abrégée (« 110 M ») si demandé. */
 export function fmtQty(
   value: Big | DecimalString | null,
   opts: { abbreviate?: boolean; sign?: boolean } = {},
@@ -102,12 +134,12 @@ export function fmtQty(
   const abs = big.abs();
   if (opts.abbreviate && abs.gte('1000000')) {
     const millions = abs.div('1000000');
-    const text = `${PLAIN.format(toNumber(millions, millions.gte('100') ? 0 : 1))} M`;
-    return signed(text, big.lt('0'), opts.sign ?? false);
+    const dp = millions.gte('100') ? 0 : 1;
+    const rounded = roundHalfUp(millions, dp);
+    return signed(`${PLAIN.format(toNumber(rounded, dp))} M`, big, opts.sign ?? false);
   }
-  const dp = 9; // l'export Coinhouse va jusqu'à 9 décimales : on les montre toutes
-  const text = intl({ maximumFractionDigits: dp }).format(toNumber(abs, dp));
-  return signed(text, big.lt('0'), opts.sign ?? false);
+  const rounded = roundHalfUp(big, QTY_DP);
+  return signed(groupedDecimal(rounded.abs()), rounded, opts.sign ?? false);
 }
 
 /** `2026-06-24T18:55:00` → « 24/06/2026 · 18:55 ». */
@@ -131,4 +163,29 @@ export function fmtRelative(iso: string, nowMs: number): string {
   const hours = Math.round(minutes / 60);
   if (hours < 48) return `il y a ${hours} h`;
   return `il y a ${Math.round(hours / 24)} j`;
+}
+
+/** Jour local « AAAA-MM-JJ » d'un instant (noms de fichiers) : pas le jour UTC, qui diffère le soir. */
+export function localDay(ms: number): string {
+  const date = new Date(ms);
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Texte du mode discret : « •••• € » pour un montant, « •••• » pour une quantité. */
+export function fmtMasked(currency?: Currency): string {
+  return currency ? `${MASK}${NBSP}${CURRENCY_INFO[currency].symbol}` : MASK;
+}
+
+const PCT_POINTS = intl({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+/** Écart entre deux pourcentages, en points (ratio 0,123 → « +12,3 pts »), arrondi une seule fois. */
+export function fmtPoints(
+  ratio: Big | DecimalString | null,
+  opts: { sign?: boolean } = {},
+): string {
+  if (ratio === null) return '—';
+  const rounded = roundHalfUp(D(ratio).times('100'), 1);
+  const text = `${PCT_POINTS.format(toNumber(rounded.abs(), 1))} pts`;
+  return signed(text, rounded, opts.sign ?? true);
 }

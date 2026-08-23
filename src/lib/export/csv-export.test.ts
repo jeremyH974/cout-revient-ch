@@ -88,10 +88,46 @@ describe('exports CSV', () => {
     );
     const series = lines(
       seriesToCsv(
-        [{ day: '2026-01-03', value: D('250'), cost: D('150'), qty: D('1'), price: D('250') }],
+        [
+          {
+            day: '2026-01-03',
+            value: D('250'),
+            cost: D('150'),
+            qty: D('1'),
+            price: D('250'),
+            estimated: false,
+          },
+        ],
         'EUR',
       ),
     );
+    expect(series[0]).toMatch(/^Jour;/);
     expect(series[1]).toBe('03/01/2026;250;150;100;66,67;1;250;150');
+  });
+
+  it('série intraday : en-tête « Instant », horodatage ISO conservé, prix vide si estimé', () => {
+    const rows = lines(
+      seriesToCsv([
+        {
+          day: '2026-08-22T12:30:00.000Z',
+          value: D('250'),
+          cost: D('150'),
+          qty: D('1'),
+          price: D('250'),
+          estimated: false,
+        },
+        {
+          day: '2026-08-22T12:45:00.000Z',
+          value: D('150'),
+          cost: D('150'),
+          qty: D('1'),
+          price: null,
+          estimated: true,
+        },
+      ]),
+    );
+    expect(rows[0]).toMatch(/^Instant;/);
+    expect(rows[1]).toBe('"2026-08-22T12:30:00.000Z";250;150;100;66,67;1;250;150');
+    expect(rows[2]).toBe('"2026-08-22T12:45:00.000Z";150;150;0;0;1;;150');
   });
 });

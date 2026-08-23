@@ -60,6 +60,14 @@ export function dayOfNaive(at: NaiveDateTime): DayString {
   return at.slice(0, 10);
 }
 
+/**
+ * Instant (ms epoch) d'un point de série : minuit UTC pour un jour `YYYY-MM-DD`, l'instant exact
+ * pour un horodatage ISO 8601 (points intraday). Sert aux abscisses et aux pondérations.
+ */
+export function pointMs(day: string): number {
+  return day.length > 10 ? Date.parse(day) : dayToMs(day);
+}
+
 /** Tous les jours de `from` à `to` inclus (vide si `to` précède `from`). */
 export function eachDay(from: DayString, to: DayString): DayString[] {
   const days: DayString[] = [];

@@ -45,6 +45,8 @@ export interface DiagnosticInput {
   failure?: { error: string; header: readonly string[] } | null;
   /** Logos d'actifs qui n'ont pas pu être affichés (ticker, URL, résultat du contrôle). */
   iconFailures?: readonly { asset: string; url: string; probe: string }[];
+  /** Erreurs JavaScript récentes (message et première ligne de pile, jamais de données). */
+  errors?: readonly { at: string; source: string; message: string; stack: string }[];
 }
 
 const yesNo = (v: boolean | null): string => (v === null ? '?' : v ? 'oui' : 'non');
@@ -144,5 +146,15 @@ export function buildDiagnostic(input: DiagnosticInput): string {
   lines.push(
     `Logos : ${icons.length === 0 ? 'aucun échec' : icons.map((f) => `${f.asset} (${f.url} → ${f.probe})`).join(', ')}`,
   );
+  const errors = input.errors ?? [];
+  if (errors.length === 0) lines.push('Erreurs récentes : aucune');
+  else {
+    lines.push(`Erreurs récentes : ${errors.length}`);
+    for (const e of errors.slice(-5)) {
+      lines.push(
+        `  - ${e.at.slice(0, 19).replace('T', ' ')} [${e.source}] ${e.message}${e.stack ? ` (${e.stack})` : ''}`,
+      );
+    }
+  }
   return lines.join('\n');
 }

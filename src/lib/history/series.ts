@@ -1,12 +1,13 @@
 /**
  * Fonctions pures pour les graphiques « Évolution » : positions en escalier, série de valeur
- * (Σ quantité × prix du jour), fenêtres de période, performance hors apports, extrêmes et
- * sous-échantillonnage LTTB. Montants en `Big`, jours `YYYY-MM-DD` en UTC.
+ * (Σ quantité × prix du jour), points de métrique d'un actif, fenêtres de période et performance
+ * hors apports (Dietz modifié). Montants en `Big`, jours `YYYY-MM-DD` en UTC.
  */
 import { Big, D, ZERO } from '../domain/money';
-import type { AssetCode, NaiveDateTime } from '../domain/types';
+import type { AssetCode, DecimalString, NaiveDateTime } from '../domain/types';
 import { numberToDecimal } from '../pricing/types';
-import { addDays, addMonths, dayOfNaive } from './days';
+import { addDays, addMonths, dayOfNaive, pointMs } from './days';
+import type { MetricPoint } from './metrics';
 import type { DailyPoint, DayString } from './types';
 
 /** Ligne d'historique d'un actif après une opération (compatible `HistoryEntry` du moteur). */
@@ -81,6 +82,22 @@ export function lastPointAtOrBefore(
   return found;
 }
 
+/**
+ * Remplace (ou ajoute) le point du jour `day` par une cotation plus fraîche que la clôture
+ * provisoire du fournisseur (prix « live » de l'application). Les points restent triés.
+ */
+export function mergeLivePoint(
+  points: readonly DailyPoint[],
+  day: DayString,
+  priceEur: DecimalString,
+): DailyPoint[] {
+  return [
+    ...points.filter((p) => p.day < day),
+    { day, priceEur },
+    ...points.filter((p) => p.day > day),
+  ];
+}
+
 export interface PriceSource {
   points: readonly DailyPoint[];
 }
@@ -89,7 +106,12 @@ export interface ValuePoint {
   day: DayString;
   value: Big;
   cost: Big;
-  /** Actifs détenus ce jour mais sans aucun prix connu (exclus de `value` et de `cost`). */
+  /**
+   * Actifs détenus ce jour sans aucun prix connu (≤ jour). Ils sont valorisés à leur coût
+   * (latent nul) plutôt qu'exclus : la valeur reste ainsi comparable aux apports (performance
+   * hors apports juste dès que le prix apparaît) et la courbe ne tombe jamais à zéro face à un
+   * investi plein. Le graphique signale ces points comme estimés.
+   */
   missing: AssetCode[];
 }
 
@@ -101,7 +123,8 @@ export interface ValueSeriesInput {
 
 /**
  * Valeur et coût du portefeuille pour chaque jour demandé. Un actif sans prix ce jour-là prend
- * son dernier prix connu ; sans aucun prix antérieur il est exclu et listé dans `missing`.
+ * son dernier prix connu ; sans aucun prix antérieur il est compté à son coût et listé dans
+ * `missing`.
  */
 export function valueSeries({ holdings, prices, days }: ValueSeriesInput): ValuePoint[] {
   const entries = Object.entries(holdings);
@@ -115,12 +138,38 @@ export function valueSeries({ holdings, prices, days }: ValueSeriesInput): Value
       const point = lastPointAtOrBefore(prices[asset]?.points ?? [], day);
       if (point === null) {
         missing.push(asset);
-        continue;
-      }
-      value = value.plus(state.qty.times(D(point.priceEur)));
+        value = value.plus(state.cost);
+      } else value = value.plus(state.qty.times(D(point.priceEur)));
       cost = cost.plus(state.cost);
     }
     return { day, value, cost, missing };
+  });
+}
+
+export interface AssetSeriesInput {
+  step: HoldingStep;
+  points: readonly DailyPoint[];
+  days: readonly DayString[];
+}
+
+/**
+ * Points de métrique d'un actif : quantité, coût, prix du jour (dernier connu) et valeur. Sans
+ * aucun prix connu, une position ouverte est valorisée à son coût et marquée `estimated` (même
+ * règle que `valueSeries`) ; la métrique « PRU vs prix » ignore ces points (`price` null).
+ */
+export function assetMetricPoints({ step, points, days }: AssetSeriesInput): MetricPoint[] {
+  return days.map((day) => {
+    const state = step(day);
+    const point = lastPointAtOrBefore(points, day);
+    const price = point === null ? null : D(point.priceEur);
+    return {
+      day,
+      value: price === null ? state.cost : state.qty.times(price),
+      cost: state.cost,
+      qty: state.qty,
+      price,
+      estimated: price === null && state.qty.gt(ZERO),
+    };
   });
 }
 
@@ -173,16 +222,25 @@ export interface PeriodPerformance {
   endValue: Big;
   /** Apports nets strictement après `from` et jusqu'à `to` inclus. */
   netFlows: Big;
+  /** Apports pondérés par la fraction de période restant après chacun (Dietz modifié). */
+  weightedFlows: Big;
   /** Valeur fin − valeur début − apports nets. */
   gain: Big;
-  /** `gain ÷ (valeur début + apports nets)`, ratio (0.1 = +10 %) ; `null` si la base ≤ 0. */
+  /** `gain ÷ (valeur début + apports pondérés)`, ratio (0.1 = +10 %) ; `null` si la base ≤ 0. */
   pct: Big | null;
 }
 
+/** Entier (index, millisecondes) → Big, sans passer un `number` à big.js (mode strict). */
+function bigInt(value: number): Big {
+  return D(numberToDecimal(value) ?? '0');
+}
+
 /**
- * Performance d'une période hors apports (Dietz simple, non pondéré dans le temps). Le premier
- * point de la série est l'état de départ : ses propres flux sont déjà dans `startValue`. Pour
- * « Tout », démarrer la série la veille de la première opération (valeur 0).
+ * Performance d'une période hors apports, méthode de Dietz modifiée : chaque flux pèse dans le
+ * capital moyen au prorata du temps qu'il lui reste jusqu'à la fin de la période (un apport le
+ * dernier jour ne pèse rien, un apport le lendemain du départ pèse presque entièrement). Le
+ * premier point de la série est l'état de départ : ses propres flux sont déjà dans `startValue`.
+ * Pour « Tout », démarrer la série la veille de la première opération (valeur 0).
  */
 export function periodPerformance(
   series: readonly ValuePoint[],
@@ -191,80 +249,30 @@ export function periodPerformance(
   const first = series[0];
   const last = series[series.length - 1];
   if (!first || !last) return null;
+  const endMs = pointMs(last.day);
+  const spanMs = endMs - pointMs(first.day);
   let netFlows = ZERO;
+  let weightedFlows = ZERO;
   for (const flow of flows) {
-    if (flow.day > first.day && flow.day <= last.day) netFlows = netFlows.plus(flow.amountEur);
+    if (flow.day <= first.day || flow.day > last.day) continue;
+    netFlows = netFlows.plus(flow.amountEur);
+    if (spanMs > 0) {
+      const remainingMs = endMs - pointMs(flow.day);
+      weightedFlows = weightedFlows.plus(
+        flow.amountEur.times(bigInt(remainingMs)).div(bigInt(spanMs)),
+      );
+    }
   }
   const gain = last.value.minus(first.value).minus(netFlows);
-  const base = first.value.plus(netFlows);
+  const base = first.value.plus(weightedFlows);
   return {
     from: first.day,
     to: last.day,
     startValue: first.value,
     endValue: last.value,
     netFlows,
+    weightedFlows,
     gain,
     pct: base.gt(ZERO) ? gain.div(base) : null,
   };
-}
-
-export function minMax<T extends { value: Big }>(series: readonly T[]): { min: T; max: T } | null {
-  let min: T | null = null;
-  let max: T | null = null;
-  for (const point of series) {
-    if (min === null || point.value.lt(min.value)) min = point;
-    if (max === null || point.value.gt(max.value)) max = point;
-  }
-  return min && max ? { min, max } : null;
-}
-
-/** Entier (index) → Big, sans passer un `number` à big.js (mode strict). */
-function bigIndex(value: number): Big {
-  return D(numberToDecimal(value) ?? '0');
-}
-
-/**
- * Sous-échantillonnage LTTB (Largest-Triangle-Three-Buckets) : conserve le premier et le
- * dernier point et, dans chaque seau, le point formant le plus grand triangle avec le point
- * retenu précédent et la moyenne du seau suivant. Les aires sont calculées en `Big` (mises à
- * l'échelle par la taille du seau suivant pour rester entières sur l'axe des index).
- */
-export function downsample<T extends { value: Big }>(series: readonly T[], maxPoints: number): T[] {
-  if (series.length <= maxPoints || series.length <= 2) return [...series];
-  if (maxPoints < 3) return [series[0]!, series[series.length - 1]!];
-  const bucketSize = (series.length - 2) / (maxPoints - 2);
-  const sampled: T[] = [series[0]!];
-  let selected = 0;
-  for (let bucket = 0; bucket < maxPoints - 2; bucket++) {
-    const nextStart = Math.floor((bucket + 1) * bucketSize) + 1;
-    const nextEnd = Math.min(Math.floor((bucket + 2) * bucketSize) + 1, series.length);
-    const count = nextEnd - nextStart;
-    let sumX = 0;
-    let sumY = ZERO;
-    for (let j = nextStart; j < nextEnd; j++) {
-      sumX += j;
-      sumY = sumY.plus(series[j]!.value);
-    }
-    const anchorY = series[selected]!.value;
-    const dx = bigIndex(selected * count - sumX);
-    const dy = sumY.minus(anchorY.times(bigIndex(count)));
-    const start = Math.floor(bucket * bucketSize) + 1;
-    const end = Math.min(Math.floor((bucket + 1) * bucketSize) + 1, series.length);
-    let best = start;
-    let bestArea: Big | null = null;
-    for (let j = start; j < end; j++) {
-      const area = dx
-        .times(series[j]!.value.minus(anchorY))
-        .minus(bigIndex(selected - j).times(dy))
-        .abs();
-      if (bestArea === null || area.gt(bestArea)) {
-        bestArea = area;
-        best = j;
-      }
-    }
-    sampled.push(series[best]!);
-    selected = best;
-  }
-  sampled.push(series[series.length - 1]!);
-  return sampled;
 }

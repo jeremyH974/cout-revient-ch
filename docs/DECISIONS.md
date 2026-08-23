@@ -34,3 +34,23 @@
     réelles (import, saisie manuelle, restauration) passe par `exitDemo()` pour ne jamais mélanger
     fictif et réel. Le diagnostic copiable (§ Aide et retours) ne contient ni montant ni quantité :
     seuls des compteurs, statuts, libellés et colonnes — vérifié par un test sur la fixture.
+15. **ROI rapporté au capital maximal engagé** (23/08/2026, revue indépendante) : diviser par
+    « Σ achats » comptait plusieurs fois le même euro dès qu'il transitait par l'USDC (55 260 €
+    « achetés » pour 29 759 € apportés sur la fixture) et se diluait à chaque rachat. Le ROI du
+    portefeuille = total ÷ plus haut niveau atteint par (apports − retraits en euros) ; par actif =
+    total ÷ plus haut niveau de (achats − produits). Une migration à coût reporté est un transfert
+    (ni achat ni produit), les remises de frais sont converties au taux implicite des frais
+    Coinhouse (un frais remisé à 100 % vaut exactement 0), « Investi » partage le périmètre de
+    « Valeur » (positions cotées) et le coût des actifs sans prix est annoncé à part. Un oracle
+    indépendant (`tests/integration/independent-oracle.test.ts`) recalcule tout depuis le CSV
+    avec un code distinct et doit concorder à 1e-9 sur la fixture et sur l'export réel.
+16. **Définitions affichées** (23/08/2026, revue « justesse des chiffres ») : un seul arrondi,
+    half-up, à la précision affichée, dans `format/fr.ts` ; signe et couleur décidés sur la valeur
+    arrondie (« 0,00 € » n'est jamais signé ni coloré) ; chaque pourcentage porte sa base dans son
+    libellé (« vs PRU », « vs prix all-in », « sur X € engagés ») ; « Investi » partage le périmètre
+    de « Valeur » (actifs cotés) et le coût des actifs sans prix est annoncé à part ; les positions
+    « poussière » (< 0,01 €) sont listées dans « Positions clôturées » avec leur résidu latent et un
+    sous-total « dont résidus », de sorte que la somme des tableaux égale le P&L total ; les
+    abonnements sont libellés « hors P&L » ou « déduits du P&L » selon le réglage ; en mode discret,
+    montants et quantités sont masqués mais prix, PRU et pourcentages restent visibles (PDF compris)
+    et les CSV ne sont jamais masqués ; les noms de fichiers portent la date locale.

@@ -1,10 +1,12 @@
 <script lang="ts">
   import { normalizeAssetCode } from '$lib/domain/assets';
+  import { D } from '$lib/domain/money';
   import type { ManualEvent } from '$lib/domain/types';
-  import { fmtDateTime } from '$lib/format/fr';
+  import { fmtDateTime, fmtMasked, fmtMoney } from '$lib/format/fr';
   import { parseNaiveDateTime } from '$lib/import/coinhouse/rows';
   import { TICKERS } from '$lib/pricing/tickers';
   import AppBar from '../components/layout/AppBar.svelte';
+  import Qty from '../components/shared/Qty.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
 
@@ -28,6 +30,10 @@
   const manualList = $derived(
     Object.values(app.state.manualEvents).sort((a, b) => b.at.localeCompare(a.at)),
   );
+
+  /** Les saisies sont toujours en euros (devise des données), jamais converties ; masquées en mode discret. */
+  const eur = (v: string): string =>
+    app.state.ui.discreet ? fmtMasked('EUR') : fmtMoney(D(v), 'EUR');
 
   const num = (s: string): string | null => {
     const v = s.trim().replace(/\s/g, '').replace(',', '.');
@@ -130,9 +136,8 @@
       <p class="line">
         <span
           ><strong>{kinds.find((k) => k.value === m.kind)?.label}</strong>
-          {m.qty}
-          {m.asset.toUpperCase()}{#if m.amountEur}
-            · {m.amountEur} €{/if}
+          <Qty value={D(m.qty)} asset={m.asset} />{#if m.amountEur}
+            · {eur(m.amountEur)}{/if}
           <span class="muted small">{fmtDateTime(m.at)}{m.note ? ` · ${m.note}` : ''}</span></span
         ><button
           type="button"

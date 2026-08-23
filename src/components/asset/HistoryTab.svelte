@@ -1,5 +1,6 @@
 <script lang="ts">
-  import type { PositionReport } from '$lib/domain/engine';
+  import type { HistoryEntry, PositionReport } from '$lib/domain/engine';
+  import { ZERO } from '$lib/domain/money';
   import { fmtDateTime, fmtQty } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import Money from '../shared/Money.svelte';
@@ -18,6 +19,18 @@
     'migration-out': 'MIGRATION (sortie)',
     'opening-balance': 'SOLDE INITIAL',
   };
+  /** Ce que représente le montant affiché, selon l'opération. */
+  const amountLabel: Record<HistoryEntry['kind'], string> = {
+    buy: 'all-in',
+    sell: 'reçus',
+    reward: 'valeur à la réception',
+    deposit: "coût d'acquisition",
+    withdrawal: 'valeur de cession',
+    'migration-in': 'coût reporté',
+    'migration-out': 'valorisation de la sortie',
+    'opening-balance': 'coût du solde initial',
+  };
+  const zeroCost = (h: HistoryEntry): boolean => h.valueEur !== null && h.valueEur.eq(ZERO);
 </script>
 
 {#each position.history as h (h.eventId + h.kind)}
@@ -33,12 +46,23 @@
       <Qty value={h.qty} asset={position.asset} sign abbreviate />
     </header>
     <p>
-      {#if h.valueEur}<Money value={h.valueEur} />
-        {h.kind === 'buy' ? 'all-in' : h.kind === 'sell' ? 'reçus' : ''}{/if}
+      {#if h.valueEur && zeroCost(h)}
+        <span class="muted"
+          >coût nul{h.kind === 'reward'
+            ? ' (récompense comptée à 0 €)'
+            : h.kind === 'deposit'
+              ? " (coût d'acquisition inconnu)"
+              : ''}</span
+        >
+      {:else if h.valueEur}
+        <Money value={h.valueEur} />
+        {amountLabel[h.kind]}
+      {/if}
       {#if h.counterAsset && h.counterAsset !== 'eur'}<span class="chip"
           >via {h.counterAsset.toUpperCase()}</span
         >{/if}
-      {#if h.unitPrice}<span class="muted">· {price(h.unitPrice)} / unité</span>{/if}
+      {#if h.unitPrice && !zeroCost(h)}<span class="muted">· {price(h.unitPrice)} / unité</span
+        >{/if}
       {#if h.quotePrice}<span class="muted"
           >· cours {fmtQty(h.quotePrice.price)} {h.quotePrice.asset.toUpperCase()}</span
         >{/if}
@@ -57,8 +81,12 @@
           colored
         /> ·
       {/if}
-      PRU {h.realized !== null ? 'inchangé' : 'après'} : {h.pruAfter ? price(h.pruAfter) : '—'} · reste
-      <Qty value={h.qtyAfter} abbreviate />
+      {#if h.qtyAfter.eq(ZERO)}
+        position soldée (plus aucune unité)
+      {:else}
+        PRU {h.realized !== null ? 'inchangé' : 'après'} : {h.pruAfter ? price(h.pruAfter) : '—'} · reste
+        <Qty value={h.qtyAfter} abbreviate />
+      {/if}
     </p>
     {#each h.warnings as w (w)}<p class="warn small">{w}</p>{/each}
   </article>

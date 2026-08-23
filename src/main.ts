@@ -2,12 +2,15 @@ import { mount } from 'svelte';
 import { registerSW } from 'virtual:pwa-register';
 import App from './App.svelte';
 import './app.css';
+import { installGlobalErrorCapture } from './lib/support/errors';
 import { app } from './state/app.svelte';
 import { update } from './state/ui.svelte';
 
 const target = document.getElementById('app');
 if (!target) throw new Error('Élément #app introuvable');
 
+// Les erreurs non interceptées alimentent le diagnostic copiable (jamais envoyées nulle part).
+installGlobalErrorCapture();
 app.init();
 
 // Crochet de développement (absent du build) : pilotage depuis les outils de test.

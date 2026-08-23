@@ -19,6 +19,7 @@ export {
   maxDay,
   minDay,
   msToDay,
+  pointMs,
   todayOf,
 } from './days';
 export {
@@ -33,15 +34,16 @@ export {
 } from './providers';
 export { RequestQueue, type RequestQueueOptions } from './queue';
 export {
-  downsample,
+  assetMetricPoints,
   holdingStep,
   holdingsByDay,
   lastPointAtOrBefore,
-  minMax,
+  mergeLivePoint,
   periodPerformance,
   periodWindow,
   sliceSeries,
   valueSeries,
+  type AssetSeriesInput,
   type DayWindow,
   type FlowPoint,
   type HoldingOp,
@@ -57,6 +59,7 @@ export {
   PEGGED_SOURCE,
   clearIntradayCache,
   fillGaps,
+  isEurPegged,
   loadDailyHistory,
   loadIntraday,
   type IntradayOptions,

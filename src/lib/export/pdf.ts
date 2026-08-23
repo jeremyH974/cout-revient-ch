@@ -45,7 +45,7 @@ const COLUMN_WIDTHS: Record<TableKind, (number | 'auto')[]> = {
   positions: [22, 20, 19.5, 19.5, 20, 20, 17.5, 19.5, 20],
   stablecoins: [22, 20, 19.5, 19.5, 20, 20, 17.5, 19.5, 20],
   allocation: ['auto', 45, 35],
-  closed: ['auto', 40, 30, 40],
+  closed: ['auto', 26, 26, 26, 22, 30],
 };
 
 /** Caractères hors Latin-1 que WinAnsi encode quand même (jsPDF les mappe sur 0x80–0x9F). */
@@ -226,7 +226,7 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     const cols = 3;
     const gap = 4;
     const w = (CONTENT_WIDTH - gap * (cols - 1)) / cols;
-    const h = 24;
+    const h = 27;
     const rows = Math.ceil(kpis.length / cols);
     ensure(rows * (h + gap));
     kpis.forEach((kpi, i) => {
@@ -238,8 +238,11 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
       font('bold', 14, toneColor(kpi.tone));
       write(kpi.value, x + 4, top + 14.5);
       if (kpi.hint) {
+        // Jusqu'à deux lignes : « hors actifs sans cours » ne doit pas disparaître.
         font('normal', 7.5, COLOR.muted);
-        doc.text(split(kpi.hint, w - 8)[0] ?? '', x + 4, top + 20);
+        split(kpi.hint, w - 8)
+          .slice(0, 2)
+          .forEach((line, j) => doc.text(line, x + 4, top + 20 + j * 3.4));
       }
     });
     y += rows * (h + gap) + 4;

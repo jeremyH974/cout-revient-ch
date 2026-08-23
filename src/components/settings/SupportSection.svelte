@@ -3,8 +3,9 @@
   import { nowIso } from '$lib/clock';
   import { iconFailures } from '$lib/pricing/icons';
   import { buildDiagnostic } from '$lib/support/diagnostic';
+  import { recentErrors } from '$lib/support/errors';
   import { collectEnvironment, type EnvironmentSnapshot } from '$lib/support/environment';
-  import { NEW_ISSUE_URL } from '$lib/support/links';
+  import { NEW_ISSUE_URL, issueUrl } from '$lib/support/links';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -60,7 +61,19 @@
       ui: app.state.ui,
       failure,
       iconFailures,
+      errors: recentErrors,
     }),
+  );
+
+  /** Formulaire GitHub pré-rempli (diagnostic court ; le complet se colle depuis le presse-papiers). */
+  const reportUrl = $derived(
+    failure
+      ? issueUrl(
+          'fichier-non-reconnu',
+          { header: failure.header.join(','), diagnostic: text },
+          '[Import] Fichier non reconnu',
+        )
+      : issueUrl('bug', { diagnostic: text }, '[Bug] '),
   );
 
   async function copy(): Promise<void> {
@@ -85,8 +98,11 @@
   <div class="row">
     <button class="secondary" type="button" onclick={() => void copy()}>Copier le diagnostic</button
     >
-    <a class="secondary" href={NEW_ISSUE_URL} target="_blank" rel="noopener noreferrer"
-      >Signaler un problème ou une idée</a
+    <a class="secondary" href={reportUrl} target="_blank" rel="noopener noreferrer"
+      >Signaler (formulaire pré-rempli)</a
+    >
+    <a class="link" href={NEW_ISSUE_URL} target="_blank" rel="noopener noreferrer"
+      >Proposer une idée</a
     >
   </div>
   <details>
@@ -119,6 +135,12 @@
     font-weight: 700;
     text-decoration: none;
     cursor: pointer;
+  }
+  .link {
+    color: var(--accent);
+    text-decoration: underline;
+    font-size: var(--fs-sm);
+    padding: var(--space-2);
   }
   .small {
     font-size: var(--fs-xs);

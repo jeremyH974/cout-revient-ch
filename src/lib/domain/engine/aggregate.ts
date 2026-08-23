@@ -79,7 +79,8 @@ function buildPosition(
     realized: state.realized,
     otherIncome: state.otherIncome,
     total,
-    roi: total && isPositive(state.investedTotal) ? total.div(state.investedTotal) : null,
+    roiBase: state.engagedMax,
+    roi: total && isPositive(state.engagedMax) ? total.div(state.engagedMax) : null,
     lots,
     history: [...state.history].reverse(),
     feesEur: state.feesEur,
@@ -102,6 +103,9 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   // Contrôle de solde : quantités des seuls événements Coinhouse (les saisies « hors Coinhouse » sont exclues).
   const finalQty: Record<AssetCode, string> = {};
   for (const [asset, qty] of run.coinhouseQty) finalQty[asset] = qty.toString();
+  // Un actif présent dans l'export mais dont aucune ligne n'a été interprétée détient 0 pour le
+  // moteur : le contrôle de solde doit le dire, pas se taire.
+  for (const record of input.balances ?? []) finalQty[record.asset] ??= '0';
   const integrity = input.balances ? checkBalances(input.balances, finalQty) : {};
 
   const all: PositionReport[] = [];
@@ -134,9 +138,14 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   const value = sumBy(priced, (p) => p.value);
   let total = realized.plus(unrealized).plus(otherIncome);
   if (input.settings.includeSubscriptionsInPnl) total = total.minus(run.subscriptionsEur);
+  const roiBase = isPositive(run.cashEngagedMax) ? run.cashEngagedMax : investedTotal;
+  // « Investi » partage le périmètre de « Valeur » (positions cotées) pour que Latent = Valeur − Investi
+  // à l'écran ; le coût des actifs sans prix est exposé à part pour être annoncé.
+  const unpriced = open.filter((p) => p.value === null);
   const totals: PortfolioTotals = {
     value,
-    costBasis: sumBy(live, (p) => p.costBasis),
+    costBasis: sumBy(priced, (p) => p.costBasis),
+    unpricedCostBasis: sumBy(unpriced, (p) => p.costBasis),
     investedTotal,
     proceedsTotal,
     netInvested: investedTotal.minus(proceedsTotal),
@@ -144,14 +153,17 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     unrealized,
     otherIncome,
     total,
-    roi: isPositive(investedTotal) ? total.div(investedTotal) : null,
+    // ROI rapporté au capital maximal engagé en euros (apports − retraits, à leur plus haut) ;
+    // à défaut d'apports en euros (saisies manuelles sans espèces), à Σ achats.
+    roiBase,
+    roi: isPositive(roiBase) ? total.div(roiBase) : null,
     cashIn: run.cashIn,
     cashOut: run.cashOut,
     netCash: run.cashIn.minus(run.cashOut),
     feesEur: sumBy(live, (p) => p.feesEur),
     rebatesEur: sumBy(live, (p) => p.rebatesEur),
     subscriptionsEur: run.subscriptionsEur,
-    unpricedAssets: open.filter((p) => p.value === null).map((p) => p.asset),
+    unpricedAssets: unpriced.map((p) => p.asset),
   };
   const allocation: AllocationEntry[] = isPositive(value)
     ? priced.map((p) => ({

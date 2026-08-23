@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
-  import { D, ZERO, type Big } from '$lib/domain/money';
+  import { ZERO, type Big } from '$lib/domain/money';
   import { seriesToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
-  import { fmtMoney, fmtPct, fmtPrice } from '$lib/format/fr';
+  import { fmtMoney, fmtPct, fmtPoints, fmtPrice } from '$lib/format/fr';
   import { periodPerformance, periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import {
     METRIC_SPECS,
@@ -36,9 +36,13 @@
   const spec = $derived(METRIC_SPECS[metric]);
 
   onMount(() => void history.ensure());
+  /** Période 1J : chargement immédiat, puis contrôle chaque minute (rechargement au-delà de 10 min). */
   $effect(() => {
-    if (period === '1d')
-      void history.ensureIntraday(scope === 'portfolio' ? app.heldAssets : [scope]);
+    if (period !== '1d') return;
+    const assets = scope === 'portfolio' ? app.heldAssets : [scope];
+    void history.ensureIntraday(assets);
+    const timer = setInterval(() => void history.ensureIntraday(assets), 60_000);
+    return () => clearInterval(timer);
   });
 
   const today = $derived(todayOf(nowMs()));
@@ -62,6 +66,9 @@
   const last = $derived(visible[visible.length - 1] ?? null);
   const first = $derived(visible[0] ?? null);
   const discreet = $derived(app.state.ui.discreet);
+  /** Vrai si le dernier point reflète la cotation courante (sinon : dernière clôture connue). */
+  const live = $derived(period === '1d' || history.lastPointIsLive(scope));
+  const closeNote = $derived(live ? '' : ' (dernière clôture)');
   const money = (v: Big | null, opts?: { sign?: boolean }): string =>
     v === null || discreet ? '—' : fmtMoney(v, app.currency, opts);
   const latent = (p: MetricPoint | null): Big | null => (p ? p.value.minus(p.cost) : null);
@@ -71,34 +78,47 @@
     p && p.qty && p.qty.gt(ZERO) ? p.cost.div(p.qty) : null;
   const tone = (v: Big | null): string =>
     v === null ? '' : v.lt('0') ? 'loss' : v.gt('0') ? 'gain' : '';
-  /** Variation sur la période, calculée sur la série réellement tracée (premier point défini). */
+  /** Premier et dernier points réellement tracés pour la métrique (jours omis exclus). */
+  const plotted = $derived.by((): { a: MetricPoint | null; b: MetricPoint | null } => {
+    const defined =
+      metric === 'unrealizedPct'
+        ? visible.filter((p) => p.cost.gt(ZERO))
+        : metric === 'pru'
+          ? visible.filter((p) => p.price !== null)
+          : visible;
+    return { a: defined[0] ?? null, b: defined[defined.length - 1] ?? null };
+  });
+  /** Variation sur la période, en Big depuis les points (jamais de soustraction flottante). */
   const delta = $derived.by((): Big | null => {
     if (!first || !last) return null;
     if (metric === 'value')
       return period === '1d' ? last.value.minus(first.value) : (perf?.gain ?? null);
-    const plotted = points;
-    const a = plotted[0];
-    const b = plotted[plotted.length - 1];
+    const { a, b } = plotted;
     if (!a || !b || a === b) return null;
-    if (metric === 'unrealized') return D(String(b.primary - a.primary));
-    if (metric === 'unrealizedPct') return D(String((b.primary - a.primary) / 100));
-    return last.price && pru(last) ? last.price.minus(pru(last)!) : null;
+    if (metric === 'unrealized') return b.value.minus(b.cost).minus(a.value.minus(a.cost));
+    if (metric === 'unrealizedPct')
+      return b.value.minus(b.cost).div(b.cost).minus(a.value.minus(a.cost).div(a.cost));
+    const lastPru = pru(last);
+    return last.price && lastPru ? last.price.minus(lastPru) : null;
   });
-  const markers = $derived.by((): ChartMarker[] =>
-    scope === 'portfolio' || period === '1d'
-      ? []
-      : history.allPositions
-          .filter((p) => p.asset === scope)
-          .flatMap((p) => p.history)
-          .filter((h) => h.kind === 'buy' || h.kind === 'sell')
-          .map(
-            (h) =>
-              ({ day: h.at.slice(0, 10), kind: h.kind === 'buy' ? 'buy' : 'sell' }) as ChartMarker,
-          ),
-  );
+  /** Achats et ventes de l'actif dont le jour tombe dans la fenêtre affichée. */
+  const markers = $derived.by((): ChartMarker[] => {
+    if (scope === 'portfolio' || period === '1d' || visible.length === 0) return [];
+    const from = visible[0]!.day;
+    const to = visible[visible.length - 1]!.day;
+    return history.allPositions
+      .filter((p) => p.asset === scope)
+      .flatMap((p) => p.history)
+      .filter((h) => h.kind === 'buy' || h.kind === 'sell')
+      .map(
+        (h) => ({ day: h.at.slice(0, 10), kind: h.kind === 'buy' ? 'buy' : 'sell' }) as ChartMarker,
+      )
+      .filter((m) => m.day >= from && m.day <= to);
+  });
   const loadingIntraday = $derived(
     period === '1d' && Object.values(history.intradayLoading).some(Boolean),
   );
+  const errors = $derived(history.status.errors);
   function exportCsv(): void {
     downloadText(
       `cout-revient-ch-evolution-${scope}-${today}.csv`,
@@ -128,7 +148,9 @@
       {#if metric === 'value'}
         <div>
           <p class="label">
-            {scope === 'portfolio' ? 'Valeur des avoirs' : `Valeur de vos ${scope.toUpperCase()}`}
+            {scope === 'portfolio'
+              ? 'Valeur des avoirs'
+              : `Valeur de vos ${scope.toUpperCase()}`}{closeNote}
           </p>
           <p class="big">{money(last?.value ?? null)}</p>
         </div>
@@ -140,20 +162,26 @@
                 le marché a fait gagner ou perdre, indépendamment de l'argent ajouté ou retiré entre-temps.
               </p>
               <p>
-                Le pourcentage rapporte ce gain à la valeur de départ augmentée des apports (méthode
-                de Dietz simple). La courbe grise en pointillé est le capital investi.
+                Le pourcentage rapporte ce gain au capital moyen de la période (méthode de Dietz
+                modifiée) : la valeur de départ plus chaque apport, compté au prorata du temps qu'il
+                lui restait dans la période. Un retrait compte négativement de la même façon.
+              </p>
+              <p>
+                La courbe grise en pointillé est le capital investi. Un actif sans aucune cotation
+                connue est compté à son coût (courbe neutre, « estimé ») tant que son prix manque.
               </p></Info
             >
           </p>
           <p class="big {tone(delta)}">
             {money(delta, { sign: true })}
-            {#if perf?.pct}<span class="pct">{perf.pct.lt('0') ? '↘' : '↗'} {fmtPct(perf.pct)}</span
+            {#if perf !== null && perf.pct !== null}<span class="pct"
+                >{perf.pct.lt('0') ? '↘' : '↗'} {fmtPct(perf.pct)}</span
               >{/if}
           </p>
         </div>
       {:else if metric === 'unrealized'}
         <div>
-          <p class="label">Plus-value latente</p>
+          <p class="label">Plus-value latente{closeNote}</p>
           <p class="big {tone(latent(last))}">{money(latent(last), { sign: true })}</p>
         </div>
         <div>
@@ -162,29 +190,29 @@
         </div>
       {:else if metric === 'unrealizedPct'}
         <div>
-          <p class="label">Latent vs investi</p>
+          <p class="label">Latent vs investi{closeNote}</p>
           <p class="big {tone(latentPct(last))}">{fmtPct(latentPct(last))}</p>
         </div>
         <div>
           <p class="label">Variation sur la période</p>
-          <p class="big {tone(delta)}">
-            {delta === null
-              ? '—'
-              : `${delta.lt('0') ? '−' : '+'}${delta.abs().times('100').toFixed(1).replace('.', ',')} pts`}
-          </p>
+          <p class="big {tone(delta)}">{fmtPoints(delta)}</p>
         </div>
       {:else}
         <div>
-          <p class="label">Prix actuel</p>
+          <p class="label">{live ? 'Prix actuel' : 'Dernier prix (clôture)'}</p>
           <p class="big">{last?.price ? fmtPrice(last.price, app.currency) : '—'}</p>
         </div>
         <div>
           <p class="label">
             PRU <Info title="PRU vs prix"
               ><p>
-                Quand le prix est au-dessus du prix de revient (pointillé), vos unités sont en gain
-                latent ; en dessous, en perte. Les points marquent vos achats (vert) et ventes
-                (rouge).
+                Le trait plein accentué est votre prix de revient unitaire (PRU). Quand le prix est
+                au-dessus, la zone entre les deux est verte : vos unités sont en gain latent ; en
+                dessous, elle est rouge. Les courbes elles-mêmes restent neutres.
+              </p>
+              <p>
+                Les points marquent vos achats (vert) et ventes (rouge) tombant dans la période
+                affichée, placés sur le prix de clôture du jour.
               </p></Info
             >
           </p>
@@ -223,6 +251,7 @@
     format={spec.format}
     currency={app.currency}
     {markers}
+    {discreet}
     zeroLine={spec.zeroLine}
     colorMode={spec.colorMode}
     band={spec.band}
@@ -237,7 +266,8 @@
       {#if history.status.partial.length > 0}Historique partiel : {history.status.partial
           .map((a) => a.toUpperCase())
           .join(', ')}.{/if}
-      {#if history.status.errors.length > 0}<span class="warn">{history.status.errors[0]}</span
+      {#if errors.length > 0}<span class="warn"
+          >{errors[0]}{errors.length > 1 ? ` (+${errors.length - 1})` : ''}</span
         >{/if}
     </span>
     <button class="link" type="button" onclick={exportCsv} disabled={visible.length === 0}

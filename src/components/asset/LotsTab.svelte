@@ -23,7 +23,8 @@
 {:else}
   <p class="muted note">
     Un lot par achat. Chaque vente consomme la même fraction de chaque lot : la somme des latents
-    des lots est exactement le latent de l'actif.
+    des lots est exactement le latent de l'actif. Le « % » de chaque lot est son latent rapporté à
+    son coût restant (écart du prix au prix all-in du lot).
   </p>
   {#each position.lots as lot (lot.id)}
     <article class="lot">
@@ -46,7 +47,7 @@
       <p class="pnl">
         <Money value={lot.unrealized} sign colored />
         <Pct value={lot.unrealizedPct} />
-        <span class="muted">· valeur <Money value={lot.value} /></span>
+        <span class="muted">vs prix all-in · valeur <Money value={lot.value} /></span>
       </p>
     </article>
   {/each}

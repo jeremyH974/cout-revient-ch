@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
-  import { fmtRelative } from '$lib/format/fr';
+  import { fmtDate, fmtRelative } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import { app } from '../../state/app.svelte';
 
@@ -18,22 +18,31 @@
     return () => clearInterval(id);
   });
 
+  /**
+   * Devise : annoncée quel que soit l'état des prix, car le repli USD → EUR (taux BCE absents)
+   * concerne aussi les chiffres sans cours (investi, PRU, réalisé).
+   */
   const fxNote = $derived.by((): string => {
-    if (app.currency === 'EUR')
-      return app.state.ui.displayCurrency === 'USD' ? ' · taux USD indisponibles' : '';
-    return app.fxLookup.latestDay
-      ? ` · taux BCE du ${app.fxLookup.latestDay.split('-').reverse().join('/')}`
-      : '';
+    const wanted = app.state.ui.displayCurrency;
+    if (wanted === 'EUR') return '';
+    if (app.currency === 'EUR') return ` · taux ${wanted} indisponibles : montants en €`;
+    const day = app.fxLookup.latestDay;
+    const stale = app.fxStatus.error ? ' (mise à jour impossible)' : '';
+    return day ? ` · taux BCE du ${fmtDate(day)}${stale}` : '';
   });
 
   const freshness = $derived.by((): string => {
     const status = app.priceStatus;
-    if (status.loading) return 'Mise à jour des prix…';
-    if (app.state.ui.priceSource === 'off') return 'Prix désactivés (réglages)';
-    if (!app.report.pricedAt)
-      return status.online === false ? 'Hors ligne — aucun prix' : 'Prix non chargés';
-    const rel = fmtRelative(app.report.pricedAt, tick);
-    return (status.online === false ? `Hors ligne — derniers prix ${rel}` : `Prix ${rel}`) + fxNote;
+    let prices: string;
+    if (status.loading) prices = 'Mise à jour des prix…';
+    else if (app.state.ui.priceSource === 'off') prices = 'Prix désactivés (réglages)';
+    else if (!app.report.pricedAt)
+      prices = status.online === false ? 'Hors ligne — aucun prix' : 'Prix non chargés';
+    else {
+      const rel = fmtRelative(app.report.pricedAt, tick);
+      prices = status.online === false ? `Hors ligne — derniers prix ${rel}` : `Prix ${rel}`;
+    }
+    return prices + fxNote;
   });
 </script>
 

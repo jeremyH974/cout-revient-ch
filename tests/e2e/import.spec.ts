@@ -42,7 +42,13 @@ test('un fichier étranger est refusé avec les colonnes trouvées et le diagnos
   ).toBeVisible();
   await expect(page.getByText('Colonnes trouvées : Date, Montant.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Copier le diagnostic' })).toBeVisible();
-  await expect(
-    page.getByRole('link', { name: 'Signaler un problème ou une idée' }),
-  ).toHaveAttribute('href', /github\.com\/jeremyH974\/cout-revient-ch\/issues\/new\/choose/);
+  // Formulaire « fichier non reconnu » pré-rempli avec les colonnes trouvées et le diagnostic.
+  const href = (await page
+    .getByRole('link', { name: 'Signaler (formulaire pré-rempli)' })
+    .getAttribute('href')) as string;
+  const url = new URL(href);
+  expect(url.pathname).toBe('/jeremyH974/cout-revient-ch/issues/new');
+  expect(url.searchParams.get('template')).toBe('fichier-non-reconnu.yml');
+  expect(url.searchParams.get('header')).toBe('Date,Montant');
+  expect(url.searchParams.get('diagnostic')).toContain('colonnes trouvées : Date, Montant');
 });

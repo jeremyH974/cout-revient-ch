@@ -108,7 +108,9 @@ export interface PositionReport {
   realized: Big;
   otherIncome: Big;
   total: Big | null;
-  /** Total ÷ Σ acquisitions, null si rien n'a été acquis à titre onéreux. */
+  /** Dénominateur du ROI : capital maximal engagé sur l'actif (plus haut de achats − produits). */
+  roiBase: Big;
+  /** Total ÷ capital maximal engagé, null si rien n'a été acquis à titre onéreux. */
   roi: Big | null;
   lots: LotReport[];
   history: HistoryEntry[];
@@ -125,8 +127,10 @@ export interface PositionReport {
 
 export interface PortfolioTotals {
   value: Big;
-  /** Coût des positions détenues (Σ qté × PRU) : base du latent. */
+  /** Coût des positions détenues ET cotées (Σ qté × PRU) : base du latent, même périmètre que `value`. */
   costBasis: Big;
+  /** Coût des positions détenues sans prix : exclu de `costBasis`, `value`, `unrealized` et `total`. */
+  unpricedCostBasis: Big;
   investedTotal: Big;
   proceedsTotal: Big;
   netInvested: Big;
@@ -134,6 +138,8 @@ export interface PortfolioTotals {
   unrealized: Big;
   otherIncome: Big;
   total: Big;
+  /** Dénominateur du ROI : capital maximal engagé en euros (sinon Σ achats). */
+  roiBase: Big;
   roi: Big | null;
   /** Euros réellement entrés (achats payés en euros) et sortis (ventes en euros). */
   cashIn: Big;

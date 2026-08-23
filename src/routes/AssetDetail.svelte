@@ -2,7 +2,7 @@
   import { nowMs } from '$lib/clock';
   import { operationsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
-  import { fmtRelative } from '$lib/format/fr';
+  import { fmtRelative, localDay } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
@@ -66,7 +66,7 @@
         <h2>{assetName(p.asset)} <span class="muted">· {p.asset.toUpperCase()}</span></h2>
         <p class="price">
           {#if p.closed}
-            <span class="muted">Position clôturée</span>
+            <span class="muted">Position clôturée{p.dust ? ' (résidu valorisé)' : ''}</span>
           {:else if p.price}
             {price(p.price.priceEur)}
             <span class="muted small"
@@ -103,8 +103,9 @@
         <div>
           <p class="label">Valeur</p>
           <p class="big"><Money value={p.value} compact /></p>
-          {#if !p.closed}<p class="small">
-              <Money value={p.unrealized} sign colored /> (<Pct value={p.unrealizedPct} />) latent
+          {#if !p.closed || p.dust}<p class="small">
+              <Money value={p.unrealized} sign colored /> (<Pct value={p.unrealizedPct} /> vs PRU)
+              {p.dust ? 'latent résiduel' : 'latent'}
             </p>{/if}
         </div>
       </div>
@@ -112,9 +113,10 @@
         Réalisé <Money value={p.realized} sign colored /> ·
         <strong>Total <Money value={p.total} sign colored strong /></strong>
         · ROI <Pct value={p.roi} />
+        <span class="muted small">sur <Money value={p.roiBase} /> engagés</span>
       </p>
       <p class="line muted small">
-        Net investi {#if p.capitalRecovered}<span class="gain">capital récupéré</span> (<Money
+        Net investi {#if p.capitalRecovered}<strong>capital récupéré</strong> (<Money
             value={p.netInvested}
             sign
           />){:else}<Money value={p.netInvested} />{/if} · Frais <Money
@@ -138,7 +140,7 @@
       type="button"
       onclick={() =>
         downloadText(
-          `cout-revient-ch-${asset}-operations-${new Date(nowMs()).toISOString().slice(0, 10)}.csv`,
+          `cout-revient-ch-${asset}-operations-${localDay(nowMs())}.csv`,
           operationsToCsv(app.report, app.currency, asset),
           'text/csv;charset=utf-8',
         )}>Télécharger l'historique de {asset.toUpperCase()} (CSV)</button

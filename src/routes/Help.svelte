@@ -29,26 +29,53 @@
       change que lorsque vous achetez.
     </dd>
     <dt>Investi</dt>
-    <dd>Quantité détenue × PRU. Base du latent.</dd>
+    <dd>
+      Quantité détenue × PRU, pour les actifs qui ont un prix. Base du latent. Le coût des actifs
+      sans prix est annoncé à part (« hors X € d'actifs sans prix »).
+    </dd>
     <dt>Latent</dt>
     <dd>
-      Valeur actuelle − investi : ce que vous gagneriez ou perdriez en vendant tout maintenant.
+      Valeur actuelle − investi : ce que vous gagneriez ou perdriez en vendant tout maintenant. Le «
+      % vs PRU » rapporte ce latent à l'investi : c'est l'écart du prix au PRU.
     </dd>
     <dt>Réalisé</dt>
     <dd>
-      Gains ou pertes déjà encaissés : pour chaque vente, produit net − quantité vendue × PRU du
-      moment.
+      Gains ou pertes déjà encaissés : pour chaque cession (vente, retrait, migration), produit net
+      − quantité cédée × PRU du moment.
     </dd>
     <dt>Total</dt>
-    <dd>Réalisé + latent. C'est le chiffre à regarder.</dd>
+    <dd>
+      Réalisé + latent (+ récompenses valorisées, − abonnements Coinhouse, selon vos réglages).
+      C'est le chiffre à regarder. Les actifs sans prix n'y entrent pas.
+    </dd>
     <dt>ROI</dt>
     <dd>
-      Total ÷ somme de tous vos achats. Contrairement au « % latent », il ne s'effondre pas quand
-      vous rachetez.
+      Total ÷ capital maximal engagé, c'est-à-dire le plus d'euros que vous ayez eu investis en même
+      temps (apports − retraits au plus haut pour le portefeuille ; achats − produits au plus haut
+      pour un actif). Vendre puis racheter n'augmente pas la base, et un euro qui passe par l'USDC
+      n'est compté qu'une fois. Contrairement au « % latent », il ne s'effondre pas quand vous
+      rachetez.
     </dd>
     <dt>Net investi</dt>
     <dd>
-      Somme des achats − somme des ventes : l'argent encore engagé. Négatif = capital récupéré.
+      Somme des achats − somme des ventes : l'argent encore engagé. Négatif ou nul = capital
+      récupéré ; aucun pourcentage n'est alors calculé sur cette base.
+    </dd>
+    <dt>Apports nets (espèces)</dt>
+    <dd>
+      Euros réellement entrés (achats payés en euros) − euros réellement sortis (ventes encaissées
+      en euros). Les échanges crypto ↔ crypto ou via USDC ne comptent pas : aucun euro n'a bougé.
+    </dd>
+    <dt>Positions clôturées et résidus</dt>
+    <dd>
+      Une position dont le résidu vaut moins de 0,01 € est classée clôturée ; ce résidu reste
+      valorisé et son latent (proche de −coût) compte dans le total, affiché « dont résidus ».
+    </dd>
+    <dt>Mode discret</dt>
+    <dd>
+      Masque les montants et les quantités (« •••• »). Les prix, PRU et pourcentages restent
+      visibles : ce sont des prix, pas des montants. Le rapport PDF suit la même règle ; les exports
+      CSV ne sont jamais masqués.
     </dd>
   </dl>
   <h2>Pourquoi les % de l'app Coinhouse paraissent faux</h2>

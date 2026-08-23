@@ -4,16 +4,19 @@
  */
 import type { HistoryEntry, PortfolioReport, PositionReport } from '../domain/engine';
 import type { Big } from '../domain/money';
+import { roundHalfUp } from '../format/fr';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
 import type { MetricPoint } from '../history/metrics';
 
 const BOM = '﻿';
 const EOL = '\r\n';
 
-const num = (value: Big | null | undefined, dp = 8): string =>
+// Arrondi half-up (comme à l'écran, via fr.ts) ; quantités à 9 décimales (précision de l'export
+// Coinhouse), prix et PRU à 10 (4 chiffres significatifs même sous 1e-6), montants à 2.
+const num = (value: Big | null | undefined, dp = 9): string =>
   value == null
     ? ''
-    : value
+    : roundHalfUp(value, dp)
         .toFixed(dp)
         .replace(/\.?0+$/, '')
         .replace(/^-0$/, '0')
@@ -67,7 +70,7 @@ export function positionsToCsv(report: PortfolioReport, currency: Currency = 'EU
     text(p.asset.toUpperCase()),
     text(p.closed ? 'clôturée' : p.status),
     num(p.qty),
-    num(p.pru, 6),
+    num(p.pru, 10),
     num(p.costBasis, 2),
     p.price ? p.price.priceEur.replace('.', ',') : '',
     num(p.value, 2),
@@ -123,14 +126,14 @@ export function operationsToCsv(
           text(KIND_LABELS[h.kind] ?? h.kind),
           num(h.qty),
           num(h.valueEur, 2),
-          num(h.unitPrice, 6),
+          num(h.unitPrice, 10),
           text(h.counterAsset?.toUpperCase() ?? ''),
           h.quotePrice ? h.quotePrice.price.replace('.', ',') : '',
           text(h.quotePrice?.asset.toUpperCase() ?? ''),
           num(h.feeEur, 2),
           num(h.rebateEur, 2),
           num(h.realized, 2),
-          num(h.pruAfter, 6),
+          num(h.pruAfter, 10),
           num(h.qtyAfter),
           text(h.eventId.startsWith('man:') ? 'Manuel' : 'Coinhouse'),
           text(h.eventId.replace(/^(ch|man):/, '')),
@@ -174,7 +177,7 @@ export function lotsToCsv(report: PortfolioReport, currency: Currency = 'EUR'): 
         num(lot.qtyRemaining),
         num(lot.costInitial, 2),
         num(lot.costRemaining, 2),
-        num(lot.unitCost, 6),
+        num(lot.unitCost, 10),
         num(lot.value, 2),
         num(lot.unrealized, 2),
         lot.unrealizedPct ? num(lot.unrealizedPct.times('100'), 2) : '',
@@ -184,11 +187,16 @@ export function lotsToCsv(report: PortfolioReport, currency: Currency = 'EUR'): 
   return file(header, rows);
 }
 
-/** Série d'évolution affichée (jour, valeur, investi, latent, quantité, prix, PRU). */
+/**
+ * Série d'évolution affichée (jour ou instant, valeur, investi, latent, quantité, prix, PRU).
+ * Période 1J : instants ISO 8601 (UTC) sous l'en-tête « Instant » ; sinon jours « jj/mm/aaaa ».
+ * Prix vide = aucune cotation ce jour-là (valeur estimée au coût).
+ */
 export function seriesToCsv(points: readonly MetricPoint[], currency: Currency = 'EUR'): string {
   const c = sym(currency);
+  const intraday = (points[0]?.day.length ?? 0) > 10;
   const header = [
-    'Jour',
+    intraday ? 'Instant' : 'Jour',
     `Valeur (${c})`,
     `Investi (${c})`,
     `Latent (${c})`,
@@ -207,8 +215,8 @@ export function seriesToCsv(points: readonly MetricPoint[], currency: Currency =
       num(latent, 2),
       p.cost.gt('0') ? num(latent.div(p.cost).times('100'), 2) : '',
       num(p.qty),
-      num(p.price, 6),
-      num(pru, 6),
+      num(p.price, 10),
+      num(pru, 10),
     ];
   });
   return file(header, rows);

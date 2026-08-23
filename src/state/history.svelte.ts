@@ -6,17 +6,20 @@ import { D, ZERO, toDecimalString, type Big } from '$lib/domain/money';
 import type { AssetCode } from '$lib/domain/types';
 import {
   addDays,
+  assetMetricPoints,
   createHistoryStore,
   dayOfNaive,
   defaultHistoryProviders,
   eachDay,
   holdingStep,
   holdingsByDay,
-  lastPointAtOrBefore,
+  isEurPegged,
   loadDailyHistory,
   loadIntraday,
+  mergeLivePoint,
   todayOf,
   valueSeries,
+  type DailyPoint,
   type FlowPoint,
   type HistoryStore,
   type HoldingOp,
@@ -45,6 +48,11 @@ export type Scope = 'portfolio' | AssetCode;
 const INFLOW = ['buy', 'migration-in', 'deposit', 'opening-balance'];
 const OUTFLOW = ['sell', 'migration-out', 'withdrawal'];
 
+/** Au-delà de cet âge, la série 1J d'un actif est redemandée (le service garde un cache mémoire 10 min). */
+export const INTRADAY_REFRESH_MS = 600_000;
+/** Préfixe des erreurs intraday dans `status.errors` (remplacées à chaque rechargement). */
+const INTRADAY_ERROR_PREFIX = 'Prix 24 h · ';
+
 export class HistoryState {
   histories = $state<Record<AssetCode, PriceHistory>>({});
   status = $state<HistoryStatus>({
@@ -59,30 +67,48 @@ export class HistoryState {
   });
   intraday = $state<Record<AssetCode, IntradayPoint[]>>({});
   intradayLoading = $state<Record<AssetCode, boolean>>({});
+  /** Horodatage (ms) du dernier chargement intraday par actif : fin de grille et rafraîchissement. */
+  intradayLoadedAt = $state<Record<AssetCode, number>>({});
+  private intradayErrors: Record<AssetCode, string[]> = {};
   private store: HistoryStore | null = null;
   private loadedKey = '';
 
+  /** Toutes les positions du grand livre (hors devises), y compris clôturées et bloquées. */
   allPositions = $derived.by((): PositionReport[] => {
     const r = app.report;
-    return [...r.positions, ...r.stablecoins, ...r.closed, ...r.blocked];
+    return [...r.positions, ...r.stablecoins, ...r.closed, ...r.blocked].filter(
+      (p) => !isFiat(p.asset),
+    );
   });
-  assets = $derived(this.allPositions.map((p) => p.asset).filter((a) => !isFiat(a)));
-  firstDay = $derived.by((): string | null => {
+  assets = $derived(this.allPositions.map((p) => p.asset));
+  firstDay = $derived.by((): string | null => this.firstDayOf(this.allPositions));
+
+  private firstDayOf(positions: PositionReport[]): string | null {
     let min: string | null = null;
-    for (const p of this.allPositions) {
+    for (const p of positions) {
       for (const h of p.history) {
         const day = dayOfNaive(h.at);
         if (min === null || day < min) min = day;
       }
     }
     return min;
-  });
+  }
 
   private providers() {
     const overrides = Object.fromEntries(
       Object.entries(app.state.assetSettings).map(([a, s]) => [a, s.coingeckoId]),
     );
     return defaultHistoryProviders(overrides);
+  }
+
+  /** Erreurs du chargement quotidien suivies des erreurs intraday encore d'actualité. */
+  private withIntradayErrors(errors: string[]): string[] {
+    return [
+      ...errors.filter((e) => !e.startsWith(INTRADAY_ERROR_PREFIX)),
+      ...Object.values(this.intradayErrors)
+        .flat()
+        .map((e) => INTRADAY_ERROR_PREFIX + e),
+    ];
   }
 
   /** Charge (ou complète) l'historique quotidien de tous les actifs du grand livre. */
@@ -111,7 +137,7 @@ export class HistoryState {
       total: assets.length,
       missing: result.missing,
       partial: result.partial,
-      errors: result.errors,
+      errors: this.withIntradayErrors(result.errors),
       loadedAt: nowIso(),
       sources: Object.values(result.histories)
         .map((h) => h.source)
@@ -119,8 +145,18 @@ export class HistoryState {
     };
   }
 
+  /**
+   * Charge les 24 dernières heures des actifs demandés, et les recharge au-delà de
+   * `INTRADAY_REFRESH_MS`. Les échecs des fournisseurs ne sont signalés que s'ils ont privé
+   * l'actif de toute donnée.
+   */
   async ensureIntraday(assets: AssetCode[]): Promise<void> {
-    const pending = assets.filter((a) => !this.intradayLoading[a] && !this.intraday[a]);
+    const now = nowMs();
+    const pending = assets.filter((a) => {
+      if (this.intradayLoading[a]) return false;
+      const loadedAt = this.intradayLoadedAt[a];
+      return loadedAt === undefined || now - loadedAt > INTRADAY_REFRESH_MS;
+    });
     if (pending.length === 0) return;
     this.intradayLoading = {
       ...this.intradayLoading,
@@ -130,8 +166,11 @@ export class HistoryState {
     for (const asset of pending) {
       const result = await loadIntraday(asset, 24, { providers, now: nowMs });
       this.intraday = { ...this.intraday, [asset]: result.points };
+      this.intradayLoadedAt = { ...this.intradayLoadedAt, [asset]: nowMs() };
       this.intradayLoading = { ...this.intradayLoading, [asset]: false };
+      this.intradayErrors[asset] = result.points.length === 0 ? result.errors : [];
     }
+    this.status = { ...this.status, errors: this.withIntradayErrors(this.status.errors) };
   }
 
   private positionsFor(scope: Scope): PositionReport[] {
@@ -145,35 +184,57 @@ export class HistoryState {
     return app.currency === 'EUR' ? '1' : (app.fxLookup.rate(day) ?? '1');
   }
 
-  private pricesFor(assets: AssetCode[]): Record<AssetCode, PriceSource> {
+  /** Cotation du jour (devise d'affichage), `null` si absente ou antérieure à aujourd'hui (UTC). */
+  private liveQuote(asset: AssetCode, today: string): string | null {
+    const quote = app.displayQuotes[asset];
+    return quote !== undefined && quote.at.slice(0, 10) >= today ? quote.priceEur : null;
+  }
+
+  /**
+   * Prix quotidiens dans la devise d'affichage. Le point du jour est la cotation live de
+   * l'application quand elle existe (sinon la clôture provisoire du fournisseur), pour que le
+   * dernier point de la courbe coïncide avec la valeur affichée en tête de page.
+   */
+  private pricesFor(assets: AssetCode[], today: string): Record<AssetCode, PriceSource> {
     const out: Record<AssetCode, PriceSource> = {};
     for (const asset of assets) {
       const h = this.histories[asset];
-      if (!h) continue;
-      out[asset] =
-        app.currency === 'EUR'
-          ? h
-          : {
-              points: h.points.map((p) => ({
-                ...p,
-                priceEur: toDecimalString(D(p.priceEur).times(this.rateOf(p.day))),
-              })),
-            };
+      const live = this.liveQuote(asset, today);
+      if (!h && live === null) continue;
+      let points: readonly DailyPoint[] = !h
+        ? []
+        : app.currency === 'EUR'
+          ? h.points
+          : h.points.map((p) => ({
+              ...p,
+              priceEur: toDecimalString(D(p.priceEur).times(this.rateOf(p.day))),
+            }));
+      if (live !== null) points = mergeLivePoint(points, today, live);
+      out[asset] = { points };
     }
     return out;
+  }
+
+  /** Vrai si chaque actif détenu du périmètre a une cotation du jour : le dernier point est « live ». */
+  lastPointIsLive(scope: Scope): boolean {
+    const today = todayOf(nowMs());
+    return this.positionsFor(scope)
+      .filter((p) => p.qty.gt(ZERO))
+      .every((p) => isEurPegged(p.asset) || this.liveQuote(p.asset, today) !== null);
   }
 
   /** Série quotidienne valeur / coût, de la veille de la première opération à aujourd'hui. */
   dailySeries(scope: Scope): ValuePoint[] {
     const positions = this.positionsFor(scope);
-    if (positions.length === 0 || !this.firstDay) return [];
+    const firstDay = this.firstDayOf(positions);
+    if (firstDay === null) return [];
     const ops: Record<AssetCode, HoldingOp[]> = {};
     for (const p of positions) ops[p.asset] = [...p.history].reverse();
-    const days = eachDay(addDays(this.firstDay, -1), todayOf(nowMs()));
+    const today = todayOf(nowMs());
     return valueSeries({
       holdings: holdingsByDay(ops),
-      prices: this.pricesFor(Object.keys(ops)),
-      days,
+      prices: this.pricesFor(Object.keys(ops), today),
+      days: eachDay(addDays(firstDay, -1), today),
     });
   }
 
@@ -215,23 +276,17 @@ export class HistoryState {
         cost: p.cost,
         qty: null,
         price: null,
+        estimated: p.missing.length > 0,
       }));
     }
     const positions = this.positionsFor(scope);
-    if (positions.length === 0 || !this.firstDay) return [];
-    const step = holdingStep(positions.flatMap((p) => [...p.history].reverse()));
-    const prices = this.pricesFor([scope])[scope]?.points ?? [];
-    return eachDay(addDays(this.firstDay, -1), todayOf(nowMs())).map((day) => {
-      const state = step(day);
-      const point = lastPointAtOrBefore(prices, day);
-      const price = point === null ? null : D(point.priceEur);
-      return {
-        day,
-        value: price === null ? ZERO : state.qty.times(price),
-        cost: state.cost,
-        qty: state.qty,
-        price,
-      };
+    const firstDay = this.firstDayOf(positions);
+    if (firstDay === null) return [];
+    const today = todayOf(nowMs());
+    return assetMetricPoints({
+      step: holdingStep(positions.flatMap((p) => [...p.history].reverse())),
+      points: this.pricesFor([scope], today)[scope]?.points ?? [],
+      days: eachDay(addDays(firstDay, -1), today),
     });
   }
 
@@ -246,13 +301,17 @@ export class HistoryState {
       cost: p.cost,
       qty,
       price: qty && qty.gt('0') ? p.value.div(qty) : null,
+      estimated: false,
     }));
   }
 
   /** Série des dernières 24 h (pas de 15 min) à partir des avoirs actuels. */
   intradaySeries(scope: Scope): IntradayValuePoint[] {
     const positions = this.positionsFor(scope).filter((p) => p.qty.gt('0'));
-    const to = nowMs();
+    // Fin de grille = dernier chargement : la série glisse à chaque rafraîchissement (réactif).
+    let to = 0;
+    for (const p of positions) to = Math.max(to, this.intradayLoadedAt[p.asset] ?? 0);
+    if (to === 0) to = nowMs();
     return intradayValueSeries({
       points: Object.fromEntries(positions.map((p) => [p.asset, this.intraday[p.asset] ?? []])),
       qty: Object.fromEntries(positions.map((p) => [p.asset, p.qty])),

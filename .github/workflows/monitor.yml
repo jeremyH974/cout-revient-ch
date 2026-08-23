@@ -1,0 +1,96 @@
+name: Monitoring
+
+# Surveillance synthétique du site en ligne et des API tierces, toutes les 6 h (et à la demande).
+# En cas d'échec, une issue unique « [monitoring] » est ouverte ou commentée ; elle est refermée
+# automatiquement quand tout est rétabli. Le job « keepalive » empêche GitHub de désactiver le
+# planning après 60 jours sans commit.
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: monitoring
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: Site en ligne et API tierces
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Parcours de surveillance (site en ligne)
+        id: smoke
+        continue-on-error: true
+        run: npx playwright test --config playwright.monitor.config.ts
+      - name: Contrat des API tierces
+        id: contract
+        continue-on-error: true
+        run: node scripts/api-contract.mjs
+      - name: Garder le planning actif
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable monitor.yml --repo "$GITHUB_REPOSITORY" || true
+      - name: Ouvrir, commenter ou refermer l’issue de surveillance
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          SMOKE: ${{ steps.smoke.outcome }}
+          CONTRACT: ${{ steps.contract.outcome }}
+        with:
+          script: |
+            const fs = require('node:fs');
+            const title = '[monitoring] Surveillance automatique en échec';
+            const label = 'monitoring';
+            const failed = process.env.SMOKE !== 'success' || process.env.CONTRACT !== 'success';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let contract = '';
+            try { contract = fs.readFileSync('monitor-results/api-contract.md', 'utf8'); } catch {}
+            const body = [
+              `Exécution : ${runUrl}`,
+              `- Parcours sur le site en ligne : **${process.env.SMOKE}**`,
+              `- Contrat des API tierces : **${process.env.CONTRACT}**`,
+              '',
+              contract,
+            ].join('\n');
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label });
+            } catch {
+              await github.rest.issues.createLabel({ ...context.repo, name: label, color: 'd73a4a', description: 'Surveillance automatique' });
+            }
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label, per_page: 5 });
+            const existing = open.find((i) => i.title === title);
+            if (failed) {
+              if (existing) {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Toujours en échec.\n\n${body}` });
+              } else {
+                await github.rest.issues.create({ ...context.repo, title, labels: [label], body: `La surveillance automatique a détecté un problème.\n\n${body}` });
+              }
+              core.setFailed('Surveillance en échec : voir l’issue de monitoring.');
+            } else if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Rétabli : tout est de nouveau conforme.\n\n${body}` });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
+            }
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: monitor-results
+          path: |
+            monitor-results
+            test-results
+          retention-days: 14
+          if-no-files-found: ignore

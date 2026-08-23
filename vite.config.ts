@@ -125,6 +125,14 @@ export default defineConfig({
       include: ['src/lib/**/*.ts'],
       exclude: ['src/lib/**/*.test.ts', 'src/lib/**/*.d.ts'],
       reporter: ['text', 'html'],
+      // Seuils bloquants (CI : `npm run test -- --coverage`) : le moteur doit rester le mieux couvert.
+      thresholds: {
+        lines: 80,
+        statements: 80,
+        functions: 78,
+        branches: 65,
+        'src/lib/domain/**/*.ts': { lines: 90, statements: 90, functions: 88, branches: 75 },
+      },
     },
   },
 });

@@ -42,6 +42,12 @@ export class PositionState {
   otherIncome: Big = ZERO;
   investedTotal: Big = ZERO;
   proceedsTotal: Big = ZERO;
+  /**
+   * Capital maximal engagé : le plus haut niveau atteint par `investedTotal − proceedsTotal`.
+   * Dénominateur du ROI : « pour 1 € au plus mobilisé sur cet actif… », insensible aux
+   * allers-retours (vendre puis racheter n'augmente pas la base).
+   */
+  engagedMax: Big = ZERO;
   zeroCostQty: Big = ZERO;
   feesEur: Big = ZERO;
   rebatesEur: Big = ZERO;
@@ -57,12 +63,18 @@ export class PositionState {
     return isPositive(this.qty) ? this.costBasis.div(this.qty) : null;
   }
 
+  /** À appeler après toute variation comptée d'achats/produits (y compris un transfert). */
+  noteEngaged(): void {
+    const engaged = this.investedTotal.minus(this.proceedsTotal);
+    if (engaged.gt(this.engagedMax)) this.engagedMax = engaged;
+  }
+
   /**
    * Acquisition de `qty` unités pour un coût `cost` (EUR all-in).
    * `counted` : le coût entre dans Σ acquisitions (faux pour une récompense).
    */
-  acquire(qty: Big, cost: Big, origin: LotOrigin, counted: boolean, m: Movement): void {
-    if (this.blocked) return;
+  acquire(qty: Big, cost: Big, origin: LotOrigin, counted: boolean, m: Movement): boolean {
+    if (this.blocked) return false;
     this.qty = this.qty.plus(qty);
     this.costBasis = this.costBasis.plus(cost);
     this.lots.push({
@@ -76,7 +88,10 @@ export class PositionState {
       qtyRemaining: qty,
       costRemaining: cost,
     });
-    if (counted) this.investedTotal = this.investedTotal.plus(cost);
+    if (counted) {
+      this.investedTotal = this.investedTotal.plus(cost);
+      this.noteEngaged();
+    }
     if (isZero(cost)) this.zeroCostQty = this.zeroCostQty.plus(qty);
     this.feesEur = this.feesEur.plus(m.feeEur);
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
@@ -96,6 +111,7 @@ export class PositionState {
       qtyAfter: this.qty,
       warnings: m.warnings,
     });
+    return true;
   }
 
   /**
@@ -114,7 +130,12 @@ export class PositionState {
     const warnings = [...m.warnings];
     if (qty.gt(this.qty)) {
       const excess = qty.minus(this.qty);
-      if (excess.lte(this.qty.times(OVERSELL_TOLERANCE).plus('0.000000001'))) {
+      // Tolérance de résidu seulement sur une position réellement détenue : vendre un actif
+      // jamais acheté, même une poussière, est un historique manquant, pas un arrondi.
+      if (
+        isPositive(this.qty) &&
+        excess.lte(this.qty.times(OVERSELL_TOLERANCE).plus('0.000000001'))
+      ) {
         warnings.push(
           `Quantité ajustée de ${qty.toString()} à ${this.qty.toString()} (résidu d'arrondi).`,
         );
@@ -160,7 +181,10 @@ export class PositionState {
     this.realized = this.realized.plus(realized);
     this.costBasis = fullClose ? ZERO : this.costBasis.minus(costOfSale);
     this.qty = fullClose ? ZERO : this.qty.minus(qty);
-    if (counted) this.proceedsTotal = this.proceedsTotal.plus(proceeds);
+    if (counted) {
+      this.proceedsTotal = this.proceedsTotal.plus(proceeds);
+      this.noteEngaged();
+    }
     this.feesEur = this.feesEur.plus(m.feeEur);
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
     this.history.push({

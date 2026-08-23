@@ -77,7 +77,8 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function isEurPegged(asset: AssetCode): boolean {
+/** Actif valant 1 € par construction (euro ou stablecoin à parité euro). */
+export function isEurPegged(asset: AssetCode): boolean {
   return asset === 'eur' || EUR_PEGGED.has(asset);
 }
 

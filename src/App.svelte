@@ -7,15 +7,27 @@
   import Help from './routes/Help.svelte';
   import Import from './routes/Import.svelte';
   import ManualEntry from './routes/ManualEntry.svelte';
+  import News from './routes/News.svelte';
   import Portfolio from './routes/Portfolio.svelte';
   import Privacy from './routes/Privacy.svelte';
   import Report from './routes/Report.svelte';
   import Settings from './routes/Settings.svelte';
   import Welcome from './routes/Welcome.svelte';
+  import { recordError } from '$lib/support/errors';
+  import SupportSection from './components/settings/SupportSection.svelte';
   import { app } from './state/app.svelte';
   import { toasts, update } from './state/ui.svelte';
 
   const route = $derived(router.route);
+
+  function seenVersion(): void {
+    app.setUi({ lastSeenVersion: __APP_VERSION__ });
+  }
+  onMount(() => {
+    // Première visite : on mémorise la version sans rien dire ; ensuite, un bandeau signale
+    // chaque mise à jour installée et renvoie vers les nouveautés.
+    if (app.state.ui.lastSeenVersion === null) seenVersion();
+  });
 
   function leaveDemo(): void {
     app.exitDemo();
@@ -62,6 +74,13 @@
       <button type="button" onclick={() => update.apply()}>Recharger</button>
     </div>
   {/if}
+  {#if app.state.ui.lastSeenVersion !== null && app.state.ui.lastSeenVersion !== __APP_VERSION__}
+    <div class="update news" role="status">
+      Version {__APP_VERSION__} installée.
+      <a href={router.href({ name: 'news' })} onclick={seenVersion}>Voir les nouveautés</a>
+      <button type="button" onclick={seenVersion} aria-label="Masquer ce message">✕</button>
+    </div>
+  {/if}
   {#if app.loadError}
     <div class="update error" role="alert">
       Données locales illisibles ({app.loadError}). Restaurez une sauvegarde depuis les réglages.
@@ -74,25 +93,53 @@
     </div>
   {/if}
   <main>
-    {#if route.name === 'welcome'}
-      <Welcome />
-    {:else if route.name === 'asset'}
-      <AssetDetail asset={route.asset} />
-    {:else if route.name === 'import'}
-      <Import />
-    {:else if route.name === 'add'}
-      <ManualEntry />
-    {:else if route.name === 'settings'}
-      <Settings />
-    {:else if route.name === 'privacy'}
-      <Privacy />
-    {:else if route.name === 'help'}
-      <Help />
-    {:else if route.name === 'report'}
-      <Report />
-    {:else}
-      <Portfolio />
-    {/if}
+    <!-- Une erreur dans une page ne doit jamais laisser un écran blanc : on l'explique et on
+         donne le diagnostic à copier (message + pile, jamais de données). -->
+    <svelte:boundary onerror={(error) => recordError(error, 'page')}>
+      {#if route.name === 'welcome'}
+        <Welcome />
+      {:else if route.name === 'asset'}
+        <AssetDetail asset={route.asset} />
+      {:else if route.name === 'import'}
+        <Import />
+      {:else if route.name === 'add'}
+        <ManualEntry />
+      {:else if route.name === 'settings'}
+        <Settings />
+      {:else if route.name === 'privacy'}
+        <Privacy />
+      {:else if route.name === 'help'}
+        <Help />
+      {:else if route.name === 'report'}
+        <Report />
+      {:else if route.name === 'news'}
+        <News />
+      {:else}
+        <Portfolio />
+      {/if}
+      {#snippet failed(error, reset)}
+        <section class="card crash" role="alert">
+          <h2>Une erreur inattendue s’est produite sur cette page</h2>
+          <p class="muted">
+            Vos données sont intactes (elles sont enregistrées dans ce navigateur). Réessayez, ou
+            copiez le diagnostic ci-dessous et signalez le problème : il contient le message
+            d’erreur, jamais vos montants.
+          </p>
+          <p class="error-text">
+            {error instanceof Error ? `${error.name} : ${error.message}` : String(error)}
+          </p>
+          <div class="crash-actions">
+            <button class="primary" type="button" onclick={reset}>Réessayer</button>
+            <button
+              class="secondary"
+              type="button"
+              onclick={() => router.navigate({ name: 'portfolio' })}>Retour au portefeuille</button
+            >
+          </div>
+          <SupportSection intro="Le diagnostic ci-dessous inclut l’erreur rencontrée." />
+        </section>
+      {/snippet}
+    </svelte:boundary>
   </main>
   <BottomNav />
   <Toasts />
@@ -132,6 +179,49 @@
     /* Couleurs fixes (pas de jeton de thème) : contraste ≥ 12:1 en clair comme en sombre. */
     background: #fbbf24;
     color: #1a1208;
+  }
+  .update.news a {
+    color: inherit;
+    font-weight: 700;
+  }
+  .crash {
+    margin: var(--space-4) auto;
+    max-width: 640px;
+    padding: var(--space-4);
+    display: grid;
+    gap: var(--space-3);
+    border-color: var(--loss);
+  }
+  .crash h2 {
+    color: var(--loss);
+  }
+  .error-text {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+    overflow-wrap: anywhere;
+  }
+  .crash-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+  .crash .primary,
+  .crash .secondary {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    padding: 0 var(--space-4);
+    border-radius: var(--radius-sm);
+    font-weight: 700;
+  }
+  .crash .primary {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .crash .secondary {
+    border: 1px solid var(--border);
+    color: var(--fg);
   }
   @media (min-width: 768px) {
     main {

@@ -57,3 +57,21 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (WCAG 2.2 AA) sur chaque route, PWA (manifeste, service worker, CSP, aucune erreur console).
 - **Lighthouse CI** (`lighthouserc.json`) : accessibilité, bonnes pratiques, SEO ≥ 0,95 (erreur),
   performance ≥ 0,9 (avertissement). Rapports en artefacts de CI ; `deploy` attend `check` et `e2e`.
+
+## Amélioration continue
+
+- **Auto-vérifications** (`src/lib/support/self-check.ts`, section Réglages + rappel en pied de
+  portefeuille) : invariant comptable par actif, lots ↔ position, soldes Coinhouse, opérations à
+  qualifier, prix (manquants/périmés/anciens), sauvegarde. Compteurs et tickers seulement.
+- **Oracle indépendant** (`tests/integration/independent-oracle.test.ts`) : parseur minimal +
+  boucle naïve, comparé au moteur à 1e-9 (fixture et export réel local).
+- **Retours** : diagnostic copiable (`diagnostic.ts`, jamais de montant) + formulaire GitHub
+  pré-rempli par identifiants de champs (`links.ts`) ; erreurs capturées (`errors.ts`,
+  `<svelte:boundary>` dans `App.svelte`, `error`/`unhandledrejection`).
+- **Surveillance** (`.github/workflows/monitor.yml`, `tests/monitor/`, `scripts/api-contract.mjs`) :
+  site en ligne + forme des réponses des fournisseurs ; issue unique ouverte/refermée
+  automatiquement ; réactivation du planning à chaque exécution.
+- **Nouveautés** (`src/lib/support/changelog.ts`, `src/routes/News.svelte`) : `CHANGELOG.md`
+  rendu dans l'app ; `ui.lastSeenVersion` déclenche un bandeau à chaque mise à jour.
+- **Garde-fous** : seuils de couverture Vitest (`vite.config.ts`), propriétés fast-check, E2E, axe,
+  Lighthouse CI, Dependabot (délai), CodeQL, Scorecard.

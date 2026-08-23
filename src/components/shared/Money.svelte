@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Big } from '$lib/domain/money';
-  import { fmtMoney } from '$lib/format/fr';
+  import { fmtMasked, fmtMoney, roundsToZero } from '$lib/format/fr';
   import { app } from '../../state/app.svelte';
 
   let {
@@ -21,13 +21,12 @@
     value === null
       ? '—'
       : app.state.ui.discreet
-        ? app.currency === 'USD'
-          ? '•••• $'
-          : '•••• €'
+        ? fmtMasked(app.currency)
         : fmtMoney(value, app.currency, { sign, compact }),
   );
+  // Couleur décidée sur la valeur arrondie : « 0,00 € » n'est ni un gain ni une perte.
   const tone = $derived(
-    !colored || value === null ? '' : value.lt('0') ? 'loss' : value.gt('0') ? 'gain' : '',
+    !colored || value === null || roundsToZero(value) ? '' : value.lt('0') ? 'loss' : 'gain',
   );
 </script>
 

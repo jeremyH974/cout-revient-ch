@@ -16,6 +16,7 @@ export default ts.config(
       'test-results/',
       'blob-report/',
       '.lighthouseci/',
+      'monitor-results/',
     ],
   },
   js.configs.recommended,
