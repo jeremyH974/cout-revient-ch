@@ -14,3 +14,34 @@ export function downloadText(
   anchor.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Web Share avec fichiers disponible (iOS/Android, Chrome/Edge desktop ; pas Firefox). */
+export function canShareFiles(filename = 'sauvegarde.json', type = 'application/json'): boolean {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') return false;
+  try {
+    const probe = new File(['{}'], filename, { type });
+    return navigator.canShare?.({ files: [probe] }) === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Partage un texte comme fichier (sur iPhone : « Enregistrer dans Fichiers », AirDrop…).
+ * `false` si le partage n'a pas eu lieu (annulé ou non disponible) : l'appelant propose alors le
+ * téléchargement classique.
+ */
+export async function shareTextFile(
+  filename: string,
+  text: string,
+  type = 'application/json',
+): Promise<boolean> {
+  if (!canShareFiles(filename, type)) return false;
+  try {
+    await navigator.share({ files: [new File([text], filename, { type })], title: filename });
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') return false;
+    return false;
+  }
+}

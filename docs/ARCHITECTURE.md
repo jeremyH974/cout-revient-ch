@@ -37,9 +37,15 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   docs/DECISIONS.md n° 18). Hôtes autorisés par la CSP (`vite.config.ts`) : api.coingecko.com,
   api.coinbase.com, api.exchange.coinbase.com, api.kraken.com, api.hyperliquid.xyz,
   coins.llama.fi, api.frankfurter.dev/.app.
-- `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, localStorage (clé
-  `crch:v1:state`), sauvegarde JSON et fusion. `accounts: Record<AccountId, Account>` ne contient
-  que les comptes **déclarés** par l'utilisateur (id `man:<aléatoire>`, assaini par motif
+- `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, sauvegarde JSON et fusion.
+  Persistance à deux étages (docs/DECISIONS.md n° 21) : `idb-state-store.ts` (IndexedDB, base
+  `crch-state`, source principale, sans le plafond ~5 Mo de localStorage) et `local-storage.ts`
+  (clé `crch:v1:state`, miroir synchrone) ; `state-store.ts` les orchestre — au chargement,
+  l'instantané le plus récent gagne (`savedAt`), à égalité le miroir l'emporte ; à l'enregistrement,
+  IndexedDB puis miroir, `ok` dès que l'un des deux réussit. `encryption.ts` chiffre en option la
+  sauvegarde téléchargeable par phrase secrète (PBKDF2-HMAC-SHA-256 → AES-GCM-256, `crypto.subtle`,
+  zéro dépendance). `accounts: Record<AccountId, Account>` ne contient que les comptes
+  **déclarés** par l'utilisateur (id `man:<aléatoire>`, assaini par motif
   `^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$`) ; les comptes **implicites** (Coinhouse `ch:main`, saisies
   « hors Coinhouse » `man:default`) ne sont jamais persistés, ils existent dès qu'un événement les
   référence (`AppState.accounts`, dérivé).

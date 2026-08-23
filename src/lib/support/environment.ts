@@ -6,10 +6,28 @@ export interface EnvironmentSnapshot {
   storage: Pick<DiagnosticInput['storage'], 'persisted' | 'usageBytes' | 'quotaBytes'>;
 }
 
+/** Installé (écran d'accueil / PWA) : Safari iOS ne purge pas le stockage d'une app installée. */
+export function isStandalone(): boolean {
+  if (typeof window === 'undefined') return false;
+  const nav = navigator as Navigator & { standalone?: boolean };
+  return (
+    (window.matchMedia?.('(display-mode: standalone)').matches ?? false) || nav.standalone === true
+  );
+}
+
+/** iPhone/iPad (détection par agent utilisateur, signal indicatif : iPadOS peut se dire « Mac »). */
+export function isIOS(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const nav = navigator as Navigator & { maxTouchPoints?: number };
+  return (
+    /iPad|iPhone|iPod/.test(nav.userAgent) ||
+    (nav.platform === 'MacIntel' && (nav.maxTouchPoints ?? 0) > 1)
+  );
+}
+
 export async function collectEnvironment(): Promise<EnvironmentSnapshot> {
   const nav = navigator as Navigator & { standalone?: boolean };
-  const standalone =
-    (window.matchMedia?.('(display-mode: standalone)').matches ?? false) || nav.standalone === true;
+  const standalone = isStandalone();
   let persisted: boolean | null = null;
   let usageBytes: number | null = null;
   let quotaBytes: number | null = null;

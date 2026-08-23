@@ -16,6 +16,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - Comptes : écran « Comptes » (Plus), rattachement des saisies manuelles à un compte, filtre
   « Plateforme » sur les positions avec PRU par plateforme, colonne « Compte » dans l'export des
   opérations.
+- Sauvegarde robuste : état principal dans IndexedDB (plus de plafond de 5 Mo), miroir localStorage,
+  sauvegarde automatique dans un dossier choisi (Chrome/Edge), chiffrement optionnel de la
+  sauvegarde par phrase secrète, partage vers Fichiers et rappel « écran d'accueil » sur iPhone.
 
 ### Changed
 

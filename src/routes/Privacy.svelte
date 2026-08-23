@@ -7,9 +7,13 @@
 <article class="doc">
   <h2>Où sont vos données ?</h2>
   <p>
-    Uniquement dans ce navigateur, sur cet appareil (stockage local). Aucun serveur ne les reçoit :
-    l'application est un simple site statique. Vider les données de navigation ou changer d'appareil
-    les efface — d'où la sauvegarde JSON proposée dans les réglages.
+    Uniquement dans ce navigateur, sur cet appareil (stockage local du navigateur : IndexedDB, avec
+    une copie de secours). Aucun serveur ne les reçoit : l'application est un simple site statique.
+    Vider les données de navigation ou changer d'appareil les efface — d'où la sauvegarde JSON
+    proposée dans les réglages. Si vous choisissez un dossier de sauvegarde automatique (Chrome,
+    Edge), le fichier est écrit sur votre disque, par votre navigateur, sans passer par un serveur ;
+    si vous chiffrez une sauvegarde, la phrase secrète n'est jamais enregistrée : perdue, la
+    sauvegarde est illisible.
   </p>
   <h2>Qu'est-ce qui sort de votre appareil ?</h2>
   <ul>

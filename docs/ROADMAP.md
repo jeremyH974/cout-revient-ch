@@ -156,7 +156,7 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P9  | Carte de partage en image + résumé texte pour Discord                                                                                                                        |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
 | P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                                                                                                     |   2    |     5     |    2    |   1,5    |   6    |     0     |
 | P10 | Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                                                                                          |   5    |     2     |    4    |    2     |  5,5   |     2     |
-| P12 | Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                                                |   3    |     5     |    3    |    2     |  5,5   |     2     |
+| P12 | **Livré (v2, 23/08/2026).** Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                    |   3    |     5     |    3    |    2     |  5,5   |     2     |
 | P5  | **Livré (v1.1, 23/08/2026) — alias réels à compléter avec les testeurs.** Import v2 : variantes d'export, en-têtes EN, nouveaux types Coinhouse, écran « À qualifier » guidé |   5    |     5     |    5    |    3     |   5    |     1     |
 | P7  | Frais réels et spread implicite par opération + « abonnement rentable ? »                                                                                                    |   5    |     2     |    5    |   2,5    |  4,8   |     1     |
 | P14 | Transfert entre appareils (QR / lien compressé)                                                                                                                              |   2    |     2     |    3    |   1,5    |  4,7   |     3     |
@@ -296,6 +296,8 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
   total. Fonctions attendues partout (eToro, Kubera, Ghostfolio) pour un effort faible.
 
 **P12 — Sauvegarde robuste (2 sessions)**
+
+**Livré (v2, 23/08/2026).**
 
 - Quoi : état principal déplacé de localStorage (5 Mo) vers IndexedDB ; sur Chrome/Edge desktop,
   sauvegarde automatique dans un dossier choisi une fois (ex. iCloud Drive/OneDrive/Google Drive)

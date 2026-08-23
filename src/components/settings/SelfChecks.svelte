@@ -1,5 +1,6 @@
 <script lang="ts">
   import { nowIso } from '$lib/clock';
+  import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks, summarize, type CheckLevel } from '$lib/support/self-check';
   import { app } from '../../state/app.svelte';
 
@@ -19,6 +20,7 @@
         persisted: null,
         saveError: app.saveError,
       },
+      platform: { ios: isIOS(), standalone: isStandalone() },
       now: nowIso(),
     }),
   );

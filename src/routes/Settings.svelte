@@ -2,13 +2,19 @@
   import { nowMs } from '$lib/clock';
   import { D } from '$lib/domain/money';
   import { lotsToCsv, operationsToCsv, positionsToCsv } from '$lib/export/csv-export';
-  import { downloadText } from '$lib/export/download';
+  import { canShareFiles, downloadText, shareTextFile } from '$lib/export/download';
   import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
   import SelfChecks from '../components/settings/SelfChecks.svelte';
   import SupportSection from '../components/settings/SupportSection.svelte';
+  import {
+    decryptBackup,
+    encryptBackup,
+    isEncryptedBackup,
+    type EncryptedBackup,
+  } from '$lib/storage/encryption';
   import Sheet from '../components/shared/Sheet.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
@@ -25,18 +31,86 @@
     Object.entries(app.state.assetSettings).filter(([, s]) => s.manualPriceEur),
   );
 
-  function backup(): void {
-    const prefix = app.state.ui.demoMode ? 'demo-' : '';
-    downloadText(
-      `${prefix}cout-revient-ch-sauvegarde-${stamp()}.json`,
-      app.exportBackup(),
-      'application/json',
+  /** Chiffrement optionnel de la sauvegarde (la phrase secrète n'est jamais enregistrée). */
+  let encrypt = $state(false);
+  let passphrase = $state('');
+  const MIN_PASSPHRASE = 8;
+  const backupFileName = (): string =>
+    `${app.state.ui.demoMode ? 'demo-' : ''}cout-revient-ch-sauvegarde-${stamp()}${encrypt ? '-chiffree' : ''}.json`;
+  /** Contenu de la sauvegarde : JSON en clair, ou enveloppe chiffrée ; `null` si la phrase est trop courte. */
+  async function backupText(): Promise<string | null> {
+    const json = app.exportBackup();
+    if (!encrypt) return json;
+    if (passphrase.length < MIN_PASSPHRASE) {
+      toasts.push(`Phrase secrète : ${MIN_PASSPHRASE} caractères minimum.`, 'error');
+      return null;
+    }
+    return JSON.stringify(await encryptBackup(json, passphrase), null, 1);
+  }
+  async function backup(): Promise<void> {
+    const text = await backupText();
+    if (text === null) return;
+    downloadText(backupFileName(), text, 'application/json');
+    toasts.push(
+      encrypt ? 'Sauvegarde chiffrée téléchargée.' : 'Sauvegarde téléchargée.',
+      'success',
     );
-    toasts.push('Sauvegarde téléchargée.', 'success');
+  }
+  /** iPhone/iPad (et Android) : « Enregistrer dans Fichiers », AirDrop… plutôt qu'un téléchargement. */
+  async function share(): Promise<void> {
+    const text = await backupText();
+    if (text === null) return;
+    const shared = await shareTextFile(backupFileName(), text);
+    if (shared) toasts.push('Sauvegarde partagée.', 'success');
+  }
+  /** Restauration d'une sauvegarde chiffrée : le fichier attend sa phrase secrète. */
+  let pendingEncrypted = $state<EncryptedBackup | null>(null);
+  let restorePassphrase = $state('');
+  let askPassphrase = $state(false);
+  async function decryptAndRestore(): Promise<void> {
+    if (!pendingEncrypted) return;
+    try {
+      const json = await decryptBackup(pendingEncrypted, restorePassphrase);
+      askPassphrase = false;
+      pendingEncrypted = null;
+      restorePassphrase = '';
+      applyRestore(json);
+    } catch (error) {
+      toasts.push(error instanceof Error ? error.message : String(error), 'error');
+    }
+  }
+  const shareAvailable = canShareFiles();
+  async function chooseFolder(): Promise<void> {
+    try {
+      if (await app.chooseBackupFolder())
+        toasts.push(
+          'Dossier choisi : la sauvegarde y sera réécrite à chaque modification.',
+          'success',
+        );
+    } catch (error) {
+      toasts.push(`Dossier refusé : ${String(error)}`, 'error');
+    }
   }
   async function restore(file: File | undefined): Promise<void> {
     if (!file) return;
-    const result = app.restoreBackup(await file.text(), restoreMode);
+    const text = await file.text();
+    const parsed = ((): unknown => {
+      try {
+        return JSON.parse(text);
+      } catch {
+        return null;
+      }
+    })();
+    if (isEncryptedBackup(parsed)) {
+      pendingEncrypted = parsed;
+      restorePassphrase = '';
+      askPassphrase = true;
+      return;
+    }
+    applyRestore(text);
+  }
+  function applyRestore(text: string): void {
+    const result = app.restoreBackup(text, restoreMode);
     if (!result.ok) return toasts.push(result.error, 'error');
     toasts.push(
       restoreMode === 'replace' ? 'Sauvegarde restaurée.' : 'Sauvegarde fusionnée.',
@@ -68,10 +142,67 @@
           : 'non garanti'}.
     </p>
     <div class="row">
-      <button class="primary" type="button" onclick={backup}
+      <button class="primary" type="button" onclick={() => void backup()}
         >Télécharger une sauvegarde (JSON)</button
       >
+      {#if shareAvailable}
+        <button class="secondary" type="button" onclick={() => void share()}
+          >Partager vers Fichiers…</button
+        >
+      {/if}
     </div>
+    <div class="row encrypt">
+      <label class="check"
+        ><input type="checkbox" bind:checked={encrypt} /> Chiffrer la sauvegarde avec une phrase secrète</label
+      >
+      {#if encrypt}
+        <input
+          type="password"
+          autocomplete="new-password"
+          placeholder="Phrase secrète (8 caractères minimum)"
+          aria-label="Phrase secrète"
+          bind:value={passphrase}
+        />
+        <span class="muted small"
+          >AES-GCM, clé dérivée de la phrase (PBKDF2, 600 000 itérations). La phrase n'est jamais
+          enregistrée : perdue, la sauvegarde est illisible.</span
+        >
+      {/if}
+    </div>
+    {#if app.folderBackup.supported}
+      <div class="row folder">
+        {#if app.folderBackup.folderName === null}
+          <button class="secondary" type="button" onclick={() => void chooseFolder()}
+            >Sauvegarde automatique dans un dossier…</button
+          >
+          <span class="muted small"
+            >Chrome et Edge sur ordinateur : le fichier <code>cout-revient-ch-sauvegarde.json</code>
+            est réécrit dans le dossier choisi (par exemple OneDrive, Google Drive ou iCloud Drive) à
+            chaque modification.</span
+          >
+        {:else}
+          <span class="small"
+            >Dossier de sauvegarde automatique : <strong>{app.folderBackup.folderName}</strong> ·
+            {#if app.folderBackup.permission === 'granted'}
+              {app.folderBackup.lastWriteAt
+                ? `dernière écriture ${fmtRelative(app.folderBackup.lastWriteAt, nowMs())}`
+                : 'en attente de la prochaine modification'}
+            {:else}
+              <span class="warn">permission requise</span>
+            {/if}
+            {#if app.folderBackup.error}<span class="warn"> · {app.folderBackup.error}</span>{/if}
+          </span>
+          {#if app.folderBackup.permission !== 'granted'}
+            <button class="secondary" type="button" onclick={() => void app.reconnectBackupFolder()}
+              >Reconnecter le dossier</button
+            >
+          {/if}
+          <button class="link" type="button" onclick={() => void app.stopBackupFolder()}
+            >Arrêter</button
+          >
+        {/if}
+      </div>
+    {/if}
     <div class="row">
       <label class="file"
         ><input
@@ -259,12 +390,29 @@
     Avez-vous une sauvegarde ?
   </p>
   <div class="row">
-    <button class="secondary" type="button" onclick={backup}>Télécharger d'abord</button><button
-      class="primary danger"
-      type="button"
-      onclick={clearAll}>Effacer</button
-    >
+    <button class="secondary" type="button" onclick={() => void backup()}
+      >Télécharger d'abord</button
+    ><button class="primary danger" type="button" onclick={clearAll}>Effacer</button>
   </div>
+</Sheet>
+
+<Sheet bind:open={askPassphrase} title="Sauvegarde chiffrée">
+  <p>Ce fichier a été chiffré avec une phrase secrète : saisissez-la pour le restaurer.</p>
+  <form
+    onsubmit={(e) => {
+      e.preventDefault();
+      void decryptAndRestore();
+    }}
+  >
+    <input
+      type="password"
+      autocomplete="current-password"
+      placeholder="Phrase secrète"
+      aria-label="Phrase secrète de la sauvegarde"
+      bind:value={restorePassphrase}
+    />
+    <button class="primary" type="submit">Déchiffrer et restaurer</button>
+  </form>
 </Sheet>
 
 <style>
@@ -359,6 +507,24 @@
   .link {
     color: var(--accent);
     text-decoration: underline;
+  }
+  .folder {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .encrypt {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+  .check {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+  }
+  .folder code {
+    font-size: var(--fs-xs);
   }
   .small {
     font-size: var(--fs-xs);

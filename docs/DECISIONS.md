@@ -106,3 +106,27 @@
     quantité s'additionne à l'identique, voir `src/lib/domain/engine/accounts.test.ts`. Le contrôle
     de solde Coinhouse (`checkBalances`) reste limité au compte Coinhouse :
     `computePortfolioByAccount` ne transmet `balances` qu'à `ch:main`.
+
+21. **Sauvegarde robuste : IndexedDB en source principale, chiffrement optionnel** (23/08/2026,
+    proposition v2 § P12). L'état principal quitte localStorage (plafond ~5 Mo, déjà proche pour les
+    gros portefeuilles) pour IndexedDB (base `crch-state`, `src/lib/storage/idb-state-store.ts`) ;
+    localStorage devient un miroir écrit en synchrone à chaque enregistrement et à la fermeture de la
+    page — seule écriture garantie quand iOS gèle ou décharge l'onglet. Au chargement
+    (`state-store.ts`), l'instantané le plus récent gagne par `savedAt` ; à égalité le miroir
+    l'emporte, ce qui couvre à la fois la migration v1 → IndexedDB (rien en IndexedDB, ou un miroir
+    déposé manuellement) et les états écrits directement dans localStorage (tests, restauration).
+    `init()` devient asynchrone et est attendu avant le montage de l'interface. Une sauvegarde
+    automatique sur disque (Chrome/Edge desktop, File System Access, handle conservé en IndexedDB,
+    permission persistante) complète le filet de sécurité sans dépendre du presse-papiers ni d'un
+    clic répété. Chiffrement optionnel de la sauvegarde téléchargeable par phrase secrète :
+    PBKDF2-HMAC-SHA-256 (600 000 itérations, recommandation OWASP 2023+) dérive une clé AES-GCM-256,
+    toutes deux natives à `crypto.subtle` (`src/lib/storage/encryption.ts`, zéro dépendance).
+    Argon2id, pourtant recommandé par l'OWASP en 2024+, a été écarté : il n'existe qu'en WebAssembly
+    ou en JS pur, une dépendance de plus dans le chemin critique « restaurer mes données » pour un
+    gain marginal face à la menace réelle (vol du fichier, pas une ferme de calcul dédiée). Une
+    phrase secrète perdue rend la sauvegarde définitivement irrécupérable — aucun compte, aucun
+    service de réinitialisation. `fake-indexeddb` (dépendance de développement uniquement, jamais
+    importée en production) simule IndexedDB dans les tests Vitest (environnement Node, sans
+    IndexedDB natif) ; stub explicite par test (`vi.stubGlobal('indexedDB', new IDBFactory())`)
+    plutôt que `fake-indexeddb/auto`, pour rester local au fichier de test grâce à l'isolation par
+    fichier de Vitest (`isolate: true`).

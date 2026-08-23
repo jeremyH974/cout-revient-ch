@@ -38,11 +38,22 @@ import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
 import {
-  clearState,
-  loadState,
-  requestPersistentStorage,
-  saveState,
-} from '$lib/storage/local-storage';
+  chooseBackupFolder,
+  forgetBackupFolder,
+  isFolderBackupSupported,
+  loadBackupFolder,
+  queryFolderPermission,
+  requestFolderPermission,
+  writeBackupFile,
+  type FolderPermission,
+} from '$lib/storage/backup-folder';
+import { requestPersistentStorage } from '$lib/storage/local-storage';
+import {
+  clearPersistedState,
+  loadPersistedState,
+  mirrorStateSync,
+  savePersistedState,
+} from '$lib/storage/state-store';
 import {
   emptyState,
   type AssetSettings,
@@ -59,6 +70,15 @@ export interface PriceStatus {
   lastRefreshAt: string | null;
 }
 
+/** Sauvegarde automatique dans un dossier (Chrome/Edge sur ordinateur). */
+export interface FolderBackupStatus {
+  supported: boolean;
+  folderName: string | null;
+  permission: FolderPermission | null;
+  lastWriteAt: string | null;
+  error: string | null;
+}
+
 export interface QualifiedSummary {
   eventId: EventId;
   qualification: Qualification;
@@ -68,6 +88,7 @@ export interface QualifiedSummary {
 }
 
 const EPOCH = '1970-01-01T00:00:00.000Z';
+const FOLDER_WRITE_DEBOUNCE_MS = 2_000;
 const PRICE_MAX_AGE_MS = 10 * 60_000;
 const SAVE_DEBOUNCE_MS = 300;
 
@@ -85,6 +106,15 @@ export class AppState {
   });
   liveQuotes = $state<Record<AssetCode, PriceQuoteInput>>({});
   fxStatus = $state<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  folderBackup = $state<FolderBackupStatus>({
+    supported: false,
+    folderName: null,
+    permission: null,
+    lastWriteAt: null,
+    error: null,
+  });
+  private folderHandle: FileSystemDirectoryHandle | null = null;
+  private folderTimer: ReturnType<typeof setTimeout> | null = null;
 
   events = $derived.by((): LedgerEvent[] => {
     const { events } = normalizeCoinhouseRows(
@@ -234,9 +264,12 @@ export class AppState {
     [...this.report.positions, ...this.report.stablecoins].map((p) => p.asset),
   );
 
-  /** Charge localStorage et installe la persistance automatique (débouncée). */
-  init(): void {
-    const loaded = loadState();
+  /**
+   * Charge l'état persisté (IndexedDB, sinon miroir localStorage) et installe la persistance
+   * automatique débouncée. Appelée (et attendue) avant le montage de l'application.
+   */
+  async init(): Promise<void> {
+    const loaded = await loadPersistedState();
     this.state = loaded.state;
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
@@ -247,9 +280,26 @@ export class AppState {
       if (timer) clearTimeout(timer);
       timer = null;
       if (!pending) return;
-      const result = saveState(pending);
+      const snapshot = pending;
       pending = null;
-      this.saveError = result.ok ? null : result.error;
+      void savePersistedState(snapshot, nowIso()).then((result) => {
+        this.saveError = result.ok ? null : result.error;
+        if (result.ok) this.scheduleFolderWrite(snapshot);
+      });
+    };
+    // Fermeture ou arrière-plan : une écriture IndexedDB asynchrone peut ne jamais aboutir (onglet
+    // gelé sur iOS) ; le miroir localStorage, synchrone, est alors la seule écriture garantie.
+    const flushSync = (): void => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (!pending) return;
+      const snapshot = pending;
+      pending = null;
+      const savedAt = nowIso();
+      mirrorStateSync(snapshot, savedAt);
+      void savePersistedState(snapshot, savedAt).then((result) => {
+        if (!result.ok) this.saveError = result.error;
+      });
     };
     $effect.root(() => {
       $effect(() => {
@@ -261,11 +311,100 @@ export class AppState {
     // Un rechargement, une fermeture ou un passage en arrière-plan (mobile) juste après une
     // modification ne doit jamais perdre la sauvegarde en attente.
     if (typeof window !== 'undefined') {
-      window.addEventListener('pagehide', flush);
+      window.addEventListener('pagehide', flushSync);
       document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') flush();
+        if (document.visibilityState === 'hidden') flushSync();
       });
     }
+    void this.initFolderBackup();
+  }
+
+  // --- Sauvegarde automatique dans un dossier ---------------------------------------------------
+
+  private async initFolderBackup(): Promise<void> {
+    const supported = isFolderBackupSupported();
+    this.folderBackup = { ...this.folderBackup, supported };
+    if (!supported) return;
+    const handle = await loadBackupFolder();
+    if (!handle) return;
+    this.folderHandle = handle;
+    this.folderBackup = {
+      ...this.folderBackup,
+      folderName: handle.name,
+      permission: await queryFolderPermission(handle),
+    };
+  }
+
+  /**
+   * Écriture différée du fichier de sauvegarde : jamais en mode démo (le fichier de l'utilisateur
+   * serait écrasé par des données fictives) ni sans données (après « Effacer », le dernier bon
+   * fichier reste sur le disque).
+   */
+  private scheduleFolderWrite(snapshot: StoredStateV1): void {
+    if (!this.folderHandle || this.folderBackup.permission !== 'granted') return;
+    if (snapshot.ui.demoMode) return;
+    if (
+      Object.keys(snapshot.rawRows).length === 0 &&
+      Object.keys(snapshot.manualEvents).length === 0
+    )
+      return;
+    if (this.folderTimer) clearTimeout(this.folderTimer);
+    this.folderTimer = setTimeout(() => {
+      this.folderTimer = null;
+      void this.writeFolderBackup(snapshot);
+    }, FOLDER_WRITE_DEBOUNCE_MS);
+  }
+
+  private async writeFolderBackup(snapshot: StoredStateV1): Promise<void> {
+    if (!this.folderHandle) return;
+    try {
+      await writeBackupFile(this.folderHandle, serializeBackup(snapshot, nowIso()));
+      this.folderBackup = { ...this.folderBackup, lastWriteAt: nowIso(), error: null };
+    } catch (error) {
+      const denied = error instanceof DOMException && error.name === 'NotAllowedError';
+      this.folderBackup = {
+        ...this.folderBackup,
+        permission: denied ? 'prompt' : this.folderBackup.permission,
+        error: denied ? null : `Écriture impossible : ${String(error)}`,
+      };
+    }
+  }
+
+  /** Depuis un clic : choisit le dossier, puis écrit tout de suite une première sauvegarde. */
+  async chooseBackupFolder(): Promise<boolean> {
+    const handle = await chooseBackupFolder();
+    if (!handle) return false;
+    this.folderHandle = handle;
+    this.folderBackup = {
+      ...this.folderBackup,
+      folderName: handle.name,
+      permission: 'granted',
+      error: null,
+    };
+    await this.writeFolderBackup($state.snapshot(this.state));
+    return true;
+  }
+
+  /** Depuis un clic : redemande la permission après un rechargement du navigateur. */
+  async reconnectBackupFolder(): Promise<void> {
+    if (!this.folderHandle) return;
+    const permission = await requestFolderPermission(this.folderHandle);
+    this.folderBackup = { ...this.folderBackup, permission };
+    if (permission === 'granted') await this.writeFolderBackup($state.snapshot(this.state));
+  }
+
+  async stopBackupFolder(): Promise<void> {
+    if (this.folderTimer) clearTimeout(this.folderTimer);
+    this.folderTimer = null;
+    this.folderHandle = null;
+    await forgetBackupFolder();
+    this.folderBackup = {
+      ...this.folderBackup,
+      folderName: null,
+      permission: null,
+      lastWriteAt: null,
+      error: null,
+    };
   }
 
   /**
@@ -474,7 +613,7 @@ export class AppState {
   }
 
   clearAll(): void {
-    clearState();
+    void clearPersistedState();
     this.state = emptyState();
     this.liveQuotes = {};
   }

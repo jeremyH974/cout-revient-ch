@@ -6,6 +6,7 @@
    */
   import { nowIso } from '$lib/clock';
   import { router } from '$lib/router.svelte';
+  import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks } from '$lib/support/self-check';
   import AppBar from '../components/layout/AppBar.svelte';
   import Money from '../components/shared/Money.svelte';
@@ -29,6 +30,7 @@
         persisted: null,
         saveError: app.saveError,
       },
+      platform: { ios: isIOS(), standalone: isStandalone() },
       now: nowIso(),
     }).filter((c) => c.level === 'warn' || c.level === 'fail'),
   );

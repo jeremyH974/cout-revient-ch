@@ -31,6 +31,8 @@ export interface SelfCheckInput {
     persisted: boolean | null;
     saveError: string | null;
   };
+  /** Plateforme (facultatif) : iPhone/iPad non installé = données effaçables par Safari après 7 jours. */
+  platform?: { ios: boolean; standalone: boolean };
   /** ISO 8601. */
   now: string;
 }
@@ -273,6 +275,19 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       label: 'Sauvegarde',
       level: 'ok',
       detail: `Sauvegarde récente${input.storage.persisted === false ? ' (stockage non garanti par le navigateur : gardez-la précieusement)' : ''}.`,
+    });
+  }
+
+  // iPhone/iPad : Safari efface le stockage d'un site non installé après 7 jours sans visite
+  // (WebKit, ITP) ; une app ajoutée à l'écran d'accueil a son propre compteur et n'est pas purgée.
+  if (report && input.platform?.ios && !input.platform.standalone) {
+    checks.push({
+      id: 'install',
+      label: 'iPhone / iPad',
+      level: 'warn',
+      detail: 'Safari peut effacer les données d’un site non installé après 7 jours sans visite.',
+      action:
+        'Partagez → « Sur l’écran d’accueil » pour installer l’app, et gardez une sauvegarde dans Fichiers.',
     });
   }
 
