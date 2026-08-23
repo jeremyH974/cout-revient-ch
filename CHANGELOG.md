@@ -5,6 +5,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Changed
+
+- Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
+  Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
+  trading et statistiques de performance. La version 1.1.0 reste la version publiée d'ici là.
+
+## [1.1.0] - 2026-08-23
+
 ### Added
 
 - Écran « À qualifier » guidé : un choix cohérent avec les jambes de l'opération (récompense,
@@ -21,9 +29,6 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 - Un libellé `Staking` seul n'est plus interprété automatiquement comme une récompense : Coinhouse
   ne l'a pas confirmé sur un export réel, il reste à qualifier (avec « Ignorer » suggéré).
-- Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
-  Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
-  trading et statistiques de performance. La version 1.0.0 reste la version publiée d'ici là.
 
 ## [1.0.0] - 2026-08-23
 
