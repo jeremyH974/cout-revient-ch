@@ -66,3 +66,14 @@
     L'ancien fichier et le script d'anonymisation ont été retirés, puis purgés de l'historique git
     (réécriture des commits, artefacts de CI supprimés). Règle : aucune donnée de démonstration ou de
     test publiée ne doit provenir d'un export réel, même transformée.
+
+18. **Prix cotés en USD/USDC convertis en EUR au taux BCE** (23/08/2026, arrivée de
+    Kraken, Hyperliquid et DefiLlama dans la chaîne de prix). Ces fournisseurs cotent en dollars
+    (ou en USDC, traité comme USD) : la conversion divise par le taux EUR→USD Frankfurter du
+    dernier jour disponible — le même cache que la conversion d'affichage € / $ (`src/lib/fx`),
+    interrogé pour USD dès qu'un prix est actualisé, quelle que soit la devise d'affichage choisie.
+    Sans taux en cache, le fournisseur laisse simplement l'actif sans prix plutôt que d'afficher un
+    montant dans la mauvaise devise. La source et l'heure de chaque cotation sont conservées et
+    affichées (fiche actif, ligne de fraîcheur de la synthèse), quel que soit le fournisseur qui a
+    répondu. CoinMarketCap, pourtant plus complet, a été écarté : son API ne s'appelle pas depuis
+    un navigateur (pas de CORS, contrairement aux cinq fournisseurs retenus).

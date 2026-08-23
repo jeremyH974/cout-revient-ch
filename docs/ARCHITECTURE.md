@@ -10,7 +10,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
                                                                               ▼
                              coinhouse/normalize.ts + import/manual.ts ─▶ LedgerEvent[] (dérivés)
                                                                               │
-                               prix (pricing/service.ts : manuel > cache > CoinGecko > Coinbase)
+        prix (pricing/service.ts : manuel > cache > CoinGecko > Coinbase > Kraken > Hyperliquid >
+                                          DefiLlama ; prix USD/USDC convertis en EUR au taux BCE)
                                                                               ▼
                                     domain/engine (compute → position → aggregate) ─▶ PortfolioReport
                                                                               │
@@ -25,8 +26,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (boucle chronologique), `engine/aggregate.ts` (rapport), `engine/integrity.ts` (colonne Solde).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
-- `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé) et Coinbase
-  (par actif), cascade avec cache et prix manuels.
+- `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé), Coinbase (par
+  actif), Kraken (groupé), Hyperliquid (mids USDC : HYPE, PURR et tokens spot Hyperliquid) et
+  DefiLlama (filet de sécurité, par identifiant CoinGecko) ; cascade avec cache et prix manuels.
+  Les trois derniers cotent en USD/USDC, convertis en EUR au taux BCE du jour (`src/lib/fx`,
+  docs/DECISIONS.md n° 18). Hôtes autorisés par la CSP (`vite.config.ts`) : api.coingecko.com,
+  api.coinbase.com, api.exchange.coinbase.com, api.kraken.com, api.hyperliquid.xyz,
+  coins.llama.fi, api.frankfurter.dev/.app.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, localStorage (clé
   `crch:v1:state`), sauvegarde JSON et fusion.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —

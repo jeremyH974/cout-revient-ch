@@ -13,6 +13,11 @@ export interface RefreshOptions {
   maxAgeMs: number;
   now: () => number;
   timeoutMs?: number;
+  /**
+   * Appelé après chaque fournisseur ayant trouvé au moins un prix, avec toutes les cotations
+   * acquises jusque-là : l'écran affiche CoinGecko sans attendre la longue traîne.
+   */
+  onProgress?: (quotes: Record<AssetCode, PriceQuoteInput>) => void;
 }
 
 export interface RefreshResult {
@@ -83,6 +88,7 @@ export async function refreshPrices(
       online = true;
       for (const [code, quote] of found) quotes[code] = quote;
       pending = pending.filter((code) => !found.has(code));
+      if (found.size > 0) options.onProgress?.({ ...quotes });
     } catch (error) {
       errors.push(`${provider.name} : ${error instanceof Error ? error.message : String(error)}`);
     } finally {

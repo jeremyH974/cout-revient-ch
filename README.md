@@ -88,8 +88,9 @@ questions, idées et sondages se discutent dans
   depuis le CSV avec un code distinct du moteur et doit concorder à 10⁻⁹ près (fixture et export
   réel local).
 - **Surveillance automatique** (`.github/workflows/monitor.yml`, toutes les 6 h) : parcours
-  Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken, BCE) ;
-  une issue « [monitoring] » s'ouvre en cas d'échec et se referme au rétablissement.
+  Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken,
+  Hyperliquid, DefiLlama, BCE) ; une issue « [monitoring] » s'ouvre en cas d'échec et se referme
+  au rétablissement.
   `npm run monitor` lance la même chose localement.
 - **Page Nouveautés** (Réglages → Nouveautés) : le changelog lu dans l'application ; un bandeau
   signale chaque mise à jour installée.
@@ -142,7 +143,8 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
 ### Confidentialité
 
 Aucun backend, aucun compte, aucune statistique. Les données restent dans le navigateur
-(`localStorage`) ; seuls les tickers détenus sont envoyés à CoinGecko puis Coinbase pour les prix.
+(`localStorage`) ; seuls les tickers détenus sont envoyés aux fournisseurs de prix (CoinGecko,
+Coinbase, Kraken, Hyperliquid, DefiLlama, dans cet ordre) et à Frankfurter pour le taux BCE.
 Sauvegarde/restauration JSON dans les réglages.
 
 ## Licence

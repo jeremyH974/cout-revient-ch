@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import { STORAGE_KEY, clearState, loadState, saveState } from './local-storage';
 import { migrateState } from './migrations';
-import { emptyState } from './schema';
+import { emptyState, sanitizeState } from './schema';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -126,5 +126,23 @@ describe('assainissement', () => {
     const result = migrateState(raw);
     expect(result.ok && Object.keys(result.state.rawRows)).toEqual(['ok']);
     expect(result.ok && result.dropped).toBe(5);
+  });
+});
+
+describe('clé CoinGecko Demo', () => {
+  it('conserve un jeton valide et écarte le reste', () => {
+    const base = emptyState();
+    const ok = sanitizeState({
+      ...base,
+      ui: { ...base.ui, coingeckoDemoKey: ' CG-abc123XYZ_-456 ' },
+    });
+    expect(ok.state.ui.coingeckoDemoKey).toBe('CG-abc123XYZ_-456');
+    for (const bad of ['short', 'has space here', 'x'.repeat(65), 42, null, undefined]) {
+      const res = sanitizeState({
+        ...base,
+        ui: { ...base.ui, coingeckoDemoKey: bad as unknown as string | null },
+      });
+      expect(res.state.ui.coingeckoDemoKey).toBeNull();
+    }
   });
 });

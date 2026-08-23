@@ -139,10 +139,28 @@
         value={app.state.ui.priceSource}
         onchange={(e) => app.setUi({ priceSource: e.currentTarget.value as 'auto' | 'off' })}
       >
-        <option value="auto">Automatique (CoinGecko, puis Coinbase)</option>
+        <option value="auto"
+          >Automatique (CoinGecko, Coinbase, Kraken, Hyperliquid, DefiLlama)</option
+        >
         <option value="off">Désactivés (prix manuels uniquement)</option>
       </select>
     </label>
+    <label class="field"
+      >Clé CoinGecko « Demo » (facultative)
+      <input
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck={false}
+        placeholder="CG-…"
+        value={app.state.ui.coingeckoDemoKey ?? ''}
+        onchange={(e) => app.setUi({ coingeckoDemoKey: e.currentTarget.value.trim() || null })}
+      />
+    </label>
+    <p class="line small muted">
+      Gratuite sur coingecko.com, elle lève les limites de débit du plan public. Elle reste sur cet
+      appareil, envoyée à CoinGecko uniquement.
+    </p>
     {#each manualPrices as [asset, s] (asset)}
       <p class="line small">
         Prix manuel {asset.toUpperCase()} : {fmtPrice(D(s.manualPriceEur ?? '0'), 'EUR')}

@@ -6,6 +6,7 @@ import {
   frankfurterProvider,
   rateLookup,
   refreshRates,
+  toEurConverter,
   type Currency,
 } from '$lib/fx';
 /**
@@ -24,7 +25,7 @@ import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
 import { manualToLedgerEvent } from '$lib/import/manual';
-import { coinbaseProvider, coingeckoProvider, refreshPrices } from '$lib/pricing';
+import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
 import {
   clearState,
@@ -257,9 +258,11 @@ export class AppState {
     void this.ensureRates();
   }
 
-  /** Taux BCE de la première opération à aujourd'hui (incrémental, mis en cache). */
-  async ensureRates(): Promise<void> {
-    const currency = this.state.ui.displayCurrency;
+  /**
+   * Taux BCE de la première opération à aujourd'hui (incrémental, mis en cache), pour la devise
+   * d'affichage par défaut, ou pour la devise demandée (USD : conversion des prix cotés en dollars).
+   */
+  async ensureRates(currency: Currency = this.state.ui.displayCurrency): Promise<void> {
     if (currency === 'EUR' || this.fxStatus.loading) return;
     this.fxStatus = { loading: true, error: null };
     const today = nowIso().slice(0, 10);
@@ -285,10 +288,27 @@ export class AppState {
     const overrides = Object.fromEntries(
       Object.entries(this.state.assetSettings).map(([a, s]) => [a, s.coingeckoId]),
     );
+    // Les fournisseurs cotés en dollars (Hyperliquid, DefiLlama) ont besoin du taux BCE du jour,
+    // que l'affichage soit en euros ou non. Le taux se charge en parallèle des fournisseurs en
+    // euros (premiers de la chaîne) ; sans taux, l'actif reste simplement sans prix.
+    const today = nowIso().slice(0, 10);
+    const usdToEur = this.ensureRates('USD').then(
+      () => toEurConverter(this.state.fx.rates.USD ?? {}, today),
+      () => toEurConverter({}, today),
+    );
     const result = await refreshPrices(codes, this.state.priceCache, this.state.assetSettings, {
-      providers: [coingeckoProvider(overrides), coinbaseProvider()],
+      providers: defaultPriceProviders({
+        idOverrides: overrides,
+        coingeckoDemoKey: this.state.ui.coingeckoDemoKey,
+        usdToEur,
+      }),
       maxAgeMs: force ? 0 : PRICE_MAX_AGE_MS,
       now: nowMs,
+      // Cotations appliquées au fil des fournisseurs : les actifs déjà cotés s'affichent sans
+      // attendre Kraken, Hyperliquid ou DefiLlama (dont la longue traîne peut prendre plusieurs s).
+      onProgress: (quotes) => {
+        this.liveQuotes = { ...this.liveQuotes, ...quotes };
+      },
     });
     const fresh = Object.fromEntries(
       Object.entries(result.quotes).filter(

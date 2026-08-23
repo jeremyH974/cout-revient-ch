@@ -58,6 +58,47 @@ function krakenErrors(body: KrakenBody): string[] {
     : [];
 }
 
+/**
+ * Index des paires Kraken cotées en EUR : `altname` (ex. `XBTEUR`) → clé de résultat associée
+ * (ex. `XXBTZEUR`), construit depuis `GET /0/public/AssetPairs` (paires `quote: 'ZEUR'`/`'EUR'`
+ * uniquement). Mémoïsé au niveau du module, par identité de `fetchLike` : en production, ce
+ * fournisseur et `pricing/providers/kraken.ts` partagent le même téléchargement dès qu'ils
+ * reçoivent le même `fetch` (par défaut `defaultFetch`, constante unique du module) ; en test,
+ * chaque `fetchLike` isolé (une closure par test) a son propre cache. Un échec vide l'entrée
+ * pour autoriser un nouvel essai.
+ */
+const eurPairIndexCache = new Map<FetchLike, Promise<Map<string, string>>>();
+
+export function krakenEurPairIndex(
+  fetchLike: FetchLike = defaultFetch,
+  signal?: AbortSignal,
+): Promise<Map<string, string>> {
+  const cached = eurPairIndexCache.get(fetchLike);
+  if (cached) return cached;
+  const promise = (async (): Promise<Map<string, string>> => {
+    const response = await fetchLike(`${ENDPOINT}/AssetPairs`, {
+      ...(signal ? { signal } : {}),
+      headers: { accept: 'application/json' },
+    });
+    const body = (await readJson('Kraken', response)) as KrakenBody;
+    const errors = krakenErrors(body);
+    if (errors.length > 0) throw new Error(`Kraken : ${errors.join(', ')}`);
+    const index = new Map<string, string>();
+    if (typeof body.result === 'object' && body.result !== null) {
+      for (const [key, info] of Object.entries(body.result as Record<string, unknown>)) {
+        if (typeof info !== 'object' || info === null) continue;
+        const { altname, quote } = info as { altname?: unknown; quote?: unknown };
+        if (quote !== 'ZEUR' && quote !== 'EUR') continue;
+        if (typeof altname === 'string') index.set(altname, key);
+      }
+    }
+    return index;
+  })();
+  eurPairIndexCache.set(fetchLike, promise);
+  promise.catch(() => eurPairIndexCache.delete(fetchLike));
+  return promise;
+}
+
 /** Lignes OHLC : première clé de `result` différente de `last`. */
 function ohlcRows(result: unknown): unknown[] {
   if (typeof result !== 'object' || result === null) return [];
@@ -88,19 +129,11 @@ export function krakenHistoryProvider(options: KrakenHistoryOptions = {}): Histo
   }
 
   const eurPairs = memoizeAsync(async (signal): Promise<Set<string>> => {
-    const body = await get('AssetPairs', signal);
-    const errors = krakenErrors(body);
-    if (errors.length > 0) throw new Error(`Kraken : ${errors.join(', ')}`);
+    const index = await krakenEurPairIndex(doFetch, signal);
     const pairs = new Set<string>();
-    if (typeof body.result === 'object' && body.result !== null) {
-      const entries = Object.entries(body.result as Record<string, unknown>);
-      for (const [key, info] of entries) {
-        if (typeof info !== 'object' || info === null) continue;
-        const { altname, quote } = info as { altname?: unknown; quote?: unknown };
-        if (quote !== 'ZEUR' && quote !== 'EUR') continue;
-        pairs.add(key);
-        if (typeof altname === 'string') pairs.add(altname);
-      }
+    for (const [altname, key] of index) {
+      pairs.add(altname);
+      pairs.add(key);
     }
     return pairs;
   });

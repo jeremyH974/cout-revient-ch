@@ -9,6 +9,12 @@ export interface PriceProvider {
   fetchPrices(codes: AssetCode[], signal: AbortSignal): Promise<Map<AssetCode, PriceQuoteInput>>;
 }
 
+/**
+ * Convertit un prix coté en USD (ou USDC, traité comme USD) en EUR au taux BCE du jour ;
+ * `null` si aucun taux n'est disponible (le fournisseur laisse alors l'actif aux suivants).
+ */
+export type UsdToEur = (priceUsd: DecimalString) => DecimalString | null;
+
 /** Conversion d'un nombre JSON en chaîne décimale canonique (sans exposant). */
 export function numberToDecimal(value: unknown): DecimalString | null {
   if (typeof value === 'string') return /^-?\d+(\.\d+)?$/.test(value) ? value : null;

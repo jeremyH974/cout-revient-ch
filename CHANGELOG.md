@@ -5,6 +5,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- Bouton « Actualiser » sur la synthèse avec fraîcheur et source des prix, badge « périmé ».
+- Fournisseurs de prix Kraken, Hyperliquid (HYPE, PURR et tokens spot Hyperliquid) et DefiLlama,
+  prix en USD convertis au taux BCE du jour.
+- Clé CoinGecko Demo optionnelle dans les réglages.
+
 ### Changed
 
 - Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,

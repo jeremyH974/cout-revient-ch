@@ -11,13 +11,16 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 const TIMEOUT_MS = 15_000;
 const results = [];
 
-async function getJson(url) {
+/** GET par défaut ; `options.method`/`body`/`headers` pour les fournisseurs interrogés en POST. */
+async function fetchJson(url, options = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const response = await fetch(url, {
+      method: options.method ?? 'GET',
+      body: options.body,
       signal: controller.signal,
-      headers: { accept: 'application/json' },
+      headers: { accept: 'application/json', ...options.headers },
     });
     const text = await response.text();
     let json = null;
@@ -35,10 +38,10 @@ async function getJson(url) {
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isNumericString = (v) => typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v);
 
-async function check(name, url, validate) {
+async function check(name, url, validate, options = {}) {
   const started = Date.now();
   try {
-    const r = await getJson(url);
+    const r = await fetchJson(url, options);
     const problems = r.status === 200 ? validate(r.json, r.headers) : [`HTTP ${r.status}`];
     results.push({
       name,
@@ -125,6 +128,39 @@ await check('Kraken AssetPairs', 'https://api.kraken.com/0/public/AssetPairs', (
   const eur = Object.values(pairs).filter((p) => p && (p.quote === 'ZEUR' || p.quote === 'EUR'));
   return eur.length > 0 ? [] : ['aucune paire cotée en EUR'];
 });
+
+await check('Kraken Ticker', 'https://api.kraken.com/0/public/Ticker?pair=XBTEUR', (json) => {
+  if (!json || !Array.isArray(json.error)) return ['champ error absent'];
+  if (json.error.length > 0) return [`erreur Kraken : ${json.error.join(', ')}`];
+  const entries = Object.values(json.result ?? {});
+  const hit = entries.some((v) => v && Array.isArray(v.c) && isNumericString(v.c[0]));
+  return hit ? [] : ['aucun résultat avec c[0] numérique'];
+});
+
+await check(
+  'Hyperliquid allMids',
+  'https://api.hyperliquid.xyz/info',
+  (json) => {
+    if (!json || typeof json !== 'object') return ['réponse non JSON'];
+    return isNumericString(json.BTC) ? [] : ['BTC absent ou non numérique'];
+  },
+  {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ type: 'allMids' }),
+  },
+);
+
+await check(
+  'DefiLlama current (coingecko:bitcoin)',
+  'https://coins.llama.fi/prices/current/coingecko:bitcoin?searchWidth=4h',
+  (json) => {
+    const price = json?.coins?.['coingecko:bitcoin']?.price;
+    return isNum(price) && price > 0
+      ? []
+      : ['coins["coingecko:bitcoin"].price absent ou non positif'];
+  },
+);
 
 await check(
   'Frankfurter (BCE) v1',

@@ -53,6 +53,11 @@ export interface UiSettings {
   demoMode: boolean;
   /** Dernière version dont l'utilisateur a vu (ou ignoré) les nouveautés ; null = première visite. */
   lastSeenVersion: string | null;
+  /**
+   * Clé CoinGecko « Demo » (gratuite, optionnelle) : lève les limites de débit du plan public.
+   * Propre à l'appareil (jamais dans une sauvegarde fusionnée), envoyée en en-tête uniquement.
+   */
+  coingeckoDemoKey: string | null;
 }
 
 export interface StoredStateV1 {
@@ -83,6 +88,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   disclaimerAcceptedAt: null,
   demoMode: false,
   lastSeenVersion: null,
+  coingeckoDemoKey: null,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -209,6 +215,10 @@ function validQualification(raw: unknown): raw is Qualification {
 
 const MAX_LIST = 40;
 const MAX_TEXT = 120;
+/** Clé d'API CoinGecko : jeton court sans espace ; tout le reste est écarté. */
+const API_KEY = /^[A-Za-z0-9_-]{8,64}$/;
+const sanitizeApiKey = (v: unknown): string | null =>
+  typeof v === 'string' && API_KEY.test(v.trim()) ? v.trim() : null;
 const textList = (v: unknown): string[] | null =>
   Array.isArray(v)
     ? v
@@ -311,6 +321,10 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, demoMode: false } };
   if (state.ui.lastSeenVersion !== null && typeof state.ui.lastSeenVersion !== 'string')
     state = { ...state, ui: { ...state.ui, lastSeenVersion: null } };
+  state = {
+    ...state,
+    ui: { ...state.ui, coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey) },
+  };
   return {
     state: {
       ...state,

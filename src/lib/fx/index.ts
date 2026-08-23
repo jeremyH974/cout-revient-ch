@@ -4,6 +4,7 @@ export {
   convertQuotes,
   earliestDay,
   rateLookup,
+  toEurConverter,
   type RateLookup,
 } from './convert';
 export { frankfurterProvider } from './frankfurter';
