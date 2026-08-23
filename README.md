@@ -99,6 +99,19 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   (ignoré par git) est testé en plus, localement.
 - Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
 
+### Qualité automatisée
+
+- `npm run check` — lint, typage, tests unitaires et tests de propriétés (fast-check) sur le moteur.
+- `npm run e2e` — tests de bout en bout Playwright sur le build de production (import de la
+  fixture, démo, PRU comparés au moteur, exports CSV/PDF, sauvegarde/restauration, thème, mobile,
+  accessibilité axe WCAG 2.2 AA, manifeste/service worker/CSP sans erreur console). Première fois :
+  `npx playwright install chromium webkit`.
+- `npm run lhci` — Lighthouse CI (accessibilité, bonnes pratiques, SEO ≥ 95 ; performance ≥ 90).
+  Sous Windows, `chrome-launcher` échoue parfois à supprimer son profil temporaire (erreur
+  `EPERM`) : le résultat qui fait foi est celui de la CI (Linux).
+- La CI exécute tout cela et ne déploie que si tout est vert ; les rapports (Playwright, Lighthouse)
+  sont joints à chaque exécution dans l'onglet Actions.
+
 ### Confidentialité
 
 Aucun backend, aucun compte, aucune statistique. Les données restent dans le navigateur

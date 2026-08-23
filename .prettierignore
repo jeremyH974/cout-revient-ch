@@ -2,6 +2,10 @@ dist
 dev-dist
 coverage
 node_modules
+playwright-report
+test-results
+blob-report
+.lighthouseci
 package-lock.json
 tests/fixtures/**/*.csv
 *.csv

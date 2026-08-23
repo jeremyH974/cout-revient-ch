@@ -266,6 +266,19 @@
     background: var(--bg);
     color: var(--fg);
     padding: 0 var(--space-3);
+    /* Un <select> prend la largeur de sa plus longue option : sans plafond, la page déborde sur
+       mobile et le navigateur dézoome toute l'interface. */
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .field,
+  .row {
+    min-width: 0;
+  }
+  .row select {
+    width: auto;
+    flex: 1 1 12rem;
   }
   .file input {
     position: absolute;

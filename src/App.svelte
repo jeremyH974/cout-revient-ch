@@ -129,7 +129,8 @@
     color: #fff;
   }
   .update.demo {
-    background: var(--warn);
+    /* Couleurs fixes (pas de jeton de thème) : contraste ≥ 12:1 en clair comme en sombre. */
+    background: #fbbf24;
     color: #1a1208;
   }
   @media (min-width: 768px) {

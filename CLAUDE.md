@@ -11,6 +11,12 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm test` / `npm run test:watch` / `npm run test:coverage`
 - `npm run build` / `npm run preview`
 - `npm run anonymize -- <export.csv>` — génère la fixture anonymisée
+- `npm run e2e` — build puis tests Playwright (`tests/e2e/*.spec.ts`, Chromium desktop + mobile,
+  WebKit sur les parcours visuels) ; `npm run e2e:ui` pour l'explorateur ; `npm run lhci` — build
+  puis Lighthouse CI (seuils dans `lighthouserc.json`). Les deux tournent en CI avant tout déploiement.
+  Première fois : `npx playwright install chromium webkit`. Sous Windows, `vite preview` n'écoute
+  que sur `::1` (d'où `--host 127.0.0.1` dans les configs) et Lighthouse peut échouer au nettoyage
+  de son profil Chrome (`EPERM`) : la CI Linux fait foi pour Lighthouse.
 
 ## Règles de code
 
@@ -27,6 +33,15 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - Texte d'interface en français ; code, identifiants et commits en anglais (Conventional Commits :
   `feat|fix|docs|test|chore|ci|refactor(scope): …`, scopes `domain|import|pricing|storage|ui|pwa`).
 - `erasableSyntaxOnly` : pas d'`enum`, de `namespace` ni de paramètres de constructeur `public`.
+
+## Tests
+
+- Unitaires et propriétés (Vitest + fast-check) : `*.test.ts` colocalisés, fixture anonymisée dans
+  `tests/fixtures/`. Les tests E2E s'appellent `*.spec.ts` (Vitest ne ramasse que `*.test.ts`) et
+  comparent l'écran au moteur (`tests/e2e/helpers/expected.ts`), jamais à des chiffres en dur ;
+  toute requête externe est stubée (`tests/e2e/helpers/network.ts`), aucun test ne sort sur Internet.
+- Accessibilité : axe (WCAG 2.2 AA) sur chaque route dans `tests/e2e/a11y.spec.ts` ; une violation
+  est un échec de CI, corrigez le balisage plutôt que d'exclure la règle.
 
 ## Données sensibles
 

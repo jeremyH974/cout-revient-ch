@@ -112,7 +112,14 @@
       {#if table.rows.length === 0}
         <p class="muted">{table.emptyText}</p>
       {:else}
-        <div class="scroll">
+        <!-- Un tableau qui défile horizontalement doit rester accessible au clavier (WCAG 2.1.1). -->
+        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+        <div
+          class="scroll"
+          tabindex="0"
+          role="region"
+          aria-label="{table.title} — tableau défilant"
+        >
           <table>
             <thead>
               <tr>
@@ -204,6 +211,15 @@
     display: grid;
     gap: var(--space-4);
   }
+  /* Les cartes (éléments de grille) doivent pouvoir rétrécir sous la largeur de leurs tableaux :
+     sinon la page déborde sur mobile et le navigateur dézoome. */
+  .report > * {
+    min-width: 0;
+  }
+  .details td,
+  .details th {
+    overflow-wrap: anywhere;
+  }
   .cover,
   section {
     padding: var(--space-4);
@@ -281,6 +297,10 @@
   }
   .scroll {
     overflow-x: auto;
+  }
+  .scroll:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   table {
     width: 100%;

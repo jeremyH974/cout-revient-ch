@@ -43,3 +43,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   de migration ou de valorisation des récompenses.
 - Sur la fixture anonymisée et sur l'export réel (local) : 0 bloqué, 0 à qualifier, 27 soldes
   cohérents, ré-import idempotent.
+
+## Tests
+
+- **Unitaires** (Vitest, `*.test.ts` colocalisés) : moteur, import, stockage, prix, change,
+  historique, exports, diagnostic. **Propriétés** (fast-check, `engine.property.test.ts`) :
+  séquences aléatoires d'achats/ventes/récompenses → `total = valeur + Σ produits − Σ achats`,
+  PRU invariant à la vente, lots réconciliés, survente bloquée.
+- **Bout en bout** (Playwright, `tests/e2e/*.spec.ts`, sur le build servi par `vite preview`) :
+  projets Chromium desktop, Chromium mobile (Pixel 7) et WebKit (parcours visuels). Les valeurs
+  attendues sont calculées par le moteur à partir de la fixture (`helpers/expected.ts`) ; toutes les
+  requêtes externes reçoivent des réponses déterministes (`helpers/network.ts`). Accessibilité axe
+  (WCAG 2.2 AA) sur chaque route, PWA (manifeste, service worker, CSP, aucune erreur console).
+- **Lighthouse CI** (`lighthouserc.json`) : accessibilité, bonnes pratiques, SEO ≥ 0,95 (erreur),
+  performance ≥ 0,9 (avertissement). Rapports en artefacts de CI ; `deploy` attend `check` et `e2e`.

@@ -36,13 +36,18 @@
 
 <style>
   .sheet {
+    /* Feuille ancrée en bas du viewport visible (dvh : barres d'outils mobiles comprises), jamais
+       au-delà de l'écran : les boutons restent atteignables. */
+    position: fixed;
+    inset: auto 0 0 0;
     border: 0;
     padding: 0;
+    margin: 0;
     background: transparent;
     width: 100%;
     max-width: 100%;
-    margin: auto 0 0;
     max-height: 90vh;
+    max-height: 90dvh;
   }
   .sheet::backdrop {
     background: rgb(0 0 0 / 55%);

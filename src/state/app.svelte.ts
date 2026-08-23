@@ -142,16 +142,30 @@ export class AppState {
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
     if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let pending: StoredStateV1 | null = null;
+    const flush = (): void => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      if (!pending) return;
+      const result = saveState(pending);
+      pending = null;
+      this.saveError = result.ok ? null : result.error;
+    };
     $effect.root(() => {
       $effect(() => {
-        const snapshot = $state.snapshot(this.state);
+        pending = $state.snapshot(this.state);
         if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          const result = saveState(snapshot);
-          this.saveError = result.ok ? null : result.error;
-        }, SAVE_DEBOUNCE_MS);
+        timer = setTimeout(flush, SAVE_DEBOUNCE_MS);
       });
     });
+    // Un rechargement, une fermeture ou un passage en arrière-plan (mobile) juste après une
+    // modification ne doit jamais perdre la sauvegarde en attente.
+    if (typeof window !== 'undefined') {
+      window.addEventListener('pagehide', flush);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden') flush();
+      });
+    }
   }
 
   /**

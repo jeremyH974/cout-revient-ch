@@ -24,6 +24,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Qualité automatisée : tests de bout en bout Playwright (Chromium desktop et mobile, WebKit sur
+  les parcours visuels) sur le build de production — démo, import par fichier, PRU comparés au
+  moteur, fiche actif, exports CSV/PDF, sauvegarde → effacement → restauration, thème et mode
+  discret, diagnostic, accessibilité axe (WCAG 2.2 AA) sur toutes les pages, manifeste/service
+  worker/CSP sans erreur console, tout réseau externe stubé ; Lighthouse CI avec seuils ; tests de
+  propriétés fast-check sur les invariants du moteur (total = valeur + produits − achats, PRU
+  invariant à la vente, lots réconciliés, survente bloquée). La CI ne déploie que si tout est vert.
 - Mode démo : « Essayer avec des données d'exemple » sur l'accueil charge l'export anonymisé du
   dépôt (chunk séparé, chargé à la demande) avec un bandeau « Données d'exemple (fictives) » et un
   bouton « Quitter la démo » ; importer un fichier, saisir une opération ou restaurer une sauvegarde

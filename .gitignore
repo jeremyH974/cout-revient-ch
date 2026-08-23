@@ -8,6 +8,12 @@ coverage/
 .env
 .env.*
 
+# Tests de bout en bout (Playwright) et Lighthouse CI
+playwright-report/
+test-results/
+blob-report/
+.lighthouseci/
+
 # Système
 .DS_Store
 Thumbs.db
