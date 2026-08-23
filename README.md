@@ -1,5 +1,9 @@
 # Coût de revient CH
 
+[![CI](https://github.com/jeremyH974/cout-revient-ch/actions/workflows/ci.yml/badge.svg)](https://github.com/jeremyH974/cout-revient-ch/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jeremyH974/cout-revient-ch/actions/workflows/codeql.yml/badge.svg)](https://github.com/jeremyH974/cout-revient-ch/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jeremyH974/cout-revient-ch/badge)](https://scorecard.dev/viewer/?uri=github.com/jeremyH974/cout-revient-ch)
+
 **Votre PRU et vos plus/moins-values par crypto, enfin lisibles — à partir de votre export Coinhouse.**
 
 Application web gratuite, sans compte, qui tourne **entièrement dans votre navigateur** : votre

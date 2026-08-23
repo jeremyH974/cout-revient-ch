@@ -5,6 +5,13 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    open-pull-requests-limit: 5
+    # Délai de sécurité : une version n'est proposée qu'après 7 jours (14 pour une majeure),
+    # le temps que les paquets compromis soient retirés du registre. Les mises à jour de
+    # sécurité ne sont pas retardées.
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
       minor-and-patch:
         update-types:
@@ -14,3 +21,7 @@ updates:
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7

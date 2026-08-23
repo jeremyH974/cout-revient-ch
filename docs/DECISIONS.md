@@ -20,3 +20,11 @@
 11. **Arithmétique décimale stricte** (big.js, `Big.strict`) ; arrondi uniquement à l'affichage.
 12. **Aucun CSV réel dans git** ; fixture anonymisée (IDs régénérés, dates décalées, montants
     rescalés, soldes recalculés) ; test local optionnel sur le fichier réel.
+13. **Chaîne d'approvisionnement verrouillée** (23/08/2026, après le retour du ver npm
+    « Shai-Hulud » qui a touché des dépendances indirectes du projet) : `.npmrc` refuse les scripts
+    d'installation (`ignore-scripts`) et n'installe une version qu'après 7 jours de publication
+    (`min-release-age`) ; Dependabot applique le même délai (14 jours pour une majeure) ; toutes les
+    actions GitHub sont épinglées par empreinte de commit avec `persist-credentials: false` ;
+    CodeQL, Dependency review et OpenSSF Scorecard tournent gratuitement sur le dépôt public.
+    Le site publié reste un bundle statique sans CDN : un paquet compromis ne pourrait atteindre
+    les utilisateurs que via ce pipeline, d'où la priorité.

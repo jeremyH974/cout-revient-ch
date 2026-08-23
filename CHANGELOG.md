@@ -5,6 +5,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Security
+
+- Chaîne d'approvisionnement : scripts d'installation npm désactivés et délai de 7 jours avant toute
+  nouvelle version (`.npmrc`), même délai côté Dependabot, actions GitHub épinglées par empreinte de
+  commit, ajout de CodeQL, de la revue des dépendances sur les pull requests et du Scorecard OpenSSF
+  (badges dans le README).
+
 ### Added
 
 - Graphiques : couleur par zone — vert en gain, rouge en perte, avec bascule exacte au
