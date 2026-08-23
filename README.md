@@ -121,6 +121,10 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   entièrement synthétique, produit par `npm run fixture` (aucune donnée réelle, même transformée).
   Un export réel placé à la racine du projet (ignoré par git) est testé en plus, localement.
 - Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
+- Feuille de route et propositions : [docs/ROADMAP.md](docs/ROADMAP.md) ; version 2 (espaces
+  « Investissement » et « Trading », Vue d'ensemble, import Hyperliquid en lecture seule, journal
+  de trading) : [docs/proposals/](docs/proposals/2026-08-23-espaces-investissement-trading.md).
+  La version 1 est figée par le tag `v1.0.0` ; la version 2 se développe sur la branche `v2`.
 
 ### Qualité automatisée
 
