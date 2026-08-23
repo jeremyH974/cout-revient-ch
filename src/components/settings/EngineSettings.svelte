@@ -58,11 +58,15 @@
     color: var(--fg);
   }
   select {
+    width: 100%;
     min-height: var(--tap);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg);
     color: var(--fg);
     padding: 0 var(--space-3);
+  }
+  .field {
+    min-width: 0;
   }
 </style>

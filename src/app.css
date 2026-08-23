@@ -134,6 +134,15 @@ textarea {
   color: inherit;
 }
 
+/* Un contrôle de formulaire ne doit jamais élargir la page : un <select> prend sinon la largeur
+   de sa plus longue option et fait dézoomer les navigateurs mobiles. */
+input,
+select,
+textarea {
+  max-width: 100%;
+  min-width: 0;
+}
+
 button {
   cursor: pointer;
   border: 0;

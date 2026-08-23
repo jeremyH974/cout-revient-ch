@@ -32,30 +32,48 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
 }) => {
   test.skip(!isMobile, 'projet mobile uniquement');
   await openDemo(page);
+  const problems: string[] = [];
   for (const route of [
     '#/',
     '#/asset/btc',
+    '#/asset/pepe',
     '#/import',
     '#/add',
     '#/settings',
     '#/help',
+    '#/privacy',
     '#/report',
   ]) {
     await page.goto(route);
     await expect(page.getByRole('main')).toBeVisible();
-    const metrics = await page.evaluate(() => ({
-      scrollWidth: document.documentElement.scrollWidth,
-      clientWidth: document.documentElement.clientWidth,
-      innerWidth: window.innerWidth,
-      visualWidth: Math.round(window.visualViewport?.width ?? window.innerWidth),
-    }));
-    expect(metrics, `débordement sur ${route}`).toMatchObject({
-      innerWidth: metrics.visualWidth,
+    // Les éléments qui dépassent sont listés pour que le rapport de CI désigne le coupable.
+    const metrics = await page.evaluate(() => {
+      const vw = document.documentElement.clientWidth;
+      const culprits: string[] = [];
+      for (const el of document.querySelectorAll('body *')) {
+        const r = el.getBoundingClientRect();
+        if (r.right > vw + 1 && r.width > 0 && r.width < vw * 1.6) {
+          culprits.push(`${el.tagName.toLowerCase()}.${String(el.className).split(' ')[0]}`);
+        }
+      }
+      return {
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: vw,
+        innerWidth: window.innerWidth,
+        visualWidth: Math.round(window.visualViewport?.width ?? window.innerWidth),
+        culprits: culprits.slice(0, 6),
+      };
     });
-    expect(metrics.scrollWidth, `largeur défilable sur ${route}`).toBeLessThanOrEqual(
-      metrics.clientWidth + 1,
-    );
+    if (
+      metrics.innerWidth !== metrics.visualWidth ||
+      metrics.scrollWidth > metrics.clientWidth + 1
+    ) {
+      problems.push(
+        `${route} : largeur ${metrics.innerWidth}/${metrics.visualWidth}, défilement ${metrics.scrollWidth} — ${metrics.culprits.join(', ') || 'aucun élément isolé'}`,
+      );
+    }
   }
+  expect(problems, 'pages qui débordent sur mobile').toEqual([]);
 });
 
 test('desktop : en-tête de colonnes visible, libellé « Réalisé » réservé aux lecteurs d’écran', async ({
