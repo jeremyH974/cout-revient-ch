@@ -48,13 +48,43 @@ export interface RawCoinhouseRow {
   extra: Record<string, string>;
 }
 
+/** Montant + devise d'une colonne du CSV pivot (ticker normalisé en minuscules). */
+export interface PivotAmount {
+  amount: DecimalString;
+  currency: AssetCode;
+}
+
+/**
+ * Ligne du CSV pivot (Koinly « Universal » Sent/Received ou export interne From/To), conservée
+ * telle quelle après validation. Clé `pv:<hash de contenu>[#n]` : l'appartenance au compte est
+ * portée par `accountId` (un même fichier ne va que dans un compte).
+ */
+export interface RawPivotRow {
+  key: RowKey;
+  importId: string;
+  lineNo: number;
+  accountId: AccountId;
+  /** Date du fichier (UTC, verbatim). */
+  date: string;
+  /** Instant converti en heure de Paris (décision n° 21). */
+  at: NaiveDateTime;
+  sent: PivotAmount | null;
+  received: PivotAmount | null;
+  fee: PivotAmount | null;
+  netWorth: PivotAmount | null;
+  /** `Label` (Universal) ou `Tag` (export interne), en minuscules. */
+  label: string | null;
+  description: string | null;
+  txHash: string | null;
+}
+
 /** Une jambe d'opération : quantité strictement positive, le sens est donné par `out`/`in`. */
 export interface Leg {
   asset: AssetCode;
   qty: DecimalString;
 }
 
-export type EventSource = 'coinhouse-csv' | 'manual' | 'hyperliquid-api';
+export type EventSource = 'coinhouse-csv' | 'manual' | 'hyperliquid-api' | 'pivot-csv';
 
 /** `coinhouse` : participe au contrôle de solde ; `external` : hors plateforme, exclu. */
 export type EventScope = 'coinhouse' | 'external';
@@ -154,6 +184,11 @@ export interface DepositEvent extends EventBase {
   kind: 'deposit';
   in: Leg;
   costEur: DecimalString | null;
+  /**
+   * Retrait apparié (virement interne) : le coût de la cession au coût du retrait devient le
+   * coût d'acquisition de ce dépôt. Jamais persisté : posé par `pairTransfers` à chaque calcul.
+   */
+  transferFrom?: EventId;
 }
 
 /** Retrait on-chain : sortie sans produit (ou réalisée à une valeur donnée). */
@@ -161,6 +196,8 @@ export interface WithdrawalEvent extends EventBase {
   kind: 'withdrawal';
   out: Leg;
   proceedsEur: DecimalString | null;
+  /** Dépôt apparié (virement interne) : cession au coût, le coût voyage. Jamais persisté. */
+  transferTo?: EventId;
 }
 
 /** Solde d'ouverture : historique manquant avant le début de l'export. */

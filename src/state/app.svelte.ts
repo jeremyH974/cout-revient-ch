@@ -43,6 +43,7 @@ import {
   type Qualification,
   type RowKey,
 } from '$lib/domain/types';
+import { pairTransfers, type TransferOverride, type TransferPairing } from '$lib/domain/transfers';
 import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
@@ -53,6 +54,8 @@ import { fixtureClient, type HlFixture } from '$lib/import/hyperliquid/fixture-c
 import { normalizeHlAccount, type NormalizedHlAccount } from '$lib/import/hyperliquid/normalize';
 import { syncAccount, type SyncProgress } from '$lib/import/hyperliquid/sync';
 import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
+import { pivotLedgerEvents } from '$lib/import/pivot/events';
+import { importPivotCsv, type PivotImportResult } from '$lib/import/pivot/index';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
 import {
@@ -149,7 +152,7 @@ export class AppState {
   /** Client `info` Hyperliquid ; en démonstration, un client hors ligne servant la fixture. */
   private hlClient: HlClient | null = null;
 
-  events = $derived.by((): LedgerEvent[] => {
+  private assembledEvents = $derived.by((): LedgerEvent[] => {
     const { events } = normalizeCoinhouseRows(
       Object.values(this.state.rawRows),
       this.state.qualifications,
@@ -159,8 +162,24 @@ export class AppState {
     // Spot Hyperliquid routé vers l'Investissement (option « traiter le spot comme de l'investissement »).
     for (const normalized of Object.values(this.hlNormalized))
       events.push(...normalized.investEvents);
+    // Lignes du CSV pivot (Koinly/Waltio) : mêmes qualifications, taux BCE réactifs (une ligne
+    // « taux manquant » se résout d'elle-même quand les taux arrivent).
+    const pivotRows = Object.values(this.state.pivotRows);
+    if (pivotRows.length > 0) {
+      const usd = rateLookup(this.state.fx.rates.USD ?? {});
+      events.push(
+        ...pivotLedgerEvents(pivotRows, this.state.qualifications, (day) => usd.rate(day)).events,
+      );
+    }
     return events;
   });
+
+  /** Virements internes appariés (décision n° 25) : paires, orphelins et événements décorés. */
+  transferPairing = $derived.by((): TransferPairing =>
+    pairTransfers(this.assembledEvents, this.state.transferOverrides),
+  );
+
+  events = $derived.by((): LedgerEvent[] => this.transferPairing.events);
 
   /** Comptes Hyperliquid déclarés (espace Trading). */
   hlAccounts = $derived.by((): Account[] =>
@@ -338,6 +357,7 @@ export class AppState {
 
   hasData = $derived(
     Object.keys(this.state.rawRows).length > 0 ||
+      Object.keys(this.state.pivotRows).length > 0 ||
       Object.keys(this.state.manualEvents).length > 0 ||
       Object.keys(this.state.manualTrades).length > 0 ||
       this.hlAccounts.length > 0,
@@ -439,6 +459,26 @@ export class AppState {
     const { [id]: _removed, ...rest } = this.state.accounts;
     void _removed;
     this.state.accounts = rest;
+    // Compte CSV : ses lignes pivot, leurs qualifications et ses overrides partent avec lui
+    // (même logique que les bruts Hyperliquid ci-dessous).
+    const prefix = `pv:${id}:`;
+    if (Object.keys(this.state.pivotRows).some((k) => k.startsWith(prefix))) {
+      const rows = { ...this.state.pivotRows };
+      const quals = { ...this.state.qualifications };
+      for (const key of Object.keys(rows)) {
+        if (!key.startsWith(prefix)) continue;
+        delete rows[key];
+        delete quals[key];
+      }
+      const overrides: typeof this.state.transferOverrides = {};
+      for (const [wId, value] of Object.entries(this.state.transferOverrides)) {
+        if (wId.startsWith(prefix) || (value !== 'none' && value.startsWith(prefix))) continue;
+        overrides[wId] = value;
+      }
+      this.state.pivotRows = rows;
+      this.state.qualifications = quals;
+      this.state.transferOverrides = overrides;
+    }
     if (id in this.state.hyperliquid.accounts) {
       const { [id]: _data, ...others } = this.state.hyperliquid.accounts;
       void _data;
@@ -562,6 +602,9 @@ export class AppState {
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
     if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
+    // Taux EUR→USD nécessaires hors affichage dollar : lignes pivot en USD/stables, spot HL.
+    if (Object.keys(this.state.pivotRows).length > 0 || this.hlAccounts.length > 0)
+      void this.ensureRates('USD');
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pending: StoredStateV1 | null = null;
     const flush = (): void => {
@@ -780,6 +823,74 @@ export class AppState {
     return result;
   }
 
+  /** Compte destinataire d'un import pivot (kind `csv`, espace Investissement). */
+  addPivotAccount(label: string): Account {
+    const id = `csv:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const account: Account = {
+      id,
+      kind: 'csv',
+      label: label.trim().slice(0, 60) || 'Compte CSV',
+      space: 'invest',
+      createdAt: nowIso(),
+    };
+    this.state.accounts = { ...this.state.accounts, [id]: account };
+    return account;
+  }
+
+  /** Importe un CSV pivot (Koinly « Universal » ou export Koinly, lu par Waltio) dans un compte. */
+  importPivot(
+    text: string,
+    fileName: string,
+    accountId: AccountId,
+    now = nowMs(),
+  ): PivotImportResult {
+    this.exitDemo();
+    const importId = `imp:${now.toString(36)}`;
+    const usd = rateLookup(this.state.fx.rates.USD ?? {});
+    const result = importPivotCsv(
+      text,
+      this.state.pivotRows,
+      accountId,
+      importId,
+      (day) => usd.rate(day),
+      this.state.qualifications,
+    );
+    if (result.ok) {
+      this.state.pivotRows = result.rows;
+      this.state.imports = [
+        ...this.state.imports,
+        {
+          id: importId,
+          at: nowIso(now),
+          fileName,
+          rows: result.report.parsedRows,
+          newRows: result.report.newRows,
+          format: result.report.format,
+          header: result.report.header,
+          unknownColumns: result.report.unknownColumns,
+          accountId,
+        },
+      ];
+      // Les montants USD/stables du fichier ont besoin des taux BCE de leurs jours.
+      void this.ensureRates('USD');
+      void requestPersistentStorage();
+    }
+    return result;
+  }
+
+  /** Corrige l'appariement d'un virement : dépôt imposé, « none », ou retour à l'automatique. */
+  setTransferOverride(withdrawalId: EventId, value: TransferOverride | null): void {
+    const next = { ...this.state.transferOverrides };
+    if (value === null) delete next[withdrawalId];
+    else next[withdrawalId] = value;
+    this.state.transferOverrides = next;
+  }
+
+  /** Lignes pivot rattachées à un compte. */
+  pivotCountOf(accountId: AccountId): number {
+    return Object.values(this.state.pivotRows).filter((r) => r.accountId === accountId).length;
+  }
+
   addManual(event: ManualEvent): void {
     this.exitDemo();
     this.state.manualEvents = { ...this.state.manualEvents, [event.id]: event };
@@ -813,6 +924,16 @@ export class AppState {
   qualified = $derived.by((): QualifiedSummary[] => {
     const rows = Object.values(this.state.rawRows);
     return Object.entries(this.state.qualifications).map(([eventId, qualification]) => {
+      const pivotRow = this.state.pivotRows[eventId];
+      if (pivotRow) {
+        return {
+          eventId,
+          qualification,
+          at: pivotRow.at,
+          rawType: pivotRow.label ?? 'ligne pivot',
+          lineNumbers: pivotRow.lineNo > 0 ? [pivotRow.lineNo] : [],
+        };
+      }
       const own = rows.filter((r) => (r.id ? `ch:${r.id}` === eventId : `ch:${r.key}` === eventId));
       own.sort((a, b) => a.lineNo - b.lineNo);
       return {

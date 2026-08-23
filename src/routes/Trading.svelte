@@ -11,7 +11,7 @@
   import { accountReport, totalsSince, type TradingTotals } from '$lib/domain/trading/compute';
   import { rateLookup } from '$lib/fx';
   import { fmtRelative } from '$lib/format/fr';
-  import { msToParisNaive } from '$lib/import/hyperliquid/time';
+  import { msToParisNaive } from '$lib/import/time';
   import { router } from '$lib/router.svelte';
   import { DISCUSSIONS_URL } from '$lib/support/links';
   import EvolutionChart, { type ChartPoint } from '../components/charts/EvolutionChart.svelte';

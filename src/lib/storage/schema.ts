@@ -16,8 +16,11 @@ import {
   type ManualEvent,
   type Qualification,
   type RawCoinhouseRow,
+  type RawPivotRow,
   type RowKey,
 } from '../domain/types';
+import type { PivotAmount } from '../domain/types';
+import type { TransferOverride } from '../domain/transfers';
 
 export const SCHEMA_VERSION = 1 as const;
 export const APP_ID = 'cout-revient-ch';
@@ -33,6 +36,8 @@ export interface ImportBatchMeta {
   format?: string;
   header?: string[];
   unknownColumns?: string[];
+  /** Compte de destination (imports pivot) ; absent pour l'export Coinhouse. */
+  accountId?: string;
 }
 
 export interface AssetSettings {
@@ -69,8 +74,12 @@ export interface StoredStateV1 {
   schemaVersion: typeof SCHEMA_VERSION;
   imports: ImportBatchMeta[];
   rawRows: Record<RowKey, RawCoinhouseRow>;
+  /** Lignes du CSV pivot (Koinly/Waltio) par clé de contenu ; le compte est porté par la ligne. */
+  pivotRows: Record<RowKey, RawPivotRow>;
   manualEvents: Record<string, ManualEvent>;
   qualifications: Record<EventId, Qualification>;
+  /** Corrections d'appariement de virements : id de retrait → id de dépôt imposé ou « none ». */
+  transferOverrides: Record<EventId, TransferOverride>;
   /** Réservé au futur mode fiscal (valeur globale du portefeuille au jour de chaque cession). */
   taxAnnotations: Record<EventId, { portfolioValueEur: DecimalString | null }>;
   assetSettings: Record<AssetCode, AssetSettings>;
@@ -109,8 +118,10 @@ export function emptyState(): StoredStateV1 {
     schemaVersion: SCHEMA_VERSION,
     imports: [],
     rawRows: {},
+    pivotRows: {},
     manualEvents: {},
     qualifications: {},
+    transferOverrides: {},
     taxAnnotations: {},
     assetSettings: {},
     accounts: {},
@@ -147,6 +158,8 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     ...state,
     engineSettings: { ...empty.engineSettings, ...state.engineSettings },
     ui: { ...empty.ui, ...(isRecord(state.ui) ? state.ui : {}) },
+    pivotRows: isRecord(state.pivotRows) ? state.pivotRows : {},
+    transferOverrides: isRecord(state.transferOverrides) ? state.transferOverrides : {},
     taxAnnotations: isRecord(state.taxAnnotations) ? state.taxAnnotations : {},
     assetSettings: isRecord(state.assetSettings) ? state.assetSettings : {},
     accounts: isRecord(state.accounts) ? state.accounts : {},
@@ -208,6 +221,48 @@ function sanitizeRow(key: string, raw: unknown): RawCoinhouseRow | null {
     extra: isRecord(r['extra']) ? (r['extra'] as Record<string, string>) : {},
   };
 }
+
+function sanitizePivotAmount(raw: unknown): PivotAmount | null | undefined {
+  if (raw === null || raw === undefined) return null;
+  if (!isRecord(raw)) return undefined;
+  if (!isDecimal(raw['amount']) || typeof raw['currency'] !== 'string' || raw['currency'] === '')
+    return undefined;
+  return { amount: raw['amount'], currency: raw['currency'] };
+}
+
+function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
+  if (!isRecord(raw)) return null;
+  const r = raw;
+  if (typeof r['at'] !== 'string' || !NAIVE.test(r['at'])) return null;
+  if (typeof r['date'] !== 'string' || r['date'] === '') return null;
+  if (typeof r['accountId'] !== 'string' || !ACCOUNT_ID.test(r['accountId'])) return null;
+  const sent = sanitizePivotAmount(r['sent']);
+  const received = sanitizePivotAmount(r['received']);
+  const fee = sanitizePivotAmount(r['fee']);
+  const netWorth = sanitizePivotAmount(r['netWorth']);
+  if (sent === undefined || received === undefined || fee === undefined || netWorth === undefined)
+    return null;
+  if (sent === null && received === null) return null;
+  const text = (v: unknown, max: number): string | null =>
+    typeof v === 'string' && v !== '' ? v.slice(0, max) : null;
+  return {
+    key,
+    importId: typeof r['importId'] === 'string' ? r['importId'] : '',
+    lineNo: typeof r['lineNo'] === 'number' ? r['lineNo'] : 0,
+    accountId: r['accountId'],
+    date: r['date'].slice(0, 40),
+    at: r['at'],
+    sent,
+    received,
+    fee,
+    netWorth,
+    label: text(r['label'], 40),
+    description: text(r['description'], 500),
+    txHash: text(r['txHash'], 120),
+  };
+}
+
+const EVENT_ID = /^[A-Za-z0-9:._#+-]{1,200}$/;
 
 function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
   if (!isRecord(raw)) return null;
@@ -350,6 +405,8 @@ function sanitizeImport(raw: unknown): ImportBatchMeta | null {
     newRows: raw['newRows'],
   };
   if (typeof raw['format'] === 'string') meta.format = raw['format'].slice(0, 60);
+  if (typeof raw['accountId'] === 'string' && ACCOUNT_ID.test(raw['accountId']))
+    meta.accountId = raw['accountId'];
   const header = textList(raw['header']);
   if (header) meta.header = header;
   const unknownColumns = textList(raw['unknownColumns']);
@@ -373,6 +430,12 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     if (row) rawRows[key] = row;
     else dropped++;
   }
+  const pivotRows: Record<RowKey, RawPivotRow> = {};
+  for (const [key, raw] of Object.entries(state.pivotRows)) {
+    const row = sanitizePivotRow(key, raw);
+    if (row) pivotRows[key] = row;
+    else dropped++;
+  }
   const manualEvents: Record<string, ManualEvent> = {};
   for (const [id, raw] of Object.entries(state.manualEvents)) {
     const event = sanitizeManual(id, raw);
@@ -382,6 +445,12 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
   const qualifications: Record<EventId, Qualification> = {};
   for (const [id, raw] of Object.entries(state.qualifications)) {
     if (validQualification(raw)) qualifications[id] = raw;
+    else dropped++;
+  }
+  const transferOverrides: Record<EventId, TransferOverride> = {};
+  for (const [id, raw] of Object.entries(state.transferOverrides)) {
+    if (EVENT_ID.test(id) && (raw === 'none' || (typeof raw === 'string' && EVENT_ID.test(raw))))
+      transferOverrides[id] = raw;
     else dropped++;
   }
   const priceCache: Record<AssetCode, PriceQuoteInput> = {};
@@ -460,8 +529,10 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       ...state,
       imports,
       rawRows,
+      pivotRows,
       manualEvents,
       qualifications,
+      transferOverrides,
       priceCache,
       assetSettings,
       accounts,

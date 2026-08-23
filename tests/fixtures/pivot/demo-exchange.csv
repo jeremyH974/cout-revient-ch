@@ -1,0 +1,5 @@
+ID,Date (UTC),Type,Tag,From Wallet ID,From Amount,From Currency,To Wallet ID,To Amount,To Currency,Fee Amount,Fee Currency,Net Worth Amount,Net Worth Currency,TxHash,Description
+demo-1,2026-03-02 09:00:00,buy,,w1,2000,EUR,w1,0.05,BTC,5,EUR,,,,Achat de demonstration
+demo-2,2026-04-10 14:30:00,exchange,swap,w1,0.01,BTC,w1,0.4,ETH,,,450,EUR,,Echange de demonstration
+demo-3,2026-05-15 08:00:00,sell,,w1,0.2,ETH,w1,300,USDC,0.3,USDC,,,,Vente de demonstration
+demo-4,2026-06-01 10:00:00,transfer,,w1,0.02,BTC,,,,,,,,0xd3300000f1c7,Envoi vers le portefeuille froid

@@ -5,12 +5,31 @@
    * saisies et lire un PRU par plateforme ; et des comptes de trading Hyperliquid (adresse publique,
    * lecture seule : jamais de clé).
    */
+  import { D } from '$lib/domain/money';
+  import { pairFeeQty } from '$lib/domain/transfers';
   import type { Account } from '$lib/domain/types';
+  import { fmtDate, fmtQty } from '$lib/format/fr';
   import { HL_ADDRESS } from '$lib/import/hyperliquid/api-types';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
+
+  // --- Virements internes -----------------------------------------------------------------------
+  /** Choix de dépôt en attente d'appariement manuel, par id de retrait. */
+  let choice = $state<Record<string, string>>({});
+  const accountName = (id: string): string => app.accountLabels[id] ?? id;
+  const candidatesFor = (asset: string, notAccount: string) =>
+    app.transferPairing.unpairedDeposits.filter(
+      (d) => d.in.asset === asset && d.accountId !== notAccount,
+    );
+  function pairManually(withdrawalId: string): void {
+    const depositId = choice[withdrawalId];
+    if (!depositId) return;
+    app.setTransferOverride(withdrawalId, depositId);
+    choice = { ...choice, [withdrawalId]: '' };
+    toasts.push('Virement apparié : le coût d’acquisition voyage.', 'success');
+  }
 
   let label = $state('');
   let space = $state<Account['space']>('invest');
@@ -127,6 +146,83 @@
     </ul>
   {/if}
 </section>
+
+{#if app.transferPairing.pairs.length > 0 || app.transferPairing.unpairedWithdrawals.length > 0 || app.transferPairing.unpairedDeposits.length > 0}
+  <section class="card">
+    <h2>Virements internes</h2>
+    <p class="muted small">
+      Un retrait et un dépôt du même actif entre deux de vos comptes (fenêtre de 72 h, écart ≤ frais
+      réseau) sont appariés automatiquement : le coût d'acquisition voyage, aucune plus-value
+      fantôme.
+    </p>
+    {#if app.transferPairing.pairs.length > 0}
+      <ul class="transfers">
+        {#each app.transferPairing.pairs as pair (pair.withdrawalId)}
+          <li>
+            <div class="main">
+              <strong>{fmtQty(D(pair.qtyOut))} {pair.asset.toUpperCase()}</strong>
+              <span class="muted small"
+                >{accountName(pair.fromAccountId)} → {accountName(pair.toAccountId)} ·
+                {fmtDate(pair.at)}{#if pairFeeQty(pair).gt(D('0'))}
+                  · frais réseau {fmtQty(pairFeeQty(pair))}
+                  {pair.asset.toUpperCase()}{/if}{#if pair.forced}
+                  · apparié manuellement{/if}</span
+              >
+            </div>
+            <button
+              class="linkish"
+              type="button"
+              onclick={() => app.setTransferOverride(pair.withdrawalId, 'none')}>Délier</button
+            >
+          </li>
+        {/each}
+      </ul>
+    {/if}
+    {#each app.transferPairing.unpairedWithdrawals as w (w.id)}
+      <div class="pairline">
+        <div class="main">
+          <strong
+            >{fmtQty(D(w.out.qty))} {w.out.asset.toUpperCase()} retirés sans contrepartie</strong
+          >
+          <span class="muted small">{accountName(w.accountId)} · {fmtDate(w.at)}</span>
+        </div>
+        {#if app.state.transferOverrides[w.id] === 'none'}
+          <button class="linkish" type="button" onclick={() => app.setTransferOverride(w.id, null)}
+            >Réactiver l'appariement automatique</button
+          >
+        {:else if candidatesFor(w.out.asset, w.accountId).length > 0}
+          <label class="pairpick">
+            <span class="sr-only">Dépôt à apparier</span>
+            <select bind:value={choice[w.id]}>
+              <option value="">Apparier avec…</option>
+              {#each candidatesFor(w.out.asset, w.accountId) as d (d.id)}
+                <option value={d.id}
+                  >{fmtQty(D(d.in.qty))}
+                  {d.in.asset.toUpperCase()} · {accountName(d.accountId)} ·
+                  {fmtDate(d.at)}</option
+                >
+              {/each}
+            </select>
+          </label>
+          <button
+            class="linkish"
+            type="button"
+            disabled={!choice[w.id]}
+            onclick={() => pairManually(w.id)}>Apparier</button
+          >
+        {:else}
+          <span class="muted small">Renseignez sa valeur, ou laissez la sortie au coût.</span>
+        {/if}
+      </div>
+    {/each}
+    {#if app.transferPairing.unpairedDeposits.length > 0}
+      <p class="muted small">
+        {app.transferPairing.unpairedDeposits.length} dépôt(s) sans retrait correspondant : coût d'acquisition
+        0 € tant qu'ils ne sont ni appariés ni qualifiés.
+      </p>
+    {/if}
+  </section>
+{/if}
 
 <section class="card">
   <h2>Ajouter un compte manuel</h2>
@@ -253,6 +349,47 @@
   .mono {
     font-family: var(--font-mono);
     word-break: break-all;
+  }
+  .transfers {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .transfers li,
+  .pairline {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    min-height: var(--tap);
+    padding: var(--space-2) 0;
+  }
+  .transfers li + li,
+  .pairline {
+    border-top: 1px solid var(--border);
+  }
+  .linkish {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--fg);
+    min-height: var(--tap);
+    padding: 0 var(--space-3);
+    cursor: pointer;
+  }
+  .linkish:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  .pairpick select {
+    min-height: var(--tap);
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    padding: 0 var(--space-2);
   }
   .trading {
     border-left: 4px solid var(--accent-trading);

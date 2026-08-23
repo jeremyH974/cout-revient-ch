@@ -1,7 +1,14 @@
 /** Boucle chronologique : applique chaque événement aux positions concernées. */
 import { isCashLike, isFiat } from '../assets';
 import { D, ZERO, type Big } from '../money';
-import type { AssetCode, EngineSettings, LedgerEvent, UnqualifiedEvent } from '../types';
+import type {
+  AssetCode,
+  DepositEvent,
+  EngineSettings,
+  EventId,
+  LedgerEvent,
+  UnqualifiedEvent,
+} from '../types';
 import { PositionState, type Movement } from './position';
 
 const KIND_RANK: Record<LedgerEvent['kind'], number> = {
@@ -47,6 +54,8 @@ export interface LedgerRun {
   /** Plus haut niveau atteint par `cashIn − cashOut` : base du ROI du portefeuille. */
   cashEngagedMax: Big;
   subscriptionsEur: Big;
+  /** Coût réellement sorti par retrait apparié (id du retrait) : il « voyage » vers le dépôt. */
+  transferCosts: Map<EventId, Big>;
   /** Quantités des seuls événements de scope 'coinhouse', pour le contrôle de solde. */
   coinhouseQty: Map<AssetCode, Big>;
   warnings: string[];
@@ -82,6 +91,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     cashOut: ZERO,
     cashEngagedMax: ZERO,
     subscriptionsEur: ZERO,
+    transferCosts: new Map(),
     coinhouseQty: new Map(),
     warnings: [],
   };
@@ -94,7 +104,38 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     if (engaged.gt(run.cashEngagedMax)) run.cashEngagedMax = engaged;
   };
 
-  for (const event of sortEvents(events)) {
+  const ordered = sortEvents(events);
+  // Virements internes : un dépôt apparié qui arrive avant son retrait (même seconde, horloges
+  // décalées entre plateformes) est différé jusqu'à ce que le coût sorti soit connu.
+  const pendingTransfers = new Set<EventId>();
+  for (const event of ordered)
+    if (event.kind === 'withdrawal' && event.transferTo !== undefined)
+      pendingTransfers.add(event.id);
+  const deferredDeposits = new Map<EventId, DepositEvent[]>();
+  const applyDeposit = (event: DepositEvent): void => {
+    track(event, event.in.asset, D(event.in.qty));
+    const carried =
+      event.transferFrom !== undefined ? run.transferCosts.get(event.transferFrom) : undefined;
+    const cost = carried ?? (event.costEur ? D(event.costEur) : ZERO);
+    let warnings = event.warnings;
+    if (carried !== undefined)
+      warnings = [...warnings, 'Virement interne : coût d’acquisition repris du retrait apparié.'];
+    else if (event.transferFrom !== undefined)
+      warnings = event.costEur
+        ? [...warnings, 'Virement interne : coût repris du compte d’origine.']
+        : [...warnings, 'Virement apparié mais coût d’origine indisponible : 0 € retenu.'];
+    else if (!event.costEur)
+      warnings = [...warnings, 'Coût d’acquisition inconnu : 0 € retenu (à renseigner).'];
+    pos(event.in.asset).acquire(
+      D(event.in.qty),
+      cost,
+      'deposit',
+      true,
+      move(event, 'deposit', { warnings }),
+    );
+  };
+
+  for (const event of ordered) {
     switch (event.kind) {
       case 'trade': {
         track(event, event.out.asset, D(event.out.qty).neg());
@@ -209,18 +250,17 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       }
       case 'deposit': {
-        track(event, event.in.asset, D(event.in.qty));
-        const cost = event.costEur ? D(event.costEur) : ZERO;
-        const warnings = event.costEur
-          ? event.warnings
-          : [...event.warnings, 'Coût d’acquisition inconnu : 0 € retenu (à renseigner).'];
-        pos(event.in.asset).acquire(
-          D(event.in.qty),
-          cost,
-          'deposit',
-          true,
-          move(event, 'deposit', { warnings }),
-        );
+        if (
+          event.transferFrom !== undefined &&
+          !run.transferCosts.has(event.transferFrom) &&
+          pendingTransfers.has(event.transferFrom)
+        ) {
+          const list = deferredDeposits.get(event.transferFrom) ?? [];
+          list.push(event);
+          deferredDeposits.set(event.transferFrom, list);
+          break;
+        }
+        applyDeposit(event);
         break;
       }
       case 'withdrawal': {
@@ -231,17 +271,23 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
           p.dispose(qty, D(event.proceedsEur), true, move(event, 'withdrawal'));
         } else {
           const atCost = qty.gte(p.qty) ? p.costBasis : p.costBasis.times(qty).div(p.qty);
-          p.dispose(
+          const note =
+            event.transferTo !== undefined
+              ? 'Virement interne : sortie au coût, le coût est transféré au compte de destination.'
+              : 'Retrait valorisé au coût (pas de plus-value constatée).';
+          const disposed = p.dispose(
             qty,
             atCost,
             true,
-            move(event, 'withdrawal', {
-              warnings: [
-                ...event.warnings,
-                'Retrait valorisé au coût (pas de plus-value constatée).',
-              ],
-            }),
+            move(event, 'withdrawal', { warnings: [...event.warnings, note] }),
           );
+          if (event.transferTo !== undefined && disposed)
+            run.transferCosts.set(event.id, disposed.costOfSale);
+        }
+        if (event.transferTo !== undefined) {
+          pendingTransfers.delete(event.id);
+          for (const deferred of deferredDeposits.get(event.id) ?? []) applyDeposit(deferred);
+          deferredDeposits.delete(event.id);
         }
         break;
       }
@@ -264,6 +310,9 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
     }
   }
+  // Garde-fou : un dépôt différé dont le retrait n'aurait jamais été exécuté (impossible en
+  // principe, la liste vient des mêmes événements) est appliqué avec son repli.
+  for (const list of deferredDeposits.values()) for (const deferred of list) applyDeposit(deferred);
   for (const state of positions.values()) run.warnings.push(...state.warnings);
   return run;
 }

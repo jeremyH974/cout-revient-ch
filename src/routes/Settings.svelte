@@ -3,6 +3,7 @@
   import { D } from '$lib/domain/money';
   import { lotsToCsv, operationsToCsv, positionsToCsv } from '$lib/export/csv-export';
   import { canShareFiles, downloadText, shareTextFile } from '$lib/export/download';
+  import { eventsToKoinlyCsv } from '$lib/export/koinly-csv';
   import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
@@ -250,6 +251,17 @@
             lotsToCsv(app.report, app.currency),
             'text/csv;charset=utf-8',
           )}>Lots ouverts (CSV)</button
+      >
+      <button
+        class="secondary"
+        type="button"
+        disabled={!app.hasData}
+        onclick={() => {
+          const out = eventsToKoinlyCsv(app.events);
+          downloadText(`cout-revient-ch-koinly-${stamp()}.csv`, out.csv, 'text/csv;charset=utf-8');
+          if (out.skipped > 0)
+            toasts.push(`${out.skipped} ligne(s) à qualifier laissée(s) de côté.`, 'info');
+        }}>Format Koinly / Waltio (CSV)</button
       >
     </div>
     <div class="row">

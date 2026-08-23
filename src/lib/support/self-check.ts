@@ -36,6 +36,8 @@ export interface SelfCheckInput {
   platform?: { ios: boolean; standalone: boolean };
   /** Comptes de trading (Hyperliquid) : réconciliation d'équité et fraîcheur de synchronisation. */
   trading?: TradingCheckInput[];
+  /** Virements internes (décision n° 25) : paires appariées et candidats restés orphelins. */
+  transfers?: { pairs: number; unpairedWithdrawals: number; unpairedDeposits: number };
   /** ISO 8601. */
   now: string;
 }
@@ -363,6 +365,30 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
     }
   }
 
+  // Virements internes entre comptes : appariés = coût qui voyage ; orphelins = valeur à
+  // renseigner (sinon retrait au coût / dépôt à 0 €, déjà signalés ligne à ligne).
+  const transfers = input.transfers;
+  if (
+    transfers &&
+    (transfers.pairs > 0 || transfers.unpairedWithdrawals > 0 || transfers.unpairedDeposits > 0)
+  ) {
+    const orphans = transfers.unpairedWithdrawals + transfers.unpairedDeposits;
+    checks.push(
+      orphans === 0
+        ? {
+            id: 'transfers',
+            label: 'Virements internes',
+            level: 'ok',
+            detail: `${plural(transfers.pairs, 'virement apparié', 'virements appariés')} : le coût d'acquisition voyage entre vos comptes, aucune plus-value fantôme.`,
+          }
+        : {
+            id: 'transfers',
+            label: 'Virements internes',
+            level: 'warn',
+            detail: `${plural(orphans, 'mouvement sans contrepartie appariée', 'mouvements sans contrepartie appariée')} (${transfers.unpairedWithdrawals} retrait(s), ${transfers.unpairedDeposits} dépôt(s)) : appariez-les depuis Comptes ou renseignez leur valeur${transfers.pairs > 0 ? ` ; ${plural(transfers.pairs, 'virement apparié', 'virements appariés')}` : ''}.`,
+          },
+    );
+  }
   return checks;
 }
 

@@ -22,6 +22,11 @@
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
       trading: app.tradingChecks,
+      transfers: {
+        pairs: app.transferPairing.pairs.length,
+        unpairedWithdrawals: app.transferPairing.unpairedWithdrawals.length,
+        unpairedDeposits: app.transferPairing.unpairedDeposits.length,
+      },
       now: nowIso(),
     }),
   );

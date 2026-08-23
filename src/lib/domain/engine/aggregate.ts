@@ -203,8 +203,26 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
  * s'applique qu'au compte Coinhouse.
  */
 export function computePortfolioByAccount(input: ComputeInput): Map<AccountId, PortfolioReport> {
+  // Virements internes : dans la vue par compte, le retrait apparié vit dans un AUTRE grand
+  // livre ; le coût qui voyage est donc pris au run consolidé puis estampillé sur le dépôt, et le
+  // lien est retiré pour que chaque compte se rejoue de façon autonome.
+  const consolidated = runLedger(input.events, input.settings);
+  const stamped = input.events.map((event): LedgerEvent => {
+    if (event.kind !== 'deposit' || event.transferFrom === undefined) return event;
+    const carried = consolidated.transferCosts.get(event.transferFrom);
+    const { transferFrom: _link, ...rest } = event;
+    void _link;
+    return {
+      ...rest,
+      costEur: carried !== undefined ? carried.toString() : event.costEur,
+      warnings: [
+        ...event.warnings,
+        'Virement interne : coût d’acquisition repris du compte d’origine.',
+      ],
+    };
+  });
   const groups = new Map<AccountId, LedgerEvent[]>();
-  for (const event of input.events) {
+  for (const event of stamped) {
     const list = groups.get(event.accountId);
     if (list) list.push(event);
     else groups.set(event.accountId, [event]);

@@ -19,7 +19,7 @@ import type {
 import type { AccountId, DecimalString, LedgerEvent, TradeEvent } from '../../domain/types';
 import { isSpotCoin, resolveSpotPair, type HlFill, type HlLedgerUpdate } from './api-types';
 import { fundingKey, ledgerKey, sortedFills, type HlAccountData, type HlSpotPairRef } from './data';
-import { msToParisDay, msToParisNaive } from './time';
+import { msToParisDay, msToParisNaive } from '../time';
 
 export interface NormalizeOptions {
   accountId: AccountId;
