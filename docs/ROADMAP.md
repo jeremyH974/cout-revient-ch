@@ -145,25 +145,25 @@ Satisfaction (plaisir d'usage, adoption sur le Discord), chacun sur 5. Effort en
 session = un créneau de développement assisté (≈ 2–3 h) incluant tests et vérification dans le
 navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 
-| #   | Proposition                                                                                        | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |   Phase   |
-| --- | -------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :-------: |
-| P2  | Canal de retours + « copier le diagnostic »                                                        |   3    |     4     |    4    |   0,5    | **22** |     0     |
-| P3  | Mode démo en un clic                                                                               |   4    |     1     |    5    |   0,5    | **20** |     0     |
-| P1  | Verrouillage de la chaîne d'approvisionnement                                                      |   2    |     5     |    1    |   0,5    | **16** |     0     |
-| P16 | Veille et mises à jour planifiées (par trimestre)                                                  |   1    |     4     |    1    |   0,5    |   12   | récurrent |
-| P8  | Logos manquants, historique EURCV/GMX, attribution CoinGecko                                       |   1    |     1     |    3    |   0,5    |   10   |     1     |
-| P11 | Répartition (donut), alerte de concentration, contribution par actif                               |   2    |     1     |    3    |    1     |   8    |     2     |
-| P9  | Carte de partage en image + résumé texte pour Discord                                              |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
-| P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                           |   2    |     5     |    2    |   1,5    |   6    |     0     |
-| P10 | Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                |   5    |     2     |    4    |    2     |  5,5   |     2     |
-| P12 | Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)      |   3    |     5     |    3    |    2     |  5,5   |     2     |
-| P5  | Import v2 : variantes d'export, en-têtes EN, nouveaux types Coinhouse, écran « À qualifier » guidé |   5    |     5     |    5    |    3     |   5    |     1     |
-| P7  | Frais réels et spread implicite par opération + « abonnement rentable ? »                          |   5    |     2     |    5    |   2,5    |  4,8   |     1     |
-| P14 | Transfert entre appareils (QR / lien compressé)                                                    |   2    |     2     |    3    |   1,5    |  4,7   |     3     |
-| P15 | Drawdown maximal et volatilité                                                                     |   2    |     1     |    2    |    1     |   5    |     3     |
-| P18 | Version anglaise                                                                                   |   2    |     1     |    2    |    2     |  2,5   |     3     |
-| P13 | Mode fiscal FR « estimation » (150 VH bis, 31,4 %, 2086) + réconciliation DAC8                     |   5    |     3     |    4    |    5     |  2,4   |     3     |
-| P17 | Importeur générique multi-plateformes (Binance, Kraken, Ledger…)                                   |   2    |     1     |    2    |    4     |  1,3   |     3     |
+| #   | Proposition                                                                                                                                                                  | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |   Phase   |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :-------: |
+| P2  | Canal de retours + « copier le diagnostic »                                                                                                                                  |   3    |     4     |    4    |   0,5    | **22** |     0     |
+| P3  | Mode démo en un clic                                                                                                                                                         |   4    |     1     |    5    |   0,5    | **20** |     0     |
+| P1  | Verrouillage de la chaîne d'approvisionnement                                                                                                                                |   2    |     5     |    1    |   0,5    | **16** |     0     |
+| P16 | Veille et mises à jour planifiées (par trimestre)                                                                                                                            |   1    |     4     |    1    |   0,5    |   12   | récurrent |
+| P8  | Logos manquants, historique EURCV/GMX, attribution CoinGecko                                                                                                                 |   1    |     1     |    3    |   0,5    |   10   |     1     |
+| P11 | Répartition (donut), alerte de concentration, contribution par actif                                                                                                         |   2    |     1     |    3    |    1     |   8    |     2     |
+| P9  | Carte de partage en image + résumé texte pour Discord                                                                                                                        |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
+| P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                                                                                                     |   2    |     5     |    2    |   1,5    |   6    |     0     |
+| P10 | Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                                                                                          |   5    |     2     |    4    |    2     |  5,5   |     2     |
+| P12 | Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                                                |   3    |     5     |    3    |    2     |  5,5   |     2     |
+| P5  | **Livré (v1.1, 23/08/2026) — alias réels à compléter avec les testeurs.** Import v2 : variantes d'export, en-têtes EN, nouveaux types Coinhouse, écran « À qualifier » guidé |   5    |     5     |    5    |    3     |   5    |     1     |
+| P7  | Frais réels et spread implicite par opération + « abonnement rentable ? »                                                                                                    |   5    |     2     |    5    |   2,5    |  4,8   |     1     |
+| P14 | Transfert entre appareils (QR / lien compressé)                                                                                                                              |   2    |     2     |    3    |   1,5    |  4,7   |     3     |
+| P15 | Drawdown maximal et volatilité                                                                                                                                               |   2    |     1     |    2    |    1     |   5    |     3     |
+| P18 | Version anglaise                                                                                                                                                             |   2    |     1     |    2    |    2     |  2,5   |     3     |
+| P13 | Mode fiscal FR « estimation » (150 VH bis, 31,4 %, 2086) + réconciliation DAC8                                                                                               |   5    |     3     |    4    |    5     |  2,4   |     3     |
+| P17 | Importeur générique multi-plateformes (Binance, Kraken, Ledger…)                                                                                                             |   2    |     1     |    2    |    4     |  1,3   |     3     |
 
 ### 3 bis. Propositions ajoutées le 23/08/2026 (version 2 — détail dans `docs/proposals/`)
 
@@ -233,6 +233,8 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
 ### Phase 1 — Fiabilité face à Coinhouse 2026 (≈ 6 sessions, mois 1–2)
 
 **P5 — Import v2 (3 sessions) — priorité absolue de la phase**
+
+**Livré (v1.1, 23/08/2026) — alias réels à compléter avec les testeurs.**
 
 - Quoi : reconnaître « Export basique » vs « Export avancé » (message guidant vers l'avancé) ; alias
   d'en-têtes anglais ; table extensible des nouveaux types (staking, récompenses, retraits de staking,

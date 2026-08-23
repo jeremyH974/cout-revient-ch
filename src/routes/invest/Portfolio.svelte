@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
+  import type { UnqualifiedEvent } from '$lib/domain/types';
   import { D, ZERO } from '$lib/domain/money';
   import { fmtDate, fmtRelative } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
@@ -7,6 +8,7 @@
   import { nowMs } from '$lib/clock';
   import AppBar from '../../components/layout/AppBar.svelte';
   import AssetRow from '../../components/portfolio/AssetRow.svelte';
+  import QualifySheet from '../../components/portfolio/QualifySheet.svelte';
   import SummaryHeader from '../../components/portfolio/SummaryHeader.svelte';
   import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
   import SelfChecks from '../../components/settings/SelfChecks.svelte';
@@ -17,6 +19,22 @@
   type SortKey = 'value' | 'total' | 'unrealizedPct' | 'realized' | 'asset';
   let query = $state('');
   let sort = $state<SortKey>('value');
+  let qualifyOpen = $state(false);
+  let qualifyEvent = $state<UnqualifiedEvent | null>(null);
+  const openQualify = (e: UnqualifiedEvent): void => {
+    qualifyEvent = e;
+    qualifyOpen = true;
+  };
+  const rewards = $derived(app.events.filter((e) => e.kind === 'reward'));
+  const QUALIFICATION_LABELS: Record<string, string> = {
+    reward: 'récompense',
+    deposit: 'dépôt',
+    withdrawal: 'retrait',
+    purchase: 'achat hors plateforme',
+    sale: 'vente hors plateforme',
+    trade: 'échange',
+    ignore: 'ignorée',
+  };
 
   const sorters: Record<SortKey, (a: PositionReport, b: PositionReport) => number> = {
     value: (a, b) => (b.value ?? ZERO).cmp(a.value ?? ZERO),
@@ -109,16 +127,75 @@
 {#if app.report.unqualified.length > 0}
   <section class="list alert">
     <h2 class="section">À qualifier ({app.report.unqualified.length})</h2>
+    <p class="small muted">
+      Coinhouse a exporté des lignes que l'outil ne sait pas interpréter seul. Dites ce qu'elles
+      représentent : les chiffres se recalculent aussitôt, et vous pouvez annuler à tout moment.
+    </p>
     {#each app.report.unqualified as e (e.id)}
-      <p class="line small">
-        {fmtDate(e.at)} · {e.rawType} ·
-        {#each e.legs as l, i (l.asset + i)}{#if i > 0}&nbsp;/
-          {/if}<Qty value={D(l.signedQty)} asset={l.asset} sign />{/each}
-        — {e.reason}
-      </p>
+      <div class="line small unqualified">
+        <span>
+          {fmtDate(e.at)} · {e.rawType} ·
+          {#each e.legs as l, i (l.asset + i)}{#if i > 0}&nbsp;/
+            {/if}<Qty value={D(l.signedQty)} asset={l.asset} sign />{/each}
+          {#if app.lineNumbersOf(e.rowKeys).length > 0}<span class="muted">
+              · ligne {app.lineNumbersOf(e.rowKeys).join(', ')}</span
+            >{/if}
+          <span class="muted">— {e.reason}</span>
+        </span>
+        <button class="secondary small-btn" type="button" onclick={() => openQualify(e)}
+          >Qualifier</button
+        >
+      </div>
     {/each}
   </section>
 {/if}
+
+{#if app.qualified.length > 0}
+  <section class="list">
+    <h2 class="section">Qualifications enregistrées ({app.qualified.length})</h2>
+    {#each app.qualified as q (q.eventId)}
+      <div class="line small unqualified">
+        <span>
+          {q.at ? fmtDate(q.at) : '—'} · {q.rawType ?? q.eventId} → {QUALIFICATION_LABELS[
+            q.qualification.kind
+          ] ?? q.qualification.kind}
+          {#if q.lineNumbers.length > 0}<span class="muted">
+              · ligne {q.lineNumbers.join(', ')}</span
+            >{/if}
+        </span>
+        <button
+          class="link"
+          type="button"
+          onclick={() => app.qualify(q.eventId, null)}
+          aria-label="Annuler la qualification de l'opération du {q.at ? fmtDate(q.at) : '?'}"
+          >Annuler</button
+        >
+      </div>
+    {/each}
+  </section>
+{/if}
+
+{#if rewards.length > 0}
+  <section class="list">
+    <h2 class="section">Revenus (récompenses) ({rewards.length})</h2>
+    <p class="small muted">
+      {app.state.engineSettings.rewardValuation === 'fair-value'
+        ? 'Comptées à leur valeur du jour (réglage « Récompenses »), donc dans le P&L.'
+        : 'Comptées à 0 € de coût (réglage « Récompenses ») : leur valeur apparaît quand vous les vendez.'}
+    </p>
+    {#each rewards as r (r.id)}
+      {#if r.kind === 'reward'}
+        <p class="line small">
+          {fmtDate(r.at)} · <Qty value={D(r.in.qty)} asset={r.in.asset} sign />
+          {#if r.fairValueEur}<span class="muted">· valeur <Money value={D(r.fairValueEur)} /></span
+            >{/if}
+        </p>
+      {/if}
+    {/each}
+  </section>
+{/if}
+
+<QualifySheet bind:open={qualifyOpen} event={qualifyEvent} />
 
 {#if closed.length > 0 && !app.state.ui.hideClosed}
   <details class="list">
@@ -220,6 +297,22 @@
   }
   .grow {
     flex: 1;
+  }
+  .unqualified {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+  .unqualified > span:first-child {
+    flex: 1 1 240px;
+  }
+  .small-btn {
+    min-height: 36px;
+    padding: 0 var(--space-3);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-weight: 600;
+    white-space: nowrap;
   }
   .alert .section {
     color: var(--warn);

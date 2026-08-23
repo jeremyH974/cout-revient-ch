@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { COINHOUSE_HEADER_2026_08 } from './detect';
 import { importCoinhouseCsv } from './index';
 import { normalizeCoinhouseRows } from './normalize';
+import { suggestQualification } from './row-types';
 
 const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const REAL = 'historique des transactions (4).csv';
@@ -52,8 +53,13 @@ function expectFullExport(text: string, expected: ExpectedCounts): void {
 }
 
 describe('import Coinhouse — jeu de démonstration synthétique', () => {
-  it('lit 205 lignes : 100 échanges, 1 migration, 2 abonnements, 0 à qualifier', () => {
-    expectFullExport(readFileSync(FIXTURE, 'utf8'), { rows: 205, trades: 100, assets: 22 });
+  it('lit 217 lignes : 100 échanges, 1 migration, 2 abonnements, 12 récompenses, 0 à qualifier', () => {
+    const text = readFileSync(FIXTURE, 'utf8');
+    expectFullExport(text, { rows: 217, trades: 100, assets: 22 });
+    const result = importCoinhouseCsv(text, {}, 'imp:reward-count');
+    if (!result.ok) throw new Error(result.error);
+    const { events } = normalizeCoinhouseRows(Object.values(result.rows));
+    expect(events.filter((e) => e.kind === 'reward')).toHaveLength(12);
   });
 
   it('valorise un achat payé en USDC avec la contre-valeur EUR de la jambe USDC', () => {
@@ -129,6 +135,49 @@ describe('import Coinhouse — cas limites', () => {
       'ch:cccc0003': { kind: 'reward', fairValueEur: null },
     });
     expect(events.map((e) => e.kind).sort()).toEqual(['reward', 'unqualified']);
+  });
+
+  it('signale un « Export basique » Coinhouse (sans Contre-valeur (EUR))', () => {
+    const text = 'Date,Type,Quantité,Devise\n01/02/2026 10:00:00,Echange,0.01,btc\n';
+    const result = importCoinhouseCsv(text, {}, 'imp');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toBe(
+      'Ce fichier ressemble à l’« Export basique » de Coinhouse : il manque la contre-valeur en euros.',
+    );
+    expect(result.details.some((d) => /Export avancé/.test(d))).toBe(true);
+  });
+
+  it('« Staking » seul n’est plus auto-récompense : à qualifier, ignorer suggéré', () => {
+    const text = csv('gggg0006,01/02/2026 10:00:00,Staking,5.0,sol,80,400.0,,,,5.0,Portefeuille');
+    const result = importCoinhouseCsv(text, {}, 'imp');
+    expect(result.ok && result.report.counts.unqualified).toBe(1);
+    if (!result.ok) return;
+    const { events } = normalizeCoinhouseRows(Object.values(result.rows));
+    expect(events).toHaveLength(1);
+    const [event] = events;
+    expect(event?.kind).toBe('unqualified');
+    if (event?.kind !== 'unqualified') return;
+    expect(suggestQualification(event.rawType, event.legs)).toEqual({ kind: 'ignore' });
+  });
+
+  it('« Récompense » reste auto-qualifiée en récompense', () => {
+    const text = csv(
+      'ffff0007,01/02/2026 10:00:00,Récompense,2.0,sol,80,160.0,,,,2.0,Portefeuille',
+    );
+    const result = importCoinhouseCsv(text, {}, 'imp');
+    expect(result.ok && result.report.counts.unqualified).toBe(0);
+    if (!result.ok) return;
+    const { events } = normalizeCoinhouseRows(Object.values(result.rows));
+    expect(events).toHaveLength(1);
+    const [event] = events;
+    expect(event?.kind).toBe('reward');
+    if (event?.kind !== 'reward') return;
+    expect(event.in).toEqual({ asset: 'sol', qty: '2' });
+    expect(event.fairValueEur).toBe('160');
+    expect(event.warnings).toEqual([
+      'Type « Récompense » interprété par heuristique : à vérifier.',
+    ]);
   });
 
   it('apparie delisting et migration, ignore un abonnement à 0', () => {

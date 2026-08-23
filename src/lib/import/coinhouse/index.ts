@@ -58,16 +58,30 @@ export function importCoinhouseCsv(
   const table = parseCsvText(text);
   const detection = detectCoinhouseFormat(table.header);
   if (!detection.ok) {
+    // Date, type, quantité et devise présentes mais pas la contre-valeur : très probablement
+    // l'« Export basique » de Coinhouse, inexploitable pour un coût de revient (structure exacte
+    // de cet export non vérifiée : message prudent, même orientation que l'aide).
+    const basic =
+      detection.reason === 'missing-columns' &&
+      detection.missing.includes('valueEur') &&
+      (['date', 'type', 'qty', 'asset'] as const).every((c) => !detection.missing.includes(c));
     const details =
       detection.reason === 'empty'
         ? ['Le fichier est vide.']
         : [
             `Colonnes manquantes : ${detection.missing.join(', ')}.`,
             `Colonnes trouvées : ${detection.found.join(', ') || '(aucune)'}.`,
+            ...(basic
+              ? [
+                  'Dans l’application Coinhouse : Vos transactions → Exporter → choisissez « Export avancé » (l’export basique n’a pas la colonne « Contre-valeur (EUR) »).',
+                ]
+              : []),
           ];
     return {
       ok: false,
-      error: 'Ce fichier ne ressemble pas à un export Coinhouse.',
+      error: basic
+        ? 'Ce fichier ressemble à l’« Export basique » de Coinhouse : il manque la contre-valeur en euros.'
+        : 'Ce fichier ne ressemble pas à un export Coinhouse.',
       details,
       header: table.header,
     };

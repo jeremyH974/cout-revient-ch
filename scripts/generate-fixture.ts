@@ -11,8 +11,9 @@
  * Le scénario couvre tout ce que l'importeur et le moteur savent traiter : achats en euros, achats
  * d'USDC, achats payés en USDC, ventes vers euros et vers USDC, DCA, vente puis rachat (PRU
  * invariant), positions clôturées en gain et en perte, actif à prix minuscule (PEPE), abonnements
- * (dont un à 0), delisting + migration (MKR → SKY), remises de frais partielles ou totales, et un
- * jour où deux opérations USDC sont réglées dans l'ordre inverse de leurs horodatages (cas réel).
+ * (dont un à 0), delisting + migration (MKR → SKY), remises de frais partielles ou totales, un
+ * jour où deux opérations USDC sont réglées dans l'ordre inverse de leurs horodatages (cas réel),
+ * et des récompenses (type `Récompense`, déjà `auto` → reconnu sans qualification) sur SOL et ETH.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -279,7 +280,7 @@ interface Leg {
 
 interface Op {
   ms: number;
-  type: 'Echange' | 'Abonnement' | 'Echange Delisting' | 'Migration';
+  type: 'Echange' | 'Abonnement' | 'Echange Delisting' | 'Migration' | 'Récompense';
   id: string;
   legs: Leg[];
   /** Rang de règlement : ordre chronologique, sauf permutation volontaire (voir `swap`). */
@@ -290,7 +291,7 @@ interface Op {
 interface Plan {
   day: Day;
   time: string;
-  kind: 'fund' | 'buy' | 'sell' | 'sub' | 'migration';
+  kind: 'fund' | 'buy' | 'sell' | 'sub' | 'migration' | 'reward';
   asset?: string;
   /** Budget en euros (achat / approvisionnement), montant (abonnement). */
   amount?: string;
@@ -298,6 +299,8 @@ interface Plan {
   fraction?: string;
   counter?: Counter;
   tag?: string;
+  /** Quantité de jetons reçus (kind: 'reward'), en unités de l'actif. */
+  qty?: string;
 }
 
 const plan = (
@@ -370,6 +373,25 @@ const SCENARIO: Plan[] = [
   plan('2026-07-28', '19:19:19', 'buy', { asset: 'near', amount: '150', counter: 'usdc' }),
   plan('2026-08-04', '11:30:00', 'buy', { asset: 'eth', amount: '300', counter: 'eur' }),
   plan('2026-08-11', '14:14:14', 'sell', { asset: 'dot', fraction: '1', counter: 'usdc' }),
+];
+
+/**
+ * Récompenses (staking…) : petits montants mensuels sur des actifs déjà détenus à ces dates
+ * (type `Récompense`, `auto` → reconnu sans qualification, coût 0 par défaut).
+ */
+const REWARDS: Plan[] = [
+  plan('2025-02-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-03-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-04-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-05-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-06-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-07-25', '05:00:00', 'reward', { asset: 'eth', qty: '0.01' }),
+  plan('2025-03-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
+  plan('2025-04-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
+  plan('2025-05-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
+  plan('2025-06-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
+  plan('2025-07-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
+  plan('2025-08-20', '06:00:00', 'reward', { asset: 'sol', qty: '0.03' }),
 ];
 
 function withDca(scenario: Plan[]): Plan[] {
@@ -612,7 +634,24 @@ export function generateFixture(): string {
     });
   };
 
-  for (const step of withDca(SCENARIO)) {
+  /**
+   * Récompense (staking, parrainage…) reçue sans contrepartie : une ligne, quantité positive,
+   * contre-valeur EUR = juste valeur au cours du jour ; frais et remise vides (aucun coût Coinhouse
+   * sur une récompense). Coût d'acquisition par défaut nul (`rewardValuation: 'zero'`).
+   */
+  const reward = (ms: number, asset: string, qty: string): void => {
+    const price = priceEur(asset, ms);
+    const q = new Big(qty);
+    move(asset, q);
+    push({
+      ms,
+      type: 'Récompense',
+      id: newId(),
+      legs: [leg({ qty: q, asset, price: price.toString(), value: q.times(price) })],
+    });
+  };
+
+  for (const step of withDca([...SCENARIO, ...REWARDS])) {
     const ms = at(step.day, step.time);
     switch (step.kind) {
       case 'fund':
@@ -629,6 +668,9 @@ export function generateFixture(): string {
         break;
       case 'migration':
         migration(ms, step.asset!);
+        break;
+      case 'reward':
+        reward(ms, step.asset!, step.qty!);
         break;
     }
   }

@@ -20,6 +20,7 @@ import type {
   LedgerEvent,
   ManualEvent,
   Qualification,
+  RowKey,
 } from '$lib/domain/types';
 import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
@@ -47,6 +48,14 @@ export interface PriceStatus {
   errors: string[];
   missing: AssetCode[];
   lastRefreshAt: string | null;
+}
+
+export interface QualifiedSummary {
+  eventId: EventId;
+  qualification: Qualification;
+  at: string | null;
+  rawType: string | null;
+  lineNumbers: number[];
 }
 
 const EPOCH = '1970-01-01T00:00:00.000Z';
@@ -230,6 +239,33 @@ export class AppState {
     else delete next[eventId];
     this.state.qualifications = next;
   }
+
+  /** Numéros de ligne (fichier importé) des lignes brutes d'un événement, triés. */
+  lineNumbersOf(rowKeys: readonly RowKey[]): number[] {
+    return rowKeys
+      .map((key) => this.state.rawRows[key]?.lineNo ?? 0)
+      .filter((n) => n > 0)
+      .sort((a, b) => a - b);
+  }
+
+  /**
+   * Qualifications enregistrées, décrites par les lignes brutes qu'elles réinterprètent (date,
+   * libellé, numéros de ligne) : permet de les annuler depuis l'écran « À qualifier ».
+   */
+  qualified = $derived.by((): QualifiedSummary[] => {
+    const rows = Object.values(this.state.rawRows);
+    return Object.entries(this.state.qualifications).map(([eventId, qualification]) => {
+      const own = rows.filter((r) => (r.id ? `ch:${r.id}` === eventId : `ch:${r.key}` === eventId));
+      own.sort((a, b) => a.lineNo - b.lineNo);
+      return {
+        eventId,
+        qualification,
+        at: own[0]?.at ?? null,
+        rawType: own[0]?.type ?? null,
+        lineNumbers: own.map((r) => r.lineNo).filter((n) => n > 0),
+      };
+    });
+  });
 
   assetSettings(asset: AssetCode): AssetSettings {
     return (

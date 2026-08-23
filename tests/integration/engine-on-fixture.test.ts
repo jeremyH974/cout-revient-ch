@@ -77,7 +77,7 @@ function expectConsistent(path: string, expected: { assets: number; rows: number
 
 describe('moteur sur le jeu de démonstration synthétique', () => {
   it('0 bloqué, 0 à qualifier, 21 soldes cohérents, invariants vérifiés', () =>
-    expectConsistent(FIXTURE, { assets: 21, rows: 205 }));
+    expectConsistent(FIXTURE, { assets: 21, rows: 217 }));
 });
 
 describe('moteur sur l’export réel (local, ignoré par git)', () => {

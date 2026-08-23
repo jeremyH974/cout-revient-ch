@@ -215,6 +215,13 @@ function oracle(rows: Row[]): { positions: Map<string, Pos>; subscriptions: Big 
       pendingDelisting = null;
       continue;
     }
+    if (r.type === 'Récompense') {
+      // Coût d'acquisition 0 par défaut (`rewardValuation: 'zero'`) : la quantité augmente, le
+      // coût est inchangé (acquisition à coût nul), aucun réalisé, aucun flux de caisse — un
+      // `acquire` ordinaire avec un coût de 0 couvre exactement ce cas.
+      acquire(r.asset, r.qty, ZERO);
+      continue;
+    }
     if (r.type !== 'Echange') throw new Error(`type inattendu ligne ${r.line} : ${r.type}`);
     if (done.has(r.id)) continue;
     done.add(r.id);

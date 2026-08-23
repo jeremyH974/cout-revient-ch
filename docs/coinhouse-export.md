@@ -25,8 +25,41 @@ ID Coinhouse,Date,Type,Quantité,Devise,Prix du marché,Contre-valeur (EUR),Frai
 | `Echange Delisting` | 1 ligne, quantité négative, `Solde` = 0                                                                      | sortie d'un actif retiré (ex. MKR)                |
 | `Migration`         | 1 ligne, quantité positive, le même jour                                                                     | entrée de l'actif de remplacement (ex. SKY)       |
 
-Types probables non encore observés (dépôt/retrait on-chain, récompenses de staking, DCA) :
-ils remontent dans « À qualifier » tant que leur libellé n'est pas connu.
+Toute autre ligne isolée (1 ligne, ni `Abonnement` ni `Echange Delisting` ni `Migration`) est une
+opération **simple** : son libellé (`Type`) est cherché dans une table extensible
+(`src/lib/import/coinhouse/row-types.ts`) qui décide comment l'interpréter.
+
+## Libellés des opérations simples (`row-types.ts`)
+
+Deux catégories, jamais mélangées :
+
+- **`auto`** — libellé confirmé par l'usage (présent depuis la V1) : interprété tout seul à
+  l'import, avec un avertissement rappelant que c'est fait par heuristique.
+  `Récompense`/`Reward`/`Rendement`/`Intérêts` → récompense (coût 0 € par défaut) ;
+  `Dépôt`/`Deposit`/`Réception` → dépôt (coût à saisir) ; `Retrait`/`Withdrawal`/`Envoi` → retrait.
+- **`suggest` — non confirmés, Coinhouse 2026** : libellés probables des fonctions annoncées par
+  Coinhouse entre juin et août 2026 (staking flexible, produits de rendement, retraits de staking,
+  parrainage…) mais jamais vus sur un export réel. La ligne reste **à qualifier** ; l'écran
+  pré-sélectionne seulement le choix le plus probable d'après le libellé et le signe de la
+  quantité (ex. « Staking » seul → « Ignorer » ; un libellé contenant « récompense » sur une
+  jambe positive → « Récompense »). Rien n'est jamais appliqué sans confirmation explicite.
+
+Un libellé qui ne correspond à aucune entrée exacte est aussi comparé à des familles de mots (ex.
+tout ce qui contient « staking » → probablement un mouvement interne) ; ce filet de sécurité reste
+toujours en mode `suggest`, jamais `auto`.
+
+**Promouvoir un libellé confirmé** : dès qu'un export réel confirme un libellé `suggest` (ex.
+« Récompense de staking SOL » vu tel quel sur un export), il suffit de lui ajouter une entrée dans
+`ROW_TYPE_HINTS` avec `mode: 'auto'` — une seule ligne dans
+`src/lib/import/coinhouse/row-types.ts`, jamais ailleurs, et sans toucher au comportement des
+libellés encore incertains.
+
+## Fichier qui n'est pas le bon export
+
+Un fichier qui a les colonnes `Date`/`Type`/`Quantité`/`Devise` mais pas `Contre-valeur (EUR)` est
+presque sûrement l'**Export basique** de Coinhouse (filtré, inexploitable pour un coût de revient) :
+l'import le refuse et indique comment récupérer l'**Export avancé** à la place (app Coinhouse →
+Vos transactions → Exporter → Export avancé).
 
 ## Sémantique des colonnes (règle d'or)
 

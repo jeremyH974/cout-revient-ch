@@ -172,7 +172,8 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
         label: 'Opérations à qualifier',
         level: 'warn',
         detail: `${plural(report.unqualified.length, 'opération', 'opérations')} d’un type inconnu (${[...new Set(report.unqualified.map((u) => u.rawType))].join(', ')}).`,
-        action: 'Signalez le libellé avec le diagnostic pour qu’il soit pris en charge.',
+        action:
+          'Qualifiez-les depuis le portefeuille (bouton « Qualifier ») ; signalez le libellé via le diagnostic s’il revient souvent.',
       });
     } else {
       checks.push({

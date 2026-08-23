@@ -121,6 +121,19 @@ export function buildDiagnostic(input: DiagnosticInput): string {
     );
     if (report.unqualified.length > 0) {
       lines.push(`À qualifier (libellés) : ${countBy(report.unqualified.map((u) => u.rawType))}`);
+      // Numéros de ligne des premières occurrences de chaque libellé : pour retrouver la ligne
+      // dans le fichier sans jamais en citer les montants.
+      const lineOf = new Map(input.rows.map((r) => [r.key, r.lineNo] as const));
+      const firstLines = new Map<string, number[]>();
+      for (const u of report.unqualified) {
+        const acc = firstLines.get(u.rawType) ?? [];
+        if (acc.length < 3)
+          acc.push(...u.rowKeys.map((k) => lineOf.get(k) ?? 0).filter((n) => n > 0));
+        firstLines.set(u.rawType, acc);
+      }
+      lines.push(
+        `À qualifier (lignes) : ${[...firstLines].map(([t, ls]) => `${t} → ${ls.slice(0, 3).join(', ') || '?'}`).join(' ; ')}`,
+      );
     }
     lines.push(`Intégrité des soldes : ${integrityLine(report)}`);
   } else {
