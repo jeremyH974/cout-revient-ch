@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
 
-  import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
+  import { nowMs } from '$lib/clock';
+  import { fmtPrice as fmtPriceBase, fmtRelative } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import CoinBadge from '../shared/CoinBadge.svelte';
@@ -11,7 +12,7 @@
   import { app } from '../../state/app.svelte';
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
-  let { position }: { position: PositionReport } = $props();
+  let { position, now = nowMs() }: { position: PositionReport; now?: number } = $props();
   const p = $derived(position);
 </script>
 
@@ -24,9 +25,12 @@
   <a class="row" href={router.href({ name: 'asset', asset: p.asset })}>
     <span class="cell id"
       ><CoinBadge asset={p.asset} /><span class="names"
-        ><strong>{p.asset.toUpperCase()}</strong><span class="muted small"
-          >{assetName(p.asset)}</span
-        ></span
+        ><strong
+          >{p.asset.toUpperCase()}{#if p.price?.stale}<span
+              class="stale"
+              title="Prix issu du cache : actualisez">périmé</span
+            >{/if}</strong
+        ><span class="muted small">{assetName(p.asset)}</span></span
       ></span
     >
     <span class="cell qty"
@@ -35,7 +39,9 @@
       ></span
     >
     <span class="cell price muted"
-      ><span class="sr-only">Prix</span>{p.price ? price(p.price.priceEur) : '—'}</span
+      ><span class="sr-only">Prix</span>{p.price ? price(p.price.priceEur) : '—'}{#if p.price}<span
+          class="small source">{p.price.source} · {fmtRelative(p.price.at, now)}</span
+        >{/if}</span
     >
     <span class="cell value"
       ><span class="sr-only">Valeur</span><Money value={p.value} compact /></span
@@ -137,6 +143,19 @@
     font-size: var(--fs-xs);
     color: var(--warn);
   }
+  .stale {
+    margin-left: var(--space-2);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    color: var(--warn);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    padding: 0 var(--space-1);
+    vertical-align: middle;
+  }
+  .source {
+    white-space: nowrap;
+  }
   .sr-only {
     position: absolute;
     width: 1px;
@@ -154,6 +173,7 @@
     }
     .price {
       display: flex;
+      flex-direction: column;
       text-align: right;
       align-items: flex-end;
     }

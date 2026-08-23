@@ -224,7 +224,7 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
           label: 'Prix',
           level: 'warn',
           detail: `Dernière actualisation il y a plus de ${Math.floor(refreshedAgo / HOUR_MS)} h.`,
-          action: 'Actualisez les prix (bouton en haut à droite).',
+          action: 'Actualisez les prix (bouton « Actualiser » de la synthèse ou en haut à droite).',
         });
       } else {
         checks.push({
