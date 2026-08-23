@@ -10,7 +10,7 @@
   import { D, ZERO, type Big } from '$lib/domain/money';
   import { accountReport, totalsSince, type TradingTotals } from '$lib/domain/trading/compute';
   import { rateLookup } from '$lib/fx';
-  import { fmtPrice, fmtRelative } from '$lib/format/fr';
+  import { fmtRelative } from '$lib/format/fr';
   import { msToParisNaive } from '$lib/import/hyperliquid/time';
   import { router } from '$lib/router.svelte';
   import { DISCUSSIONS_URL } from '$lib/support/links';
@@ -19,6 +19,7 @@
   import Info from '../components/shared/Info.svelte';
   import Money from '../components/shared/Money.svelte';
   import Qty from '../components/shared/Qty.svelte';
+  import PositionRow from '../components/trading/PositionRow.svelte';
   import TradingTabs from '../components/trading/TradingTabs.svelte';
   import { app } from '../state/app.svelte';
 
@@ -96,17 +97,18 @@
     if (!series) return [];
     const raw = curveMetric === 'equity' ? series.accountValueHistory : series.pnlHistory;
     const usd = rateLookup(app.state.fx.rates.USD ?? {});
-    const intraday = curvePeriod === 'day' || curvePeriod === 'week';
     const points: ChartPoint[] = [];
+    // Tous les points de la plateforme, sans amincissement : la courbe doit être exactement celle
+    // du Portfolio Hyperliquid (l'écraser à un point par jour déforme les épisodes violents).
     for (const [ms, value] of raw) {
       const naive = msToParisNaive(ms);
-      const day = intraday ? naive.slice(0, 16) : naive.slice(0, 10);
       const rate = app.currency === 'USD' ? '1' : usd.rate(naive.slice(0, 10));
       if (rate === null || !D(rate).gt(ZERO)) continue;
-      const converted = Number(D(value).div(rate).toFixed(6));
-      const last = points[points.length - 1];
-      if (last && last.day === day) last.primary = converted;
-      else points.push({ day, primary: converted, secondary: null });
+      points.push({
+        day: naive.slice(0, 16),
+        primary: Number(D(value).div(rate).toFixed(6)),
+        secondary: null,
+      });
     }
     return points;
   });
@@ -318,56 +320,19 @@
     </p>
   </section>
 
-  <section class="card">
+  <section class="card positions-card">
     <h2>Positions ouvertes</h2>
     {#if positions.length === 0}
       <p class="muted">Aucune position ouverte à la dernière synchronisation.</p>
     {:else}
-      <ul class="rows" aria-label="Positions ouvertes">
+      <div class="table-head" aria-hidden="true">
+        <span>Actif</span><span class="num">Taille · entrée</span><span class="num"
+          >Marque · liq.</span
+        ><span class="num">Valeur</span><span class="num">Latent</span>
+      </div>
+      <ul class="positions" aria-label="Positions ouvertes">
         {#each positions as p (p.symbol + p.side)}
-          {@const tripId = tripOfPosition(p.symbol)}
-          <li>
-            {#if tripId}
-              <a class="position" href={router.href({ name: 'trade', id: tripId })}>
-                <div class="main">
-                  <strong>{p.symbol}</strong>
-                  <span class="muted small"
-                    >{p.side === 'long' ? 'Long' : 'Short'} ×{p.leverage} ({p.leverageType}) ·
-                    <Qty value={D(p.size)} />
-                    {#if p.entryPrice}· entrée {fmtPrice(p.entryPrice, 'USD')}{/if}
-                    {#if p.liquidationPrice}· liquidation {fmtPrice(
-                        p.liquidationPrice,
-                        'USD',
-                      )}{/if}</span
-                  >
-                  <span class="muted small go">Détail de l'aller-retour et journal →</span>
-                </div>
-                <div class="side">
-                  <Money value={money(D(p.unrealizedPnl))} sign colored strong />
-                  <span class="muted small">latent</span>
-                </div>
-              </a>
-            {:else}
-              <div class="position">
-                <div class="main">
-                  <strong>{p.symbol}</strong>
-                  <span class="muted small"
-                    >{p.side === 'long' ? 'Long' : 'Short'} ×{p.leverage} ({p.leverageType}) ·
-                    <Qty value={D(p.size)} />
-                    {#if p.entryPrice}· entrée {fmtPrice(p.entryPrice, 'USD')}{/if}
-                    {#if p.liquidationPrice}· liquidation {fmtPrice(
-                        p.liquidationPrice,
-                        'USD',
-                      )}{/if}</span
-                  >
-                </div>
-                <div class="side">
-                  <Money value={money(D(p.unrealizedPnl))} sign colored strong />
-                  <span class="muted small">latent</span>
-                </div>
-              </div>
-            {/if}
-          </li>
+          <PositionRow position={p} tripId={tripOfPosition(p.symbol)} />
         {/each}
       </ul>
     {/if}
@@ -566,9 +531,38 @@
   .kpis .main dd {
     font-size: var(--fs-lg);
   }
-  .rows {
+  .rows,
+  .positions {
     list-style: none;
     display: grid;
+  }
+  .positions-card {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .positions-card h2,
+  .positions-card p {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+  .table-head {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .table-head {
+      display: grid;
+      grid-template-columns: 2fr 1.4fr 1.4fr 1fr 1.2fr;
+      gap: 2px var(--space-3);
+      padding: var(--space-2) var(--space-4);
+      border-bottom: 1px solid var(--border);
+      font-size: var(--fs-xs);
+      color: var(--fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .table-head .num {
+      text-align: right;
+    }
   }
   .rows li + li {
     border-top: 1px solid var(--border);
@@ -582,9 +576,6 @@
     padding: var(--space-2) 0;
     color: inherit;
     text-decoration: none;
-  }
-  a.position:hover .go {
-    text-decoration: underline;
   }
   .rows .main {
     display: grid;

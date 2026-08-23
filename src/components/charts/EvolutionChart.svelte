@@ -19,6 +19,12 @@
     day: string;
     kind: 'buy' | 'sell';
   }
+  /** Ligne de niveau horizontale étiquetée (entrée moyenne, liquidation, stop, objectif…). */
+  export interface ChartLevel {
+    value: number;
+    label: string;
+    tone: 'gain' | 'loss' | 'info' | 'neutral';
+  }
   export type ChartColorMode = 'trend' | 'sign' | 'vsSecondary';
 </script>
 
@@ -43,6 +49,7 @@
     format = 'money',
     currency = 'EUR',
     markers = [],
+    levels = [],
     height = 220,
     zeroLine = false,
     colorMode = 'trend',
@@ -55,6 +62,8 @@
     format?: ValueFormat;
     currency?: Currency;
     markers?: ChartMarker[];
+    /** Niveaux de référence horizontaux (toujours inclus dans l'échelle verticale). */
+    levels?: ChartLevel[];
     height?: number;
     /** Référence = 0 (latent) ; sinon la courbe secondaire (investi, PRU) sert de référence. */
     zeroLine?: boolean;
@@ -101,6 +110,7 @@
       p.secondary !== null ? [p.primary, p.secondary] : [p.primary],
     );
     if (zeroLine) values.push(0);
+    for (const level of levels) values.push(level.value);
     if (values.length === 0) return null;
     let min = Math.min(...values);
     let max = Math.max(...values);
@@ -277,6 +287,21 @@
         <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} class="zero" />
         {#if !masked}<text x={PAD.left} y={y(0) - 3} class="axis">{fmt(0)}</text>{/if}
       {/if}
+      {#each levels as level (level.label + level.value)}
+        <line
+          x1={PAD.left}
+          x2={width - PAD.right}
+          y1={y(level.value)}
+          y2={y(level.value)}
+          class="level {level.tone}"
+        />
+        <text
+          x={width - PAD.right}
+          y={y(level.value) - 4}
+          class="level-label {level.tone}"
+          text-anchor="end">{level.label} {fmt(level.value)}</text
+        >
+      {/each}
       {#if areaPath}
         <path d={areaPath} fill="url(#{uid}-fill)" />
       {/if}
@@ -413,6 +438,41 @@
     stroke: var(--border);
     stroke-dasharray: 3 4;
   }
+  .level {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    opacity: 0.85;
+  }
+  .level.gain {
+    stroke: var(--gain);
+  }
+  .level.loss {
+    stroke: var(--loss);
+  }
+  .level.info {
+    stroke: var(--info);
+  }
+  .level.neutral {
+    stroke: var(--fg-muted);
+  }
+  .level-label {
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .level-label.gain {
+    fill: var(--gain);
+  }
+  .level-label.loss {
+    fill: var(--loss);
+  }
+  .level-label.info {
+    fill: var(--info);
+  }
+  .level-label.neutral {
+    fill: var(--fg-muted);
+  }
+
   .zero {
     stroke: var(--fg-faint);
   }

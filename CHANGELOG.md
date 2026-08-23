@@ -9,8 +9,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 - Espace Trading complet : tableau de bord (synthèse dépôts nets / équité / P&L total, courbe
   d'équité et de P&L fournie par la plateforme et conservée hors ligne, résultat par période,
-  positions ouvertes reliées à leur aller-retour, avoirs spot, auto-vérification de réconciliation),
-  onglets Trades, Fills et Statistiques.
+  positions ouvertes en tableau — taille · entrée, marque · liquidation, valeur, latent et % sur
+  marge — reliées à leur aller-retour, avoirs spot, auto-vérification de réconciliation), onglets
+  Trades, Fills et Statistiques.
+- Graphique du détail d'un trade : prix quotidien de l'actif sur la fenêtre du trade, marqueurs
+  d'entrées/sorties et lignes de niveau comme sur la plateforme (entrée moyenne, prix de
+  liquidation, stop et objectif du plan).
 - Journal de trading : aller-retours reconstruits automatiquement depuis les fills (retournements,
   liquidations, historique partiel signalé), saisie manuelle d'un trade, thèse/revue, setups,
   erreurs, note, plan entrée / stop / objectif → résultat en R, export CSV des trades.

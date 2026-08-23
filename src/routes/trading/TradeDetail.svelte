@@ -4,6 +4,7 @@
    * appartient à l'utilisateur — thèse avant, revue après, setup, erreurs, note, plan
    * entrée / stop / objectif → R. Enregistrement explicite, effacement en vidant les champs.
    */
+  import { onMount } from 'svelte';
   import { D, ZERO, type Big } from '$lib/domain/money';
   import {
     DEFAULT_MISTAKES,
@@ -14,12 +15,19 @@
     type TradePlan,
   } from '$lib/domain/trading/journal';
   import { fmtDateTime, fmtPct, fmtPrice, fmtQty } from '$lib/format/fr';
+  import { addDays } from '$lib/history';
   import { router } from '$lib/router.svelte';
+  import EvolutionChart, {
+    type ChartLevel,
+    type ChartMarker,
+    type ChartPoint,
+  } from '../../components/charts/EvolutionChart.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Money from '../../components/shared/Money.svelte';
   import Qty from '../../components/shared/Qty.svelte';
   import TradingTabs from '../../components/trading/TradingTabs.svelte';
   import { app } from '../../state/app.svelte';
+  import { history } from '../../state/history.svelte';
   import { toasts } from '../../state/ui.svelte';
 
   let { id }: { id: string } = $props();
@@ -74,6 +82,81 @@
     app.saveJournal({ ...structuredClone($state.snapshot(draft)), tradeId: id, plan: planOf() });
     toasts.push('Journal enregistré.', 'success');
   }
+
+  // --- Graphique : prix quotidien de l'actif autour du trade, marqueurs d'entrées/sorties -------
+  onMount(() => void history.ensure());
+  const chartWindow = $derived.by((): { from: string; to: string } | null => {
+    if (!found) return null;
+    const from = addDays(found.trip.openedAt.slice(0, 10), -7);
+    const to = addDays((found.trip.closedAt ?? found.trip.openedAt).slice(0, 10), 7);
+    return { from, to };
+  });
+  const chartPoints = $derived.by((): ChartPoint[] => {
+    if (!found || !chartWindow) return [];
+    const series = history.histories[found.trip.symbol.toLowerCase()]?.points ?? [];
+    const points: ChartPoint[] = [];
+    for (const point of series) {
+      if (point.day < chartWindow.from || point.day > chartWindow.to) continue;
+      const rate = app.currency === 'EUR' ? '1' : app.fxLookup.rate(point.day);
+      if (rate === null || !D(rate).gt(ZERO)) continue;
+      points.push({
+        day: point.day,
+        primary: Number(D(point.priceEur).times(rate).toFixed(8)),
+        secondary: null,
+      });
+    }
+    return points;
+  });
+  const chartMarkers = $derived.by((): ChartMarker[] => {
+    if (!found) return [];
+    const trip = found.trip;
+    if (trip.source === 'manual') {
+      const markers: ChartMarker[] = [
+        { day: trip.openedAt.slice(0, 10), kind: trip.direction === 'long' ? 'buy' : 'sell' },
+      ];
+      if (trip.closedAt)
+        markers.push({
+          day: trip.closedAt.slice(0, 10),
+          kind: trip.direction === 'long' ? 'sell' : 'buy',
+        });
+      return markers;
+    }
+    const ids = new Set(trip.executionIds);
+    return app.tradingReport.accounts
+      .flatMap((a) => a.executions)
+      .filter((x) => ids.has(x.id))
+      .map((x) => ({ day: x.at.slice(0, 10), kind: x.side }));
+  });
+
+  /**
+   * Niveaux de référence du graphique, comme sur la plateforme : entrée moyenne, prix de
+   * liquidation (position encore ouverte), et les niveaux du plan (stop, objectif) s'ils sont
+   * renseignés. Convertis dans la devise d'affichage comme la courbe.
+   */
+  const chartLevels = $derived.by((): ChartLevel[] => {
+    if (!found) return [];
+    const out: ChartLevel[] = [];
+    const add = (raw: Big | string | null, label: string, tone: ChartLevel['tone']): void => {
+      if (raw === null) return;
+      const converted = app.quoteToDisplay(
+        found.trip.quote,
+        typeof raw === 'string' ? D(raw) : raw,
+      );
+      if (converted !== null && converted.gt(ZERO))
+        out.push({ value: Number(converted.toFixed(8)), label, tone });
+    };
+    add(found.trip.avgEntry, 'entrée', 'info');
+    if (found.trip.status === 'open') {
+      const position = app.tradingReport.accounts
+        .find((a) => a.accountId === found.trip.accountId)
+        ?.snapshot?.positions.find((pos) => pos.symbol === found.trip.symbol);
+      add(position?.liquidationPrice ?? null, 'liquidation', 'loss');
+    }
+    const plan = app.journalOf(id).plan;
+    add(plan?.stop ?? null, 'stop', 'neutral');
+    add(plan?.target ?? null, 'objectif', 'gain');
+    return out;
+  });
 
   function removeManual(): void {
     if (!found || found.trip.source !== 'manual') return;
@@ -149,6 +232,28 @@
       <button class="link" type="button" onclick={removeManual}>Supprimer ce trade manuel</button>
     {/if}
   </section>
+
+  {#if chartPoints.length >= 2}
+    <section class="card chart">
+      <h2>Prix de {t.symbol} autour du trade</h2>
+      <EvolutionChart
+        points={chartPoints}
+        format="price"
+        currency={app.currency}
+        markers={chartMarkers}
+        levels={chartLevels}
+        colorMode="trend"
+        labels={{ primary: 'Prix', secondary: null }}
+        discreet={false}
+      />
+      <p class="muted small">
+        Prix quotidien ({app.currency === 'EUR' ? 'EUR, taux BCE' : 'USD'}) sur la fenêtre du trade
+        (± 7 jours) ; entrées et sorties en marqueurs, niveaux en pointillés (entrée moyenne,
+        liquidation, stop et objectif du plan). Les prix d'exécution exacts sont dans l'onglet
+        Fills.
+      </p>
+    </section>
+  {/if}
 
   <form
     class="card journal"
@@ -251,9 +356,14 @@
 {/if}
 
 <style>
-  .top {
+  .top,
+  .chart {
     display: grid;
     gap: var(--space-3);
+  }
+  .chart h2 {
+    margin: 0;
+    font-size: var(--fs-md);
   }
   .title {
     display: flex;

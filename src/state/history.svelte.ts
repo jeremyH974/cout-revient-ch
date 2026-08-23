@@ -80,8 +80,28 @@ export class HistoryState {
       (p) => !isFiat(p.asset),
     );
   });
-  assets = $derived(this.allPositions.map((p) => p.asset));
-  firstDay = $derived.by((): string | null => this.firstDayOf(this.allPositions));
+  /** Actifs des trades (aller-retours) : leurs symboles ont aussi droit à un historique de prix. */
+  private tradeAssets = $derived.by((): AssetCode[] => {
+    const seen: AssetCode[] = [];
+    for (const t of app.roundTrips) {
+      const asset = t.trip.symbol.toLowerCase();
+      if (!seen.includes(asset)) seen.push(asset);
+    }
+    return seen;
+  });
+  assets = $derived.by((): AssetCode[] => {
+    const list = this.allPositions.map((p) => p.asset);
+    for (const asset of this.tradeAssets) if (!list.includes(asset)) list.push(asset);
+    return list;
+  });
+  firstDay = $derived.by((): string | null => {
+    let min = this.firstDayOf(this.allPositions);
+    for (const t of app.roundTrips) {
+      const day = dayOfNaive(t.trip.openedAt);
+      if (min === null || day < min) min = day;
+    }
+    return min;
+  });
 
   private firstDayOf(positions: PositionReport[]): string | null {
     let min: string | null = null;
