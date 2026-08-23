@@ -5,8 +5,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- Écran « À qualifier » guidé : un choix cohérent avec les jambes de l'opération (récompense,
+  dépôt, retrait, achat ou vente hors plateforme, échange, ou ignorer), un montant facultatif ou
+  requis selon le choix, une qualification annulable à tout moment depuis le portefeuille.
+- Table de libellés extensible (`row-types.ts`) avec des suggestions pré-sélectionnées pour les
+  nouveaux types annoncés par Coinhouse en 2026 (staking, parrainage…), jamais appliquées sans
+  confirmation.
+- Section « Revenus (récompenses) » dans le portefeuille.
+- Message dédié quand le fichier importé est l'« Export basique » Coinhouse (sans la contre-valeur
+  en euros) plutôt que l'avancé, avec la marche à suivre.
+
 ### Changed
 
+- Un libellé `Staking` seul n'est plus interprété automatiquement comme une récompense : Coinhouse
+  ne l'a pas confirmé sur un export réel, il reste à qualifier (avec « Ignorer » suggéré).
 - Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
   Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
   trading et statistiques de performance. La version 1.0.0 reste la version publiée d'ici là.

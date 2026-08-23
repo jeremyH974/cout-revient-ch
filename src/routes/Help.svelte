@@ -100,8 +100,10 @@
   <h2>Limites</h2>
   <p>
     Les récompenses de staking, dépôts et retraits apparaissent dans « À qualifier » si l'export
-    utilise un libellé inconnu. Le calcul n'est pas la plus-value fiscale française (méthode globale
-    de l'article 150 VH bis du CGI). <a href={router.href({ name: 'privacy' })}>Confidentialité</a>.
+    utilise un libellé inconnu : le bouton « Qualifier » vous propose le choix le plus probable
+    (récompense, dépôt, retrait, mouvement interne à ignorer…) et recalcule aussitôt ; tout reste
+    annulable. Le calcul n'est pas la plus-value fiscale française (méthode globale de l'article 150
+    VH bis du CGI). <a href={router.href({ name: 'privacy' })}>Confidentialité</a>.
   </p>
 </article>
 

@@ -32,7 +32,13 @@ describe('jeu de démonstration synthétique', () => {
     expect(result.report.counts.fees).toBe(2);
     const rows = Object.values(result.rows);
     const { events } = normalizeCoinhouseRows(rows);
-    expect(events.flatMap((e) => e.warnings)).toEqual([]);
+    // Seules les 12 récompenses (auto, mais « avec avertissement » par construction — voir
+    // row-types.ts) portent un avertissement ; aucune autre ligne n'en a.
+    const rewardEvents = events.filter((e) => e.kind === 'reward');
+    expect(rewardEvents).toHaveLength(12);
+    expect(events.flatMap((e) => e.warnings)).toEqual(
+      rewardEvents.map(() => 'Type « Récompense » interprété par heuristique : à vérifier.'),
+    );
     const report = computePortfolio({
       events,
       prices: {},

@@ -98,6 +98,10 @@
         · Abonnements <Money value={t.subscriptionsEur.neg()} />
         <span class="muted">(déduits du P&L)</span>
       {/if}
+      {#if t.otherIncome.gt('0')}
+        · Revenus <Money value={t.otherIncome} sign colored />
+        <span class="muted">(récompenses)</span>
+      {/if}
     </p>
     <p class="muted">
       Apports nets (espèces) <Money value={t.netCash} />

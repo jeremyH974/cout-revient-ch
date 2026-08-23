@@ -6,31 +6,17 @@ import type {
   RawCoinhouseRow,
   UnqualifiedEvent,
 } from '../../domain/types';
+import { autoKind } from './row-types';
 import { unqualifiedFromRows } from './trade';
 
-/** Minuscules, sans accents, espaces compactés. */
-export function normalizeType(type: string): string {
-  return type.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
-}
+export { normalizeType } from './row-types';
 
 export const absDecimal = (value: string): string => toDecimalString(D(value).abs());
-
-const REWARD_TYPES = new Set([
-  'recompense',
-  'recompenses',
-  'staking',
-  'reward',
-  'rewards',
-  'rendement',
-  'interets',
-]);
-const DEPOSIT_TYPES = new Set(['depot', 'deposit', 'reception']);
-const WITHDRAWAL_TYPES = new Set(['retrait', 'withdrawal', 'envoi']);
 
 /** Ligne isolée : type « simple » reconnu par heuristique, sinon `unqualified`. */
 export function buildSingleEvent(row: RawCoinhouseRow): LedgerEvent {
   const id = row.id ? `ch:${row.id}` : `ch:${row.key}`;
-  const type = normalizeType(row.type);
+  const kind = autoKind(row.type);
   const qty = D(row.qty);
   const base = {
     id,
@@ -40,14 +26,14 @@ export function buildSingleEvent(row: RawCoinhouseRow): LedgerEvent {
     rowKeys: [row.key],
     warnings: [`Type « ${row.type} » interprété par heuristique : à vérifier.`],
   };
-  if (REWARD_TYPES.has(type) && isPositive(qty)) {
+  if (kind === 'reward' && isPositive(qty)) {
     const fairValueEur = row.valueEur ? absDecimal(row.valueEur) : null;
     return { ...base, kind: 'reward', in: { asset: row.asset, qty: row.qty }, fairValueEur };
   }
-  if (DEPOSIT_TYPES.has(type) && isPositive(qty)) {
+  if (kind === 'deposit' && isPositive(qty)) {
     return { ...base, kind: 'deposit', in: { asset: row.asset, qty: row.qty }, costEur: null };
   }
-  if (WITHDRAWAL_TYPES.has(type) && isNegative(qty)) {
+  if (kind === 'withdrawal' && isNegative(qty)) {
     const out = { asset: row.asset, qty: absDecimal(row.qty) };
     return { ...base, kind: 'withdrawal', out, proceedsEur: null };
   }
