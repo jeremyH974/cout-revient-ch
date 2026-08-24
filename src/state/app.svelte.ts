@@ -75,7 +75,13 @@ import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
 import { importAnyCsv } from '$lib/import/platforms/index';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
-import { createLiveMids, type LiveMids, type LiveStatus } from '$lib/pricing/live';
+import { parseMids } from '$lib/pricing/live';
+import { createLiveSocket, type LiveSocket, type LiveStatus } from '$lib/live/socket';
+import {
+  liveFillSubscriptions,
+  mergeLiveEnvelope,
+  readLiveEnvelope,
+} from '$lib/import/hyperliquid/live-fills';
 import { hlSpotMeta, hlSpotMidKey, type HlMidsMeta } from '$lib/pricing/providers/hyperliquid';
 import { defaultFetch } from '$lib/history/providers/shared';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
@@ -179,7 +185,10 @@ export class AppState {
 
   /** Prix « live » Hyperliquid (P26) : statut du WebSocket opt-in. */
   liveStatus = $state<LiveStatus>('off');
-  private liveClient: LiveMids | null = null;
+  /** Dernière exécution reçue en direct (ISO 8601) et compteur de la session. */
+  liveFillsAt = $state<string | null>(null);
+  liveFillsCount = $state(0);
+  private liveClient: LiveSocket | null = null;
   private liveMeta: HlMidsMeta | null = null;
   private lastLiveApplyMs = 0;
   private liveVisibilityHandler: (() => void) | null = null;
@@ -809,7 +818,7 @@ export class AppState {
     if (Object.keys(this.state.pivotRows).length > 0 || this.hlAccounts.length > 0)
       void this.ensureRates('USD');
     // Prix live opt-in : reprend seulement si l'utilisateur l'avait activé.
-    if (this.state.ui.liveMids) this.startLive();
+    if (this.liveWanted) this.startLive();
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pending: StoredStateV1 | null = null;
     const flush = (): void => {
@@ -1261,8 +1270,24 @@ export class AppState {
   /** Active/coupe le flux de prix WebSocket (persisté ; jamais actif sans ce choix explicite). */
   setLiveMids(enabled: boolean): void {
     this.setUi({ liveMids: enabled });
-    if (enabled) this.startLive();
-    else this.stopLive();
+    this.restartLive();
+  }
+
+  /** Exécutions en direct (P26) : opt-in séparé des prix, sur le même socket. */
+  setLiveFills(enabled: boolean): void {
+    this.setUi({ liveFills: enabled });
+    this.restartLive();
+  }
+
+  /** Vrai si au moins un des deux flux est demandé (le socket n'existe que dans ce cas). */
+  private get liveWanted(): boolean {
+    return this.state.ui.liveMids || (this.state.ui.liveFills && this.hlAccounts.length > 0);
+  }
+
+  /** Un réglage a changé : le socket est reconstruit avec la nouvelle liste d'abonnements. */
+  private restartLive(): void {
+    this.stopLive();
+    if (this.liveWanted) this.startLive();
   }
 
   private startLive(): void {
@@ -1277,8 +1302,16 @@ export class AppState {
           // sans spotMeta, les perps restent résolus par leur nom ; le spot attendra.
         });
     }
-    this.liveClient = createLiveMids({
-      onMids: (mids) => this.applyLiveMids(mids),
+    this.liveClient = createLiveSocket({
+      // Relue à chaque connexion : un compte ajouté après coup est pris en compte, et une
+      // reconnexion ne repart jamais amputée de ses abonnements.
+      subscriptions: () => [
+        ...(this.state.ui.liveMids ? [{ type: 'allMids' }] : []),
+        ...(this.state.ui.liveFills
+          ? liveFillSubscriptions(this.hlAccounts.map((a) => a.address ?? ''))
+          : []),
+      ],
+      onMessage: (channel, data) => this.onLiveMessage(channel, data),
       onStatus: (status) => {
         this.liveStatus = status;
       },
@@ -1287,10 +1320,32 @@ export class AppState {
     this.liveVisibilityHandler = () => {
       if (!this.liveClient) return;
       if (document.visibilityState === 'hidden') this.liveClient.stop();
-      else if (this.state.ui.liveMids) this.liveClient.start();
+      else if (this.liveWanted) this.liveClient.start();
     };
     document.addEventListener('visibilitychange', this.liveVisibilityHandler);
     if (document.visibilityState !== 'hidden') this.liveClient.start();
+  }
+
+  /** Aiguillage des messages du socket partagé (prix d'un côté, exécutions de l'autre). */
+  private onLiveMessage(channel: string, data: unknown): void {
+    if (channel === 'allMids') {
+      const mids = parseMids(data);
+      if (mids !== null) this.applyLiveMids(mids);
+      return;
+    }
+    const envelope = readLiveEnvelope(channel, data);
+    if (envelope === null || envelope.user === null) return;
+    const accountId = hlAccountId(envelope.user);
+    const current = this.state.hyperliquid.accounts[accountId];
+    if (!current) return; // message pour une adresse qu'on ne suit plus : ignoré
+    const { data: merged, added } = mergeLiveEnvelope(current, envelope);
+    if (added === 0) return; // le snapshot rejoue l'historique : ne rien réécrire pour rien
+    this.state.hyperliquid = {
+      ...this.state.hyperliquid,
+      accounts: { ...this.state.hyperliquid.accounts, [accountId]: merged },
+    };
+    this.liveFillsAt = nowIso();
+    this.liveFillsCount += added;
   }
 
   private stopLive(): void {

@@ -49,6 +49,8 @@
   const money = (value: Big): Big | null => app.usdcToDisplay(value);
   const positions = $derived(scoped.accounts.flatMap((a) => a.snapshot?.positions ?? []));
   const holdings = $derived(scoped.accounts.flatMap((a) => a.snapshot?.spot ?? []));
+  /** Au moins un des deux flux est demandé : la pastille d'état n'a de sens que dans ce cas. */
+  const liveOn = $derived(app.state.ui.liveMids || app.state.ui.liveFills);
   const syncing = $derived(accounts.some((a) => app.syncStatus[a.id]?.syncing));
   const lastSyncAt = $derived.by((): string | null => {
     const dates = scoped.accounts
@@ -180,25 +182,41 @@
             onchange={(e) => app.setLiveMids(e.currentTarget.checked)}
           />
           Prix en direct
-          {#if app.state.ui.liveMids}
-            <span
-              class="dot {app.liveStatus}"
-              role="status"
-              aria-label={app.liveStatus === 'live'
-                ? 'Prix en direct : connecté'
-                : app.liveStatus === 'retry'
-                  ? 'Prix en direct : reconnexion en cours'
-                  : app.liveStatus === 'connecting'
-                    ? 'Prix en direct : connexion…'
-                    : 'Prix en direct : arrêté'}
-            ></span>
-          {/if}
         </label>
+        <label
+          class="live check small"
+          title="Vos exécutions poussées par WebSocket dès qu'elles ont lieu (opt-in)"
+        >
+          <input
+            type="checkbox"
+            checked={app.state.ui.liveFills}
+            onchange={(e) => app.setLiveFills(e.currentTarget.checked)}
+          />
+          Trades en direct
+        </label>
+        {#if liveOn}
+          <span
+            class="dot {app.liveStatus}"
+            role="status"
+            aria-label={app.liveStatus === 'live'
+              ? 'Flux en direct : connecté'
+              : app.liveStatus === 'retry'
+                ? 'Flux en direct : reconnexion en cours'
+                : app.liveStatus === 'connecting'
+                  ? 'Flux en direct : connexion…'
+                  : 'Flux en direct : arrêté'}
+          ></span>
+        {/if}
       </div>
     </div>
     <p class="muted small" aria-live="polite">
       {#if syncing}
         Lecture des fills, du funding et des mouvements…
+      {:else if app.state.ui.liveFills && app.liveFillsAt}
+        {app.liveFillsCount} exécution{app.liveFillsCount > 1 ? 's' : ''} reçue{app.liveFillsCount >
+        1
+          ? 's'
+          : ''} en direct · dernière {fmtRelative(app.liveFillsAt, nowMs())}
       {:else if lastSyncAt}
         Synchronisé : {fmtRelative(lastSyncAt, nowMs())} · adresse publique, lecture seule
       {:else}

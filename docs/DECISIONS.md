@@ -472,3 +472,24 @@
     **privées** étendues (`xprv`, `yprv`, `zprv`) sont refusées à la saisie avec un avertissement
     explicite et ne sont jamais enregistrées. Conformité vérifiée par les vecteurs de test officiels
     des BIP eux-mêmes.
+
+34. **Exécutions en direct : ingestion strictement additive, dédoublonnage par `tid`, abonnements
+    rejoués à chaque reconnexion** (24/08/2026, P26). Un second interrupteur « Trades en direct »,
+    distinct de « Prix en direct » et **décoché par défaut** comme lui, abonne chaque compte
+    Hyperliquid à `userFills` et `userFundings` sur le **même socket** que `allMids`
+    (`lib/live/socket.ts`, transport extrait de `pricing/live.ts` sans en changer le comportement —
+    ses tests existants sont restés verts). `aggregateByTime` est laissé à faux : agréger
+    fusionnerait des exécutions et détruirait les `tid`, seule clé de dédoublonnage fiable
+    (décision n° 22). Le **snapshot d'ouverture n'est pas un cas particulier** : il rejoue
+    l'historique récent et passe par le même dédoublonnage que les pousses. L'ingestion n'ajoute
+    jamais que des bruts et **ne touche pas aux curseurs** de la synchronisation REST — un fill reçu
+    en direct ne doit pas faire sauter une fenêtre au prochain import. Les abonnements sont **relus à
+    chaque (re)connexion** : un compte ajouté après coup est pris en compte, et une reconnexion ne
+    repart pas amputée — c'est le défaut classique qui laisse un flux mourir en silence après la
+    première coupure. Enfin, seul un message de données (ni accusé, ni pong) fait passer l'état à
+    « live » et remet le backoff à zéro.
+
+    **Vie privée, différence à ne pas taire** : `allMids` est un flux public sans identifiant, mais
+    `userFills` **envoie l'adresse publique** du compte — la même qu'à chaque synchronisation, à la
+    même destination et à personne d'autre. La page Confidentialité le distingue explicitement au
+    lieu de laisser croire que les deux flux se valent.

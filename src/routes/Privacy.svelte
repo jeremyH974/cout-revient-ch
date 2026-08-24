@@ -46,8 +46,16 @@
     <li>
       Si vous activez « Prix en direct » sur l'écran Trading, un flux de cours de marché s'ouvre
       vers
-      <code>wss://api.hyperliquid.xyz</code> ; aucune adresse ni donnée personnelle n'y transite, et il
-      est coupé par défaut ainsi que dès que l'onglet passe en arrière-plan.
+      <code>wss://api.hyperliquid.xyz</code> ; <strong>aucune adresse n'y transite</strong> — c'est un
+      flux public identique pour tout le monde.
+    </li>
+    <li>
+      « Trades en direct » est différent et doit être dit clairement : ce flux
+      <strong>envoie votre adresse publique</strong> à <code>wss://api.hyperliquid.xyz</code> pour
+      que la plateforme sache quelles exécutions vous pousser — exactement la même adresse que celle
+      déjà envoyée à chaque synchronisation, à la même destination et à personne d'autre. Les deux
+      flux sont <strong>décochés par défaut</strong>, ne s'ouvrent jamais sans votre clic, et se
+      coupent dès que l'onglet passe en arrière-plan.
     </li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>

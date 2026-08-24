@@ -78,6 +78,8 @@ export interface UiSettings {
   explorerFlavor: ExplorerFlavor;
   /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
   liveMids: boolean;
+  /** Exécutions en direct (`userFills`) : opt-in distinct des prix, même socket. */
+  liveFills: boolean;
 }
 
 export interface StoredStateV1 {
@@ -124,6 +126,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   explorerKey: null,
   explorerFlavor: 'etherscan',
   liveMids: false,
+  liveFills: false,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -534,6 +537,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
   if (typeof state.ui.liveMids !== 'boolean')
     state = { ...state, ui: { ...state.ui, liveMids: false } };
+  if (typeof state.ui.liveFills !== 'boolean')
+    state = { ...state, ui: { ...state.ui, liveFills: false } };
   if (typeof state.ui.demoMode !== 'boolean')
     state = { ...state, ui: { ...state.ui, demoMode: false } };
   if (state.ui.lastSeenVersion !== null && typeof state.ui.lastSeenVersion !== 'string')
