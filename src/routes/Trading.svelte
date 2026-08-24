@@ -173,6 +173,27 @@
         <button class="tool" type="button" onclick={() => void refresh()} disabled={syncing}>
           {syncing ? 'Synchronisation…' : 'Actualiser'}
         </button>
+        <label class="live check small" title="Cours Hyperliquid poussés par WebSocket (opt-in)">
+          <input
+            type="checkbox"
+            checked={app.state.ui.liveMids}
+            onchange={(e) => app.setLiveMids(e.currentTarget.checked)}
+          />
+          Prix en direct
+          {#if app.state.ui.liveMids}
+            <span
+              class="dot {app.liveStatus}"
+              role="status"
+              aria-label={app.liveStatus === 'live'
+                ? 'Prix en direct : connecté'
+                : app.liveStatus === 'retry'
+                  ? 'Prix en direct : reconnexion en cours'
+                  : app.liveStatus === 'connecting'
+                    ? 'Prix en direct : connexion…'
+                    : 'Prix en direct : arrêté'}
+            ></span>
+          {/if}
+        </label>
       </div>
     </div>
     <p class="muted small" aria-live="polite">
@@ -401,6 +422,27 @@
 {/if}
 
 <style>
+  .live {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+    cursor: pointer;
+  }
+  .dot {
+    width: 0.6em;
+    height: 0.6em;
+    border-radius: 50%;
+    background: var(--fg-muted);
+  }
+  .dot.live {
+    background: var(--gain, #15803d);
+  }
+  .dot.retry,
+  .dot.connecting {
+    background: var(--warn, #b45309);
+  }
   .empty {
     display: grid;
     gap: var(--space-2);

@@ -18,7 +18,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self' https://api.coingecko.com https://api.coinbase.com https://api.exchange.coinbase.com https://api.kraken.com https://api.hyperliquid.xyz https://coins.llama.fi https://api.frankfurter.dev https://api.frankfurter.app",
+  "connect-src 'self' https://api.coingecko.com https://api.coinbase.com https://api.exchange.coinbase.com https://api.kraken.com https://api.hyperliquid.xyz https://coins.llama.fi wss://api.hyperliquid.xyz https://mempool.space https://eth.blockscout.com https://arbitrum.blockscout.com https://base.blockscout.com https://api.frankfurter.dev https://api.frankfurter.app",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",

@@ -161,3 +161,7 @@ export function hyperliquidProvider(options: {
     },
   };
 }
+
+/** Accès partagés pour le mode « prix live » (P26) : même résolution que le fournisseur. */
+export { spotMeta as hlSpotMeta, spotMidKey as hlSpotMidKey };
+export type { SpotMeta as HlMidsMeta };

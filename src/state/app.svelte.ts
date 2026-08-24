@@ -40,6 +40,7 @@ import {
   type EventId,
   type LedgerEvent,
   type ManualEvent,
+  type OnchainChain,
   type Qualification,
   type RowKey,
 } from '$lib/domain/types';
@@ -54,9 +55,18 @@ import { fixtureClient, type HlFixture } from '$lib/import/hyperliquid/fixture-c
 import { normalizeHlAccount, type NormalizedHlAccount } from '$lib/import/hyperliquid/normalize';
 import { syncAccount, type SyncProgress } from '$lib/import/hyperliquid/sync';
 import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
+import { importGhostfolioJson } from '$lib/import/ghostfolio/index';
+import { BTC_ADDRESS_RE, syncBtcAddress } from '$lib/import/onchain/btc';
+import { EVM_ADDRESS_RE, EVM_CHAINS, syncEvmAddress } from '$lib/import/onchain/evm';
+import { movementsToDrafts, OnchainError } from '$lib/import/onchain/normalize';
 import { pivotLedgerEvents } from '$lib/import/pivot/events';
-import { importPivotCsv, type PivotImportResult } from '$lib/import/pivot/index';
+import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index';
+import { draftsToPivotRows } from '$lib/import/platforms/drafts';
+import { importAnyCsv } from '$lib/import/platforms/index';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
+import { createLiveMids, type LiveMids, type LiveStatus } from '$lib/pricing/live';
+import { hlSpotMeta, hlSpotMidKey, type HlMidsMeta } from '$lib/pricing/providers/hyperliquid';
+import { defaultFetch } from '$lib/history/providers/shared';
 import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
 import {
   chooseBackupFolder,
@@ -149,6 +159,13 @@ export class AppState {
   private folderHandle: FileSystemDirectoryHandle | null = null;
   private folderTimer: ReturnType<typeof setTimeout> | null = null;
   syncStatus = $state<Record<AccountId, SyncStatus>>({});
+
+  /** Prix « live » Hyperliquid (P26) : statut du WebSocket opt-in. */
+  liveStatus = $state<LiveStatus>('off');
+  private liveClient: LiveMids | null = null;
+  private liveMeta: HlMidsMeta | null = null;
+  private lastLiveApplyMs = 0;
+  private liveVisibilityHandler: (() => void) | null = null;
   /** Client `info` Hyperliquid ; en démonstration, un client hors ligne servant la fixture. */
   private hlClient: HlClient | null = null;
 
@@ -483,11 +500,124 @@ export class AppState {
       const { [id]: _data, ...others } = this.state.hyperliquid.accounts;
       void _data;
       this.state.hyperliquid = { ...this.state.hyperliquid, accounts: others };
+    }
+    if (id in this.syncStatus) {
       const { [id]: _status, ...statuses } = this.syncStatus;
       void _status;
       this.syncStatus = statuses;
     }
     return true;
+  }
+
+  // --- Comptes on-chain (adresse publique, lecture seule) ----------------------------------------
+
+  /** Suit une adresse publique BTC/EVM : compte Investissement, mouvements à apparier/qualifier. */
+  addOnchainAccount(input: {
+    chain: OnchainChain;
+    address: string;
+    label: string;
+  }): { ok: true; account: Account } | { ok: false; error: string } {
+    const chain = input.chain;
+    const address = chain === 'btc' ? input.address.trim() : input.address.trim().toLowerCase();
+    const valid = chain === 'btc' ? BTC_ADDRESS_RE.test(address) : EVM_ADDRESS_RE.test(address);
+    if (!valid) return { ok: false, error: 'Adresse invalide pour cette chaîne.' };
+    const existing = Object.values(this.state.accounts).find(
+      (a) => a.kind === 'onchain' && a.chain === chain && a.address === address,
+    );
+    if (existing) return { ok: false, error: `Cette adresse est déjà suivie (${existing.label}).` };
+    this.exitDemo();
+    const id = `oc:${chain}-${Date.now().toString(36)}`;
+    const account: Account = {
+      id,
+      kind: 'onchain',
+      label:
+        input.label.trim().slice(0, 60) ||
+        `Adresse ${chain === 'btc' ? 'Bitcoin' : EVM_CHAINS[chain].label}`,
+      space: 'invest',
+      address,
+      chain,
+      createdAt: nowIso(),
+    };
+    this.state.accounts = { ...this.state.accounts, [id]: account };
+    return { ok: true, account };
+  }
+
+  /** Synchronise les mouvements d'un compte on-chain (idempotent, clés par txid). */
+  async syncOnchain(accountId: AccountId): Promise<void> {
+    const account = this.state.accounts[accountId];
+    if (!account || account.kind !== 'onchain' || !account.address || !account.chain) return;
+    if (this.syncStatus[accountId]?.syncing) return;
+    const patch = (p: Partial<SyncStatus>): void => {
+      const current = this.syncStatus[accountId] ?? {
+        syncing: false,
+        progress: null,
+        error: null,
+        truncated: false,
+        added: 0,
+      };
+      this.syncStatus = { ...this.syncStatus, [accountId]: { ...current, ...p } };
+    };
+    patch({ syncing: true, error: null });
+    try {
+      const result =
+        account.chain === 'btc'
+          ? await syncBtcAddress(account.address)
+          : await syncEvmAddress(account.chain, account.address);
+      const now = nowMs();
+      const importId = `imp:${now.toString(36)}`;
+      const parsed = draftsToPivotRows(movementsToDrafts(result.movements), importId, accountId);
+      let added = 0;
+      if (parsed.rows.length > 0) {
+        const usd = rateLookup(this.state.fx.rates.USD ?? {});
+        const ingested = ingestPivotRows(
+          parsed,
+          {
+            format: 'onchain-sync',
+            header: [],
+            unknownColumns: [],
+            totalRows: result.movements.length,
+            skippedInternal: result.ignored,
+          },
+          this.state.pivotRows,
+          accountId,
+          (day) => usd.rate(day),
+          this.state.qualifications,
+        );
+        if (!ingested.ok) {
+          patch({ syncing: false, error: ingested.error });
+          return;
+        }
+        added = ingested.report.newRows;
+        if (added > 0) {
+          this.state.pivotRows = ingested.rows;
+          this.state.imports = [
+            ...this.state.imports,
+            {
+              id: importId,
+              at: nowIso(now),
+              fileName: `Synchronisation ${account.chain === 'btc' ? 'Bitcoin' : EVM_CHAINS[account.chain].label}`,
+              rows: ingested.report.parsedRows,
+              newRows: added,
+              format: ingested.report.format,
+              header: [],
+              unknownColumns: [],
+              accountId,
+            },
+          ];
+          void this.ensureRates('USD');
+          void requestPersistentStorage();
+        }
+      }
+      patch({ syncing: false, added, truncated: result.truncated, error: null });
+    } catch (error) {
+      patch({
+        syncing: false,
+        error:
+          error instanceof OnchainError
+            ? error.message
+            : `Synchronisation impossible : ${String(error)}`,
+      });
+    }
   }
 
   // --- Hyperliquid (lecture seule, adresse publique) --------------------------------------------
@@ -605,6 +735,8 @@ export class AppState {
     // Taux EUR→USD nécessaires hors affichage dollar : lignes pivot en USD/stables, spot HL.
     if (Object.keys(this.state.pivotRows).length > 0 || this.hlAccounts.length > 0)
       void this.ensureRates('USD');
+    // Prix live opt-in : reprend seulement si l'utilisateur l'avait activé.
+    if (this.state.ui.liveMids) this.startLive();
     let timer: ReturnType<typeof setTimeout> | null = null;
     let pending: StoredStateV1 | null = null;
     const flush = (): void => {
@@ -847,7 +979,7 @@ export class AppState {
     this.exitDemo();
     const importId = `imp:${now.toString(36)}`;
     const usd = rateLookup(this.state.fx.rates.USD ?? {});
-    const result = importPivotCsv(
+    const result = importAnyCsv(
       text,
       this.state.pivotRows,
       accountId,
@@ -872,6 +1004,46 @@ export class AppState {
         },
       ];
       // Les montants USD/stables du fichier ont besoin des taux BCE de leurs jours.
+      void this.ensureRates('USD');
+      void requestPersistentStorage();
+    }
+    return result;
+  }
+
+  /** Importe un export JSON Ghostfolio dans un compte (même pipeline que le pivot). */
+  importGhostfolio(
+    text: string,
+    fileName: string,
+    accountId: AccountId,
+    now = nowMs(),
+  ): PivotImportResult {
+    this.exitDemo();
+    const importId = `imp:${now.toString(36)}`;
+    const usd = rateLookup(this.state.fx.rates.USD ?? {});
+    const result = importGhostfolioJson(
+      text,
+      this.state.pivotRows,
+      accountId,
+      importId,
+      (day) => usd.rate(day),
+      this.state.qualifications,
+    );
+    if (result.ok) {
+      this.state.pivotRows = result.rows;
+      this.state.imports = [
+        ...this.state.imports,
+        {
+          id: importId,
+          at: nowIso(now),
+          fileName,
+          rows: result.report.parsedRows,
+          newRows: result.report.newRows,
+          format: result.report.format,
+          header: result.report.header,
+          unknownColumns: result.report.unknownColumns,
+          accountId,
+        },
+      ];
       void this.ensureRates('USD');
       void requestPersistentStorage();
     }
@@ -993,6 +1165,74 @@ export class AppState {
 
   setUi(patch: Partial<UiSettings>): void {
     this.state.ui = { ...this.state.ui, ...patch };
+  }
+
+  // --- Prix « live » Hyperliquid (P26, opt-in) ---------------------------------------------------
+
+  /** Active/coupe le flux de prix WebSocket (persisté ; jamais actif sans ce choix explicite). */
+  setLiveMids(enabled: boolean): void {
+    this.setUi({ liveMids: enabled });
+    if (enabled) this.startLive();
+    else this.stopLive();
+  }
+
+  private startLive(): void {
+    if (this.liveClient || typeof document === 'undefined') return;
+    void this.ensureRates('USD');
+    if (!this.liveMeta) {
+      hlSpotMeta(defaultFetch, new AbortController().signal)
+        .then((meta) => {
+          this.liveMeta = meta;
+        })
+        .catch(() => {
+          // sans spotMeta, les perps restent résolus par leur nom ; le spot attendra.
+        });
+    }
+    this.liveClient = createLiveMids({
+      onMids: (mids) => this.applyLiveMids(mids),
+      onStatus: (status) => {
+        this.liveStatus = status;
+      },
+    });
+    // Onglet caché → socket fermé (batterie, débit) ; visible → reprise si toujours activé.
+    this.liveVisibilityHandler = () => {
+      if (!this.liveClient) return;
+      if (document.visibilityState === 'hidden') this.liveClient.stop();
+      else if (this.state.ui.liveMids) this.liveClient.start();
+    };
+    document.addEventListener('visibilitychange', this.liveVisibilityHandler);
+    if (document.visibilityState !== 'hidden') this.liveClient.start();
+  }
+
+  private stopLive(): void {
+    this.liveClient?.stop();
+    this.liveClient = null;
+    if (this.liveVisibilityHandler) {
+      document.removeEventListener('visibilitychange', this.liveVisibilityHandler);
+      this.liveVisibilityHandler = null;
+    }
+    this.liveStatus = 'off';
+  }
+
+  /** Mids reçus → cotations d'affichage (throttle 3 s) ; jamais écrit dans le cache persisté. */
+  private applyLiveMids(mids: Record<string, string>): void {
+    const now = nowMs();
+    if (now - this.lastLiveApplyMs < 3000) return;
+    const usdToEur = toEurConverter(this.state.fx.rates.USD ?? {}, nowIso().slice(0, 10));
+    const at = nowIso();
+    const quotes: Record<AssetCode, PriceQuoteInput> = {};
+    for (const code of this.heldAssets) {
+      const upper = code.toUpperCase();
+      const key = this.liveMeta ? (hlSpotMidKey(this.liveMeta, upper) ?? upper) : upper;
+      const mid = mids[key];
+      if (mid === undefined) continue;
+      const priceEur = usdToEur(mid);
+      if (priceEur === null) continue;
+      quotes[code] = { asset: code, priceEur, at, source: 'Hyperliquid (live)', stale: false };
+    }
+    if (Object.keys(quotes).length === 0) return;
+    this.lastLiveApplyMs = now;
+    this.liveQuotes = { ...this.liveQuotes, ...quotes };
   }
 
   async refreshPrices(force = false): Promise<void> {
