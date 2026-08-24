@@ -9,7 +9,14 @@ import type { CsvTable } from '../csv';
 import type { PivotIssue } from '../pivot/rows';
 
 export type PlatformFormatId =
-  'kraken-ledgers' | 'revolut-crypto' | 'coinbase' | 'bitvavo' | 'ledger-live';
+  | 'kraken-ledgers'
+  | 'revolut-crypto'
+  | 'coinbase'
+  | 'bitvavo'
+  | 'ledger-live'
+  | 'binance'
+  | 'bitpanda'
+  | 'swissborg';
 
 export interface PlatformDraft {
   /** Ligne du fichier d'origine (la première, pour une opération multi-lignes). */

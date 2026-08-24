@@ -7,6 +7,31 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Rendement hors apports (TWR) dans la synthèse du Rapport (écran et PDF), à côté du XIRR : taux
+  insensible à la date de vos versements, chaîné jour par jour ; leur écart mesure l'effet du
+  « moment » de vos apports. Annualisé au-delà de 30 jours, cumulé en dessous.
+- Repère « mêmes apports en BTC » : vos apports et retraits réels rejoués aux mêmes dates sur le
+  bitcoin, avec la valeur obtenue et l'écart. Les retraits impossibles et les flux hors profondeur
+  de cotation sont signalés, jamais avalés.
+- Suivi d'un **portefeuille Bitcoin entier** à partir de sa clé publique étendue (zpub, ypub, xpub) :
+  toutes les adresses sont dérivées **dans votre navigateur** (la clé n'est envoyée nulle part),
+  balayage jusqu'à 20 adresses vides consécutives, mouvements nets sur l'ensemble du portefeuille —
+  une dépense qui vous rend la monnaie compte pour une seule sortie. Une clé privée étendue est
+  refusée à la saisie.
+- Secours pour les comptes on-chain EVM : Routescan sans clé (Ethereum), et une clé d'explorateur
+  facultative (Etherscan V2 ou Blockscout Pro) dans les Réglages — clé de lecture seule, sans accès
+  aux fonds. L'API publique Blockscout, utilisée par défaut, a été basculée vers une offre à clé par
+  son éditeur : l'application ne dépend plus d'un seul chemin, et la surveillance prévient si celui
+  sans clé s'arrête.
+- Fonds EVM reçus **via un contrat** (pont, DEX, vault) désormais visibles : ils n'apparaissaient
+  dans aucun flux jusqu'ici.
+- Interrupteur « Trades en direct » (opt-in) sur l'écran Trading : vos exécutions et votre funding
+  arrivent par WebSocket dès qu'ils ont lieu, sans cliquer « Actualiser ».
+- Convertisseurs natifs supplémentaires : **Binance** (les trois exports : Transaction History et
+  les deux Trade History), **Bitpanda** (préambule et lignes actions/ETF écartées) et **SwissBorg**
+  (colonnes dont le nom change avec la devise du compte). Binance ayant cessé ses services en France
+  le 1ᵉʳ juillet 2026, récupérer cet historique avant qu'il ne devienne inaccessible est une
+  urgence pratique.
 - Convertisseurs natifs d'import pour Kraken, Coinbase, Bitvavo, Ledger Live et Revolut : même
   compte, mêmes règles de valorisation et de virements appariés que l'import pivot ; dédoublonnage
   par hachage du contenu natif de la ligne, une correction de convertisseur ne duplique jamais une
@@ -72,6 +97,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   Universal, valeurs EUR déjà calculées, réimportable dans un autre outil.
 - Calendrier de P&L dans Trading → Statistiques : P&L réalisé net par jour de clôture, navigation
   par mois, jour cliquable vers ses trades.
+
+### Fixed
+
+- Un virement interne apparié à cheval sur deux jours (retrait le soir, dépôt le surlendemain)
+  creusait un trou dans la courbe d'évolution : la valeur du portefeuille tombait à zéro puis
+  revenait, alors que les coins n'avaient jamais quitté votre patrimoine.
 
 ### Changed
 

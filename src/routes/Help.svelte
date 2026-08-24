@@ -116,15 +116,15 @@
   </p>
   <h2>Importer d'autres plateformes</h2>
   <p>
-    Kraken, Coinbase, Bitvavo, Ledger Live et Revolut ont chacun un convertisseur dédié : déposez
-    simplement leur export, il est reconnu automatiquement, rien à choisir. Pour une autre
-    plateforme (Binance, Bybit, un wallet…), un CSV au format « Koinly Universal » ou l'export
-    interne Koinly (<em>Transactions → Bulk edit → Export</em>, lu aussi par Waltio) s'importe de la
-    même façon ; un export JSON d'activités Ghostfolio (<em>Réglages → Exporter</em>) est également
-    accepté. Toutes ces sources s'importent depuis cet écran, dans un compte dédié à choisir ou à
-    créer. Un retrait et un dépôt du même actif entre deux de vos comptes sont appariés
-    automatiquement (jusqu'à 72 h d'écart) : le coût d'acquisition voyage vers le dépôt, sans
-    plus-value fantôme ; corrigez ou forcez un appariement depuis <strong>Comptes</strong>.
+    Binance, Kraken, Coinbase, Bitvavo, Bitpanda, SwissBorg, Ledger Live et Revolut ont chacun un
+    convertisseur dédié : déposez simplement leur export, il est reconnu automatiquement, rien à
+    choisir. Pour une autre plateforme (Bybit, un wallet…), un CSV au format « Koinly Universal » ou
+    l'export interne Koinly (<em>Transactions → Bulk edit → Export</em>, lu aussi par Waltio)
+    s'importe de la même façon ; un export JSON d'activités Ghostfolio (<em>Réglages → Exporter</em
+    >) est également accepté. Toutes ces sources s'importent depuis cet écran, dans un compte dédié
+    à choisir ou à créer. Un retrait et un dépôt du même actif entre deux de vos comptes sont
+    appariés automatiquement (jusqu'à 72 h d'écart) : le coût d'acquisition voyage vers le dépôt,
+    sans plus-value fantôme ; corrigez ou forcez un appariement depuis <strong>Comptes</strong>.
     <strong>Réglages → « Format Koinly / Waltio (CSV) »</strong> exporte à l'inverse toutes vos opérations
     au format pivot, pour un autre outil.
   </p>

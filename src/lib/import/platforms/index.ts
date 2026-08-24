@@ -13,12 +13,15 @@ import {
   type ImportedFormat,
   type PivotImportResult,
 } from '../pivot/index';
+import { binance } from './binance';
+import { bitpanda } from './bitpanda';
 import { bitvavo } from './bitvavo';
 import { coinbase } from './coinbase';
 import { draftsToPivotRows } from './drafts';
 import { krakenLedgers } from './kraken';
 import { ledgerLive } from './ledgerlive';
 import { revolut } from './revolut';
+import { swissborg } from './swissborg';
 import type { PlatformConverter } from './types';
 
 export const PLATFORM_CONVERTERS: readonly PlatformConverter[] = [
@@ -27,6 +30,9 @@ export const PLATFORM_CONVERTERS: readonly PlatformConverter[] = [
   bitvavo,
   ledgerLive,
   revolut,
+  binance,
+  bitpanda,
+  swissborg,
 ];
 
 /** Libellés d'affichage des formats reconnus. */
@@ -38,6 +44,9 @@ export const FORMAT_LABELS: Record<ImportedFormat, string> = {
   coinbase: 'Coinbase — relevé de transactions',
   bitvavo: 'Bitvavo — historique de transactions',
   'ledger-live': 'Ledger Live — historique des opérations',
+  binance: 'Binance — historique (Statements ou Trade History)',
+  bitpanda: 'Bitpanda — export de l’historique',
+  swissborg: 'SwissBorg — relevé de compte',
   'ghostfolio-json': 'Ghostfolio — export JSON',
   'onchain-sync': 'Synchronisation on-chain',
 };
@@ -46,7 +55,7 @@ export const FORMAT_LABELS: Record<ImportedFormat, string> = {
 export const ACCEPTED_FORMATS_HINT =
   'Formats acceptés : export Coinhouse, CSV pivot Koinly/Waltio (Universal ou From/To), ' +
   'Kraken (ledgers.csv), Revolut (relevé crypto), Coinbase (relevé de transactions), Bitvavo, ' +
-  'Ledger Live, et JSON Ghostfolio.';
+  'Ledger Live, Binance (Statements ou Trade History), Bitpanda et SwissBorg, et JSON Ghostfolio.';
 
 export function importAnyCsv(
   text: string,

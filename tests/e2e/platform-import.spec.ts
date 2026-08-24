@@ -30,6 +30,17 @@ const KRAKEN_CSV = [
   'L7,T7,2025-05-03 08:00:00.0000,trade,,currency,ZEUR,spot,90.00,0,932.10',
 ].join('\n');
 
+/** Binance « Transaction History » : une ligne par jambe, à regrouper par horodatage et compte. */
+const BINANCE_CSV = [
+  'User_ID,UTC_Time,Account,Operation,Coin,Change,Remark',
+  '42,2025-03-11 09:14:22,Spot,Buy,BTC,0.00500000,',
+  '42,2025-03-11 09:14:22,Spot,Sell,EUR,-150.00000000,',
+  '42,2025-03-11 09:14:22,Spot,Fee,BNB,-0.00021000,',
+  '42,2025-04-02 18:02:44,Spot,Deposit,EUR,1500.00000000,',
+  '42,2025-04-07 07:30:00,Earn,Simple Earn Flexible Interest,BTC,0.00001200,',
+  '42,2025-04-08 10:00:00,Spot,transfer_out,BTC,-0.00100000,',
+].join('\n');
+
 const GHOSTFOLIO_JSON = JSON.stringify({
   meta: { date: '2026-08-01T00:00:00.000Z', version: '2.100.0' },
   accounts: [
@@ -130,6 +141,29 @@ test('export Kraken ledgers.csv : détection, import, chiffres = moteur', async 
   ).toBeVisible();
 });
 
+test('export Binance (Statements) : jambes regroupées, chiffres = moteur', async ({ page }) => {
+  const expected = importAnyCsv(BINANCE_CSV, {}, 'csv:e2e-binance', 'i1', USD_RATE);
+  expect(expected.ok).toBe(true);
+  if (!expected.ok) return;
+  expect(expected.report.format).toBe('binance');
+  const report = portfolioOf(expected.rows);
+  const btc = report.positions.find((p) => p.asset === 'btc')!;
+
+  await importInto(
+    page,
+    { name: 'binance.csv', mimeType: 'text/csv', buffer: Buffer.from(BINANCE_CSV) },
+    'Binance démo',
+  );
+  await page.getByRole('link', { name: 'Voir mon portefeuille' }).click();
+  await expect(
+    page
+      .getByRole('list', { name: 'Positions' })
+      .getByRole('listitem')
+      .filter({ hasText: 'BTC' })
+      .getByText(fmtQty(btc.qty), { exact: false }),
+  ).toBeVisible();
+});
+
 test('export JSON Ghostfolio : détection, import, récompense valorisée', async ({ page }) => {
   const expected = importGhostfolioJson(GHOSTFOLIO_JSON, {}, 'csv:e2e-gf', 'i1', USD_RATE);
   expect(expected.ok).toBe(true);
@@ -172,7 +206,7 @@ test('adresse on-chain BTC : suivi, synchronisation stubée, position = moteur, 
   const card = page.locator('section', {
     has: page.getByRole('heading', { name: 'Suivre une adresse on-chain' }),
   });
-  await card.getByLabel('Adresse à suivre').fill(ONCHAIN_BTC_ADDRESS);
+  await card.getByLabel('Adresse ou clé publique étendue').fill(ONCHAIN_BTC_ADDRESS);
   await card.getByLabel('Nom du compte (facultatif)').fill('Wallet BTC démo');
   await card.getByRole('button', { name: 'Suivre et synchroniser' }).click();
   await expect(
@@ -199,4 +233,20 @@ test('adresse on-chain BTC : suivi, synchronisation stubée, position = moteur, 
   await expect(
     page.getByRole('list', { name: 'Positions' }).getByRole('listitem').filter({ hasText: 'BTC' }),
   ).toBeVisible();
+});
+
+test('une clé PRIVÉE étendue est refusée, une clé publique est acceptée', async ({ page }) => {
+  // Vecteur public du BIP84 (jamais une clé réelle) : le refus doit être explicite, pas silencieux.
+  const ZPRV =
+    'zprvAWgYBBk7JR8Gjrh4UJQ2uJdG1r3WNRRfURiABBE3RvMXYSrRJL62XuezvGdPvG6GFBZduosCc1YP5wixPox7zhZLfiUm8aunE96BBa4Kei5';
+  await page.goto('#/accounts');
+  const card = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Suivre une adresse on-chain' }),
+  });
+  const field = card.getByLabel('Adresse ou clé publique étendue');
+  await field.fill(ZPRV);
+  await card.getByRole('button', { name: 'Suivre et synchroniser' }).click();
+  await expect(page.locator('.toast.error').filter({ hasText: 'clé PRIVÉE' })).toBeVisible();
+  // Rien n'a été enregistré : le compte n'existe pas.
+  await expect(page.getByText('Portefeuille Bitcoin (clé étendue)')).toHaveCount(0);
 });

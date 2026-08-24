@@ -155,7 +155,7 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P11 | Répartition (donut), alerte de concentration, contribution par actif                                                                                                         |   2    |     1     |    3    |    1     |   8    |     2     |
 | P9  | Carte de partage en image + résumé texte pour Discord                                                                                                                        |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
 | P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                                                                                                     |   2    |     5     |    2    |   1,5    |   6    |     0     |
-| P10 | **Livré (v2, 24/08/2026) — XIRR seul ; TWR expliqué et benchmark BTC / DCA BTC restent à faire.** Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC        |   5    |     2     |    4    |    2     |  5,5   |     2     |
+| P10 | **Livré (v2, 24/08/2026) — complet : XIRR, TWR et repère BTC.** Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                          |   5    |     2     |    4    |    2     |  5,5   |     2     |
 | P12 | **Livré (v2, 23/08/2026).** Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                    |   3    |     5     |    3    |    2     |  5,5   |     2     |
 | P5  | **Livré (v1.1, 23/08/2026) — alias réels à compléter avec les testeurs.** Import v2 : variantes d'export, en-têtes EN, nouveaux types Coinhouse, écran « À qualifier » guidé |   5    |     5     |    5    |    3     |   5    |     1     |
 | P7  | Frais réels et spread implicite par opération + « abonnement rentable ? »                                                                                                    |   5    |     2     |    5    |   2,5    |  4,8   |     1     |
@@ -177,8 +177,8 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P19 | Espaces Investissement / Trading + comptes de première classe + navigation v2 + Vue d'ensemble v1                      |   4    |     3     |    4    |    3     |  3,7   |                              livré (v2, 23/08/2026 — rail desktop compris)                              |
 | P20 | Import Hyperliquid en lecture seule (adresse publique) : fills spot + perps, funding, dépôts/retraits                  |   5    |     3     |    5    |    4     |  3,3   |                                               livré (v2)                                                |
 | P24 | Import « format pivot » (CSV Universal Koinly/Waltio) + virements internes appariés + convertisseurs natifs            |   4    |     3     |    3    |   3 +    |  3,3   | livré (v2, 23/08/2026 ; convertisseurs natifs par plateforme livrés le 24/08/2026, voir P24 ci-dessous) |
-| P26 | Mode « live » WebSocket optionnel sur l'écran Trading                                                                  |   2    |     1     |    2    |   1,5    |  3,3   |                                         livré (v2, 24/08/2026)                                          |
-| P25 | Lecture on-chain par adresse (BTC mempool.space, EVM Etherscan V2 / Blockscout)                                        |   2    |     2     |    3    |    3     |  2,3   |                  livré (v2, 24/08/2026 — EVM via Blockscout ; Etherscan V2 non retenu)                  |
+| P26 | Mode « live » WebSocket optionnel sur l'écran Trading                                                                  |   2    |     1     |    2    |   1,5    |  3,3   |                               livré (v2, 24/08/2026 — prix ET exécutions)                               |
+| P25 | Lecture on-chain par adresse (BTC mempool.space, EVM Etherscan V2 / Blockscout)                                        |   2    |     2     |    3    |    3     |  2,3   |      livré (v2, 24/08/2026 — BTC adresse et xpub, EVM Blockscout + secours Routescan/Etherscan V2)      |
 
 P12 (sauvegarde robuste, IndexedDB) devient un **prérequis** de P20 (volume des fills Hyperliquid).
 **P17 est remplacé par P24** (format pivot, complété par des convertisseurs natifs livrés le
@@ -365,18 +365,22 @@ Toutes ces étapes sont livrées au 24/08/2026.
   fixtures synthétiques. Convertisseurs natifs par plateforme (Kraken, Coinbase, Bitvavo, Revolut,
   Ledger Live) et import JSON Ghostfolio, finalement livrés dans la foulée plutôt que laissés « à la
   demande » : détail dans docs/pivot-import.md, docs/DECISIONS.md n° 26.
-- **P10 — Rendement personnel (2 sessions).** **Livré (v2, 24/08/2026) — XIRR seul.** Taux de
+- **P10 — Rendement personnel (2 sessions).** **Livré (v2, 24/08/2026) — complet.** Taux de
   rendement interne annualisé (méthode Excel, base 365) calculé sur les flux réels du grand livre,
-  affiché dans la synthèse du Rapport (écran et PDF). Le TWR expliqué et la comparaison BTC/DCA BTC
-  de la proposition d'origine restent à faire. Détail : docs/DECISIONS.md n° 27.
+  affiché dans la synthèse du Rapport (écran et PDF), à côté du **TWR** (rendement hors apports,
+  Dietz modifié quotidien enchaîné) et du **repère « mêmes apports en BTC »** — vos flux réels
+  rejoués aux mêmes dates sur un seul actif. Détail : docs/DECISIONS.md n° 27, 30 et 31.
 - **P25 — On-chain par adresse (3 sessions).** **Livré (v2, 24/08/2026).** Bitcoin (mempool.space)
   et EVM Ethereum/Arbitrum One/Base (Blockscout, liste blanche d'adresses de contrats pour les
   jetons, jamais le symbole) ; mouvements sans valeur EUR, candidats à l'appariement de virement ou
-  lignes à qualifier. Pas de xpub ; Etherscan V2, envisagé dans la proposition d'origine, n'a pas été
-  retenu (Blockscout seul). Détail : docs/onchain-import.md, docs/DECISIONS.md n° 28.
+  lignes à qualifier. **Clés publiques étendues Bitcoin** (xpub/ypub/zpub) dérivées localement, avec
+  netting au niveau du portefeuille ; **secours EVM** Routescan (sans clé) et clé d'explorateur
+  facultative (Etherscan V2 / Blockscout Pro), l'API publique Blockscout étant en sursis. Taproot hors
+  périmètre. Détail : docs/onchain-import.md, docs/DECISIONS.md n° 28, 32 et 33.
 - **P26 — Prix « live » (1,5 session).** **Livré (v2, 24/08/2026).** Interrupteur opt-in sur l'écran
-  Trading, WebSocket Hyperliquid (`allMids`), jamais ouvert par défaut, jamais écrit dans le cache de
-  prix persisté. Détail : docs/DECISIONS.md n° 29.
+  Trading, WebSocket Hyperliquid : `allMids` pour les prix (jamais écrits dans le cache persisté) et
+  `userFills`/`userFundings` pour les exécutions, sur un socket partagé. Deux interrupteurs distincts,
+  décochés par défaut. Détail : docs/DECISIONS.md n° 29 et 34.
 
 ## 5. Ce qui n'est pas recommandé
 
