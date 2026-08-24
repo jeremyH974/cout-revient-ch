@@ -3,7 +3,13 @@
  * (règles de valeur EUR de l'app), idempotence du ré-import, qualification des lignes ambiguës.
  */
 import { describe, expect, it } from 'vitest';
-import type { DepositEvent, RewardEvent, TradeEvent, WithdrawalEvent } from '../../domain/types';
+import type {
+  DepositEvent,
+  RawPivotRow,
+  RewardEvent,
+  TradeEvent,
+  WithdrawalEvent,
+} from '../../domain/types';
 import { parseCsvText } from '../csv';
 import { detectPivotFormat } from './detect';
 import { pivotLedgerEvents, type UsdRate } from './events';
@@ -211,5 +217,50 @@ describe('importPivotCsv — façade', () => {
     const result = importPivotCsv('a;b;c\n1;2;3', {}, 'csv:a', 'i1', usdRate);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.details.join(' ')).toContain('Colonnes manquantes');
+  });
+});
+
+describe('étiquette « spend » (dépense carte)', () => {
+  it('réalise la cession à la contre-valeur du relevé, sinon sortie au coût', () => {
+    const rows: RawPivotRow[] = [
+      {
+        key: 'pv:a:spend1',
+        importId: 'i1',
+        lineNo: 2,
+        accountId: 'csv:a',
+        date: '2026-01-10 10:00:00',
+        at: '2026-01-10T11:00:00',
+        sent: { amount: '0.001', currency: 'btc' },
+        received: null,
+        fee: null,
+        netWorth: { amount: '55', currency: 'eur' },
+        label: 'spend',
+        description: null,
+        txHash: null,
+      },
+      {
+        key: 'pv:a:spend2',
+        importId: 'i1',
+        lineNo: 3,
+        accountId: 'csv:a',
+        date: '2026-01-11 10:00:00',
+        at: '2026-01-11T11:00:00',
+        sent: { amount: '2', currency: 'sol' },
+        received: null,
+        fee: null,
+        netWorth: null,
+        label: 'spend',
+        description: null,
+        txHash: null,
+      },
+    ];
+    const { events } = pivotLedgerEvents(rows, {}, () => '1.1');
+    const valued = events.find((e) => e.id === 'pv:a:spend1');
+    const unvalued = events.find((e) => e.id === 'pv:a:spend2');
+    expect(valued?.kind).toBe('withdrawal');
+    if (valued?.kind === 'withdrawal') expect(valued.proceedsEur).toBe('55');
+    expect(valued?.warnings.join(' ')).toContain('contre-valeur du relevé');
+    if (unvalued?.kind === 'withdrawal') expect(unvalued.proceedsEur).toBeNull();
+    expect(unvalued?.warnings.join(' ')).toContain('sortie au coût');
   });
 });

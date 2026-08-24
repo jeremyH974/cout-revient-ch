@@ -1,8 +1,13 @@
 <script lang="ts">
   import type { ImportReport } from '$lib/import/coinhouse/index';
   import { parseCsvText } from '$lib/import/csv';
-  import { detectPivotFormat, type PivotFormat } from '$lib/import/pivot/detect';
-  import type { PivotImportReport } from '$lib/import/pivot/index';
+  import { detectPivotFormat } from '$lib/import/pivot/detect';
+  import type { ImportedFormat, PivotImportReport } from '$lib/import/pivot/index';
+  import {
+    ACCEPTED_FORMATS_HINT,
+    FORMAT_LABELS,
+    PLATFORM_CONVERTERS,
+  } from '$lib/import/platforms/index';
   import { downloadText } from '$lib/export/download';
   import { fmtDate } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
@@ -18,14 +23,30 @@
   let failure = $state<{ error: string; details: string[]; header: string[] } | null>(null);
   let backupDone = $state(false);
 
-  /** Fichier pivot détecté, en attente du choix du compte de destination (rien n'est importé). */
-  let pending = $state<{ text: string; fileName: string; format: PivotFormat } | null>(null);
+  /** Fichier reconnu, en attente du choix du compte de destination (rien n'est importé). */
+  let pending = $state<{
+    text: string;
+    fileName: string;
+    format: ImportedFormat;
+    kind: 'csv' | 'ghostfolio';
+  } | null>(null);
   let targetAccount = $state<string>('new');
   let newLabel = $state('');
 
   const csvAccounts = $derived(app.accounts.filter((a) => a.kind === 'csv'));
-  const formatLabel = (format: PivotFormat): string =>
-    format === 'koinly-universal' ? 'CSV Koinly « Universal »' : 'export Koinly (From/To)';
+  const formatLabel = (format: ImportedFormat): string => FORMAT_LABELS[format];
+
+  /** Prépare l'import : le fichier attend le choix du compte de destination. */
+  function stage(
+    text: string,
+    fileName: string,
+    format: ImportedFormat,
+    kind: 'csv' | 'ghostfolio',
+  ): void {
+    pending = { text, fileName, format, kind };
+    targetAccount = csvAccounts[0]?.id ?? 'new';
+    newLabel = fileName.replace(/\.(csv|json)$/i, '').slice(0, 60);
+  }
 
   async function handleFile(file: File | undefined): Promise<void> {
     if (!file) return;
@@ -36,6 +57,25 @@
     pending = null;
     try {
       const text = await file.text();
+      // 1) JSON → export Ghostfolio (vérification légère ici, complète à l'import).
+      if (/\.json$/i.test(file.name) || text.trimStart().startsWith('{')) {
+        try {
+          const parsed = JSON.parse(text) as { activities?: unknown };
+          if (Array.isArray(parsed.activities)) {
+            stage(text, file.name, 'ghostfolio-json', 'ghostfolio');
+            return;
+          }
+          failure = {
+            error: 'JSON reconnu, mais sans tableau « activities ».',
+            details: ['Attendu : un export Ghostfolio (ou un objet { "activities": […] }).'],
+            header: [],
+          };
+          return;
+        } catch {
+          // pas un JSON : on continue avec les détections CSV.
+        }
+      }
+      // 2) Export Coinhouse (import direct, sans choix de compte).
       const result = app.importCsv(text, file.name);
       if (result.ok) {
         report = result.report;
@@ -43,20 +83,21 @@
         void app.refreshPrices();
         return;
       }
-      // Pas un export Coinhouse : peut-être un CSV pivot (Koinly « Universal » ou export Koinly).
-      const pivot = detectPivotFormat(parseCsvText(text).header);
+      // 3) CSV pivot (Koinly/Waltio) ou export natif d'une plateforme connue.
+      const header = parseCsvText(text).header;
+      const pivot = detectPivotFormat(header);
       if (pivot.ok) {
-        pending = { text, fileName: file.name, format: pivot.format };
-        targetAccount = csvAccounts[0]?.id ?? 'new';
-        newLabel = file.name.replace(/\.csv$/i, '').slice(0, 60);
+        stage(text, file.name, pivot.format, 'csv');
+        return;
+      }
+      const converter = PLATFORM_CONVERTERS.find((c) => c.detect(header));
+      if (converter) {
+        stage(text, file.name, converter.id, 'csv');
         return;
       }
       failure = {
         error: result.error,
-        details: [
-          ...result.details,
-          'Formats acceptés : export avancé Coinhouse, CSV Koinly « Universal », export Koinly (Bulk edit → Export), lus aussi par Waltio.',
-        ],
+        details: [...result.details, ACCEPTED_FORMATS_HINT],
         header: result.header,
       };
     } catch (error) {
@@ -74,7 +115,10 @@
         targetAccount === 'new'
           ? app.addPivotAccount(newLabel || pending.fileName).id
           : targetAccount;
-      const result = app.importPivot(pending.text, pending.fileName, accountId);
+      const result =
+        pending.kind === 'ghostfolio'
+          ? app.importGhostfolio(pending.text, pending.fileName, accountId)
+          : app.importPivot(pending.text, pending.fileName, accountId);
       if (result.ok) {
         pivotReport = result.report;
         pending = null;
@@ -136,14 +180,15 @@
   >
     <input
       type="file"
-      accept=".csv,text/csv"
+      accept=".csv,.json,text/csv,application/json"
       disabled={busy}
       onchange={(e) => void handleFile(e.currentTarget.files?.[0])}
     />
-    <span class="big">{busy ? 'Analyse en cours…' : 'Choisir le fichier .csv'}</span>
+    <span class="big">{busy ? 'Analyse en cours…' : 'Choisir le fichier .csv ou .json'}</span>
     <span class="muted small"
-      >Export Coinhouse (Vos transactions → Exporter → Export avancé) ou CSV au format Koinly /
-      Waltio pour vos autres plateformes. Glissez-déposez ou touchez pour choisir.</span
+      >Export Coinhouse (Vos transactions → Exporter → Export avancé), CSV Koinly/Waltio, exports
+      natifs Kraken, Revolut, Coinbase, Bitvavo, Ledger Live, ou JSON Ghostfolio. Glissez-déposez ou
+      touchez pour choisir.</span
     >
   </label>
 
@@ -223,6 +268,8 @@
         {pivotReport.newRows} nouvelle(s) ligne(s) · {pivotReport.duplicateRows} déjà connue(s), ignorée(s)
         {#if pivotReport.counts.skippedCash > 0}· {pivotReport.counts.skippedCash} ligne(s) 100 % fiat
           hors modèle{/if}
+        {#if pivotReport.counts.skippedInternal > 0}· {pivotReport.counts.skippedInternal} mouvement(s)
+          interne(s) à la plateforme, ignoré(s){/if}
         {#if pivotReport.conflictingRows > 0}· <span class="warn"
             >{pivotReport.conflictingRows} en conflit (version existante conservée)</span
           >{/if}

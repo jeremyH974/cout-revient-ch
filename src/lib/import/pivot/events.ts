@@ -27,6 +27,7 @@ const REWARD_LABELS = new Set([
   'airdrop',
   'fork',
   'mining',
+  'dividend',
   'interest',
   'lending interest',
   'salary',
@@ -49,6 +50,9 @@ const FEE_LABELS = new Set([
 
 /** Étiquettes de sortie « sans plus-value » chez Koinly : sortie au coût, annotée. */
 const NEUTRAL_OUT_LABELS = new Set(['gift', 'lost', 'donation']);
+
+/** Étiquettes de DÉPENSE (paiement carte, débit) : cession réalisée à la contre-valeur fournie. */
+const SPEND_LABELS = new Set(['spend', 'card spend', 'payment']);
 
 export type UsdRate = (day: string) => string | null;
 
@@ -211,6 +215,7 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
     const label = row.label ?? '';
     if (REWARD_LABELS.has(label)) {
       const fair = row.netWorth ? eurValue(row.netWorth, day, usdRate) : null;
+      if (fair === null) base.warnings.push('Récompense sans contre-valeur connue : 0 € retenu.');
       return {
         ...base,
         kind: 'reward',
@@ -244,6 +249,19 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
       };
     }
     base.warnings.push(`Étiquette « ${label} » sur une sortie non convertible : sortie au coût.`);
+  }
+  if (SPEND_LABELS.has(label)) {
+    const spent = row.netWorth ? eurValue(row.netWorth, day, usdRate) : null;
+    if (spent !== null) {
+      base.warnings.push('Dépense : cession réalisée à la contre-valeur du relevé.');
+      return {
+        ...base,
+        kind: 'withdrawal',
+        out: { asset: sent.currency, qty: sent.amount },
+        proceedsEur: toDecimalString(spent),
+      };
+    }
+    base.warnings.push('Dépense sans contre-valeur convertible : sortie au coût.');
   }
   if (NEUTRAL_OUT_LABELS.has(label)) {
     base.warnings.push(`Étiquette « ${label} » : sortie au coût, aucune plus-value constatée.`);
