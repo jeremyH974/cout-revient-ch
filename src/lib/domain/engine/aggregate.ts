@@ -184,6 +184,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     .sort();
   return {
     positions,
+    cashFlows: run.cashFlows,
     stablecoins,
     closed,
     blocked,

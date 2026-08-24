@@ -5,7 +5,7 @@
  * détails ne contiennent que des compteurs et des tickers (compatibles avec le mode discret).
  */
 import type { PortfolioReport, PositionReport, PriceQuoteInput } from '../domain/engine/report';
-import type { Big } from '../domain/money';
+import { ZERO, type Big } from '../domain/money';
 import type { AssetCode } from '../domain/types';
 
 export type CheckLevel = 'ok' | 'warn' | 'fail' | 'info';
@@ -108,6 +108,38 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
               'Signalez-le avec le diagnostic : c’est une erreur de calcul, pas de vos données.',
           },
     );
+
+    // 1 bis. Flux de trésorerie (base du XIRR) : décomposition exacte de Σ achats / Σ produits.
+    // Sans position bloquée seulement : une position bloquée sort des totaux mais pas des flux.
+    if (report.blocked.length === 0) {
+      let negative = ZERO;
+      let positive = ZERO;
+      for (const flow of report.cashFlows) {
+        if (flow.amountEur.lt(ZERO)) negative = negative.plus(flow.amountEur);
+        else positive = positive.plus(flow.amountEur);
+      }
+      const investedSide = report.totals.investedTotal.plus(report.totals.subscriptionsEur);
+      const flowsOk =
+        negative.neg().minus(investedSide).abs().lte(TOLERANCE) &&
+        positive.minus(report.totals.proceedsTotal).abs().lte(TOLERANCE);
+      checks.push(
+        flowsOk
+          ? {
+              id: 'cashflows',
+              label: 'Flux datés (XIRR)',
+              level: 'ok',
+              detail: `${plural(report.cashFlows.length, 'flux vérifié', 'flux vérifiés')} : ils redonnent exactement Σ achats (+ abonnements) et Σ produits.`,
+            }
+          : {
+              id: 'cashflows',
+              label: 'Flux datés (XIRR)',
+              level: 'fail',
+              detail: 'Les flux datés ne redonnent pas Σ achats / Σ produits.',
+              action:
+                'Signalez-le avec le diagnostic : c’est une erreur de calcul, pas de vos données.',
+            },
+      );
+    }
 
     // 2. Lots ↔ position : la somme des lots restants doit redonner la quantité et le coût.
     const open = [...report.positions, ...report.stablecoins].filter((p) => p.lots.length > 0);

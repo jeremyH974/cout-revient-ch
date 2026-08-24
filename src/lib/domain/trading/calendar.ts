@@ -6,43 +6,13 @@
  * devise. Grille lundi-en-premier calculée par arithmétique entière pure : aucun `Date`/`Date.UTC`
  * n'est utilisé, le jour de la semaine vient du nombre de jours écoulés depuis 1970-01-01 (qui
  * était un jeudi), via l'algorithme « days_from_civil » de Howard Hinnant (domaine public,
- * http://howardhinnant.github.io/date_algorithms.html), adapté avec des divisions entières
- * (`Math.floor`) plutôt que la troncature C++. Pur, `big.js` seulement.
+ * http://howardhinnant.github.io/date_algorithms.html) — helpers partagés dans `../date`.
+ * Pur, `big.js` seulement.
  */
+import { daysInMonth, daysSinceEpoch, weekdayMondayFirst } from '../date';
 import { ZERO, type Big } from '../money';
 import type { JournaledTrip } from './journal';
 import type { ToDisplay } from './stats';
-
-const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-
-function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
-}
-
-/** Nombre de jours du mois (`month` : 1 = janvier … 12 = décembre). */
-function daysInMonth(year: number, month: number): number {
-  if (month === 2 && isLeapYear(year)) return 29;
-  return MONTH_LENGTHS[month - 1] ?? 30;
-}
-
-/**
- * Jours écoulés depuis 1970-01-01 (0), peut être négatif. Arithmétique entière pure — jamais de
- * `Date`. Algorithme « days_from_civil » de Howard Hinnant.
- */
-function daysSinceEpoch(year: number, month: number, day: number): number {
-  const y = month <= 2 ? year - 1 : year;
-  const era = Math.floor(y / 400);
-  const yoe = y - era * 400; // [0, 399]
-  const mp = month > 2 ? month - 3 : month + 9; // mars = 0 … février = 11
-  const doy = Math.floor((153 * mp + 2) / 5) + day - 1; // [0, 365]
-  const doe = yoe * 365 + Math.floor(yoe / 4) - Math.floor(yoe / 100) + doy; // [0, 146096]
-  return era * 146097 + doe - 719468;
-}
-
-/** Jour de la semaine, lundi = 0 … dimanche = 6 (1970-01-01 était un jeudi, donc index 3). */
-function weekdayMondayFirst(epochDay: number): number {
-  return (((epochDay + 3) % 7) + 7) % 7;
-}
 
 export interface CalendarDay {
   /** `YYYY-MM-DD`. */

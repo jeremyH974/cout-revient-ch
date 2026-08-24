@@ -19,6 +19,17 @@ export interface PriceQuoteInput {
   stale: boolean;
 }
 
+/**
+ * Flux de trésorerie externe du portefeuille, miroir daté des opérations « comptées » du moteur :
+ * achats, apports au coût et frais < 0 ; produits et sorties au coût > 0. Par construction,
+ * `Σ flux− = −(Σ investedTotal + subscriptions)` et `Σ flux+ = Σ proceedsTotal` (positions
+ * bloquées comprises). Base du XIRR.
+ */
+export interface CashFlow {
+  at: NaiveDateTime;
+  amountEur: Big;
+}
+
 export type LotOrigin = 'purchase' | 'reward' | 'deposit' | 'migration' | 'opening-balance';
 
 export interface LotReport {
@@ -170,6 +181,8 @@ export interface AllocationEntry {
 export interface PortfolioReport {
   /** Positions crypto ouvertes. */
   positions: PositionReport[];
+  /** Flux externes datés (voir `CashFlow`), dans l'ordre chronologique du moteur. */
+  cashFlows: readonly CashFlow[];
   stablecoins: PositionReport[];
   closed: PositionReport[];
   blocked: PositionReport[];

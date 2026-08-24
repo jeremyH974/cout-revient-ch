@@ -10,7 +10,9 @@
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
+import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import { MASK, fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty, roundsToZero } from '../format/fr';
+import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
 
@@ -350,6 +352,16 @@ function allocationTable(report: PortfolioReport, f: Formatter): ReportTable {
 
 const METHODOLOGY: ReportParagraph[] = [
   {
+    title: 'Rendement annualisé (XIRR)',
+    text:
+      'Taux de rendement interne à dates irrégulières (méthode d’Excel, base 365 jours) : le taux ' +
+      'annuel qui égalise tous vos flux datés — achats et frais en sortie, produits en entrée — ' +
+      'et la valeur actuelle du portefeuille. Il est pondéré par les montants ET par le temps : ' +
+      'c’est le rendement « pour vous », sensible au moment de vos apports. Les récompenses ne ' +
+      'sont pas des apports (elles enrichissent la valeur finale) et un virement interne apparié ' +
+      'se neutralise. Affiché seulement au-delà de 30 jours d’historique.',
+  },
+  {
     title: 'Coût de revient (PRU)',
     text:
       'Coût moyen pondéré « all-in » d’une unité détenue : coût total des acquisitions (spread et ' +
@@ -516,7 +528,26 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     },
   ];
 
+  const xirr = xirrEur(report.cashFlows, {
+    day: msToParisDay(Date.parse(opts.generatedAt)),
+    valueEur: t.value,
+  });
+  const xirrHint = xirr.ok
+    ? `pondéré par les flux, depuis le ${fmtDate(xirr.since)}${unpricedHint}` +
+      (report.blocked.length > 0 ? ' · historique bloqué exclu de la valeur' : '')
+    : xirr.reason === 'too-recent'
+      ? `moins de ${XIRR_MIN_SPAN_DAYS} jours d’historique : annualiser n’aurait pas de sens`
+      : xirr.reason === 'no-convergence'
+        ? 'non calculable sur ces flux'
+        : 'pas encore assez de flux datés (au moins un apport et une valeur)';
+
   const details: ReportKpi[] = [
+    {
+      label: 'Rendement annualisé (XIRR)',
+      value: xirr.ok ? f.pct(xirr.rate) : NONE,
+      tone: xirr.ok ? toneOf(xirr.rate, 3) : 'neutral',
+      hint: xirrHint,
+    },
     {
       label: 'Apports nets (espèces)',
       value: f.money(t.netCash),
