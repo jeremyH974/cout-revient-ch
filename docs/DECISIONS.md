@@ -261,3 +261,149 @@
     un dépôt reste seul (candidat « orphelin », signalé dans Comptes et en auto-vérification) et se
     comporte comme avant cette décision — cession au coût (réalisé nul) ou dépôt à coût 0 € —
     jusqu'à correction manuelle.
+
+26. **Convertisseurs natifs par plateforme et import JSON Ghostfolio : la clé d'une ligne hache le
+    contenu NATIF, jamais la ligne pivot calculée** (24/08/2026, proposition v2 § 3 bis, P24 « à la
+    demande » finalement livré dans la foulée). Le format pivot (décision n° 24) reste la voie
+    recommandée, mais cinq plateformes ont un export propre assez répandu sur le Discord pour
+    justifier un module dédié : Kraken (`ledgers.csv`), Coinbase (relevé de transactions), Bitvavo
+    (historique de transactions), Ledger Live (historique des opérations) et Revolut (relevé crypto)
+    — plus un import JSON Ghostfolio (export d'activités). Chaque convertisseur
+    (`src/lib/import/platforms/*.ts`) est un module pur qui traduit son format natif en brouillons
+    (`PlatformDraft` : jambes envoyée/reçue/frais/contre-valeur, étiquette, description, `txHash`) de
+    même forme que les lignes pivot ; `draftsToPivotRows` (`platforms/drafts.ts`) les transforme en
+    `RawPivotRow` et tout l'aval — valorisation EUR, dédoublonnage, écran « À qualifier », virements
+    appariés, moteur — reste le pipeline pivot inchangé (`ingestPivotRows`, partagé aussi par l'import
+    on-chain, décision n° 28).
+
+    La clé d'une ligne (`pv:<compte>:<hash>[#n]`) hache le contenu **natif** (`nativeContent` :
+    concaténation des cellules CSV brutes pour les cinq convertisseurs, ou les champs bruts non
+    calculés de l'activité JSON pour Ghostfolio — jamais `value = quantity × unitPrice`, recalculé à
+    chaque lecture) plutôt que les champs pivot que le convertisseur en déduit. Différence assumée
+    avec la décision n° 24 (où la ligne pivot hache directement les champs déjà au format pivot,
+    faute d'étape de traduction intermédiaire à protéger) : ici, corriger un bug de traduction (un
+    frais mal plié dans la quantité, une étiquette manquante…) change la sortie du convertisseur mais
+    jamais son entrée, donc jamais la clé — la ligne corrigée écrase l'ancienne au lieu de la
+    dupliquer au ré-import. Un même contenu natif répété dans un fichier reste distinct par le même
+    suffixe `#n` déterministe que la décision n° 24.
+
+    `platforms/index.ts` orchestre la détection : le format pivot est essayé en premier
+    (`detectPivotFormat`), puis chaque convertisseur dans l'ordre `PLATFORM_CONVERTERS` (Kraken,
+    Coinbase, Bitvavo, Ledger Live, Revolut) via son propre `detect(header)` — Coinhouse est déjà
+    écarté en amont par l'écran d'import. Aucune ligne n'est jamais estimée silencieusement : un cas
+    non couvert devient une `issue` affichée avec son numéro de ligne, jamais une valeur inventée ;
+    les mouvements strictement internes à la plateforme (staking ↔ spot, transferts internes…) sont
+    comptés `skippedInternal`, à part des `issues`.
+
+    Assumé et sourcé le 24/08/2026 (parseurs de référence BittyTax et Export-To-Ghostfolio, docs
+    officielles par plateforme) : le fuseau de la colonne `Date` de Revolut n'est documenté nulle
+    part par Revolut elle-même — l'app suppose l'heure locale Europe/Paris (utilisateur français),
+    une hypothèse non vérifiable sans échantillon confirmé par son émetteur. Pour Ledger Live, `OUT` :
+    BittyTax et Export-To-Ghostfolio ne s'accordent pas sur le traitement du frais réseau dans
+    `Operation Amount` ; l'app tranche à la manière de BittyTax (frais déjà inclus dans le montant
+    total débité, pas de jambe de frais séparée) plutôt que de deviner. L'export Coinbase peut être
+    précédé de lignes de préambule avant l'en-tête réel ; comme `parseCsvText` prend la première
+    ligne non vide comme en-tête, un tel préambule fait échouer la détection — limitation connue, non
+    contournée : le fichier doit être ouvert et le préambule retiré avant import.
+
+27. **Rendement personnel annualisé (XIRR) : les flux datés sont un sous-produit exact du moteur, le
+    taux est résolu en float64 à la frontière du solveur, jamais un montant** (24/08/2026, P10 —
+    seule la brique « rendement pondéré par les flux » est livrée ici ; le TWR expliqué et le
+    benchmark BTC/DCA de la proposition d'origine restent à faire). Définition Excel : le taux annuel
+    `r` qui annule `Σ cf_i · (1+r)^(−(d_i−d_0)/365)` (base 365 fixe, signe négatif aux achats et
+    frais, positif aux produits et à la valeur finale). Les flux (`domain/xirr.ts`, `XirrFlow`) ne
+    sont pas reconstruits après coup : le moteur (`engine/compute.ts`) enregistre un `CashFlow` à
+    chaque mouvement d'argent externe réellement compté dans les totaux (`PortfolioReport.cashFlows`),
+    miroir exact de ce qui alimente déjà `investedTotal`/`proceedsTotal` — la valeur actuelle du
+    portefeuille au jour du rapport est ajoutée comme un dernier flux positif par `xirrEur`. Un
+    portefeuille sans historique suffisant (moins de 30 jours entre le premier et le dernier flux,
+    `XIRR_MIN_SPAN_DAYS`), sans les deux signes (que des achats, ou que des produits) ou dont le
+    solveur ne converge pas n'affiche **aucun chiffre** plutôt qu'un taux trompeur — trois raisons
+    distinctes remontées à l'écran (`report-model.ts`).
+
+    Résolution : Newton amorcé à 0,1 (le germe d'Excel) sert uniquement à **semer** un encadrement du
+    zéro (expansion géométrique autour du germe, repli sur une grille fixe de −0,999999 à 1e9 si le
+    voisinage du germe n'encadre rien) ; la racine elle-même est toujours tranchée par bissection
+    jusqu'à la précision machine, pour ne jamais dépendre de la pente locale au point de départ. Le
+    taux est donc calculé en **float64**, seule exception documentée à la règle « aucun `number` ne
+    porte un montant » : un taux n'est pas un montant, et les flux qui l'alimentent restent des `Big`
+    jusqu'à cette frontière (conversion en `Number` seulement pour nourrir le solveur) ; le résultat
+    est ramené à une chaîne décimale (`toFixed(12)`) avant de ressortir du module, pour rester
+    compatible avec `format/fr.ts`. Rien n'est persisté (cohérent avec la décision n° 3) : recalculé
+    à chaque construction du rapport.
+
+    Affiché uniquement dans la synthèse du Rapport (`report-model.ts`, KPI « Rendement annualisé
+    (XIRR) »), commune à l'écran (`routes/invest/Report.svelte`) et au PDF (`export/pdf.ts`). Une
+    auto-vérification dédiée (« Flux datés (XIRR) », `support/self-check.ts`) ne revérifie pas le
+    solveur mais son **entrée** : elle recalcule que la somme des flux négatifs redonne exactement
+    Σ achats (+ abonnements) et que la somme des positifs redonne exactement Σ produits — si cette
+    identité casse, l'erreur est dans le moteur, pas dans les données de l'utilisateur, et le message
+    le dit explicitement.
+
+28. **Comptes on-chain par adresse publique (BTC, EVM) : liste blanche d'adresses de contrats pour
+    les jetons — jamais le symbole —, pagination et débit volontairement prudents** (24/08/2026,
+    P25). Comme pour Hyperliquid (décision n° 22) et le principe fondateur (décision n° 1) : une
+    adresse **publique** suffit, jamais de clé ni de seed ; elle n'est envoyée qu'à l'API de sa
+    propre chaîne (`AppState.addOnchainAccount`, écran Comptes, compte `AccountKind: 'onchain'` de
+    l'espace Investissement). Bitcoin via mempool.space (Esplora REST, CORS ouvert, sans clé) :
+    `GET /address/{adresse}/txs` puis pagination par `txs/chain/{dernier txid}`, mouvement **net**
+    par transaction (Σ sorties reçues − Σ entrées dépensées, en satoshis) — un envoi porte donc sa
+    propre quote-part de frais réseau dans la quantité qui sort, cohérent avec le principe « le coût
+    voyage » des virements appariés (décision n° 25) ; un mouvement net nul (monnaie rendue à
+    soi-même) est un auto-transfert ignoré. Adresses simples uniquement : l'API ne résout pas les
+    xpub/zpub, donc pas de dérivation automatique des adresses filles d'un portefeuille HD — hors
+    périmètre v1.
+
+    EVM via l'API v2 de **Blockscout**, une instance par chaîne codée en dur (`eth`, `arbitrum`,
+    `base.blockscout.com` — Ethereum, Arbitrum One, Base), CORS ouvert et sans clé. Deux flux par
+    adresse : transactions natives (le gaz d'un envoi s'ajoute à la quantité sortie, même quand la
+    transaction elle-même transporte une valeur nulle — un appel de contrat pur laisse quand même
+    sortir du gaz) et transferts ERC-20 filtrés par une **liste blanche d'adresses de contrats**
+    (USDC/USDT par chaîne), jamais par le champ `symbol` de l'API : ce champ n'est pas fiable, l'USDT
+    d'Arbitrum s'affichant « USDT0 » depuis sa migration de janvier 2026 tout en restant le même
+    contrat économique — s'y fier aurait fait disparaître ce jeton de la liste du jour au lendemain.
+    Tout jeton hors liste blanche est compté « ignoré » plutôt qu'importé à l'aveugle (anti-spam : un
+    portefeuille actif reçoit en permanence de faux jetons) ; liste extensible sur demande, pas
+    ouverte par défaut.
+
+    Débit assumé prudent des deux côtés : mempool.space plafonné à 8 pages de 25 transactions par
+    défaut, Blockscout à 2 pages par flux (~3 requêtes/minute observées sans clé, non documenté
+    formellement par Blockscout) — au-delà, l'historique plus ancien n'est simplement pas lu
+    (`truncated`, un bouton invite à resynchroniser plus tard plutôt qu'une boucle automatique qui
+    aggraverait la limitation) ; un 429 Blockscout devient une erreur explicite (« réessayez dans une
+    minute ») plutôt qu'un nouvel essai agressif. Les mouvements (`onchain/normalize.ts`) deviennent
+    des brouillons pivot **sans valeur EUR** (dépôt/retrait, `netWorth: null`) — jamais une estimation
+    silencieuse — donc par construction des candidats naturels à l'appariement de virements internes
+    (décision n° 25, par exemple un retrait Coinhouse vers un wallet suivi ici) ou des lignes « à
+    qualifier » à défaut d'appariement, au même titre que le reste du pipeline pivot (décision n° 26).
+
+    Assumé en v1 : pas de xpub ; liste blanche EVM limitée à USDC/USDT sur trois chaînes ; aucune
+    autre chaîne que BTC/Ethereum/Arbitrum/Base ; le palier de débit Blockscout sans clé n'est
+    qu'observé, pas documenté par son éditeur — il pourrait changer sans préavis. Incertitude non
+    résolue à documenter : Blockscout annonce elle-même, sur son blog, une migration de ses clés
+    d'API « par instance » vers une API Pro multichain unifiée (un host unique, paramètre `chainid`)
+    à partir du 01/07/2026 ; son annonce précise que les appels devront utiliser une clé Pro mais ne
+    dit pas explicitement si l'accès anonyme actuel (sans clé, sur les hôtes par instance utilisés
+    ici) est concerné ou seulement les clés existantes — à surveiller, migration vers l'API Pro prête
+    à faire si l'accès actuel se dégrade.
+
+29. **Prix « live » (WebSocket Hyperliquid) : opt-in strict, jamais de socket sans activation, jamais
+    écrit dans le cache de prix persisté** (24/08/2026, P26). Un interrupteur « Prix en direct » sur
+    l'écran Trading (`routes/Trading.svelte`, réglage persisté `ui.liveMids`) ouvre
+    `wss://api.hyperliquid.xyz/ws` et s'abonne à `allMids` (`pricing/live.ts`, module pur, socket
+    injectable dans les tests) : sans ce geste explicite, aucune connexion n'est jamais ouverte, y
+    compris au chargement d'un état où le réglage était actif — `AppState` ne rouvre le flux au
+    démarrage que si `ui.liveMids` était déjà vrai à la sauvegarde précédente. Keepalive applicatif
+    (`{"method":"ping"}` toutes les 50 s, la documentation Hyperliquid demandant seulement de
+    « gracefully reconnect » sans imposer de mécanisme) et reconnexion en cas de coupure par backoff
+    exponentiel avec gigue (jusqu'à 30 s), plutôt qu'un ré-essai immédiat qui martèlerait le service.
+    Le flux se coupe quand l'onglet passe en arrière-plan (`visibilitychange`) et reprend à son retour
+    si le réglage est toujours actif — pas de socket qui tourne dans un onglet caché.
+
+    Les cotations reçues ne mettent à jour que l'affichage des actifs **actuellement détenus**
+    (throttle de 3 s), traduites vers les clés de marché Hyperliquid via `spotMeta` (mêmes tables que
+    l'import Hyperliquid, décision n° 22) ; elles ne sont **jamais écrites dans le cache de prix
+    persisté** (`pricing/service.ts`, cascade CoinGecko → Coinbase → Kraken → Hyperliquid →
+    DefiLlama) : à la fermeture de l'onglet, l'app retombe sur le dernier prix mis en cache par la
+    cascade habituelle, jamais sur un mid figé au dernier message reçu. Aucune donnée utilisateur ne
+    transite par ce canal : `allMids` est un flux de marché public, sans adresse ni identifiant.

@@ -2,9 +2,11 @@
 
 Au lieu d'un importeur natif par plateforme, l'app lit le format pivot que **Koinly** documente
 publiquement pour tout import externe, et que **Waltio** lit aussi directement — un membre qui suit
-déjà une autre plateforme (Kraken, Binance, Ledger…) dans l'un de ces outils récupère sa
+déjà une autre plateforme (Binance, Bybit, un wallet…) dans l'un de ces outils récupère sa
 consolidation multi-plateformes sans qu'aucune clé d'exchange n'entre jamais dans ce site
-(docs/DECISIONS.md n° 24). Les lignes atterrissent dans un compte `kind: 'csv'` de l'espace
+(docs/DECISIONS.md n° 24). Cinq plateformes assez présentes sur le Discord ont depuis reçu un
+convertisseur natif dédié (§ « Convertisseurs natifs » ci-dessous, docs/DECISIONS.md n° 26) : pour
+les autres, ce format pivot reste la voie normale. Les lignes atterrissent dans un compte `kind: 'csv'` de l'espace
 Investissement (écran Importer → glisser un fichier → choisir le compte de destination), au même
 titre qu'un compte Coinhouse ou qu'un compte Hyperliquid. Les exemples de ce document viennent des
 fixtures 100 % synthétiques `tests/fixtures/pivot/demo-exchange.csv` et `demo-ledger.csv`
@@ -131,23 +133,139 @@ l'identifiant d'événement (stable, donc un ré-export produit les mêmes clés
 qualifier » sont laissées de côté et comptées à part plutôt qu'exportées avec une valeur inventée ;
 un virement interne apparié est annoté « Virement interne (apparié) » en description.
 
+## Convertisseurs natifs
+
+Cinq plateformes ont un export propre assez utilisé sur le Discord pour justifier un convertisseur
+dédié plutôt que de renvoyer systématiquement vers Koinly/Waltio (`src/lib/import/platforms/`,
+docs/DECISIONS.md n° 26). Le fichier s'importe depuis le même écran **Importer**, dans le même
+compte `kind: 'csv'` à choisir ou à créer que pour le format pivot — la détection du format est
+automatique (en-tête reconnu), rien à choisir. Comme pour le format pivot, une ligne non reconnue
+devient une ligne « à qualifier » ou un avertissement affiché, jamais une estimation silencieuse ;
+le dédoublonnage se fait par hachage du **contenu natif** de la ligne (décision n° 26), pas du
+résultat calculé — corriger un convertisseur ne duplique jamais les lignes déjà importées.
+
+### Kraken
+
+- **Où l'exporter** : compte Kraken → icône de profil → _Documents_ (ou _History → Export_ sur
+  Kraken Pro) → export **Ledgers** (pas _Trades_) au format CSV [5].
+- **En-tête attendu** : `txid, refid, time, type, subtype, asset, amount, fee, balance`
+  (`ledgers.csv`, `src/lib/import/platforms/kraken.ts`).
+- **Ce qui est importé** : échanges (`trade`/`spend`/`receive`, reliés par `refid`), dépôts,
+  retraits, staking/earn (y compris les suffixes `.S`/`.M`/`28.S`…), dividendes et bonus de
+  parrainage (`reward`), ajustements positifs (`airdrop`). Les codes d'actifs historiques (`XXBT`,
+  `ZEUR`…) sont traduits automatiquement.
+- **Pièges et limites** : un frais dans l'actif de la jambe (non convertible en cash) est plié dans
+  la quantité plutôt que d'apparaître comme un frais séparé ; les lignes de marge (`margin`,
+  `rollover`, `settled`) sont hors périmètre spot et signalées, jamais importées ; les transferts
+  internes (hors airdrop) sont ignorés (comptés à part, pas en erreur).
+
+### Coinbase
+
+- **Où l'exporter** : _Profil → Rapports et relevés → Générer un rapport → Historique des
+  transactions_ (CSV) — le libellé exact du menu varie selon les versions de l'interface [6].
+- **En-tête attendu** : colonnes `Transaction Type`, `Quantity Transacted`, `Subtotal`
+  obligatoires ; deux variantes coexistent pour les frais et la devise (`Fees and/or Spread` ou
+  `Fees`, `Price Currency` ou `Spot Price Currency`), reconnues l'une comme l'autre.
+- **Ce qui est importé** : achats/ventes (y compris « Advanced Trade », les deux orthographes
+  Coinbase `Advanced Trade`/`Advance Trade` sont reconnues), `Convert` (jambe reçue lue dans
+  `Notes`), envois/réceptions, récompenses (staking, intérêts, remises d'abonnement), dons,
+  dépenses carte (`Card Spend` → étiquette « spend » : cession réalisée à la contre-valeur du
+  relevé, cf. § « Étiquette dépense » plus bas).
+- **Pièges et limites** : Coinbase fait parfois précéder son export de lignes de préambule avant
+  l'en-tête réel ; la détection du format échoue si elles sont présentes — ouvrez le fichier et
+  retirez ce préambule avant import (limitation connue, non contournée). Les mouvements internes
+  (Pro/Exchange/Prime/Vault/staking Coinbase) sont ignorés ; les migrations d'actif ne sont pas
+  gérées automatiquement (qualification manuelle).
+
+### Bitvavo
+
+- **Où l'exporter** : _Historique des transactions_ → bouton **Export** (en haut à droite) →
+  **Transaction history** (CSV) [7].
+- **En-tête attendu** : `Timezone, Date, Time, Type, Currency, Amount, Quote Currency, Quote
+Price, Received / Paid Currency, Received / Paid Amount, Fee currency, Fee amount, Status,
+Transaction ID, Address` — `Quote Currency`/`Quote Price`/`Address` ne sont jamais lus.
+- **Ce qui est importé** : achats, ventes, dépôts, retraits, staking, remises/parrainage/
+  distributions (`reward`). Le fuseau vient de la colonne `Timezone`, **ligne par ligne** (repli sur
+  `Europe/Amsterdam` si elle est absente).
+- **Pièges et limites** : un frais de retrait dans l'actif retiré est plié dans la quantité envoyée
+  (le solde réel débité) ; seules les lignes au statut `Completed`/`Distributed` sont importées ; les
+  retraits annulés et les transferts internes sont ignorés.
+
+### Ledger Live
+
+- **Où l'exporter** : application **desktop** uniquement (pas l'app mobile) → _Paramètres →
+  Comptes → Exporter l'historique des opérations_, choisir les comptes, _Enregistrer_ [8].
+- **En-tête attendu** : `Operation Date, Operation Type, Currency Ticker, Operation Amount`
+  obligatoires (`Status` optionnel selon la version exportée : filtré sur `CONFIRMED` quand il est
+  présent).
+- **Ce qui est importé** : opérations `IN`/`OUT`, récompenses (`REWARD`) et — seulement quand des
+  frais sont dus — `FEES`/`REVEAL`/`BOND`/`UNBOND`/`WITHDRAW_UNBONDED`/`DELEGATE`/`UNDELEGATE`/
+  `OPT_IN`/`OPT_OUT` (sinon mouvement interne ignoré).
+- **Pièges et limites** : sur `OUT`, `Operation Amount` est déjà le montant total débité, **frais
+  réseau inclus** — choix assumé face à une contradiction entre deux parseurs de référence
+  (docs/DECISIONS.md n° 26) ; les colonnes `Countervalue…` sont délibérément ignorées (estimations
+  jugées peu fiables) ; les opérations NFT (`NFT_IN`/`NFT_OUT`) ne sont pas gérées.
+
+### Revolut
+
+- **Où l'exporter** : app Revolut → Crypto → _Relevé de compte_ (aussi accessible depuis
+  _Documents et relevés → Crypto_) → période → format Excel/CSV → _Générer_ [9].
+- **En-tête attendu** : `Symbol, Type, Quantity, Price, Value, Fees, Date` (virgule) — l'absence
+  de colonne `Transaction Type` sert à ne pas confondre ce fichier avec un export Coinbase.
+- **Ce qui est importé** : achats/ventes (valorisés par `Value`, jamais par `Price` recalculé),
+  envois/réceptions, récompenses de staking et d'apprentissage (`Learn`).
+- **Pièges et limites** : le fuseau de la colonne `Date` n'est pas documenté par Revolut — l'app
+  suppose l'heure locale Europe/Paris (hypothèse assumée pour un utilisateur français,
+  docs/DECISIONS.md n° 26) ; `Staking reward` est souvent sans contre-valeur (`Value` vide) ;
+  `stake`/`unstake` (mouvement interne spot ↔ staking Revolut) sont ignorés.
+
+### Étiquette dépense (« spend »)
+
+Une sortie étiquetée dépense (paiement carte, débit — `spend`/`card spend`/`payment`, aujourd'hui
+produite par le convertisseur Coinbase) est traitée comme une **cession réalisée** : le prix de
+vente est la contre-valeur fournie par le relevé (`Net Worth`/`Total` selon la source), et non le
+coût — contrairement aux étiquettes « sans plus-value » (`gift`, `lost`, `donation`) qui sortent au
+coût (`src/lib/import/pivot/events.ts`). Sans contre-valeur convertible ce jour-là, la dépense sort
+au coût comme les autres cas non convertibles, avec un avertissement affiché.
+
+## Import JSON Ghostfolio
+
+Un compte Ghostfolio (auto-hébergé ou cloud) exporte ses activités en JSON depuis **Réglages →
+Exporter** ; le fichier importé peut être l'export complet ou simplement `{ "activities": [...] }`
+(`src/lib/import/ghostfolio/index.ts`, format vérifié dans le dépôt `ghostfolio/ghostfolio`, branche
+`main`, le 24/08/2026) [10]. Il rejoint, lui aussi, un compte `kind: 'csv'` de l'espace
+Investissement — le même écran **Importer**, la même liste de comptes que les CSV ci-dessus.
+
+- **Ce qui est importé** : activités `BUY`, `SELL`, `DIVIDEND`, `INTEREST`, `FEE` —
+  `value = quantity × unitPrice` (brut, hors frais) et `fee` partagent la devise de `currency`,
+  jamais celle de l'actif (même règle d'or que l'export Coinhouse, décision n° 4). Le symbole est
+  résolu selon `dataSource` : `COINGECKO` (slug retrouvé dans la table curée des tickers de l'app
+  quand il y figure) ou `YAHOO` (ticker, suffixe `-EUR`/`-USD`/`-USDT`/`-BTC`/`-GBP` retiré) ; toute
+  autre source garde le symbole tel quel, en minuscules.
+- **Ce qui n'est pas importé** : `LIABILITY` (mouvement interne, ignoré) ; un type d'activité
+  inconnu devient une ligne signalée, jamais une estimation.
+- **Pièges et limites** : une `DIVIDEND`/`INTEREST` dont la source est `COINGECKO`/`YAHOO` devient
+  une récompense en nature (valorisée par `Net Worth`) ; sinon (`MANUAL` ou source absente), c'est un
+  revenu 100 % fiat, volontairement ignoré comme le reste du pipeline pivot (aucune trésorerie fiat
+  modélisée pour ce format, même règle que ci-dessus). Un slug CoinGecko absent de la table de l'app
+  est conservé tel quel plutôt que de bloquer l'import, avec une note affichée à l'écran.
+
 ## Limites connues
 
-- **JSON d'activités Ghostfolio** : hors périmètre v1 (l'app ne lit que les deux formats CSV
-  ci-dessus).
 - **XLSX Waltio** : Waltio lit le fichier Koinly (ci-dessus) mais publie séparément un gabarit
   générique propre en `.xlsx` [4] ; ce gabarit n'est pas lu par cet import (hors périmètre).
 - **GBP et CHF** : reconnus comme fiat (une ligne 100 % GBP/CHF est ignorée comme les autres
   fiats) mais absents de la chaîne de taux BCE de l'app, qui ne convertit que EUR et USD (décision
   n° 18) — une jambe cash en GBP/CHF dans un échange part donc « à qualifier » plutôt que d'être
-  convertie à un taux faux ou ignorée à tort.
-- **Trésorerie fiat** : ce format ne modélise aucun solde fiat (dépôts/retraits EUR, USD, GBP, CHF
-  purs sont ignorés, pas même mémorisés) ; seule une sortie explicitement étiquetée frais devient un
-  événement à part entière.
-- **Convertisseurs natifs par plateforme** (Kraken, Coinbase, Bitvavo, Revolut, Ledger Live…) : à la
-  demande, hors périmètre v1 — l'utilisateur passe par l'export Koinly/Waltio de sa plateforme.
+  convertie à un taux faux ou ignorée à tort. S'applique à toutes les sources de ce document (pivot,
+  convertisseurs natifs, Ghostfolio), qui partagent le même normaliseur.
+- **Trésorerie fiat** : aucune de ces sources ne modélise de solde fiat (dépôts/retraits EUR, USD,
+  GBP, CHF purs sont ignorés, pas même mémorisés) ; seule une sortie explicitement étiquetée frais
+  devient un événement à part entière.
+- **Plateformes sans convertisseur dédié** (Binance, Bybit, OKX, la plupart des wallets…) : import
+  via le format pivot Koinly/Waltio (ci-dessus), pas de module natif prévu sauf demande.
 
-## Sources (consultées le 23/08/2026)
+## Sources (consultées le 23/08/2026, complément le 24/08/2026)
 
 - [1] Koinly, comment créer un CSV personnalisé (« Custom CSV Universal », dates en UTC) —
   https://support.koinly.io/en/articles/9489976-how-to-create-a-custom-csv-file-with-your-data
@@ -164,3 +282,18 @@ un virement interne apparié est annoté « Virement interne (apparié) » en de
 - Sondage du dépôt (23/08/2026) : `support.koinly.io` refuse la récupération automatisée directe
   (403) ; le contenu ci-dessus est corroboré par plusieurs recherches indépendantes recoupant les
   mêmes pages plutôt que par une lecture verbatim — à revérifier si un détail fin est mis en cause.
+- [5] Kraken Support, exporter l'historique de compte (Ledgers) —
+  https://support.kraken.com/articles/208267878-how-to-export-your-account-history
+- [6] Coinbase, annonce de l'export de l'historique des transactions (rapports et relevés) —
+  https://www.coinbase.com/blog/you-can-now-export-your-transaction-history
+- [7] Bitvavo Help Center, consulter et télécharger l'historique des transactions —
+  https://support.bitvavo.com/hc/en-us/articles/24858391166097-How-can-I-view-and-download-my-transaction-history-and-balance-statement
+- [8] Ledger Support, exporter l'historique des opérations en CSV —
+  https://support.ledger.com/article/360014094879-zd
+- [9] Revolut Help, télécharger un relevé de compte crypto —
+  https://help.revolut.com/help/profile-and-plan/managing-my-account/cryptocurrency-statement/
+- [10] Dépôt GitHub `ghostfolio/ghostfolio`, branche `main` (structure de l'export JSON
+  d'activités, lue le 24/08/2026) — https://github.com/ghostfolio/ghostfolio
+- Les pages [5]-[9] documentent le parcours d'export au moment de la rédaction ; les libellés de
+  menu de chaque plateforme évoluent régulièrement et peuvent différer de ce qui est décrit
+  ci-dessus — l'en-tête du fichier reste le repère fiable (détection automatique par l'app).

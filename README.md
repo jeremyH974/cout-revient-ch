@@ -33,21 +33,26 @@ transactions.csv`). Sur iPhone : appui long → _Enregistrer dans Fichiers_.
 5. Importez-le dans l'application. Vous pouvez ré-importer un nouvel export à tout moment : les
    opérations déjà connues sont ignorées.
 
-**Une autre plateforme** (Kraken, Binance, Ledger…) s'importe via un CSV au format Koinly/Waltio
-dans un compte dédié, avec appariement automatique des virements entre vos comptes ; détails dans
-[docs/pivot-import.md](docs/pivot-import.md).
+**Une autre plateforme** s'importe dans un compte dédié, avec appariement automatique des virements
+entre vos comptes : convertisseur natif pour Kraken, Coinbase, Bitvavo, Ledger Live et Revolut
+(détection automatique de l'en-tête), CSV au format Koinly/Waltio pour les autres (Binance, Bybit,
+la plupart des wallets…), ou export JSON d'activités Ghostfolio ; détails dans
+[docs/pivot-import.md](docs/pivot-import.md). **Une adresse publique on-chain** (Bitcoin, Ethereum,
+Arbitrum One, Base) se suit en lecture seule depuis l'écran Comptes, sans clé ; détails dans
+[docs/onchain-import.md](docs/onchain-import.md).
 
 ## Ce que l'outil calcule
 
-| Indicateur      | Définition                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **PRU**         | Coût moyen d'une unité, **spread et frais inclus** (coût moyen pondéré). Il change seulement quand vous achetez, jamais quand vous vendez. |
-| **Investi**     | Quantité détenue × PRU.                                                                                                                    |
-| **Latent**      | Valeur actuelle − Investi (ce que vous gagneriez ou perdriez en vendant tout maintenant).                                                  |
-| **Réalisé**     | Gains ou pertes déjà encaissés sur vos ventes (produit de vente − quantité vendue × PRU du moment).                                        |
-| **Total**       | Réalisé + latent.                                                                                                                          |
-| **ROI**         | Total ÷ somme de tous vos achats.                                                                                                          |
-| **Net investi** | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                          |
+| Indicateur                     | Définition                                                                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PRU**                        | Coût moyen d'une unité, **spread et frais inclus** (coût moyen pondéré). Il change seulement quand vous achetez, jamais quand vous vendez.                                                                                      |
+| **Investi**                    | Quantité détenue × PRU.                                                                                                                                                                                                         |
+| **Latent**                     | Valeur actuelle − Investi (ce que vous gagneriez ou perdriez en vendant tout maintenant).                                                                                                                                       |
+| **Réalisé**                    | Gains ou pertes déjà encaissés sur vos ventes (produit de vente − quantité vendue × PRU du moment).                                                                                                                             |
+| **Total**                      | Réalisé + latent.                                                                                                                                                                                                               |
+| **ROI**                        | Total ÷ somme de tous vos achats.                                                                                                                                                                                               |
+| **Net investi**                | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                                                                                                               |
+| **Rendement annualisé (XIRR)** | Taux annuel qui égalise tous vos flux datés (achats et frais en sortie, produits en entrée) et la valeur actuelle du portefeuille — méthode Excel, base 365 jours. Affiché dans le Rapport ; masqué sous 30 jours d'historique. |
 
 ### Rapport PDF
 
@@ -79,7 +84,10 @@ Un second espace, séparé du PRU : collez une **adresse publique** Hyperliquid 
 l'écran Comptes pour voir l'équité de votre compte, vos positions ouvertes, vos avoirs spot et un
 P&L net (réalisé − frais + funding), avec une réconciliation vérifiée à chaque actualisation. Seule
 l'adresse est envoyée, et uniquement à `api.hyperliquid.xyz` ; détails dans
-[docs/hyperliquid-import.md](docs/hyperliquid-import.md).
+[docs/hyperliquid-import.md](docs/hyperliquid-import.md). Un interrupteur **« Prix en direct »**
+(désactivé par défaut) ouvre un flux WebSocket vers Hyperliquid pour rafraîchir en continu le prix
+des actifs que vous détenez ; il se coupe dès que l'onglet passe en arrière-plan et ne modifie jamais
+le cache de prix normal.
 
 ## Aide et retours
 

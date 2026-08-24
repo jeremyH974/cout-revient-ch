@@ -77,6 +77,13 @@
       visibles : ce sont des prix, pas des montants. Le rapport PDF suit la même règle ; les exports
       CSV ne sont jamais masqués.
     </dd>
+    <dt>Rendement annualisé (XIRR)</dt>
+    <dd>
+      Le taux annuel qui, appliqué à chacun de vos apports et retraits à leur date réelle, redonne
+      exactement la valeur actuelle de votre portefeuille (méthode utilisée par Excel).
+      Contrairement au ROI, il tient compte du moment où l'argent est entré ou sorti. Affiché dans
+      le Rapport ; pas calculé avec moins de 30 jours d'historique.
+    </dd>
   </dl>
   <h2>Pourquoi les % de l'app Coinhouse paraissent faux</h2>
   <p>
@@ -90,16 +97,31 @@
     « Contre-valeur (EUR) » de la ligne crypto est en réalité en USDC dans l'export). Les USDC sont
     suivis comme une ligne à part : leur gain ou perte est l'effet de change euro/dollar.
   </p>
-  <h2>Importer d'autres plateformes (Koinly / Waltio)</h2>
+  <h2>Importer d'autres plateformes</h2>
   <p>
-    Un CSV au format « Koinly Universal » ou l'export interne Koinly (<em
-      >Transactions → Bulk edit → Export</em
-    >, lu aussi par Waltio) s'importe depuis cet écran, dans un compte dédié à choisir ou à créer.
-    Un retrait et un dépôt du même actif entre deux de vos comptes sont appariés automatiquement
-    (jusqu'à 72 h d'écart) : le coût d'acquisition voyage vers le dépôt, sans plus-value fantôme ;
-    corrigez ou forcez un appariement depuis <strong>Comptes</strong>.
+    Kraken, Coinbase, Bitvavo, Ledger Live et Revolut ont chacun un convertisseur dédié : déposez
+    simplement leur export, il est reconnu automatiquement, rien à choisir. Pour une autre
+    plateforme (Binance, Bybit, un wallet…), un CSV au format « Koinly Universal » ou l'export
+    interne Koinly (<em>Transactions → Bulk edit → Export</em>, lu aussi par Waltio) s'importe de la
+    même façon ; un export JSON d'activités Ghostfolio (<em>Réglages → Exporter</em>) est également
+    accepté. Toutes ces sources s'importent depuis cet écran, dans un compte dédié à choisir ou à
+    créer. Un retrait et un dépôt du même actif entre deux de vos comptes sont appariés
+    automatiquement (jusqu'à 72 h d'écart) : le coût d'acquisition voyage vers le dépôt, sans
+    plus-value fantôme ; corrigez ou forcez un appariement depuis <strong>Comptes</strong>.
     <strong>Réglages → « Format Koinly / Waltio (CSV) »</strong> exporte à l'inverse toutes vos opérations
-    dans ce même format, pour un autre outil.
+    au format pivot, pour un autre outil.
+  </p>
+  <h2>Suivre une adresse on-chain (Bitcoin, Ethereum, Arbitrum, Base)</h2>
+  <p>
+    Depuis l'écran <strong>Comptes</strong>, collez une <strong>adresse publique</strong> (jamais de
+    clé ni de phrase de récupération) pour suivre un wallet en auto-garde : Bitcoin (via
+    mempool.space) ou Ethereum/Arbitrum One/Base (via Blockscout). Seuls les mouvements natifs et
+    les jetons USDC/USDT reconnus sont importés, sans valeur en euros — un retrait d'une autre
+    plateforme vers cette adresse est apparié automatiquement comme un virement interne (le coût
+    voyage, aucune plus-value) ; sinon la ligne apparaît « à qualifier ». L'adresse n'est envoyée
+    qu'à l'API de sa propre chaîne, jamais ailleurs (<a href={router.href({ name: 'privacy' })}
+      >Confidentialité</a
+    >).
   </p>
   <h2>Qu'est-ce que l'espace Trading (Hyperliquid) ?</h2>
   <p>
@@ -109,7 +131,9 @@
     chaque actualisation. Seule l'adresse est envoyée, et uniquement à Hyperliquid (<a
       href={router.href({ name: 'privacy' })}>Confidentialité</a
     >) ; cochez « traiter le spot comme de l'investissement » sur le compte pour que ses achats spot
-    comptent aussi dans le PRU.
+    comptent aussi dans le PRU. L'interrupteur <strong>« Prix en direct »</strong> (désactivé par défaut)
+    ouvre un flux WebSocket vers Hyperliquid pour rafraîchir en continu le prix des actifs que vous détenez
+    ; il se coupe dès que l'onglet passe en arrière-plan.
   </p>
   <h2>Un problème, une idée ?</h2>
   <p>

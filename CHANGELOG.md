@@ -7,6 +7,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- Convertisseurs natifs d'import pour Kraken, Coinbase, Bitvavo, Ledger Live et Revolut : même
+  compte, mêmes règles de valorisation et de virements appariés que l'import pivot ; dédoublonnage
+  par hachage du contenu natif de la ligne, une correction de convertisseur ne duplique jamais une
+  ligne déjà importée.
+- Import JSON d'activités Ghostfolio (BUY/SELL/DIVIDEND/INTEREST/FEE) dans le même compte que les
+  CSV pivot et les convertisseurs natifs.
+- Rendement personnel annualisé (XIRR) dans la synthèse du Rapport (écran et PDF) : taux pondéré par
+  les flux réels du grand livre (méthode Excel, base 365), masqué sous 30 jours d'historique ou sur
+  des flux non calculables plutôt qu'un chiffre trompeur.
+- Suivi en lecture seule d'adresses publiques on-chain (Bitcoin via mempool.space, Ethereum/
+  Arbitrum One/Base via Blockscout) depuis l'écran Comptes : mouvements sans valeur EUR, candidats à
+  l'appariement de virement ou lignes à qualifier ; jetons ERC-20 reconnus par liste blanche
+  d'adresses de contrats, jamais par symbole affiché.
+- Interrupteur « Prix en direct » (opt-in) sur l'écran Trading : cotations Hyperliquid par WebSocket
+  pour les actifs détenus, jamais activées par défaut, jamais écrites dans le cache de prix persisté.
 - Espace Trading complet : tableau de bord (synthèse dépôts nets / équité / P&L total, courbe
   d'équité et de P&L fournie par la plateforme et conservée hors ligne, résultat par période,
   positions ouvertes en tableau — taille · entrée, marque · liquidation, valeur, latent et % sur

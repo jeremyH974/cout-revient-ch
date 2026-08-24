@@ -28,6 +28,19 @@
       (jamais de clé) : envoyée uniquement à <code>api.hyperliquid.xyz</code> pour lire vos fills, positions
       et soldes, et stockée seulement sur cet appareil, jamais ailleurs.
     </li>
+    <li>
+      Si vous suivez une adresse on-chain (espace Investissement), elle n'est envoyée qu'à l'API de
+      sa <strong>propre chaîne</strong> — <code>mempool.space</code> pour une adresse Bitcoin,
+      <code>eth.blockscout.com</code>, <code>arbitrum.blockscout.com</code> ou
+      <code>base.blockscout.com</code> pour une adresse Ethereum, Arbitrum One ou Base — jamais aux trois
+      autres, et stockée seulement sur cet appareil.
+    </li>
+    <li>
+      Si vous activez « Prix en direct » sur l'écran Trading, un flux de cours de marché s'ouvre
+      vers
+      <code>wss://api.hyperliquid.xyz</code> ; aucune adresse ni donnée personnelle n'y transite, et il
+      est coupé par défaut ainsi que dès que l'onglet passe en arrière-plan.
+    </li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>
   <p>
