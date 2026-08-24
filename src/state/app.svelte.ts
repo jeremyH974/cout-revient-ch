@@ -63,7 +63,8 @@ import {
   type BtcScanProgress,
 } from '$lib/import/onchain/btc';
 import { EXTENDED_PRIVATE_RE, EXTENDED_PUBLIC_RE } from '$lib/import/onchain/xpub-detect';
-import { EVM_ADDRESS_RE, EVM_CHAINS, syncEvmAddress } from '$lib/import/onchain/evm';
+import { EVM_ADDRESS_RE, EVM_CHAINS } from '$lib/import/onchain/evm';
+import { syncEvmWithFallback } from '$lib/import/onchain/evm-sync';
 import {
   movementsToDrafts,
   OnchainError,
@@ -132,6 +133,8 @@ export interface SyncStatus {
   added: number;
   /** Balayage d'un portefeuille Bitcoin dérivé d'une clé étendue (adresses vues, utilisées). */
   scan: BtcScanProgress | null;
+  /** Fournisseur EVM qui a réellement répondu : l'origine d'un chiffre doit rester lisible. */
+  provider: string | null;
 }
 
 export interface QualifiedSummary {
@@ -603,6 +606,7 @@ export class AppState {
         truncated: false,
         added: 0,
         scan: null,
+        provider: null,
       };
       this.syncStatus = { ...this.syncStatus, [accountId]: { ...current, ...p } };
     };
@@ -622,7 +626,13 @@ export class AppState {
       } else if (account.chain === 'btc') {
         result = await syncBtcAddress(account.address);
       } else {
-        result = await syncEvmAddress(account.chain, account.address);
+        // EVM : Blockscout tant qu'il répond sans clé, sinon les secours (décision n° 32).
+        const outcome = await syncEvmWithFallback(account.chain, account.address, {
+          explorerKey: this.state.ui.explorerKey,
+          explorerFlavor: this.state.ui.explorerFlavor,
+        });
+        patch({ provider: outcome.provider });
+        result = outcome;
       }
       const now = nowMs();
       const importId = `imp:${now.toString(36)}`;
@@ -752,6 +762,7 @@ export class AppState {
         truncated: false,
         added: 0,
         scan: null,
+        provider: null,
       };
       this.syncStatus = { ...this.syncStatus, [id]: { ...current, ...patch } };
     };

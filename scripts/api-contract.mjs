@@ -262,6 +262,46 @@ await check(
   },
 );
 
+// Blockscout a officiellement basculé son trafic vers une Pro API à clé le 1ᵉʳ juillet 2026 ; les
+// instances par chaîne répondaient encore sans clé le 24/08/2026. Ce contrôle est là pour que la
+// CI nous prévienne le jour où elles s'arrêtent — avant que les utilisateurs ne le découvrent.
+for (const [chain, host] of [
+  ['arbitrum', 'https://arbitrum.blockscout.com'],
+  ['base', 'https://base.blockscout.com'],
+]) {
+  await check(
+    `Blockscout ${chain} sans clé (survie de l'API publique)`,
+    `${host}/api/v2/addresses/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045/transactions`,
+    (json) => (Array.isArray(json?.items) ? [] : ['items absent : instance passée en Pro API ?']),
+  );
+}
+
+await check(
+  'Routescan Ethereum sans clé (secours EVM)',
+  'https://api.routescan.io/v2/network/mainnet/evm/1/etherscan/api?module=account&action=txlist&address=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045&page=1&offset=2&sort=desc',
+  (json) => {
+    if (!Array.isArray(json?.result)) return ['result non tableau : secours indisponible'];
+    const row = json.result[0];
+    if (!row) return [];
+    const problems = [];
+    if (!/^\d+$/.test(String(row.timeStamp))) problems.push('timeStamp non entier (secondes)');
+    if (!/^\d+$/.test(String(row.value))) problems.push('value non entier (wei)');
+    if (typeof row.hash !== 'string') problems.push('hash absent');
+    return problems;
+  },
+);
+
+await check(
+  'Etherscan V2 (contrat de rejet sans clé)',
+  'https://api.etherscan.io/v2/api?chainid=1&module=account&action=balance&address=0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045&tag=latest',
+  (json) =>
+    // Sans clé, la réponse ATTENDUE est un rejet explicite. Si elle changeait de forme, notre
+    // détection « clé manquante » deviendrait muette.
+    typeof json?.result === 'string' && /api key/i.test(json.result)
+      ? []
+      : ['le rejet « Missing/Invalid API Key » a changé de forme'],
+);
+
 const failed = results.filter((r) => !r.ok);
 const lines = [
   `# Contrat des API tierces — ${new Date().toISOString()}`,

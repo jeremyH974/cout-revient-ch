@@ -1,3 +1,5 @@
+| Bitcoin | mempool.space, secours blockstream.info (Esplora, sans clé) | `mempool.space` |
+
 # Suivi on-chain par adresse publique (sourcé le 24/08/2026, lecture seule)
 
 Un compte on-chain suit les mouvements d'une **adresse publique** que vous détenez en auto-garde
@@ -49,19 +51,75 @@ permanence de faux jetons envoyés par des adresses inconnues (anti-spam). Exten
 
 ## Limites
 
-- **Pas de xpub/zpub** : seules les adresses simples sont acceptées ; l'API ne dérive pas les
-  adresses filles d'un portefeuille HD, donc pas de suivi automatique d'un wallet multi-adresses.
-- **Pagination plafonnée** : 8 pages de 25 transactions pour Bitcoin, 2 pages par flux (natif,
-  ERC-20) pour l'EVM par défaut. Au-delà, l'historique plus ancien n'est pas lu — un indicateur
-  « historique tronqué » invite à resynchroniser plus tard plutôt qu'une boucle automatique.
-- **Débit prudent sans clé** : Blockscout limite à environ 3 requêtes par minute en usage anonyme
-  (observé, non garanti par son éditeur) ; un excès renvoie une erreur explicite (« réessayez dans
-  une minute ») plutôt qu'un nouvel essai agressif qui aggraverait la limitation.
+- **Pagination plafonnée** : 8 pages de 25 transactions par adresse Bitcoin, 2 pages par flux
+  (natif, ERC-20) pour l'EVM sans clé. Au-delà, l'historique plus ancien n'est pas lu — un
+  indicateur « historique tronqué » invite à resynchroniser plutôt qu'une boucle automatique. Avec
+  une clé d'explorateur, ce plafond disparaît (une requête par flux suffit).
+- **Débit prudent sans clé** : Blockscout annonce `x-ratelimit-limit: 180` par fenêtre (en-tête
+  mesuré le 24/08/2026) ; un excès renvoie une erreur qui dit quoi faire plutôt qu'un nouvel essai
+  agressif. Le client Bitcoin sérialise ses requêtes avec une pause de 250 ms.
+- **Transactions échouées écartées** : leur gaz reste pourtant dépensé. Conséquence assumée : la
+  quantité d'ETH suivie peut légèrement surestimer le solde réel d'une adresse qui a beaucoup de
+  transactions en échec.
+- **Taproot non couvert** : les adresses `bc1p…` (BIP86) ne sont pas dérivées à partir d'une clé
+  étendue ; xpub (BIP44), ypub (BIP49) et zpub (BIP84) le sont.
 - **Jetons ignorés** : tout ERC-20 hors de la liste blanche ci-dessus, et tout ce qui n'est ni une
-  transaction native ni un transfert ERC-20 (NFT compris).
+  transaction native, ni une transaction interne, ni un transfert ERC-20 (NFT compris).
 - **Synchronisation manuelle** : un bouton « Synchroniser » relance la lecture depuis l'écran
   Comptes ; elle est idempotente (dédoublonnage par identifiant de transaction), rejouer une
   synchronisation ne duplique rien.
+
+## Portefeuille Bitcoin entier (clé publique étendue)
+
+Le champ d'adresse Bitcoin accepte aussi une **clé publique étendue** (`zpub`, `ypub`, `xpub`).
+Aucune API publique sans clé n'en accepte une — `GET mempool.space/api/v1/xpub/…` répond 404 — et
+c'est tant mieux : confier un xpub à un tiers lui donnerait la vue permanente de tout le
+portefeuille, passé et à venir. La dérivation se fait donc **dans le navigateur**
+(`src/lib/import/onchain/xpub.ts`, chargé à la demande pour ne pas peser sur le bundle) :
+
+| Saisie | Chemin de compte    | Adresses produites | Encodage                                              |
+| ------ | ------------------- | ------------------ | ----------------------------------------------------- |
+| `xpub` | BIP44 `m/44'/0'/0'` | `1…`               | base58check, version 0x00                             |
+| `ypub` | BIP49 `m/49'/0'/0'` | `3…`               | base58check du hash du script de rachat, version 0x05 |
+| `zpub` | BIP84 `m/84'/0'/0'` | `bc1q…`            | bech32, témoin v0                                     |
+
+Balayage : chaînes 0 (réception) et 1 (monnaie), arrêt après **20 adresses vides consécutives**
+(gap limit BIP44), plafond dur de 500 adresses. Une requête légère (`/address/{a}`) décide si une
+adresse est utilisée ; seules celles qui le sont voient leur historique paginé.
+
+**Le point qui compte** : les mouvements sont nettés **sur l'ensemble des adresses du
+portefeuille**, pas adresse par adresse. Un portefeuille réel rend sa monnaie sur une adresse
+neuve à chaque dépense ; netter par adresse compterait ce retour comme une réception et gonflerait
+symétriquement dépôts et retraits. Une clé **privée** étendue (`xprv`, `yprv`, `zprv`) est refusée
+à la saisie avec un avertissement, et n'est jamais enregistrée.
+
+## Secours EVM : l'API publique Blockscout est en sursis
+
+Blockscout a officiellement transféré son trafic vers une **Pro API** à clé le 1ᵉʳ juillet 2026.
+Sondes du 24/08/2026 : les instances par chaîne répondent **encore** 200 sans clé, mais
+`api.blockscout.com` renvoie déjà `402 Proceed with API key`. L'application ne dépend donc plus d'un
+seul chemin :
+
+| Ordre                     | Fournisseur                    | Clé      | Couverture            |
+| ------------------------- | ------------------------------ | -------- | --------------------- |
+| 1 (si une clé est saisie) | Etherscan V2 ou Blockscout Pro | gratuite | eth · arbitrum · base |
+| 2                         | Blockscout par instance        | aucune   | eth · arbitrum · base |
+| 3                         | Routescan                      | aucune   | Ethereum seulement    |
+
+Les trois parlent le même dialecte `module`/`action` hérité d'Etherscan, d'où un adaptateur unique
+(`etherscan.ts`). Ce chemin lit en plus les **transactions internes** (`txlistinternal`), donc l'ETH
+reçu via un contrat — un pont, un DEX, un vault — qui n'apparaît nulle part dans `txlist` et
+manquait jusqu'ici.
+
+Une **clé d'explorateur de blocs n'est pas une clé d'exchange** : elle ne lit que des données
+publiques déjà visibles de tous et ne peut rien signer. C'est pourquoi elle est acceptée
+(facultative, dans Réglages) alors qu'une clé d'exchange reste refusée par principe
+(docs/DECISIONS.md n° 32).
+
+`scripts/api-contract.mjs`, exécuté toutes les 6 h par la surveillance, vérifie que les instances
+Blockscout répondent toujours sans clé, que Routescan est disponible, et que le rejet
+« Missing/Invalid API Key » d'Etherscan garde sa forme : le jour où le chemin sans clé s'arrête, la
+CI le dira avant les utilisateurs.
 
 ## Vie privée
 

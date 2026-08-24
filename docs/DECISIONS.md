@@ -407,3 +407,68 @@
     DefiLlama) : à la fermeture de l'onglet, l'app retombe sur le dernier prix mis en cache par la
     cascade habituelle, jamais sur un mid figé au dernier message reçu. Aucune donnée utilisateur ne
     transite par ce canal : `allMids` est un flux de marché public, sans adresse ni identifiant.
+
+30. **TWR = Dietz modifié quotidien enchaîné, flux pondérés par la fraction de journée qui leur
+    reste** (24/08/2026, P10). Le XIRR répond à « qu'est-ce que mon argent a rapporté », le TWR à
+    « mes choix étaient-ils bons » : les deux sont affichés côte à côte dans la synthèse du Rapport,
+    et leur écart est précisément l'effet du calendrier des apports. Faute de valorisation à
+    l'instant exact de chaque flux, chaque journée est traitée en Dietz modifié
+    (`base = V_{t−1} + Σ w_i·F_i`, `w_i` = fraction du jour restant après le flux — un achat à 23 h
+    n'a pas pu produire de rendement ce jour-là), puis les journées sont enchaînées
+    multiplicativement (`src/lib/domain/twr.ts`). Une journée dont la base est nulle ou négative est
+    **neutralisée** plutôt que divisée, et comptée à part. L'annualisation n'apparaît qu'au-delà de
+    30 jours (même seuil que le XIRR) ; en dessous, le cumulé est affiché tel quel. La fenêtre est
+    celle des cotations réellement disponibles, et les journées où une position détenue n'a aucun
+    cours sont valorisées à leur coût, donc comptées à rendement nul : le Rapport annonce leur
+    nombre plutôt que de laisser croire à une couverture totale. Le test qui garantit tout cela est
+    la propriété d'**invariance au calendrier des apports**, vérifiée sous fast-check, doublée d'un
+    recoupement avec le XIRR sur le cas à flux unique.
+
+    Corollaire découvert en construisant ce calcul : un **virement interne apparié à cheval sur deux
+    jours** (retrait 23 h 30 lundi, dépôt 1 h 00 mercredi) sortait l'actif du portefeuille consolidé
+    pendant deux jours — la courbe de valeur tombait à zéro puis revenait. `holdingOpsOf`
+    (`history/series.ts`) écarte désormais la jambe **sortante** d'un virement apparié des vues
+    consolidées et garde l'entrante (qui porte la quantité réellement reçue, frais de réseau
+    déduits) : la position reste détenue pendant le transit et le solde final reste juste. Les vues
+    **par compte** ne sont pas concernées : là, un virement est un vrai mouvement des deux côtés.
+
+31. **Le repère est le rejeu des flux RÉELS de l'utilisateur sur un seul actif, jamais un conseil**
+    (24/08/2026, P10). « Mêmes apports en BTC » signifie : mêmes montants, mêmes dates, au cours de
+    chaque date (`src/lib/domain/benchmark.ts`). Comparer autre chose — un investissement forfaitaire
+    fictif, une autre période — comparerait deux choses différentes ; la fenêtre commune est donc
+    imposée et les flux antérieurs à la première cotation du repère sont comptés et **affichés**
+    comme écartés. Un retrait ne peut pas vendre plus que ce que le repère détient : l'excédent est
+    rogné et signalé, jamais avalé. Le TWR et le XIRR du repère passent par les mêmes fonctions que
+    ceux du portefeuille — une seule implémentation, donc une seule chose à prouver. La méthodologie
+    et l'aide disent explicitement qu'il s'agit d'arithmétique sur des cours passés, sans valeur
+    prédictive, et que rien dans l'application n'est un conseil en investissement.
+
+32. **Une clé d'explorateur de blocs est acceptée (facultative) ; une clé d'exchange reste refusée**
+    (24/08/2026). Les deux n'ont rien de commun : une clé d'exchange peut déplacer des fonds, une clé
+    d'explorateur ne lit que des données de la blockchain déjà visibles de tous et ne signe rien. Le
+    motif est concret : Blockscout a transféré son trafic vers une **Pro API** à clé le 1ᵉʳ juillet
+    2026 ; au 24/08/2026 les instances par chaîne répondaient encore sans clé, mais
+    `api.blockscout.com` renvoyait déjà `402 Proceed with API key`. Le chemin sans clé est donc en
+    sursis. Ordre d'essai (`import/onchain/evm-sync.ts`) : clé configurée → Blockscout par instance →
+    Routescan (sans clé, mais Ethereum seulement — les autres chaînes répondent « chain not
+    supported »). Les trois fournisseurs parlent le même dialecte `module`/`action`, d'où un
+    adaptateur unique (`etherscan.ts`) qui lit au passage les **transactions internes**, donc l'ETH
+    reçu via un contrat, jusqu'ici invisible. La clé vit dans `localStorage`, jamais dans une
+    sauvegarde fusionnée, et `scripts/api-contract.mjs` surveille toutes les 6 h que le chemin sans
+    clé vit encore : la CI préviendra avant les utilisateurs.
+
+33. **Les clés publiques étendues Bitcoin sont dérivées LOCALEMENT, et les mouvements nettés au
+    niveau du portefeuille** (24/08/2026, P25). Aucune API publique sans clé n'accepte une clé
+    étendue (`mempool.space/api/v1/xpub/…` répond 404), et c'est heureux : confier un xpub à un tiers
+    lui livre la vue permanente de tout le portefeuille, passé et à venir. La dérivation se fait donc
+    dans le navigateur (`import/onchain/xpub.ts`, @scure/@noble chargés à la demande dans leur propre
+    morceau de 23 ko gzip) ; seules les adresses individuelles sont interrogées, exactement comme
+    avant. Schémas couverts : BIP44 (`xpub` → `1…`), BIP49 (`ypub` → `3…`), BIP84 (`zpub` →
+    `bc1q…`) ; **Taproot (BIP86) hors périmètre**, dit dans l'interface plutôt que silencieusement
+    absent. Balayage des chaînes 0 et 1 avec un **gap limit de 20** (norme BIP44) et un plafond dur
+    de 500 adresses. Point de justesse essentiel : le mouvement d'une transaction est net **sur
+    l'ensemble des adresses dérivées**, pas par adresse — sans quoi la monnaie rendue par une
+    dépense passerait pour une réception et gonflerait symétriquement dépôts et retraits. Les clés
+    **privées** étendues (`xprv`, `yprv`, `zprv`) sont refusées à la saisie avec un avertissement
+    explicite et ne sont jamais enregistrées. Conformité vérifiée par les vecteurs de test officiels
+    des BIP eux-mêmes.

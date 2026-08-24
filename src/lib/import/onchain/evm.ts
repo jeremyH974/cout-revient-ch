@@ -4,8 +4,11 @@
  * envoi, les frais de gaz s'ajoutent à la quantité — un envoi de token à value 0 laisse quand
  * même sortir son gaz) et `token-transfers` ERC-20 filtrés par une **liste blanche d'adresses de
  * contrats** (anti-spam ; on ne fait jamais confiance au `symbol` : l'USDT d'Arbitrum s'affiche
- * « USDT0 » depuis sa migration de janvier 2026). Palier public : ~3 requêtes/minute → pagination
- * plafonnée (`truncated`) et 429 rendu comme une erreur « réessayez dans une minute ».
+ * « USDT0 » depuis sa migration de janvier 2026). Palier public : l'en-tête
+ * `x-ratelimit-limit` annonce 180 requêtes par fenêtre (mesuré le 24/08/2026) → pagination plafonnée
+ * (`truncated`) et 429 rendu comme une erreur actionnable. **Cette API publique est en sursis** :
+ * Blockscout a basculé son trafic vers une Pro API à clé au 01/07/2026 ; `evm-sync.ts` gère le repli
+ * et `scripts/api-contract.mjs` surveille le jour où elle s'arrête.
  * L'adresse n'est envoyée qu'à l'instance Blockscout de sa chaîne (décision n° 20).
  */
 import { D, ZERO } from '../../domain/money';
@@ -60,7 +63,7 @@ async function getJson(
   }
   if (response.status === 429)
     throw new OnchainError(
-      `Blockscout (${chainLabel}) limite le débit sans clé (~3 requêtes/minute) : réessayez dans une minute.`,
+      `Blockscout (${chainLabel}) limite le débit sans clé : réessayez dans une minute, ou ajoutez une clé d'explorateur gratuite dans Réglages.`,
       429,
     );
   if (!response.ok)

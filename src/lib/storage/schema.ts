@@ -2,6 +2,7 @@
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
+import { KEYED_FLAVORS, type ExplorerFlavor } from '../import/onchain/etherscan';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { emptyHlState, type HlState } from '../import/hyperliquid/data';
 import { sanitizeHlState } from '../import/hyperliquid/sanitize';
@@ -68,6 +69,13 @@ export interface UiSettings {
    * Propre à l'appareil (jamais dans une sauvegarde fusionnée), envoyée en en-tête uniquement.
    */
   coingeckoDemoKey: string | null;
+  /**
+   * Clé d'explorateur de blocs (Etherscan V2 ou Blockscout Pro), gratuite et facultative : elle ne
+   * lit que des données publiques et ne peut rien signer — à la différence d'une clé d'exchange,
+   * qui reste refusée (décision n° 32). Propre à l'appareil, envoyée au seul explorateur choisi.
+   */
+  explorerKey: string | null;
+  explorerFlavor: ExplorerFlavor;
   /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
   liveMids: boolean;
 }
@@ -113,6 +121,8 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   demoMode: false,
   lastSeenVersion: null,
   coingeckoDemoKey: null,
+  explorerKey: null,
+  explorerFlavor: 'etherscan',
   liveMids: false,
 };
 
@@ -530,7 +540,14 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, lastSeenVersion: null } };
   state = {
     ...state,
-    ui: { ...state.ui, coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey) },
+    ui: {
+      ...state.ui,
+      coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey),
+      explorerKey: sanitizeApiKey(state.ui.explorerKey),
+      explorerFlavor: KEYED_FLAVORS.includes(state.ui.explorerFlavor)
+        ? state.ui.explorerFlavor
+        : 'etherscan',
+    },
   };
   return {
     state: {

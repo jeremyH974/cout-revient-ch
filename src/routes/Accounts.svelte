@@ -171,6 +171,9 @@
                     : ''}, {scan.used} utilisée{scan.used > 1 ? 's' : ''}</span
                 >
               {/if}
+              {#if app.syncStatus[a.id]?.provider}
+                <span class="muted small">via {app.syncStatus[a.id]?.provider}</span>
+              {/if}
               {#if app.syncStatus[a.id]?.error}
                 <span class="small error">{app.syncStatus[a.id]?.error}</span>
               {:else if app.syncStatus[a.id]?.truncated}

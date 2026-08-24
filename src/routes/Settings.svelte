@@ -5,6 +5,7 @@
   import { canShareFiles, downloadText, shareTextFile } from '$lib/export/download';
   import { eventsToKoinlyCsv } from '$lib/export/koinly-csv';
   import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
+  import { FLAVOR_LABELS, KEYED_FLAVORS } from '$lib/import/onchain/etherscan';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
@@ -17,6 +18,7 @@
     type EncryptedBackup,
   } from '$lib/storage/encryption';
   import Sheet from '../components/shared/Sheet.svelte';
+  import type { UiSettings } from '$lib/storage/schema';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
 
@@ -303,6 +305,38 @@
     <p class="line small muted">
       Gratuite sur coingecko.com, elle lève les limites de débit du plan public. Elle reste sur cet
       appareil, envoyée à CoinGecko uniquement.
+    </p>
+    <label class="field"
+      >Explorateur de blocs (comptes on-chain EVM)
+      <select
+        value={app.state.ui.explorerFlavor}
+        onchange={(e) =>
+          app.setUi({ explorerFlavor: e.currentTarget.value as UiSettings['explorerFlavor'] })}
+      >
+        {#each KEYED_FLAVORS as flavor (flavor)}
+          <option value={flavor}>{FLAVOR_LABELS[flavor]}</option>
+        {/each}
+      </select>
+    </label>
+    <label class="field"
+      >Clé d'explorateur (facultative)
+      <input
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck={false}
+        placeholder="jeton de lecture"
+        value={app.state.ui.explorerKey ?? ''}
+        onchange={(e) => app.setUi({ explorerKey: e.currentTarget.value.trim() || null })}
+      />
+    </label>
+    <p class="line small muted">
+      <strong>Clé publique de lecture seule : elle ne donne accès à aucun fonds</strong> et ne lit que
+      des données de la blockchain déjà visibles de tous — rien à voir avec une clé d'exchange, que cette
+      application refuse par principe. Elle sert de secours : l'API Blockscout publique, utilisée par
+      défaut sans aucune clé, a été officiellement basculée vers une offre à clé le 1ᵉʳ juillet 2026 et
+      peut s'arrêter. Elle lève aussi le plafond de pagination et fait apparaître les fonds reçus via
+      un contrat.
     </p>
     {#each manualPrices as [asset, s] (asset)}
       <p class="line small">
