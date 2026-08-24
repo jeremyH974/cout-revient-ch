@@ -1,23 +1,29 @@
 <script lang="ts">
   /**
-   * Calendrier de P&L (P22) : grille mensuelle du P&L réalisé net par jour de clôture, façon
-   * TradeZella — cases teintées gain/perte, totaux hebdomadaires, navigation par mois, jour
-   * cliquable pour voir ses trades. Tout le calcul vient du moteur pur
-   * (`$lib/domain/trading/calendar`) ; ce composant affiche et gère la sélection, rien de plus.
+   * Calendrier de P&L (P22) : grille mensuelle du P&L réalisé net par jour, façon TradeZella —
+   * cases teintées gain/perte, totaux hebdomadaires, navigation par mois, jour cliquable pour voir
+   * les trades concernés. Chaque montant est rattaché au jour où la plateforme l'a réalisé (fill,
+   * frais, funding), pas au jour de clôture de l'aller-retour : c'est la règle de l'exchange et
+   * celle du tableau de bord. Tout le calcul vient du moteur pur (`$lib/domain/trading/calendar`) ;
+   * ce composant affiche et gère la sélection, rien de plus.
    */
   import { nowIso } from '$lib/clock';
-  import type { Big } from '$lib/domain/money';
-  import { calendarMonth, closedMonths, type CalendarDay } from '$lib/domain/trading/calendar';
+  import { ZERO, type Big } from '$lib/domain/money';
+  import {
+    activeMonths,
+    calendarMonth,
+    type CalendarDay,
+    type RealizedEvent,
+  } from '$lib/domain/trading/calendar';
   import type { JournaledTrip } from '$lib/domain/trading/journal';
   import { fmtDate, fmtMasked, fmtMoney, roundsToZero } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import { app } from '../../state/app.svelte';
   import Money from '../shared/Money.svelte';
 
-  let { trips }: { trips: JournaledTrip[] } = $props();
+  let { trips, events }: { trips: JournaledTrip[]; events: RealizedEvent[] } = $props();
 
-  const toDisplay = (t: JournaledTrip, value: Big): Big | null =>
-    app.quoteToDisplay(t.trip.quote, value);
+  const toDisplay = (quote: string, value: Big): Big | null => app.quoteToDisplay(quote, value);
 
   const MONTH_NAMES = [
     'janvier',
@@ -37,9 +43,9 @@
   const monthName = (m: string): string => MONTH_NAMES[Number(m.slice(5, 7)) - 1] ?? '?';
 
   const today = nowIso().slice(0, 7);
-  const months = $derived(closedMonths(trips));
+  const months = $derived(activeMonths(events));
   // Initialisation unique (volontairement pas un `$derived`) : on ne veut pas ramener
-  // l'utilisateur au dernier mois clos à chaque nouvelle synchronisation pendant qu'il navigue.
+  // l'utilisateur au dernier mois actif à chaque nouvelle synchronisation pendant qu'il navigue.
   // svelte-ignore state_referenced_locally
   let month = $state(months.at(-1) ?? today);
   const minMonth = $derived(months[0] ?? today);
@@ -64,7 +70,7 @@
     selectedDay = null;
   }
 
-  const calendar = $derived(calendarMonth(trips, month, toDisplay));
+  const calendar = $derived(calendarMonth(events, month, toDisplay));
   const monthLabel = $derived(`${monthName(month)} ${month.slice(0, 4)}`);
 
   let selectedDay = $state<string | null>(null);
@@ -72,16 +78,31 @@
     if (day.count === 0) return;
     selectedDay = selectedDay === day.day ? null : day.day;
   }
-  const selectedTrades = $derived.by((): JournaledTrip[] => {
+  /**
+   * Trades concernés par le jour sélectionné, avec ce que CHACUN a réalisé ce jour-là (et non son
+   * résultat depuis l'ouverture) : c'est la seule décomposition dont la somme redonne la case.
+   */
+  const selectedTrades = $derived.by((): { trip: JournaledTrip; amount: Big | null }[] => {
     if (selectedDay === null) return [];
-    const found = calendar.weeks
-      .flatMap((w) => w.days)
-      .find((d): d is CalendarDay => d !== null && d.day === selectedDay);
-    if (!found) return [];
-    const byId = new Map(trips.map((t) => [t.trip.id, t]));
-    return found.tripIds
-      .map((id) => byId.get(id))
-      .filter((t): t is JournaledTrip => t !== undefined);
+    // Des Record, pas des Map : la règle `svelte/prefer-svelte-reactivity` interdit une Map mutée
+    // dans du code réactif (elle ne redéclencherait pas le rendu).
+    const byId: Record<string, JournaledTrip> = {};
+    for (const t of trips) byId[t.trip.id] = t;
+    const order: string[] = [];
+    const amounts: Record<string, Big | null> = {};
+    for (const e of events) {
+      if (e.day !== selectedDay || e.tripId === null) continue;
+      if (!(e.tripId in amounts)) {
+        order.push(e.tripId);
+        amounts[e.tripId] = ZERO;
+      }
+      const converted = toDisplay(e.quote, e.amount);
+      const previous = amounts[e.tripId] ?? null;
+      amounts[e.tripId] = converted === null || previous === null ? null : previous.plus(converted);
+    }
+    return order
+      .map((id) => ({ trip: byId[id], amount: amounts[id] ?? null }))
+      .filter((row): row is { trip: JournaledTrip; amount: Big | null } => row.trip !== undefined);
   });
 
   const discreet = $derived(app.state.ui.discreet);
@@ -103,7 +124,8 @@
 </script>
 
 <p class="muted small note">
-  P&L réalisé net par jour de clôture (frais et funding inclus) ; le latent n'y figure pas.
+  P&L réalisé net au jour où il l'a été (frais et funding compris, y compris ceux d'une position
+  encore ouverte) ; le latent n'y figure pas.
   {#if calendar.excluded > 0}
     {calendar.excluded} trade{calendar.excluded > 1 ? 's' : ''} en devise non convertie exclu{calendar.excluded >
     1
@@ -136,9 +158,7 @@
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div class="scroll" tabindex="0" role="region" aria-label="Calendrier de P&L — tableau défilant">
   <table>
-    <caption class="sr-only"
-      >Calendrier de P&L réalisé net par jour de clôture, {monthLabel}</caption
-    >
+    <caption class="sr-only">Calendrier de P&L réalisé net par jour, {monthLabel}</caption>
     <thead>
       <tr>
         {#each WEEKDAY_LABELS as w (w)}
@@ -185,16 +205,16 @@
 
 {#if selectedDay !== null}
   <div class="day-trades">
-    <h3>Trades du {fmtDate(`${selectedDay}T00:00:00`)}</h3>
+    <h3>Réalisé le {fmtDate(`${selectedDay}T00:00:00`)}, par trade</h3>
     <ul class="day-list">
-      {#each selectedTrades as t (t.trip.id)}
+      {#each selectedTrades as row (row.trip.trip.id)}
         <li>
-          <a class="trade-link" href={router.href({ name: 'trade', id: t.trip.id })}>
-            <span class="dir {t.trip.direction}"
-              >{t.trip.direction === 'long' ? 'Long' : 'Short'}</span
+          <a class="trade-link" href={router.href({ name: 'trade', id: row.trip.trip.id })}>
+            <span class="dir {row.trip.trip.direction}"
+              >{row.trip.trip.direction === 'long' ? 'Long' : 'Short'}</span
             >
-            <strong class="sym">{t.trip.symbol}</strong>
-            <Money value={toDisplay(t, t.trip.netPnl)} sign colored strong />
+            <strong class="sym">{row.trip.trip.symbol}</strong>
+            <Money value={row.amount} sign colored strong />
           </a>
         </li>
       {/each}

@@ -6,6 +6,7 @@
  * `toDisplay` (conversion de devise par l'appelant) ; un trade non convertible est compté à part
  * (`excluded`) plutôt que sommé dans la mauvaise devise. Pur, `big.js` seulement.
  */
+import { epochDayOf, weekdayMondayFirst } from '../date';
 import { D, ZERO, divOrNull, type Big } from '../money';
 import type { JournaledTrip } from './journal';
 
@@ -174,12 +175,18 @@ export interface StatsBucket {
   stats: TradingStats;
 }
 
-const WEEKDAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+/** Lundi en premier : l'ordre que renvoie `weekdayMondayFirst`. */
+const WEEKDAYS = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
 
-/** Jour de la semaine d'une date naïve (calcul civil pur, sans `Date` sur la chaîne). */
+/**
+ * Jour de la semaine d'une date naïve, par arithmétique civile entière — mêmes helpers que la
+ * grille du calendrier (`../date`), plutôt qu'un `Date.UTC` de plus : une seule implémentation du
+ * calendrier grégorien dans le moteur.
+ */
 export function weekdayOf(naive: string): string {
-  const [y, m, d] = naive.slice(0, 10).split('-').map(Number) as [number, number, number];
-  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] ?? '?';
+  const epochDay = epochDayOf(naive);
+  if (epochDay === null) return '?';
+  return WEEKDAYS[weekdayMondayFirst(epochDay)] ?? '?';
 }
 
 function durationBucket(holdSeconds: number | null): string {

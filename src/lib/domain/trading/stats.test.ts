@@ -155,8 +155,15 @@ describe('statsBuckets', () => {
     );
   });
 
-  it('weekdayOf : le 23 août 2026 est un dimanche', () => {
+  it('weekdayOf : la semaine complète, aux deux bouts (dimanche = dernier index, piège classique)', () => {
     expect(weekdayOf('2026-08-23T10:00:00')).toBe('dimanche');
+    expect(weekdayOf('2026-08-24T10:00:00')).toBe('lundi');
+    expect(weekdayOf('2026-08-29T23:59:59')).toBe('samedi');
+    // Bissextile et changement de siècle : l'arithmétique civile ne doit pas déraper.
+    expect(weekdayOf('2028-02-29')).toBe('mardi');
+    expect(weekdayOf('2000-02-29')).toBe('mardi');
+    expect(weekdayOf('1970-01-01')).toBe('jeudi');
+    expect(weekdayOf('pas une date')).toBe('?');
   });
 });
 

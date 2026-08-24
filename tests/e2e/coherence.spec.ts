@@ -351,3 +351,39 @@ test('rapport et export CSV reprennent la synthèse', async ({ page }) => {
   expect(Math.abs(csvTotal - s.total)).toBeLessThanOrEqual(tol(lines.length));
   expect(Math.abs(csvLatent - s.latent)).toBeLessThanOrEqual(tol(lines.length));
 });
+
+/**
+ * Espace Trading : le calendrier de P&L et le tableau de bord doivent parler du même argent.
+ * Cette garde manquait, et c'est précisément ce qui a laissé passer un calendrier qui rattachait
+ * tout le résultat d'un aller-retour à son jour de CLÔTURE — les jours de prise de bénéfice
+ * partielle affichaient zéro, et le mois ne collait ni au tableau de bord ni à la plateforme.
+ */
+test('Trading : la somme du calendrier = le réalisé net du tableau de bord', async ({ page }) => {
+  test.skip(Boolean(REAL_CSV), 'espace Trading : jeu de démonstration seulement');
+  await openDemo(page);
+
+  // Tableau de bord : « Réalisé net » de tout l'historique (ligne de la carte Synthèse).
+  await page.goto('#/trading');
+  const summaryLine = page.locator('section.summary p.line');
+  await expect(summaryLine).toBeVisible();
+  const realized = toNumber(plain(await summaryLine.innerText()).match(/Réalisé net (\S+)/)![1]!);
+
+  // Calendrier : somme des totaux hebdomadaires, sur tous les mois atteignables.
+  await page.goto('#/trading/stats');
+  const previous = page.getByRole('button', { name: 'Mois précédent' });
+  await expect(previous).toBeVisible();
+  let calendar = 0;
+  let weeks = 0;
+  for (;;) {
+    const totals = await page.locator('.week-total').allInnerTexts();
+    for (const raw of totals) {
+      if (!/\d/.test(raw)) continue;
+      calendar += toNumber(raw);
+      weeks++;
+    }
+    if (await previous.isDisabled()) break;
+    await previous.click();
+  }
+  expect(weeks).toBeGreaterThan(0);
+  expect(Math.abs(calendar - realized)).toBeLessThanOrEqual(tol(weeks));
+});

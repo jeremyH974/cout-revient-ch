@@ -19,7 +19,10 @@ import {
   parseLedger,
   parseSpotClearinghouse,
 } from '../../src/lib/import/hyperliquid/api-types';
+import { activeMonths, calendarMonth, realizedEvents } from '../../src/lib/domain/trading/calendar';
 import { computeTradingAccount } from '../../src/lib/domain/trading/compute';
+import { journaledTrips } from '../../src/lib/domain/trading/journal';
+import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
 import type { HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { fixtureClient } from '../../src/lib/import/hyperliquid/fixture-client';
 import { sortedFills } from '../../src/lib/import/hyperliquid/data';
@@ -197,5 +200,39 @@ describe('jeu de démonstration Hyperliquid synthétique', () => {
     });
     expect(withoutRate.investEvents).toEqual([]);
     expect(withoutRate.fxMissing).toBe(expectedSpotFills);
+  });
+
+  it('calendrier de P&L : Σ des montants du mois = `totals.net` du tableau de bord', async () => {
+    // La garde qui manquait quand le calendrier rattachait tout au jour de CLÔTURE : deux écrans
+    // de la même application donnaient deux chiffres pour le même mois (décision n° 35).
+    const fixture = generateHlFixture();
+    const { data, spotPairs, error } = await sync(fixture);
+    expect(error).toBeNull();
+    const normalized = normalizeHlAccount(data, {
+      accountId: ACCOUNT_ID,
+      spotPairs,
+      spotAsInvestment: false,
+      eurUsdRate: () => '1.1',
+    });
+    const { executions, funding } = normalized.trading;
+    const trips = journaledTrips(buildRoundTrips(executions, funding), [], {});
+    const events = realizedEvents(trips, executions, funding);
+    expect(events.length).toBeGreaterThan(0);
+
+    const net = computeTradingAccount(normalized.trading).totals.net;
+    const months = activeMonths(events);
+    let calendarTotal = new Big('0');
+    for (const month of months)
+      calendarTotal = calendarTotal.plus(calendarMonth(events, month, (_q, v) => v).total);
+    expect(close(calendarTotal, net, EPS_TIGHT)).toBe(true);
+
+    // Aucun montant n'échappe à la grille : chaque événement tombe dans un mois listé.
+    expect(events.every((e) => months.includes(e.day.slice(0, 7)))).toBe(true);
+    // Chaque aller-retour clos est compté une fois et une seule sur l'ensemble des mois.
+    const closedInGrid = months.reduce(
+      (n, m) => n + calendarMonth(events, m, (_q, v) => v).closed,
+      0,
+    );
+    expect(closedInGrid).toBe(trips.filter((t) => t.trip.status === 'closed').length);
   });
 });

@@ -493,3 +493,31 @@
     `userFills` **envoie l'adresse publique** du compte — la même qu'à chaque synchronisation, à la
     même destination et à personne d'autre. La page Confidentialité le distingue explicitement au
     lieu de laisser croire que les deux flux se valent.
+
+35. **Un montant réalisé est daté du jour où il l'a été, jamais du jour où l'aller-retour se
+    ferme** (24/08/2026, défaut signalé sur un compte Hyperliquid réel). La première version du
+    calendrier de P&L rattachait le résultat NET d'un aller-retour à son `closedAt`. C'était faux
+    dès qu'un trade dure plus d'une journée : une position montée le 3, allégée le 5 et soldée le 7
+    affichait **zéro le 5** puis tout d'un bloc le 7 ; les frais d'ouverture et le funding d'une
+    position **encore ouverte** n'apparaissaient nulle part ; et le total d'un mois ne correspondait
+    ni à la plateforme ni au tableau de bord de l'application, qui compte les fills de la période
+    (`computeTotals`). Sur le seul jeu de démonstration, l'écart d'un mois atteignait déjà 2,21
+    USDC sur 2,27, et huit jours portant du funding réel affichaient 0,00.
+
+    Règle retenue : `realizedEvents` (`domain/trading/calendar.ts`) produit **un montant par
+    événement daté** — `closedPnl − frais` au jour du fill, un paiement de funding au jour du
+    paiement, le net d'un trade manuel au jour de clôture saisi (il n'a pas d'exécution à dater).
+    C'est la règle de l'exchange, et la seule qui rende le calendrier additif : la somme de la
+    grille sur tout l'historique **est** `totals.net` du tableau de bord, à 1e-9 près
+    (`tests/integration/hl-fixture.test.ts`), et une journée sélectionnée se décompose par trade en
+    montants qui redonnent la case.
+
+    Ce qui NE change pas : les statistiques (`stats.ts`) restent par trade — espérance, taux de
+    réussite, profit factor et R n'ont de sens qu'à l'échelle d'un aller-retour, donc rattachés à sa
+    clôture. Leur « P&L net des trades clos » est donc légitimement différent du réalisé net du
+    tableau de bord (qui compte aussi ce qu'une position ouverte a déjà encaissé) : le libellé le
+    dit désormais, plutôt que de laisser deux chiffres proches se contredire en silence.
+
+    **Garde** : `coherence.spec.ts` couvrait l'espace Investissement seulement — c'est ce trou qui a
+    laissé passer le défaut. Il vérifie maintenant aussi que la somme du calendrier égale le réalisé
+    net du tableau de bord, écran contre écran.

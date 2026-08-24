@@ -20,13 +20,9 @@
   const trading = $derived(app.tradingReport);
   /** Équité de trading dans la devise d'affichage ; `null` tant qu'aucun taux USD n'est connu. */
   const tradingEquity = $derived(app.hasTrading ? app.usdcToDisplay(trading.equity) : null);
-  const tradingNet = $derived(
-    app.hasTrading
-      ? app.usdcToDisplay(
-          trading.totals.realized.minus(trading.totals.perpFees).plus(trading.totals.funding),
-        )
-      : null,
-  );
+  // `totals.net` plutôt que la formule recopiée : une seule définition du réalisé net dans toute
+  // l'app (moteur, tableau de bord, calendrier, Vue d'ensemble), donc rien qui puisse diverger.
+  const tradingNet = $derived(app.hasTrading ? app.usdcToDisplay(trading.totals.net) : null);
   /** Valeur nette = valeur des positions + équité de trading (des soldes, jamais des P&L). */
   const netWorth = $derived(
     tradingEquity === null ? t.value : (t.value?.plus(tradingEquity) ?? tradingEquity),

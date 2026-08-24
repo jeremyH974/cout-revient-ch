@@ -100,6 +100,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Calendrier de P&L : les gains et pertes tombaient au mauvais jour.** Tout le résultat d'un
+  aller-retour était affiché le jour de sa clôture. Une position allégée sur plusieurs jours
+  montrait donc 0 € les jours de prise de bénéfice puis tout d'un bloc le dernier jour, les frais et
+  le funding d'une position encore ouverte n'apparaissaient nulle part, et le total du mois ne
+  correspondait ni à votre plateforme ni au tableau de bord de l'application. Chaque montant est
+  désormais daté du jour où il a été réalisé, et cliquer sur une journée détaille ce que chaque
+  trade a réalisé **ce jour-là**.
 - Un virement interne apparié à cheval sur deux jours (retrait le soir, dépôt le surlendemain)
   creusait un trou dans la courbe d'évolution : la valeur du portefeuille tombait à zéro puis
   revenait, alors que les coins n'avaient jamais quitté votre patrimoine.

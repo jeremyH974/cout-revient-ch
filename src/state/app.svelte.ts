@@ -20,6 +20,7 @@ import {
   type PriceQuoteInput,
 } from '$lib/domain/engine';
 import { D, toDecimalString, type Big } from '$lib/domain/money';
+import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
 import {
   emptyJournalEntry,
@@ -279,6 +280,20 @@ export class AppState {
       buildRoundTrips(n.trading.executions, n.trading.funding),
     );
     return journaledTrips(trips, Object.values(this.state.manualTrades), this.state.journal);
+  });
+
+  /**
+   * Montants réalisés datés de l'instant où ils l'ont été (calendrier de P&L) : même source et
+   * même règle que les totaux du tableau de bord (`computeTotals`), pour que les deux écrans ne
+   * puissent pas se contredire.
+   */
+  realized = $derived.by((): RealizedEvent[] => {
+    const accounts = Object.values(this.hlNormalized).map((n) => n.trading);
+    return realizedEvents(
+      this.roundTrips,
+      accounts.flatMap((a) => a.executions),
+      accounts.flatMap((a) => a.funding),
+    );
   });
 
   tripOf(id: string): JournaledTrip | undefined {

@@ -39,8 +39,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   frais, funding, net = réalisé − frais perps + funding, dépôts nets, P&L latent, équité, et
   réconciliation `accountValue ≈ Σ flux + Σ closedPnl − Σ frais perps + Σ funding + latent` —
   auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
-  plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (grille mensuelle du P&L réalisé net
-  par jour de clôture, carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte`).
+  plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (`realizedEvents` : un montant par
+  événement daté — `closedPnl − frais` au jour du fill, funding au jour du paiement — puis grille
+  mensuelle, carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte`. La somme de la
+  grille sur tout l'historique **est** `totals.net`, docs/DECISIONS.md n° 35).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,

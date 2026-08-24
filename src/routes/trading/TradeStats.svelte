@@ -137,7 +137,10 @@
         <dd class="num">{ratio(stats.payoff)}</dd>
       </div>
       <div>
-        <dt>P&L net total</dt>
+        <!-- Explicitement « des trades CLOS » : le tableau de bord et le calendrier, eux, comptent
+             aussi ce qu'une position encore ouverte a déjà réalisé. Deux chiffres légitimement
+             différents, qu'un libellé vague ferait passer pour une contradiction. -->
+        <dt>P&L net des trades clos</dt>
         <dd><Money value={stats.netTotal} sign colored /></dd>
       </div>
       <div>
@@ -180,7 +183,7 @@
 
   <section class="card">
     <h2>Calendrier de P&L</h2>
-    <PnlCalendar trips={app.roundTrips} />
+    <PnlCalendar trips={app.roundTrips} events={app.realized} />
   </section>
 
   <section class="card">
