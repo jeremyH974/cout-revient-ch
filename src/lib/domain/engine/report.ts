@@ -28,6 +28,8 @@ export interface PriceQuoteInput {
 export interface CashFlow {
   at: NaiveDateTime;
   amountEur: Big;
+  /** Événement d'origine : permet d'écarter les jambes de virement interne (TWR). */
+  eventId: EventId;
 }
 
 export type LotOrigin = 'purchase' | 'reward' | 'deposit' | 'migration' | 'opening-balance';

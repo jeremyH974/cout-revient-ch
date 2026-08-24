@@ -4,7 +4,7 @@
  * hors apports (Dietz modifié). Montants en `Big`, jours `YYYY-MM-DD` en UTC.
  */
 import { Big, D, ZERO } from '../domain/money';
-import type { AssetCode, DecimalString, NaiveDateTime } from '../domain/types';
+import type { AssetCode, DecimalString, EventId, NaiveDateTime } from '../domain/types';
 import { numberToDecimal } from '../pricing/types';
 import { addDays, addMonths, dayOfNaive, pointMs } from './days';
 import type { MetricPoint } from './metrics';
@@ -53,6 +53,25 @@ export function holdingStep(ops: readonly HoldingOp[]): HoldingStep {
     }
     return found === -1 ? EMPTY_STATE : states[found]!;
   };
+}
+
+/**
+ * Historique d'une position → opérations pour l'escalier, **jambe sortante des virements internes
+ * appariés retirée**. Sans ce filtre, un virement à cheval sur deux jours (retrait 23 h 30 lundi,
+ * dépôt 1 h 00 mercredi) sort l'actif du portefeuille consolidé pendant deux jours : la courbe de
+ * valeur tombe à zéro puis revient, alors que les coins n'ont jamais quitté le patrimoine. On
+ * garde la jambe ENTRANTE (elle porte la quantité réellement reçue, frais de réseau déduits) et on
+ * jette la sortante : la position reste détenue pendant le transit, et le solde final est juste.
+ * Ne s'applique qu'aux vues consolidées ; dans la vue par compte, un virement est un vrai
+ * mouvement des deux côtés.
+ */
+export function holdingOpsOf(
+  history: readonly (HoldingOp & { eventId: EventId })[],
+  internalTransferLegs: Readonly<Record<EventId, 'out' | 'in'>>,
+): HoldingOp[] {
+  return history
+    .filter((entry) => internalTransferLegs[entry.eventId] !== 'out')
+    .map(({ at, qtyAfter, pruAfter }) => ({ at, qtyAfter, pruAfter }));
 }
 
 export function holdingsByDay(

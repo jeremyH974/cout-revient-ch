@@ -11,6 +11,7 @@ import {
   dayOfNaive,
   defaultHistoryProviders,
   eachDay,
+  holdingOpsOf,
   holdingStep,
   holdingsByDay,
   isEurPegged,
@@ -30,6 +31,8 @@ import {
 } from '$lib/history';
 import { intradayValueSeries, type IntradayValuePoint } from '$lib/history/intraday-series';
 import type { MetricPoint } from '$lib/history/metrics';
+import { computePerformance, toBenchmarkPrices } from '$lib/history/performance';
+import type { ReportPerformance } from '$lib/export/report-model';
 import { app } from './app.svelte';
 
 export interface HistoryStatus {
@@ -249,7 +252,8 @@ export class HistoryState {
     const firstDay = this.firstDayOf(positions);
     if (firstDay === null) return [];
     const ops: Record<AssetCode, HoldingOp[]> = {};
-    for (const p of positions) ops[p.asset] = [...p.history].reverse();
+    const internal = app.internalTransferLegs;
+    for (const p of positions) ops[p.asset] = holdingOpsOf([...p.history].reverse(), internal);
     const today = todayOf(nowMs());
     return valueSeries({
       holdings: holdingsByDay(ops),
@@ -304,9 +308,29 @@ export class HistoryState {
     if (firstDay === null) return [];
     const today = todayOf(nowMs());
     return assetMetricPoints({
-      step: holdingStep(positions.flatMap((p) => [...p.history].reverse())),
+      step: holdingStep(
+        positions.flatMap((p) => holdingOpsOf([...p.history].reverse(), app.internalTransferLegs)),
+      ),
       points: this.pricesFor([scope], today)[scope]?.points ?? [],
       days: eachDay(addDays(firstDay, -1), today),
+    });
+  }
+
+  /**
+   * Performance du Rapport : TWR du portefeuille et repère « mêmes apports sur un seul actif ».
+   * Nécessite l'historique quotidien (`ensure()`) ; sans cotation du repère, seul le TWR est rendu.
+   */
+  performance(benchmarkAsset: AssetCode = 'btc'): ReportPerformance {
+    const today = todayOf(nowMs());
+    const prices = toBenchmarkPrices(
+      this.pricesFor([benchmarkAsset], today)[benchmarkAsset]?.points ?? [],
+    );
+    return computePerformance({
+      series: this.metricPoints('portfolio'),
+      cashFlows: app.report.cashFlows,
+      internalTransferLegs: app.internalTransferLegs,
+      benchmark: prices.length > 0 ? { asset: benchmarkAsset, prices } : null,
+      partialAssets: this.status.partial.length + this.status.missing.length,
     });
   }
 

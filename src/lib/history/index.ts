@@ -35,6 +35,7 @@ export {
 export { RequestQueue, type RequestQueueOptions } from './queue';
 export {
   assetMetricPoints,
+  holdingOpsOf,
   holdingStep,
   holdingsByDay,
   lastPointAtOrBefore,

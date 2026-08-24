@@ -108,8 +108,8 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     if (engaged.gt(run.cashEngagedMax)) run.cashEngagedMax = engaged;
   };
   /** Enregistre un flux externe non nul (achats/frais < 0, produits > 0). */
-  const flow = (at: LedgerEvent['at'], amountEur: Big): void => {
-    if (!amountEur.eq(ZERO)) run.cashFlows.push({ at, amountEur });
+  const flow = (event: LedgerEvent, amountEur: Big): void => {
+    if (!amountEur.eq(ZERO)) run.cashFlows.push({ at: event.at, amountEur, eventId: event.id });
   };
 
   const ordered = sortEvents(events);
@@ -141,7 +141,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
       true,
       move(event, 'deposit', { warnings }),
     );
-    if (acquired) flow(event.at, cost.neg());
+    if (acquired) flow(event, cost.neg());
   };
 
   for (const event of ordered) {
@@ -173,7 +173,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
                 rebateEur: feeToOut ? rebateEur : ZERO,
               }),
             ) !== null;
-          if (outApplied) flow(event.at, value);
+          if (outApplied) flow(event, value);
         }
         if (!inIsCash) {
           inApplied = pos(event.in.asset).acquire(
@@ -188,7 +188,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
               rebateEur: !feeToOut ? rebateEur : ZERO,
             }),
           );
-          if (inApplied) flow(event.at, value.neg());
+          if (inApplied) flow(event, value.neg());
         }
         const applied = outApplied && inApplied;
         if (applied && outIsCash) run.cashIn = run.cashIn.plus(value);
@@ -246,8 +246,8 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         if (realize) {
           // Réalisation : cession + acquisition comptées — deux flux qui se neutralisent,
           // conservés pour que les flux restent la décomposition exacte de Σ achats/Σ produits.
-          flow(event.at, valuation);
-          if (migAcquired) flow(event.at, valuation.neg());
+          flow(event, valuation);
+          if (migAcquired) flow(event, valuation.neg());
         }
         if (!realize) {
           from.investedTotal = from.investedTotal.minus(carried);
@@ -287,7 +287,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         const qty = D(event.out.qty);
         if (event.proceedsEur) {
           const sold = p.dispose(qty, D(event.proceedsEur), true, move(event, 'withdrawal'));
-          if (sold) flow(event.at, D(event.proceedsEur));
+          if (sold) flow(event, D(event.proceedsEur));
         } else {
           const atCost = qty.gte(p.qty) ? p.costBasis : p.costBasis.times(qty).div(p.qty);
           const note =
@@ -300,7 +300,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
             true,
             move(event, 'withdrawal', { warnings: [...event.warnings, note] }),
           );
-          if (disposed) flow(event.at, atCost);
+          if (disposed) flow(event, atCost);
           if (event.transferTo !== undefined && disposed)
             run.transferCosts.set(event.id, disposed.costOfSale);
         }
@@ -320,12 +320,12 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
           true,
           move(event, 'opening-balance'),
         );
-        if (opened) flow(event.at, D(event.costEur).neg());
+        if (opened) flow(event, D(event.costEur).neg());
         break;
       }
       case 'fee':
         run.subscriptionsEur = run.subscriptionsEur.plus(event.amountEur);
-        flow(event.at, D(event.amountEur).neg());
+        flow(event, D(event.amountEur).neg());
         break;
       case 'unqualified':
         run.unqualified.push(event);

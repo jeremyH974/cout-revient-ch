@@ -200,6 +200,21 @@ export class AppState {
 
   events = $derived.by((): LedgerEvent[] => this.transferPairing.events);
 
+  /**
+   * Jambes des virements internes appariés, par identifiant d'événement. Les vues consolidées
+   * (courbe d'évolution, TWR) doivent les neutraliser : les coins n'ont jamais quitté le
+   * patrimoine, seulement changé de compte. Un `Record` et non un `Set` (règle ESLint
+   * `svelte/prefer-svelte-reactivity`).
+   */
+  internalTransferLegs = $derived.by((): Record<EventId, 'out' | 'in'> => {
+    const legs: Record<EventId, 'out' | 'in'> = {};
+    for (const pair of this.transferPairing.pairs) {
+      legs[pair.withdrawalId] = 'out';
+      legs[pair.depositId] = 'in';
+    }
+    return legs;
+  });
+
   /** Comptes Hyperliquid déclarés (espace Trading). */
   hlAccounts = $derived.by((): Account[] =>
     Object.values(this.state.accounts)
