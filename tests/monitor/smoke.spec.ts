@@ -28,6 +28,10 @@ test('la démo charge un portefeuille et se quitte', async ({ page }) => {
     .getByRole('button', { name: 'Essayer avec des données d’exemple', exact: true })
     .click();
   await expect(page.getByRole('status').filter({ hasText: /Données d.exemple/ })).toBeVisible();
+  // Depuis la 2.0.0, la démo atterrit sur la Vue d'ensemble : les positions vivent dans l'espace
+  // Investissement, pas sur l'accueil. La surveillance suit la navigation réelle du site.
+  await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
+  await page.goto('#/invest');
   await expect(
     page.getByRole('list', { name: 'Positions' }).getByRole('listitem').first(),
   ).toBeVisible();
