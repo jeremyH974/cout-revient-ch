@@ -256,3 +256,167 @@ describe('comptes', () => {
     expect(merged.accounts['man:x3']!.label).toBe('Seulement entrant');
   });
 });
+
+/**
+ * Le piège documenté du schéma : ajouter un conteneur à `StoredStateV1` sans le répercuter dans
+ * `withDefaults`, `sanitizeState` et `mergeStates` = perte SILENCIEUSE à la restauration. Rien ne
+ * le vérifiait. Ces tests énumèrent les clés de l'état : un conteneur oublié fait rougir la CI, et
+ * un nouveau conteneur oblige à décider explicitement de son sort à la fusion.
+ */
+describe('complétude du schéma (aucun conteneur ne doit être oublié)', () => {
+  /** Un état dont CHAQUE conteneur porte une donnée reconnaissable et valide. */
+  function populated(): StoredStateV1 {
+    const s = emptyState();
+    s.imports.push({
+      id: 'imp',
+      at: '2026-01-01T10:00:00',
+      fileName: 'x.csv',
+      rows: 1,
+      newRows: 1,
+    });
+    s.rawRows['r1'] = row('r1');
+    s.pivotRows['p1'] = {
+      key: 'p1',
+      importId: 'imp',
+      lineNo: 2,
+      accountId: 'man:invest',
+      date: '2026-01-01 09:00:00',
+      at: '2026-01-01T10:00:00',
+      sent: { amount: '1000', currency: 'eur' },
+      received: { amount: '0.02', currency: 'btc' },
+      fee: null,
+      netWorth: null,
+      label: null,
+      description: null,
+      txHash: null,
+    };
+    s.manualEvents['m1'] = {
+      id: 'm1',
+      at: '2026-01-01T10:00:00',
+      kind: 'buy',
+      asset: 'eth',
+      qty: '1',
+      amountEur: '2000',
+      scope: 'coinhouse',
+      note: '',
+    };
+    s.qualifications['ch:r1:0'] = { kind: 'reward', fairValueEur: null };
+    s.transferOverrides['ch:r1:0'] = 'none';
+    s.taxAnnotations['ch:r1:0'] = { portfolioValueEur: '1000' };
+    s.assetSettings['btc'] = {
+      manualPriceEur: '50000',
+      manualPriceAt: '2026-01-01',
+      coingeckoId: 'bitcoin',
+    };
+    s.accounts['man:trading'] = {
+      id: 'man:trading',
+      kind: 'manual',
+      space: 'trading',
+      label: 'Manuel',
+      createdAt: '2026-01-01T10:00:00',
+    };
+    s.hyperliquid.spotPairs['@107'] = { base: 'HYPE', quote: 'USDC' };
+    s.journal['man:t1'] = {
+      tradeId: 'man:t1',
+      thesis: 'cassure',
+      review: '',
+      setup: 'Cassure',
+      tags: [],
+      mistakes: [],
+      rating: null,
+      plan: null,
+    };
+    s.manualTrades['t1'] = {
+      id: 't1',
+      accountId: 'man:trading',
+      symbol: 'ETH',
+      direction: 'long',
+      qty: '1',
+      entryPrice: '100',
+      exitPrice: '110',
+      openedAt: '2026-01-01T10:00:00',
+      closedAt: '2026-01-02T10:00:00',
+      fees: '1',
+      quote: 'EUR',
+    };
+    s.engineSettings.rewardValuation = 'fair-value';
+    // `stale: true` : un cours relu d'une sauvegarde est périmé par définition — l'assainissement
+    // le marque, et l'égalité stricte plus bas le prouve.
+    s.priceCache['btc'] = {
+      asset: 'btc',
+      priceEur: '50000',
+      at: '2026-01-01',
+      source: 'test',
+      stale: true,
+    };
+    s.fx.rates.USD = { '2026-01-01': '1.1' };
+    s.ui.theme = 'light';
+    return s;
+  }
+
+  /** Chaque conteneur doit être non vide dans `populated()`, sinon le test ne prouve rien. */
+  const filled = (state: StoredStateV1, key: keyof StoredStateV1): boolean => {
+    const value = state[key];
+    if (key === 'schemaVersion') return true;
+    if (Array.isArray(value)) return value.length > 0;
+    if (value && typeof value === 'object') return Object.keys(value).length > 0;
+    return value !== null && value !== undefined;
+  };
+
+  it('sauvegarde → relecture → assainissement : aucun conteneur ne se vide en route', () => {
+    const before = populated();
+    const keys = Object.keys(before) as (keyof StoredStateV1)[];
+    // Garde-fou du test lui-même : si un conteneur ajouté demain n'est pas rempli ici, on le sait.
+    expect(keys.filter((k) => !filled(before, k))).toEqual([]);
+
+    const parsed = parseBackup(serializeBackup(before, '2026-08-24T10:00:00Z'));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const { state: after, dropped } = sanitizeState(parsed.state);
+    expect(dropped, 'aucune donnée valide ne doit être écartée').toBe(0);
+    expect(
+      keys.filter((k) => !filled(after, k)),
+      'conteneurs perdus',
+    ).toEqual([]);
+    expect(after).toEqual(before);
+  });
+
+  it('fusion : chaque conteneur a un sort explicite — union des données, réglages locaux gardés', () => {
+    // Conteneurs de DONNÉES : l'entrant doit survivre à la fusion (union par identifiant).
+    const UNIONED = [
+      'imports',
+      'rawRows',
+      'pivotRows',
+      'manualEvents',
+      'qualifications',
+      'transferOverrides',
+      'taxAnnotations',
+      'assetSettings',
+      'accounts',
+      'hyperliquid',
+      'journal',
+      'manualTrades',
+    ] as const;
+    // Conteneurs LOCAUX : l'état courant l'emporte (docstring de `mergeStates`).
+    const KEPT = ['schemaVersion', 'engineSettings', 'priceCache', 'fx', 'ui'] as const;
+
+    const keys = Object.keys(emptyState()) as string[];
+    const decided = [...UNIONED, ...KEPT] as readonly string[];
+    // Un conteneur ajouté sans décision de fusion tombe ici, plutôt que de se perdre en silence.
+    expect(
+      keys.filter((k) => !decided.includes(k)),
+      'conteneurs sans règle de fusion',
+    ).toEqual([]);
+    expect(
+      decided.filter((k) => !keys.includes(k)),
+      'règles orphelines',
+    ).toEqual([]);
+
+    const merged = mergeStates(emptyState(), populated());
+    for (const key of UNIONED) expect(filled(merged, key), `${key} perdu à la fusion`).toBe(true);
+    for (const key of KEPT)
+      expect(merged[key], `${key} aurait dû rester celui de l'état courant`).toEqual(
+        emptyState()[key],
+      );
+  });
+});

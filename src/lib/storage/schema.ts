@@ -516,6 +516,28 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     if (trade) manualTrades[id] = trade;
     else dropped++;
   }
+  const taxAnnotations: Record<EventId, { portfolioValueEur: DecimalString | null }> = {};
+  for (const [id, raw] of Object.entries(state.taxAnnotations)) {
+    if (isRecord(raw) && isDecimalOrNull(raw['portfolioValueEur']))
+      taxAnnotations[id] = { portfolioValueEur: decOrNull(raw['portfolioValueEur']) };
+    else dropped++;
+  }
+  // Réglages du moteur : unions de chaînes et booléens, jamais assainis jusqu'ici alors que tous
+  // leurs voisins l'étaient. `includeSubscriptionsInPnl` est lu en truthy par `aggregate.ts` — une
+  // sauvegarde éditée à la main portant la CHAÎNE "false" aurait retranché les abonnements du P&L
+  // pendant que l'interrupteur affichait « non ». Une valeur inconnue retombe sur le défaut.
+  const engineSettings: EngineSettings = {
+    migrationMode:
+      state.engineSettings.migrationMode === 'realize'
+        ? 'realize'
+        : DEFAULT_ENGINE_SETTINGS.migrationMode,
+    rewardValuation:
+      state.engineSettings.rewardValuation === 'fair-value'
+        ? 'fair-value'
+        : DEFAULT_ENGINE_SETTINGS.rewardValuation,
+    includeSubscriptionsInPnl: state.engineSettings.includeSubscriptionsInPnl === true,
+  };
+
   const fxRates: FxCache['rates'] = {};
   for (const [currency, raw] of Object.entries(state.fx.rates)) {
     if (!isRecord(raw)) continue;
@@ -563,12 +585,14 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       manualEvents,
       qualifications,
       transferOverrides,
+      taxAnnotations,
       priceCache,
       assetSettings,
       accounts,
       hyperliquid: hl.state,
       journal,
       manualTrades,
+      engineSettings,
       fx,
     },
     dropped,
