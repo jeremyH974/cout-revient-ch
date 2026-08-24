@@ -10,7 +10,11 @@
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
+import type { BenchmarkResult } from '../domain/benchmark';
+import type { TwrResult } from '../domain/twr';
+import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import { MASK, fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty, roundsToZero } from '../format/fr';
+import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
 
@@ -108,6 +112,19 @@ export interface ReportModelOptions {
   subscriptionsInPnl?: boolean | undefined;
   /** Fuseau d'affichage des dates de génération (tests) ; celui du navigateur par défaut. */
   timeZone?: string | undefined;
+  /**
+   * Performance calculée à partir de l'historique des prix (TWR et repère). Optionnelle : le
+   * modèle reste pur et calculable sans historique chargé — les lignes affichent alors « — ».
+   */
+  performance?: ReportPerformance | undefined;
+}
+
+/** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
+export interface ReportPerformance {
+  twr: TwrResult;
+  benchmark: BenchmarkResult | null;
+  /** Actifs détenus dont l'historique de prix est incomplet (avertissement de fenêtre). */
+  partialAssets: number;
 }
 
 interface Formatter {
@@ -348,7 +365,99 @@ function allocationTable(report: PortfolioReport, f: Formatter): ReportTable {
   };
 }
 
+/** Ligne « Rendement hors apports » : annualisé au-delà de 30 jours, cumulé en dessous. */
+function twrKpi(performance: ReportPerformance | undefined, f: Formatter): ReportKpi {
+  const twr = performance?.twr;
+  if (!twr || !twr.ok)
+    return {
+      label: 'Rendement hors apports (TWR)',
+      value: NONE,
+      tone: 'neutral',
+      hint:
+        twr === undefined
+          ? 'nécessite l’historique des prix, en cours de chargement'
+          : 'pas encore assez de jours valorisés',
+    };
+  const rate = twr.annualized ?? twr.cumulative;
+  const notes = [
+    twr.annualized === null
+      ? `cumulé sur ${twr.days} jours (trop court pour annualiser)`
+      : `annualisé, depuis le ${fmtDate(twr.since)}`,
+    'insensible à la date de vos apports',
+  ];
+  if (twr.estimatedDays > 0)
+    notes.push(`${twr.estimatedDays} jour(s) sans cotation, valorisés au coût`);
+  if (twr.neutralizedDays > 0) notes.push(`${twr.neutralizedDays} jour(s) sans capital engagé`);
+  if (performance && performance.partialAssets > 0)
+    notes.push(`${performance.partialAssets} actif(s) à l’historique incomplet`);
+  return {
+    label: 'Rendement hors apports (TWR)',
+    value: f.pct(rate),
+    tone: toneOf(rate, 3),
+    hint: notes.join(' · '),
+  };
+}
+
+/** Ligne « Repère » : le même calendrier d'apports, mais entièrement sur un seul actif. */
+function benchmarkKpi(
+  performance: ReportPerformance | undefined,
+  portfolioValue: Big,
+  f: Formatter,
+): ReportKpi {
+  const benchmark = performance?.benchmark ?? null;
+  const label = `Repère : mêmes apports en ${benchmark ? benchmark.asset.toUpperCase() : 'BTC'}`;
+  if (!benchmark)
+    return {
+      label,
+      value: NONE,
+      tone: 'neutral',
+      hint: 'nécessite l’historique des prix du repère',
+    };
+  const gap = portfolioValue.minus(benchmark.valueEur);
+  const notes = [
+    `vous : ${f.money(portfolioValue)} · écart ${f.money(gap, true)}`,
+    `mêmes montants aux mêmes dates depuis le ${fmtDate(benchmark.since)}`,
+  ];
+  if (benchmark.skippedFlows > 0)
+    notes.push(`${benchmark.skippedFlows} flux hors profondeur de cotation, écartés`);
+  if (benchmark.clampedEur.gt(ZERO))
+    notes.push(`${f.money(benchmark.clampedEur)} de retraits impossibles, rognés`);
+  return { label, value: f.money(benchmark.valueEur), tone: toneOf(gap), hint: notes.join(' · ') };
+}
+
 const METHODOLOGY: ReportParagraph[] = [
+  {
+    title: 'Rendement hors apports (TWR)',
+    text:
+      'Rendement pondéré par le temps : on découpe l’historique en journées, on mesure la ' +
+      'performance de chacune indépendamment des apports qu’elle contient (un apport ne compte ' +
+      'dans le capital de la journée qu’au prorata du temps qui lui reste), puis on enchaîne. ' +
+      'Résultat : un taux insensible au calendrier de vos versements, qui mesure vos choix quand ' +
+      'le XIRR mesure ce que votre argent a rapporté. Les deux se lisent ensemble : leur écart, ' +
+      'c’est l’effet du « moment » de vos apports. Il se calcule sur la fenêtre réellement ' +
+      'couverte par les cotations disponibles, et les journées où une position détenue n’a aucun ' +
+      'cours sont valorisées à leur coût, donc comptées à rendement nul.',
+  },
+  {
+    title: 'Repère « mêmes apports en BTC »',
+    text:
+      'On rejoue vos apports et vos retraits réels — mêmes montants, mêmes dates — comme s’ils ' +
+      'avaient tous porté sur le bitcoin, au cours de chaque date. Un retrait ne peut pas vendre ' +
+      'plus que ce que ce repère détient : l’excédent est signalé plutôt qu’ignoré. C’est un ' +
+      'calcul arithmétique sur des prix passés, à titre de comparaison : les performances ' +
+      'passées ne préjugent pas des performances futures et rien ici ne constitue un conseil en ' +
+      'investissement.',
+  },
+  {
+    title: 'Rendement annualisé (XIRR)',
+    text:
+      'Taux de rendement interne à dates irrégulières (méthode d’Excel, base 365 jours) : le taux ' +
+      'annuel qui égalise tous vos flux datés — achats et frais en sortie, produits en entrée — ' +
+      'et la valeur actuelle du portefeuille. Il est pondéré par les montants ET par le temps : ' +
+      'c’est le rendement « pour vous », sensible au moment de vos apports. Les récompenses ne ' +
+      'sont pas des apports (elles enrichissent la valeur finale) et un virement interne apparié ' +
+      'se neutralise. Affiché seulement au-delà de 30 jours d’historique.',
+  },
   {
     title: 'Coût de revient (PRU)',
     text:
@@ -516,7 +625,28 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     },
   ];
 
+  const xirr = xirrEur(report.cashFlows, {
+    day: msToParisDay(Date.parse(opts.generatedAt)),
+    valueEur: t.value,
+  });
+  const xirrHint = xirr.ok
+    ? `pondéré par les flux, depuis le ${fmtDate(xirr.since)}${unpricedHint}` +
+      (report.blocked.length > 0 ? ' · historique bloqué exclu de la valeur' : '')
+    : xirr.reason === 'too-recent'
+      ? `moins de ${XIRR_MIN_SPAN_DAYS} jours d’historique : annualiser n’aurait pas de sens`
+      : xirr.reason === 'no-convergence'
+        ? 'non calculable sur ces flux'
+        : 'pas encore assez de flux datés (au moins un apport et une valeur)';
+
   const details: ReportKpi[] = [
+    {
+      label: 'Rendement annualisé (XIRR)',
+      value: xirr.ok ? f.pct(xirr.rate) : NONE,
+      tone: xirr.ok ? toneOf(xirr.rate, 3) : 'neutral',
+      hint: xirrHint,
+    },
+    twrKpi(opts.performance, f),
+    benchmarkKpi(opts.performance, t.value, f),
     {
       label: 'Apports nets (espèces)',
       value: f.money(t.netCash),

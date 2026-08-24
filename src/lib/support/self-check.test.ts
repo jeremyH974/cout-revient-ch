@@ -54,13 +54,14 @@ describe('auto-vérifications', () => {
     const byId = Object.fromEntries(checks.map((c) => [c.id, c.level]));
     expect(byId).toEqual({
       invariant: 'ok',
+      cashflows: 'ok',
       lots: 'ok',
       balances: 'ok',
       unqualified: 'ok',
       prices: 'ok',
       backup: 'ok',
     });
-    expect(summarize(checks)).toEqual({ ok: 6, total: 6, worst: 'ok' });
+    expect(summarize(checks)).toEqual({ ok: 7, total: 7, worst: 'ok' });
     expect(checks.find((c) => c.id === 'balances')?.detail).toMatch(/\d+ actifs : soldes/);
   });
 

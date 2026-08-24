@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LedgerEvent, TradeEvent } from '../domain/types';
-import { convertEvents, convertQuotes, earliestDay, rateLookup } from './convert';
+import { convertEvents, convertQuotes, earliestDay, rateLookup, toEurConverter } from './convert';
 import { addDays, refreshRates } from './service';
 import { EMPTY_FX_CACHE, type FxProvider, type RateSeries } from './types';
 
@@ -15,6 +15,7 @@ const trade: TradeEvent = {
   at: '2026-08-20T10:00:00',
   source: 'manual',
   scope: 'coinhouse',
+  accountId: 'ch:main',
   rowKeys: [],
   warnings: [],
   kind: 'trade',
@@ -42,6 +43,7 @@ describe('taux de change', () => {
       at: '2026-08-21T08:00:00',
       source: 'manual',
       scope: 'coinhouse',
+      accountId: 'ch:main',
       rowKeys: [],
       warnings: [],
       kind: 'reward',
@@ -126,5 +128,24 @@ describe('taux de change', () => {
         })
       ).fetched,
     ).toBe(false);
+  });
+});
+
+describe('toEurConverter (prix cotés en dollars)', () => {
+  it('divise par le taux du jour, avec report au dernier jour ouvré connu', () => {
+    const toEur = toEurConverter(series, '2026-08-20'); // jeudi sans taux → 19/08 (1.1605)
+    expect(toEur('116.05')).toBe('100');
+    expect(toEurConverter(series, '2026-08-23')('1.1699')).toBe('1');
+  });
+
+  it('renvoie null sans aucun taux ou avec un taux invalide', () => {
+    expect(toEurConverter({}, '2026-08-20')('100')).toBeNull();
+    expect(toEurConverter({ '2026-08-20': '0' }, '2026-08-20')('100')).toBeNull();
+  });
+
+  it('conserve une précision décimale suffisante pour les petits prix', () => {
+    const toEur = toEurConverter({ '2026-08-20': '1.25' }, '2026-08-20');
+    expect(toEur('0.0000125')).toBe('0.00001');
+    expect(toEur('80')).toBe('64');
   });
 });

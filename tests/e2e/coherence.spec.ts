@@ -7,7 +7,7 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { openDemo } from './helpers/demo';
+import { openDemo, waitForPrices } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
 
 /**
@@ -24,6 +24,7 @@ async function openDataset(page: Page): Promise<void> {
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
   await page.getByRole('link', { name: 'Voir mon portefeuille' }).click();
   await expect(page.getByRole('list', { name: 'Positions' })).toBeVisible();
+  await waitForPrices(page);
 }
 
 test.beforeEach(async ({ context }, testInfo) => {
@@ -78,8 +79,12 @@ async function readRows(list: Locator): Promise<Row[]> {
     const li = items.nth(i);
     const qtyText = await li.locator('.cell.qty .num').innerText();
     const pruText = (await li.locator('.cell.qty .small').innerText()).replace(/^PRU\s*/, '');
-    // Le libellé « Prix » (lecteurs d'écran) précède la valeur.
-    const priceText = (await li.locator('.cell.price').innerText()).replace(/^Prix\s*/, '').trim();
+    // Le libellé « Prix » (lecteurs d'écran) précède la valeur ; la source et l'âge du prix
+    // (« CoinGecko · il y a 2 min ») suivent sur une seconde ligne.
+    const priceText = (await li.locator('.cell.price').innerText())
+      .replace(/^Prix\s*/, '')
+      .split('\n')[0]!
+      .trim();
     const [latent, latentPct] = await nums(li.locator('.cell.latent'));
     rows.push({
       asset: await li.locator('.cell.id strong').innerText(),
@@ -254,8 +259,8 @@ test('fiche actif et onglet Calcul reprennent exactement la ligne du portefeuill
     );
     expect(plain(totalFormula)).toContain(`= ${heroTotal}`);
   }
-  // Le ROI global et la devise n'ont pas changé en chemin.
-  await page.goto('#/');
+  // Le ROI global et la devise n'ont pas changé en chemin (la synthèse vit dans l'espace Investissement).
+  await page.goto('#/invest');
   expect((await readSummary(page)).roiPct).toBe(s.roiPct);
 });
 
@@ -345,4 +350,69 @@ test('rapport et export CSV reprennent la synthèse', async ({ page }) => {
   expect(Math.abs(csvValue - s.value)).toBeLessThanOrEqual(tol(lines.length));
   expect(Math.abs(csvTotal - s.total)).toBeLessThanOrEqual(tol(lines.length));
   expect(Math.abs(csvLatent - s.latent)).toBeLessThanOrEqual(tol(lines.length));
+});
+
+/**
+ * Espace Trading : le calendrier de P&L et le tableau de bord doivent parler du même argent.
+ * Cette garde manquait, et c'est précisément ce qui a laissé passer un calendrier qui rattachait
+ * tout le résultat d'un aller-retour à son jour de CLÔTURE — les jours de prise de bénéfice
+ * partielle affichaient zéro, et le mois ne collait ni au tableau de bord ni à la plateforme.
+ */
+test('Trading : la somme du calendrier = le réalisé net du tableau de bord', async ({ page }) => {
+  test.skip(Boolean(REAL_CSV), 'espace Trading : jeu de démonstration seulement');
+  await openDemo(page);
+
+  // Tableau de bord : « Réalisé net » de tout l'historique (ligne de la carte Synthèse).
+  await page.goto('#/trading');
+  const summaryLine = page.locator('section.summary p.line');
+  await expect(summaryLine).toBeVisible();
+  const realized = toNumber(plain(await summaryLine.innerText()).match(/Réalisé net (\S+)/)![1]!);
+
+  // Calendrier : somme des totaux hebdomadaires, sur tous les mois atteignables.
+  await page.goto('#/trading/stats');
+  const previous = page.getByRole('button', { name: 'Mois précédent' });
+  await expect(previous).toBeVisible();
+  let calendar = 0;
+  let weeks = 0;
+  for (;;) {
+    const totals = await page.locator('.week-total').allInnerTexts();
+    for (const raw of totals) {
+      if (!/\d/.test(raw)) continue;
+      calendar += toNumber(raw);
+      weeks++;
+    }
+    if (await previous.isDisabled()) break;
+    await previous.click();
+  }
+  expect(weeks).toBeGreaterThan(0);
+  expect(Math.abs(calendar - realized)).toBeLessThanOrEqual(tol(weeks));
+});
+
+/**
+ * Vue d'ensemble : elle COMPOSE les deux espaces, elle ne recalcule rien. Personne ne le vérifiait —
+ * elle pouvait dériver de l'un ou de l'autre sans qu'aucun test ne bronche.
+ */
+test('Vue d’ensemble : valeur nette = valeur d’investissement + équité de trading', async ({
+  page,
+}) => {
+  test.skip(Boolean(REAL_CSV), 'Vue d’ensemble : jeu de démonstration seulement');
+  await openDemo(page);
+
+  await page.goto('#/');
+  const trio = page.locator('section.hero .trio');
+  await expect(trio).toBeVisible();
+  const big = trio.locator('.big');
+  const netWorth = toNumber(await big.nth(0).innerText());
+  const investCard = toNumber(await big.nth(1).innerText());
+  const tradingCard = toNumber(await big.nth(2).innerText());
+  // La carte se recoupe d'abord avec elle-même…
+  expect(Math.abs(netWorth - (investCard + tradingCard))).toBeLessThanOrEqual(tol(2));
+
+  // … puis avec chacun des deux espaces, lus sur leur propre écran.
+  await page.goto('#/invest');
+  expect(Math.abs(investCard - (await readSummary(page)).value)).toBeLessThanOrEqual(tol(1));
+
+  await page.goto('#/trading');
+  const equity = toNumber(await page.locator('section.summary .trio .big').nth(1).innerText());
+  expect(Math.abs(tradingCard - equity)).toBeLessThanOrEqual(tol(1));
 });

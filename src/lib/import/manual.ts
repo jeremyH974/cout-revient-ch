@@ -1,5 +1,16 @@
 /** Saisie manuelle → événement du grand livre. */
-import type { LedgerEvent, ManualEvent } from '../domain/types';
+import {
+  COINHOUSE_ACCOUNT_ID,
+  MANUAL_ACCOUNT_ID,
+  type AccountId,
+  type LedgerEvent,
+  type ManualEvent,
+} from '../domain/types';
+
+/** Compte d'une saisie : explicite, sinon déduit de son périmètre (saisies v1). */
+export function manualAccountId(m: Pick<ManualEvent, 'scope' | 'accountId'>): AccountId {
+  return m.accountId ?? (m.scope === 'coinhouse' ? COINHOUSE_ACCOUNT_ID : MANUAL_ACCOUNT_ID);
+}
 
 export function manualToLedgerEvent(m: ManualEvent): LedgerEvent {
   const base = {
@@ -7,6 +18,7 @@ export function manualToLedgerEvent(m: ManualEvent): LedgerEvent {
     at: m.at,
     source: 'manual' as const,
     scope: m.scope,
+    accountId: manualAccountId(m),
     rowKeys: [] as string[],
     warnings: [] as string[],
   };

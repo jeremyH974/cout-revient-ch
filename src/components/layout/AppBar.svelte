@@ -2,10 +2,16 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { fmtDate, fmtRelative } from '$lib/format/fr';
-  import { router } from '$lib/router.svelte';
+  import { router, type Route } from '$lib/router.svelte';
+  import { spaceOf } from '$lib/spaces';
   import { app } from '../../state/app.svelte';
 
-  let { title = 'Coût de revient CH', back = false }: { title?: string; back?: boolean } = $props();
+  /** `back` : `true` = retour à l'accueil de l'espace courant ; une route = cible explicite. */
+  let { title = 'Coût de revient CH', back = false }: { title?: string; back?: boolean | Route } =
+    $props();
+  const space = $derived(spaceOf(router.route.name));
+  const backTo = $derived(typeof back === 'object' ? back : space.home);
+  const backLabel = $derived(typeof back === 'object' ? 'Retour' : space.backLabel);
   let tick = $state(nowMs());
   const THEMES = ['auto', 'light', 'dark'] as const;
   const THEME_LABELS = { auto: 'Système', light: 'Clair', dark: 'Sombre' } as const;
@@ -48,7 +54,7 @@
 
 <header class="bar">
   {#if back}
-    <a class="icon" href={router.href({ name: 'portfolio' })} aria-label="Retour au portefeuille">
+    <a class="icon" href={router.href(backTo)} aria-label={backLabel}>
       <svg viewBox="0 0 24 24" width="22" height="22"
         ><path
           d="M15 5l-7 7 7 7"

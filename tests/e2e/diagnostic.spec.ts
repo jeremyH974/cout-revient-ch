@@ -25,7 +25,8 @@ test('« Copier le diagnostic » met un texte sans montant dans le presse-papier
 
   const text = await page.evaluate(() => navigator.clipboard.readText());
   expect(text).toContain('Coût de revient CH — diagnostic');
-  expect(text).toMatch(/Version : \d+\.\d+\.\d+ \(build /);
+  // SemVer, pré-version comprise (ex. 2.0.0-dev.0 sur la branche v2).
+  expect(text).toMatch(/Version : \d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)? \(build /);
   expect(text).toContain('format coinhouse-2026-08');
   const exchanges = rows.filter((r) => r.type === 'Echange').length;
   expect(text).toContain(`Types d'opérations : Echange ×${exchanges}`);

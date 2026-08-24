@@ -19,6 +19,12 @@
     day: string;
     kind: 'buy' | 'sell';
   }
+  /** Ligne de niveau horizontale étiquetée (entrée moyenne, liquidation, stop, objectif…). */
+  export interface ChartLevel {
+    value: number;
+    label: string;
+    tone: 'gain' | 'loss' | 'info' | 'neutral';
+  }
   export type ChartColorMode = 'trend' | 'sign' | 'vsSecondary';
 </script>
 
@@ -43,6 +49,9 @@
     format = 'money',
     currency = 'EUR',
     markers = [],
+    levels = [],
+    step = false,
+    holes = true,
     height = 220,
     zeroLine = false,
     colorMode = 'trend',
@@ -55,6 +64,12 @@
     format?: ValueFormat;
     currency?: Currency;
     markers?: ChartMarker[];
+    /** Niveaux de référence horizontaux (toujours inclus dans l'échelle verticale). */
+    levels?: ChartLevel[];
+    /** Tracé en marches d'escalier (séries échantillonnées par une plateforme). */
+    step?: boolean;
+    /** false : ne jamais rompre le tracé (échantillonnage irrégulier assumé, ex. `portfolio`). */
+    holes?: boolean;
     height?: number;
     /** Référence = 0 (latent) ; sinon la courbe secondaire (investi, PRU) sert de référence. */
     zeroLine?: boolean;
@@ -101,6 +116,7 @@
       p.secondary !== null ? [p.primary, p.secondary] : [p.primary],
     );
     if (zeroLine) values.push(0);
+    for (const level of levels) values.push(level.value);
     if (values.length === 0) return null;
     let min = Math.min(...values);
     let max = Math.max(...values);
@@ -113,7 +129,10 @@
   });
   const days = $derived(points.map((p) => p.day));
   /** Abscisses proportionnelles au temps ; les jours ou pas omis deviennent des trous. */
-  const layout = $derived(layoutX(days, PAD.left, width - PAD.right));
+  const layout = $derived.by(() => {
+    const raw = layoutX(days, PAD.left, width - PAD.right);
+    return holes ? raw : { xs: raw.xs, holeBefore: raw.holeBefore.map(() => false) };
+  });
   const x = (i: number): number => layout.xs[i] ?? PAD.left;
   const hole = (i: number): boolean => layout.holeBefore[i] ?? false;
   const y = (v: number): number =>
@@ -130,7 +149,14 @@
     return zeroLine ? 0 : p.secondary;
   };
   const linePath = $derived(
-    points.map((p, i) => `${i === 0 || hole(i) ? 'M' : 'L'}${pt(i, p.primary)}`).join(' '),
+    points
+      .map((p, i) => {
+        if (i === 0 || hole(i)) return `M${pt(i, p.primary)}`;
+        // Marches : palier au niveau précédent jusqu'à l'abscisse du point, puis saut vertical.
+        const riser = step ? `L${r1(x(i))},${r1(y(points[i - 1]!.primary))} ` : '';
+        return `${riser}L${pt(i, p.primary)}`;
+      })
+      .join(' '),
   );
   const secondaryPath = $derived(
     points
@@ -149,6 +175,7 @@
     const fwd: string[] = [];
     const back: string[] = [];
     for (let i = s.from; i <= s.to; i++) {
+      if (step && i > s.from) fwd.push(`${r1(x(i))},${r1(y(points[i - 1]!.primary))}`);
       fwd.push(pt(i, points[i]!.primary));
       back.unshift(pt(i, ref(i) ?? 0));
     }
@@ -277,6 +304,21 @@
         <line x1={PAD.left} x2={width - PAD.right} y1={y(0)} y2={y(0)} class="zero" />
         {#if !masked}<text x={PAD.left} y={y(0) - 3} class="axis">{fmt(0)}</text>{/if}
       {/if}
+      {#each levels as level (level.label + level.value)}
+        <line
+          x1={PAD.left}
+          x2={width - PAD.right}
+          y1={y(level.value)}
+          y2={y(level.value)}
+          class="level {level.tone}"
+        />
+        <text
+          x={width - PAD.right}
+          y={y(level.value) - 4}
+          class="level-label {level.tone}"
+          text-anchor="end">{level.label} {fmt(level.value)}</text
+        >
+      {/each}
       {#if areaPath}
         <path d={areaPath} fill="url(#{uid}-fill)" />
       {/if}
@@ -413,6 +455,41 @@
     stroke: var(--border);
     stroke-dasharray: 3 4;
   }
+  .level {
+    fill: none;
+    stroke-width: 1.5;
+    stroke-dasharray: 5 4;
+    opacity: 0.85;
+  }
+  .level.gain {
+    stroke: var(--gain);
+  }
+  .level.loss {
+    stroke: var(--loss);
+  }
+  .level.info {
+    stroke: var(--info);
+  }
+  .level.neutral {
+    stroke: var(--fg-muted);
+  }
+  .level-label {
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .level-label.gain {
+    fill: var(--gain);
+  }
+  .level-label.loss {
+    fill: var(--loss);
+  }
+  .level-label.info {
+    fill: var(--info);
+  }
+  .level-label.neutral {
+    fill: var(--fg-muted);
+  }
+
   .zero {
     stroke: var(--fg-faint);
   }

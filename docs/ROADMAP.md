@@ -10,6 +10,13 @@
 > numéros `[S…]` renvoient à la liste des sources en fin de document. Ce qui n'a pas pu être vérifié
 > est signalé comme tel.
 
+> **Complément du 23/08/2026 — version 2** : la demande d'un membre du Discord (tracker des
+> investissements spot et des trades, journal, statistiques) et l'exigence du propriétaire de séparer
+> clairement « Investissement » et « Trading » font l'objet d'une proposition dédiée, sourcée, dans
+> [`docs/proposals/2026-08-23-espaces-investissement-trading.md`](proposals/2026-08-23-espaces-investissement-trading.md).
+> Ses propositions P19-P28 sont reprises ci-dessous (§ 3 bis et phase T). La version 1 est figée
+> (`v1.0.0`) ; la version 2 se développe sur la branche `v2`.
+
 ## 1. État des lieux (mesuré le 23/08/2026)
 
 **Forces**
@@ -148,8 +155,8 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P11 | Répartition (donut), alerte de concentration, contribution par actif                                                                                                         |   2    |     1     |    3    |    1     |   8    |     2     |
 | P9  | Carte de partage en image + résumé texte pour Discord                                                                                                                        |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
 | P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                                                                                                     |   2    |     5     |    2    |   1,5    |   6    |     0     |
-| P10 | Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                                                                                          |   5    |     2     |    4    |    2     |  5,5   |     2     |
-| P12 | Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                                                |   3    |     5     |    3    |    2     |  5,5   |     2     |
+| P10 | **Livré (v2, 24/08/2026) — complet : XIRR, TWR et repère BTC.** Rendement personnel (XIRR) + TWR expliqué + benchmark BTC / DCA BTC                                          |   5    |     2     |    4    |    2     |  5,5   |     2     |
+| P12 | **Livré (v2, 23/08/2026).** Sauvegarde robuste (IndexedDB, sauvegarde auto sur disque, chiffrement optionnel, rappel iOS)                                                    |   3    |     5     |    3    |    2     |  5,5   |     2     |
 | P5  | **Livré (v1.1, 23/08/2026) — alias réels à compléter avec les testeurs.** Import v2 : variantes d'export, en-têtes EN, nouveaux types Coinhouse, écran « À qualifier » guidé |   5    |     5     |    5    |    3     |   5    |     1     |
 | P7  | Frais réels et spread implicite par opération + « abonnement rentable ? »                                                                                                    |   5    |     2     |    5    |   2,5    |  4,8   |     1     |
 | P14 | Transfert entre appareils (QR / lien compressé)                                                                                                                              |   2    |     2     |    3    |   1,5    |  4,7   |     3     |
@@ -157,6 +164,25 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P18 | Version anglaise                                                                                                                                                             |   2    |     1     |    2    |    2     |  2,5   |     3     |
 | P13 | Mode fiscal FR « estimation » (150 VH bis, 31,4 %, 2086) + réconciliation DAC8                                                                                               |   5    |     3     |    4    |    5     |  2,4   |     3     |
 | P17 | Importeur générique multi-plateformes (Binance, Kraken, Ledger…)                                                                                                             |   2    |     1     |    2    |    4     |  1,3   |     3     |
+
+### 3 bis. Propositions ajoutées le 23/08/2026 (version 2 — détail dans `docs/proposals/`)
+
+| #   | Proposition                                                                                                            | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |                                                  Phase                                                  |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :-----------------------------------------------------------------------------------------------------: |
+| P27 | « Copier un résumé anonymisé de mes stats » pour une revue assistée par l'IA de son choix                              |   2    |     1     |    3    |   0,5    | **12** |                                               livré (v2)                                                |
+| P23 | Bouton « Actualiser » v2 : horodatage, source, badge « périmé », prix Hyperliquid/DefiLlama, clé CoinGecko optionnelle |   3    |     4     |    4    |    1     | **11** |                                         livré (v2, 23/08/2026)                                          |
+| P28 | Vue d'ensemble v2 : valeur nette consolidée, cartes des deux espaces, flux entre espaces, alertes                      |   4    |     3     |    5    |   1,5    |   8    |                                 livré (v2, hors courbe de valeur nette)                                 |
+| P22 | Statistiques de trading : espérance, profit factor, drawdown, ventilations, calendrier, garde-fous, export             |   5    |     2     |    4    |   2,5    |  4,4   |                                               livré (v2)                                                |
+| P21 | Journal de trading : aller-retours automatiques, saisie manuelle, notes, tags/setups, plan → R                         |   5    |     2     |    5    |    3     |   4    |                                               livré (v2)                                                |
+| P19 | Espaces Investissement / Trading + comptes de première classe + navigation v2 + Vue d'ensemble v1                      |   4    |     3     |    4    |    3     |  3,7   |                              livré (v2, 23/08/2026 — rail desktop compris)                              |
+| P20 | Import Hyperliquid en lecture seule (adresse publique) : fills spot + perps, funding, dépôts/retraits                  |   5    |     3     |    5    |    4     |  3,3   |                                               livré (v2)                                                |
+| P24 | Import « format pivot » (CSV Universal Koinly/Waltio) + virements internes appariés + convertisseurs natifs            |   4    |     3     |    3    |   3 +    |  3,3   | livré (v2, 23/08/2026 ; convertisseurs natifs par plateforme livrés le 24/08/2026, voir P24 ci-dessous) |
+| P26 | Mode « live » WebSocket optionnel sur l'écran Trading                                                                  |   2    |     1     |    2    |   1,5    |  3,3   |                               livré (v2, 24/08/2026 — prix ET exécutions)                               |
+| P25 | Lecture on-chain par adresse (BTC mempool.space, EVM Etherscan V2 / Blockscout)                                        |   2    |     2     |    3    |    3     |  2,3   |      livré (v2, 24/08/2026 — BTC adresse et xpub, EVM Blockscout + secours Routescan/Etherscan V2)      |
+
+P12 (sauvegarde robuste, IndexedDB) devient un **prérequis** de P20 (volume des fills Hyperliquid).
+**P17 est remplacé par P24** (format pivot, complété par des convertisseurs natifs livrés le
+24/08/2026, jamais de clé API d'exchange dans le site).
 
 Le ROI brut ne fait pas tout : l'ordre ci-dessous tient compte de l'**urgence** (P5 : les lignes de
 staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import) et du **risque**
@@ -255,6 +281,8 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
 
 **P10 — Rendement personnel et benchmark (2 sessions)**
 
+**Livré (v2, 24/08/2026) — XIRR seul ; TWR expliqué et benchmark BTC / DCA BTC restent à faire.**
+
 - Quoi : « Votre rendement personnel » (XIRR annualisé, comme Vanguard [S24]) en chiffre-titre, TWR
   en secondaire avec une phrase d'explication, et deux comparaisons : « si vous aviez acheté du BTC
   aux mêmes dates et pour les mêmes montants » et « vs BTC sur la période ».
@@ -270,6 +298,8 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
   total. Fonctions attendues partout (eToro, Kubera, Ghostfolio) pour un effort faible.
 
 **P12 — Sauvegarde robuste (2 sessions)**
+
+**Livré (v2, 23/08/2026).**
 
 - Quoi : état principal déplacé de localStorage (5 Mo) vers IndexedDB ; sur Chrome/Edge desktop,
   sauvegarde automatique dans un dossier choisi une fois (ex. iCloud Drive/OneDrive/Google Drive)
@@ -307,6 +337,51 @@ leur sortie, vérification des actions tierces avant le retrait de Node 20 [S63]
 **P17 — Importeur générique multi-plateformes (4 sessions)** et **P18 — Version anglaise
 (2 sessions)** : élargissent le public au-delà du Discord ; à ne lancer que si la demande existe.
 
+### Phase T — Version 2 : deux espaces « Investissement » et « Trading » + Vue d'ensemble (≈ 17 sessions)
+
+Ordre : **P23** (immédiat, 1 session) → **P5** (reste prioritaire : lignes de staking Coinhouse)
+→ **P19** → **P12** → **P20** → **P21** → **P28** → **P22 + P27** → **P24** → **P10** → **P25** →
+**P26**. Chaque étape est utilisable seule ; la V1 reste déployée tant que la V2 n'est pas prête.
+Toutes ces étapes sont livrées au 24/08/2026.
+
+- **P19 — Espaces + comptes + navigation v2 (3 sessions)** : `Account` rattaché à un espace
+  (Coinhouse, manuel, Hyperliquid, CSV), PRU par compte et consolidé dans Investissement, barre de
+  navigation « Vue d'ensemble · Investissement · Trading · Plus » (anciens liens redirigés),
+  registre des espaces, état scindé, Vue d'ensemble v1, provenance réelle dans les exports.
+- **P20 — Import Hyperliquid lecture seule (4 sessions)** : client `info` minimal (CORS vérifié,
+  sans clé), synchronisation incrémentale des fills spot et perps, funding, dépôts/retraits, USDC →
+  EUR à la date, spot → moteur PRU (option), perps → moteur trading, réconciliations, fixture
+  synthétique, monitor de contrat API.
+- **P21 — Journal de trading (3 sessions)** : aller-retours automatiques (flips, liquidations),
+  saisie manuelle en 20 s, notes avant/après, tags et setups, plan entrée/stop/cible → R.
+- **P28 — Vue d'ensemble v2 (1,5 session)** : valeur nette = positions + équité trading ; deux
+  résultats côte à côte, jamais additionnés ; répartition du capital ; flux entre espaces ; alertes.
+- **P22 — Statistiques (2,5 sessions)** : espérance (€ et R), profit factor, taux de réussite,
+  drawdown, ventilations par setup/actif/sens/jour/durée, calendrier, avertissement si n < 30,
+  export CSV/JSON du journal. **P27** (0,5 session) : résumé anonymisé à coller dans une IA.
+- **P24 — Format pivot (3 sessions).** **Livré (v2, 23/08/2026 ; convertisseurs natifs et JSON
+  Ghostfolio livrés le 24/08/2026).** CSV Universal Koinly (lu aussi par Waltio) et export interne
+  Koinly (Bulk edit → Export), virements internes appariés (report de coût), export au même format,
+  fixtures synthétiques. Convertisseurs natifs par plateforme (Kraken, Coinbase, Bitvavo, Revolut,
+  Ledger Live) et import JSON Ghostfolio, finalement livrés dans la foulée plutôt que laissés « à la
+  demande » : détail dans docs/pivot-import.md, docs/DECISIONS.md n° 26.
+- **P10 — Rendement personnel (2 sessions).** **Livré (v2, 24/08/2026) — complet.** Taux de
+  rendement interne annualisé (méthode Excel, base 365) calculé sur les flux réels du grand livre,
+  affiché dans la synthèse du Rapport (écran et PDF), à côté du **TWR** (rendement hors apports,
+  Dietz modifié quotidien enchaîné) et du **repère « mêmes apports en BTC »** — vos flux réels
+  rejoués aux mêmes dates sur un seul actif. Détail : docs/DECISIONS.md n° 27, 30 et 31.
+- **P25 — On-chain par adresse (3 sessions).** **Livré (v2, 24/08/2026).** Bitcoin (mempool.space)
+  et EVM Ethereum/Arbitrum One/Base (Blockscout, liste blanche d'adresses de contrats pour les
+  jetons, jamais le symbole) ; mouvements sans valeur EUR, candidats à l'appariement de virement ou
+  lignes à qualifier. **Clés publiques étendues Bitcoin** (xpub/ypub/zpub) dérivées localement, avec
+  netting au niveau du portefeuille ; **secours EVM** Routescan (sans clé) et clé d'explorateur
+  facultative (Etherscan V2 / Blockscout Pro), l'API publique Blockscout étant en sursis. Taproot hors
+  périmètre. Détail : docs/onchain-import.md, docs/DECISIONS.md n° 28, 32 et 33.
+- **P26 — Prix « live » (1,5 session).** **Livré (v2, 24/08/2026).** Interrupteur opt-in sur l'écran
+  Trading, WebSocket Hyperliquid : `allMids` pour les prix (jamais écrits dans le cache persisté) et
+  `userFills`/`userFundings` pour les exécutions, sur un socket partagé. Deux interrupteurs distincts,
+  décochés par défaut. Détail : docs/DECISIONS.md n° 29 et 34.
+
 ## 5. Ce qui n'est pas recommandé
 
 - **Alertes de prix / notifications push** : impossible sans serveur (et Coinhouse les annonce dans sa
@@ -318,6 +393,14 @@ leur sortie, vérification des actions tierces avant le retrait de Node 20 [S63]
   (P14) couvre le besoin réel.
 - **API Binance** comme source de prix : conditions d'utilisation restrictives, accès navigateur non
   garanti.
+- **Clés API d'exchange stockées dans le site** (Kraken, Coinbase, Bitvavo…) : les API privées
+  refusent le CORS depuis un site tiers, et un secret dans `localStorage` transformerait toute faille
+  XSS ou dépendance compromise en exfiltration silencieuse. Lecture par adresse publique ou CSV
+  seulement.
+- **Proxy pour CoinMarketCap** : CMC interdit les appels depuis un navigateur ; un proxy casserait la
+  promesse « aucun serveur ». Coinbase, Kraken, CoinGecko, Hyperliquid et DefiLlama suffisent.
+- **`ccxt` ou un SDK Hyperliquid complet dans le navigateur** : CORS non fiable, poids du bundle,
+  fonctions de signature inutiles pour de la lecture seule.
 
 ## 6. Ce que vous devez décider ou faire vous-même
 
@@ -331,6 +414,11 @@ leur sortie, vérification des actions tierces avant le retrait de Node 20 [S63]
    le Discord grandit ; l'app la stockera localement.
 6. **Rythme** : une session par proposition, validée par vous dans le navigateur avec le critère de
    réussite indiqué, puis publiée (la CI déploie automatiquement).
+7. **Version 2** : confirmer l'ordre (P23, puis P5, puis P19…), le périmètre Hyperliquid de départ
+   (spot + perps recommandé) et le routage par défaut du spot Hyperliquid (Trading, avec option
+   « investissement » par compte).
+8. **Testeurs trading** : recruter 2 ou 3 membres actifs sur Hyperliquid (dont le demandeur) ; ils
+   ne fournissent jamais leurs données, seulement le diagnostic anonyme de l'app.
 
 ## 7. Indicateurs de suivi
 

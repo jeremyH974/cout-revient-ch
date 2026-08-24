@@ -11,7 +11,7 @@
       const result = await app.loadDemo();
       if (!result.ok) return toasts.push(result.error, 'error');
       toasts.push('Données d’exemple chargées : tout est fictif.', 'info');
-      router.navigate({ name: 'portfolio' });
+      router.navigate({ name: 'overview' });
       void app.refreshPrices();
     } catch {
       toasts.push('Impossible de charger les données d’exemple.', 'error');

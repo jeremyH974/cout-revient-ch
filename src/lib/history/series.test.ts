@@ -3,6 +3,7 @@ import { D, ZERO } from '../domain/money';
 import { eachDay } from './days';
 import {
   assetMetricPoints,
+  holdingOpsOf,
   holdingStep,
   holdingsByDay,
   lastPointAtOrBefore,
@@ -25,6 +26,39 @@ const point = (day: string, value: string): ValuePoint => ({
   value: D(value),
   cost: ZERO,
   missing: [],
+});
+
+describe('holdingOpsOf — virements internes appariés', () => {
+  // Retrait le 10 à 23 h 30, dépôt le 12 à 1 h 00 : sans filtre, l'actif quitte le portefeuille
+  // consolidé pendant deux jours et la courbe de valeur tombe à zéro puis remonte.
+  const history = [
+    { eventId: 'buy', ...op('2026-03-01T10:00:00', '1', '1000') },
+    { eventId: 'w', ...op('2026-03-10T23:30:00', '0', null) },
+    { eventId: 'd', ...op('2026-03-12T01:00:00', '0.999', '1001') },
+  ];
+  const days = eachDay('2026-03-09', '2026-03-13');
+  const prices = { btc: { points: days.map((day) => ({ day, priceEur: '2000' })) } };
+
+  it('sans le filtre, la valeur consolidée s’effondre pendant le transit', () => {
+    const series = valueSeries({ holdings: holdingsByDay({ btc: history }), prices, days });
+    expect(series.map((p) => p.value.toString())).toEqual(['2000', '0', '0', '1998', '1998']);
+  });
+
+  it('avec le filtre, la position reste détenue pendant le transit', () => {
+    const ops = holdingOpsOf(history, { w: 'out', d: 'in' });
+    const series = valueSeries({ holdings: holdingsByDay({ btc: ops }), prices, days });
+    expect(series.map((p) => p.value.toString())).toEqual(['2000', '2000', '2000', '1998', '1998']);
+  });
+
+  it('garde la jambe entrante : les frais de réseau sont bien retenus au solde final', () => {
+    const ops = holdingOpsOf(history, { w: 'out', d: 'in' });
+    expect(holdingStep(ops)('2026-03-20').qty.toString()).toBe('0.999');
+  });
+
+  it('ne touche pas aux mouvements ordinaires ni aux virements non appariés', () => {
+    expect(holdingOpsOf(history, {})).toHaveLength(3);
+    expect(holdingOpsOf(history, { autre: 'out' })).toHaveLength(3);
+  });
 });
 
 describe('holdingsByDay', () => {

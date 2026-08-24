@@ -16,6 +16,9 @@
   --border: #262b36;
   --accent: #5b8def;
   --accent-fg: #0b1220;
+  /* Accent par espace (proposition v2, § 6.0) : toujours doublé d'une icône et d'un libellé. */
+  --accent-invest: #5b8def;
+  --accent-trading: #f0a24b;
   --gain: #4ade80;
   --loss: #f87171;
   --warn: #fbbf24;
@@ -54,6 +57,8 @@
   --border: #e5e7eb;
   --accent: #2563eb;
   --accent-fg: #ffffff;
+  --accent-invest: #2563eb;
+  --accent-trading: #c2410c;
   --gain: #15803d;
   --loss: #b91c1c;
   --warn: #b45309;
@@ -73,6 +78,8 @@
     --border: #e5e7eb;
     --accent: #2563eb;
     --accent-fg: #ffffff;
+    --accent-invest: #2563eb;
+    --accent-trading: #c2410c;
     --gain: #15803d;
     --loss: #b91c1c;
     --warn: #b45309;

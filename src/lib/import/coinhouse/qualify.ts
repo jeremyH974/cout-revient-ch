@@ -1,4 +1,5 @@
 /** Lignes isolées (récompense, dépôt, retrait, inconnu) et qualifications utilisateur. */
+import { COINHOUSE_ACCOUNT_ID } from '../../domain/types';
 import { D, isNegative, isPositive, toDecimalString } from '../../domain/money';
 import type {
   LedgerEvent,
@@ -23,6 +24,7 @@ export function buildSingleEvent(row: RawCoinhouseRow): LedgerEvent {
     at: row.at,
     source: 'coinhouse-csv' as const,
     scope: 'coinhouse' as const,
+    accountId: COINHOUSE_ACCOUNT_ID,
     rowKeys: [row.key],
     warnings: [`Type « ${row.type} » interprété par heuristique : à vérifier.`],
   };
@@ -49,6 +51,7 @@ export function applyQualification(event: UnqualifiedEvent, q: Qualification): L
     at: event.at,
     source: event.source,
     scope: event.scope,
+    accountId: event.accountId,
     rowKeys: event.rowKeys,
     warnings: [] as string[],
   };

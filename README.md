@@ -33,17 +33,26 @@ transactions.csv`). Sur iPhone : appui long → _Enregistrer dans Fichiers_.
 5. Importez-le dans l'application. Vous pouvez ré-importer un nouvel export à tout moment : les
    opérations déjà connues sont ignorées.
 
+**Une autre plateforme** s'importe dans un compte dédié, avec appariement automatique des virements
+entre vos comptes : convertisseur natif pour Kraken, Coinbase, Bitvavo, Ledger Live et Revolut
+(détection automatique de l'en-tête), CSV au format Koinly/Waltio pour les autres (Binance, Bybit,
+la plupart des wallets…), ou export JSON d'activités Ghostfolio ; détails dans
+[docs/pivot-import.md](docs/pivot-import.md). **Une adresse publique on-chain** (Bitcoin, Ethereum,
+Arbitrum One, Base) se suit en lecture seule depuis l'écran Comptes, sans clé ; détails dans
+[docs/onchain-import.md](docs/onchain-import.md).
+
 ## Ce que l'outil calcule
 
-| Indicateur      | Définition                                                                                                                                 |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **PRU**         | Coût moyen d'une unité, **spread et frais inclus** (coût moyen pondéré). Il change seulement quand vous achetez, jamais quand vous vendez. |
-| **Investi**     | Quantité détenue × PRU.                                                                                                                    |
-| **Latent**      | Valeur actuelle − Investi (ce que vous gagneriez ou perdriez en vendant tout maintenant).                                                  |
-| **Réalisé**     | Gains ou pertes déjà encaissés sur vos ventes (produit de vente − quantité vendue × PRU du moment).                                        |
-| **Total**       | Réalisé + latent.                                                                                                                          |
-| **ROI**         | Total ÷ somme de tous vos achats.                                                                                                          |
-| **Net investi** | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                          |
+| Indicateur                     | Définition                                                                                                                                                                                                                      |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PRU**                        | Coût moyen d'une unité, **spread et frais inclus** (coût moyen pondéré). Il change seulement quand vous achetez, jamais quand vous vendez.                                                                                      |
+| **Investi**                    | Quantité détenue × PRU.                                                                                                                                                                                                         |
+| **Latent**                     | Valeur actuelle − Investi (ce que vous gagneriez ou perdriez en vendant tout maintenant).                                                                                                                                       |
+| **Réalisé**                    | Gains ou pertes déjà encaissés sur vos ventes (produit de vente − quantité vendue × PRU du moment).                                                                                                                             |
+| **Total**                      | Réalisé + latent.                                                                                                                                                                                                               |
+| **ROI**                        | Total ÷ somme de tous vos achats.                                                                                                                                                                                               |
+| **Net investi**                | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                                                                                                               |
+| **Rendement annualisé (XIRR)** | Taux annuel qui égalise tous vos flux datés (achats et frais en sortie, produits en entrée) et la valeur actuelle du portefeuille — méthode Excel, base 365 jours. Affiché dans le Rapport ; masqué sous 30 jours d'historique. |
 
 ### Rapport PDF
 
@@ -69,6 +78,17 @@ dernier taux connu) : le PRU en dollars reflète le change réel de vos achats, 
 conversion des totaux ne ferait pas. Taux fournis par l'API ouverte Frankfurter (BCE), mis en cache
 et inclus dans la sauvegarde.
 
+## Trading : Hyperliquid en lecture seule
+
+Un second espace, séparé du PRU : collez une **adresse publique** Hyperliquid (jamais de clé) dans
+l'écran Comptes pour voir l'équité de votre compte, vos positions ouvertes, vos avoirs spot et un
+P&L net (réalisé − frais + funding), avec une réconciliation vérifiée à chaque actualisation. Seule
+l'adresse est envoyée, et uniquement à `api.hyperliquid.xyz` ; détails dans
+[docs/hyperliquid-import.md](docs/hyperliquid-import.md). Un interrupteur **« Prix en direct »**
+(désactivé par défaut) ouvre un flux WebSocket vers Hyperliquid pour rafraîchir en continu le prix
+des actifs que vous détenez ; il se coupe dès que l'onglet passe en arrière-plan et ne modifie jamais
+le cache de prix normal.
+
 ## Aide et retours
 
 Un fichier refusé, un chiffre douteux, une idée : **Réglages → Aide et retours → « Signaler
@@ -88,8 +108,9 @@ questions, idées et sondages se discutent dans
   depuis le CSV avec un code distinct du moteur et doit concorder à 10⁻⁹ près (fixture et export
   réel local).
 - **Surveillance automatique** (`.github/workflows/monitor.yml`, toutes les 6 h) : parcours
-  Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken, BCE) ;
-  une issue « [monitoring] » s'ouvre en cas d'échec et se referme au rétablissement.
+  Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken,
+  Hyperliquid, DefiLlama, BCE) ; une issue « [monitoring] » s'ouvre en cas d'échec et se referme
+  au rétablissement.
   `npm run monitor` lance la même chose localement.
 - **Page Nouveautés** (Réglages → Nouveautés) : le changelog lu dans l'application ; un bandeau
   signale chaque mise à jour installée.
@@ -121,6 +142,10 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   entièrement synthétique, produit par `npm run fixture` (aucune donnée réelle, même transformée).
   Un export réel placé à la racine du projet (ignoré par git) est testé en plus, localement.
 - Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
+- Feuille de route et propositions : [docs/ROADMAP.md](docs/ROADMAP.md) ; version 2 (espaces
+  « Investissement » et « Trading », Vue d'ensemble, import Hyperliquid en lecture seule, journal
+  de trading) : [docs/proposals/](docs/proposals/2026-08-23-espaces-investissement-trading.md).
+  La version 1 est figée par le tag `v1.0.0` ; la version 2 se développe sur la branche `v2`.
 
 ### Qualité automatisée
 
@@ -138,7 +163,8 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
 ### Confidentialité
 
 Aucun backend, aucun compte, aucune statistique. Les données restent dans le navigateur
-(`localStorage`) ; seuls les tickers détenus sont envoyés à CoinGecko puis Coinbase pour les prix.
+(`localStorage`) ; seuls les tickers détenus sont envoyés aux fournisseurs de prix (CoinGecko,
+Coinbase, Kraken, Hyperliquid, DefiLlama, dans cet ordre) et à Frankfurter pour le taux BCE.
 Sauvegarde/restauration JSON dans les réglages.
 
 ## Licence

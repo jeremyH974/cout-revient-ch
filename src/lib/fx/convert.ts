@@ -38,6 +38,21 @@ export function rateLookup(series: RateSeries): RateLookup {
 
 const mul = (value: DecimalString, rate: DecimalString): DecimalString =>
   toDecimalString(D(value).times(rate));
+
+/**
+ * Convertisseur devise → EUR pour un prix coté en dollars (ou USDC, traité comme USD) :
+ * division par le taux EUR→devise du jour demandé (report au dernier jour ouvré connu).
+ * Renvoie `null` tant qu'aucun taux n'est disponible : l'appelant laisse alors l'actif sans prix
+ * plutôt que d'afficher un montant dans la mauvaise devise.
+ */
+export function toEurConverter(
+  series: RateSeries,
+  day: string,
+): (value: DecimalString) => DecimalString | null {
+  const rate = rateLookup(series).rate(day);
+  if (rate === null || !D(rate).gt('0')) return () => null;
+  return (value) => toDecimalString(D(value).div(rate));
+}
 const mulOrNull = (value: DecimalString | null, rate: DecimalString): DecimalString | null =>
   value === null ? null : mul(value, rate);
 

@@ -6,18 +6,18 @@
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
-  import CalcTab from '../components/asset/CalcTab.svelte';
-  import HistoryTab from '../components/asset/HistoryTab.svelte';
-  import LotsTab from '../components/asset/LotsTab.svelte';
-  import EvolutionCard from '../components/charts/EvolutionCard.svelte';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import CoinBadge from '../components/shared/CoinBadge.svelte';
-  import Money from '../components/shared/Money.svelte';
-  import Pct from '../components/shared/Pct.svelte';
-  import Qty from '../components/shared/Qty.svelte';
-  import Sheet from '../components/shared/Sheet.svelte';
-  import { app } from '../state/app.svelte';
-  import { toasts } from '../state/ui.svelte';
+  import CalcTab from '../../components/asset/CalcTab.svelte';
+  import HistoryTab from '../../components/asset/HistoryTab.svelte';
+  import LotsTab from '../../components/asset/LotsTab.svelte';
+  import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import CoinBadge from '../../components/shared/CoinBadge.svelte';
+  import Money from '../../components/shared/Money.svelte';
+  import Pct from '../../components/shared/Pct.svelte';
+  import Qty from '../../components/shared/Qty.svelte';
+  import Sheet from '../../components/shared/Sheet.svelte';
+  import { app } from '../../state/app.svelte';
+  import { toasts } from '../../state/ui.svelte';
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { asset }: { asset: string } = $props();
@@ -141,7 +141,7 @@
       onclick={() =>
         downloadText(
           `cout-revient-ch-${asset}-operations-${localDay(nowMs())}.csv`,
-          operationsToCsv(app.report, app.currency, asset),
+          operationsToCsv(app.report, app.currency, asset, app.accountLabels),
           'text/csv;charset=utf-8',
         )}>Télécharger l'historique de {asset.toUpperCase()} (CSV)</button
     >

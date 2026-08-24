@@ -1,5 +1,6 @@
 <script lang="ts">
   import { nowIso } from '$lib/clock';
+  import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks, summarize, type CheckLevel } from '$lib/support/self-check';
   import { app } from '../../state/app.svelte';
 
@@ -18,6 +19,13 @@
         lastBackupAt: app.state.ui.lastBackupAt,
         persisted: null,
         saveError: app.saveError,
+      },
+      platform: { ios: isIOS(), standalone: isStandalone() },
+      trading: app.tradingChecks,
+      transfers: {
+        pairs: app.transferPairing.pairs.length,
+        unpairedWithdrawals: app.transferPairing.unpairedWithdrawals.length,
+        unpairedDeposits: app.transferPairing.unpairedDeposits.length,
       },
       now: nowIso(),
     }),

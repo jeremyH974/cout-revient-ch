@@ -54,7 +54,7 @@ test('mode discret : montants et quantités masqués partout, PRU, prix et % con
   await expect(summary).toContainText('hors P&L');
   await page.goto('#/settings');
   await page.getByRole('checkbox', { name: /Déduire les abonnements/ }).check();
-  await page.goto('#/');
+  await page.goto('#/invest'); // la synthèse (section.summary) vit dans l'espace Investissement
   await expect(summary).toContainText('déduits du P&L');
   await expect(summary).not.toContainText('hors P&L');
 

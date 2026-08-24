@@ -1,14 +1,15 @@
 <script lang="ts">
+  import { COINHOUSE_ACCOUNT_ID, MANUAL_ACCOUNT_ID } from '$lib/domain/types';
   import { normalizeAssetCode } from '$lib/domain/assets';
   import { D } from '$lib/domain/money';
   import type { ManualEvent } from '$lib/domain/types';
   import { fmtDateTime, fmtMasked, fmtMoney } from '$lib/format/fr';
   import { parseNaiveDateTime } from '$lib/import/coinhouse/rows';
   import { TICKERS } from '$lib/pricing/tickers';
-  import AppBar from '../components/layout/AppBar.svelte';
-  import Qty from '../components/shared/Qty.svelte';
-  import { app } from '../state/app.svelte';
-  import { toasts } from '../state/ui.svelte';
+  import AppBar from '../../components/layout/AppBar.svelte';
+  import Qty from '../../components/shared/Qty.svelte';
+  import { app } from '../../state/app.svelte';
+  import { toasts } from '../../state/ui.svelte';
 
   type Kind = ManualEvent['kind'];
   const kinds: { value: Kind; label: string; amount: string | null }[] = [
@@ -25,7 +26,19 @@
   let qty = $state('');
   let amount = $state('');
   let note = $state('');
-  let scope = $state<'coinhouse' | 'external'>('coinhouse');
+  /** Compte de rattachement : Coinhouse (participe au contrôle de solde) ou un compte hors Coinhouse. */
+  let accountId = $state<string>(COINHOUSE_ACCOUNT_ID);
+  const scope = $derived<'coinhouse' | 'external'>(
+    accountId === COINHOUSE_ACCOUNT_ID ? 'coinhouse' : 'external',
+  );
+  const accountOptions = $derived.by(() => {
+    const declared = Object.values(app.state.accounts).filter((a) => a.space === 'invest');
+    return [
+      { id: COINHOUSE_ACCOUNT_ID, label: 'Sur Coinhouse (absent de l’export)' },
+      { id: MANUAL_ACCOUNT_ID, label: 'Hors Coinhouse (autre plateforme, wallet)' },
+      ...declared.map((a) => ({ id: a.id, label: a.label })),
+    ];
+  });
   const current = $derived(kinds.find((k) => k.value === kind)!);
   const manualList = $derived(
     Object.values(app.state.manualEvents).sort((a, b) => b.at.localeCompare(a.at)),
@@ -60,6 +73,9 @@
       qty: quantity,
       amountEur: eur,
       scope,
+      ...(accountId !== COINHOUSE_ACCOUNT_ID && accountId !== MANUAL_ACCOUNT_ID
+        ? { accountId }
+        : {}),
       note: note.trim(),
     });
     toasts.push('Opération ajoutée.', 'success');
@@ -119,10 +135,11 @@
       </p>{/if}
   {/if}
   <label
-    >Où ?
-    <select bind:value={scope}>
-      <option value="coinhouse">Sur Coinhouse (absent de l'export)</option>
-      <option value="external">Hors Coinhouse (autre plateforme, wallet)</option>
+    >Compte
+    <select bind:value={accountId}>
+      {#each accountOptions as option (option.id)}
+        <option value={option.id}>{option.label}</option>
+      {/each}
     </select>
   </label>
   <label>Note <input type="text" bind:value={note} placeholder="optionnel" /></label>

@@ -17,6 +17,7 @@ const base = (at: string, id?: string) => ({
   at,
   source: 'coinhouse-csv' as const,
   scope: 'coinhouse' as const,
+  accountId: 'ch:main' as const,
   rowKeys: [],
   warnings: [],
 });

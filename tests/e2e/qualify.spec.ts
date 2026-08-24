@@ -78,7 +78,7 @@ test('qualifie une opération inconnue en récompense (suggestion pré-sélectio
   const heldStat = page.locator('.trio > div').filter({ hasText: 'Détenu' }).locator('p.big');
   await expect(heldStat).toHaveText(qtyBeforeText);
 
-  await page.goto('#/');
+  await page.goto('#/invest');
   await page.getByRole('button', { name: 'Qualifier', exact: true }).click();
 
   const dialog = page.getByRole('dialog');
@@ -97,7 +97,7 @@ test('qualifie une opération inconnue en récompense (suggestion pré-sélectio
   await page.goto('#/asset/sol');
   await expect(heldStat).toHaveText(qtyAfterText);
 
-  await page.goto('#/');
+  await page.goto('#/invest');
   await page.getByRole('button', { name: /Annuler la qualification/ }).click();
   await expect(page.getByRole('heading', { name: 'À qualifier (1)' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Qualifications enregistrées (1)' })).toBeHidden();

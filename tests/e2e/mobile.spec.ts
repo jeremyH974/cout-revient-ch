@@ -12,7 +12,7 @@ test('mobile : cartes, libellé « Réalisé » et navigation basse', async ({ p
 
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await expect(nav).toBeVisible();
-  for (const label of ['Portefeuille', 'Importer', 'Ajouter', 'Réglages']) {
+  for (const label of ["Vue d'ensemble", 'Investissement', 'Trading', 'Plus']) {
     await expect(nav.getByRole('link', { name: label })).toBeVisible();
   }
   const box = await nav.boundingBox();
@@ -35,6 +35,9 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
   const problems: string[] = [];
   for (const route of [
     '#/',
+    '#/invest',
+    '#/trading',
+    '#/more',
     '#/asset/btc',
     '#/asset/pepe',
     '#/import',

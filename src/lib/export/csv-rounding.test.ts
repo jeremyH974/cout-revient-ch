@@ -8,6 +8,7 @@ const buy = (id: string, asset: string, qty: string, eur: string): TradeEvent =>
   at: '2026-01-01T10:00:00',
   source: 'manual',
   scope: 'coinhouse',
+  accountId: 'ch:main',
   rowKeys: [],
   warnings: [],
   kind: 'trade',

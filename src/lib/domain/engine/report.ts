@@ -1,7 +1,14 @@
 /** Types de sortie du moteur (valeurs en Big, jamais persistées). */
 import type { AssetClass } from '../assets';
 import type { Big, DecimalString } from '../money';
-import type { AssetCode, EventId, NaiveDateTime, QuotePrice, UnqualifiedEvent } from '../types';
+import type {
+  AccountId,
+  AssetCode,
+  EventId,
+  NaiveDateTime,
+  QuotePrice,
+  UnqualifiedEvent,
+} from '../types';
 
 export interface PriceQuoteInput {
   asset: AssetCode;
@@ -10,6 +17,19 @@ export interface PriceQuoteInput {
   at: string;
   source: string;
   stale: boolean;
+}
+
+/**
+ * Flux de trésorerie externe du portefeuille, miroir daté des opérations « comptées » du moteur :
+ * achats, apports au coût et frais < 0 ; produits et sorties au coût > 0. Par construction,
+ * `Σ flux− = −(Σ investedTotal + subscriptions)` et `Σ flux+ = Σ proceedsTotal` (positions
+ * bloquées comprises). Base du XIRR.
+ */
+export interface CashFlow {
+  at: NaiveDateTime;
+  amountEur: Big;
+  /** Événement d'origine : permet d'écarter les jambes de virement interne (TWR). */
+  eventId: EventId;
 }
 
 export type LotOrigin = 'purchase' | 'reward' | 'deposit' | 'migration' | 'opening-balance';
@@ -44,6 +64,8 @@ export type HistoryKind =
 /** Une ligne de l'historique d'un actif, avec le PRU après l'opération. */
 export interface HistoryEntry {
   eventId: EventId;
+  /** Compte d'origine du mouvement (provenance dans les exports). */
+  accountId: AccountId;
   at: NaiveDateTime;
   kind: HistoryKind;
   /** Quantité signée (négatif = sortie). */
@@ -161,6 +183,8 @@ export interface AllocationEntry {
 export interface PortfolioReport {
   /** Positions crypto ouvertes. */
   positions: PositionReport[];
+  /** Flux externes datés (voir `CashFlow`), dans l'ordre chronologique du moteur. */
+  cashFlows: readonly CashFlow[];
   stablecoins: PositionReport[];
   closed: PositionReport[];
   blocked: PositionReport[];

@@ -59,7 +59,10 @@ export function parseChangelog(markdown: string): ChangelogRelease[] {
       section.items[last] = `${section.items[last]} ${line.trim()}`;
     }
   }
-  return releases;
+  // Une version sans la moindre entrée n'a rien à montrer : c'est le cas de `## [Unreleased]`
+  // juste après une publication, que la convention Keep a Changelog demande de laisser en place.
+  // Sans ce filtre, la page Nouveautés ouvrirait sur une carte vide.
+  return releases.filter((r) => r.sections.some((s) => s.items.length > 0));
 }
 
 export type InlineSegment = { kind: 'text' | 'code'; value: string };

@@ -1,7 +1,13 @@
 /** Assemblage du rapport : positions, totaux, répartition, intégrité. */
 import { assetClass, isFiat } from '../assets';
 import { D, ZERO, divOrNull, isPositive, type Big } from '../money';
-import type { AssetCode, EngineSettings, LedgerEvent } from '../types';
+import {
+  COINHOUSE_ACCOUNT_ID,
+  type AccountId,
+  type AssetCode,
+  type EngineSettings,
+  type LedgerEvent,
+} from '../types';
 import { runLedger } from './compute';
 import { checkBalances, type BalanceRecord } from './integrity';
 import type { PositionState } from './position';
@@ -178,6 +184,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     .sort();
   return {
     positions,
+    cashFlows: run.cashFlows,
     stablecoins,
     closed,
     blocked,
@@ -187,4 +194,53 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     pricedAt: quoteDates[0] ?? null,
     warnings: run.warnings,
   };
+}
+
+/**
+ * Un rapport par compte (vue « par plateforme ») : le grand livre de chaque compte est rejoué
+ * seul, donc le PRU et le réalisé d'un compte sont ceux de la plateforme. La vue consolidée reste
+ * `computePortfolio` sur le grand livre entier (PRU global) — les deux ne se somment pas exactement
+ * après des ventes, et c'est voulu (docs/DECISIONS.md n° 20). Le contrôle de solde Coinhouse ne
+ * s'applique qu'au compte Coinhouse.
+ */
+export function computePortfolioByAccount(input: ComputeInput): Map<AccountId, PortfolioReport> {
+  // Virements internes : dans la vue par compte, le retrait apparié vit dans un AUTRE grand
+  // livre ; le coût qui voyage est donc pris au run consolidé puis estampillé sur le dépôt, et le
+  // lien est retiré pour que chaque compte se rejoue de façon autonome.
+  const consolidated = runLedger(input.events, input.settings);
+  const stamped = input.events.map((event): LedgerEvent => {
+    if (event.kind !== 'deposit' || event.transferFrom === undefined) return event;
+    const carried = consolidated.transferCosts.get(event.transferFrom);
+    const { transferFrom: _link, ...rest } = event;
+    void _link;
+    return {
+      ...rest,
+      costEur: carried !== undefined ? carried.toString() : event.costEur,
+      warnings: [
+        ...event.warnings,
+        'Virement interne : coût d’acquisition repris du compte d’origine.',
+      ],
+    };
+  });
+  const groups = new Map<AccountId, LedgerEvent[]>();
+  for (const event of stamped) {
+    const list = groups.get(event.accountId);
+    if (list) list.push(event);
+    else groups.set(event.accountId, [event]);
+  }
+  const reports = new Map<AccountId, PortfolioReport>();
+  for (const [accountId, events] of groups) {
+    reports.set(
+      accountId,
+      computePortfolio({
+        events,
+        prices: input.prices,
+        settings: input.settings,
+        ...(accountId === COINHOUSE_ACCOUNT_ID && input.balances
+          ? { balances: input.balances }
+          : {}),
+      }),
+    );
+  }
+  return reports;
 }

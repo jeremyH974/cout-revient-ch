@@ -5,11 +5,122 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-24
+
+### Added
+
+- Rendement hors apports (TWR) dans la synthèse du Rapport (écran et PDF), à côté du XIRR : taux
+  insensible à la date de vos versements, chaîné jour par jour ; leur écart mesure l'effet du
+  « moment » de vos apports. Annualisé au-delà de 30 jours, cumulé en dessous.
+- Repère « mêmes apports en BTC » : vos apports et retraits réels rejoués aux mêmes dates sur le
+  bitcoin, avec la valeur obtenue et l'écart. Les retraits impossibles et les flux hors profondeur
+  de cotation sont signalés, jamais avalés.
+- Suivi d'un **portefeuille Bitcoin entier** à partir de sa clé publique étendue (zpub, ypub, xpub) :
+  toutes les adresses sont dérivées **dans votre navigateur** (la clé n'est envoyée nulle part),
+  balayage jusqu'à 20 adresses vides consécutives, mouvements nets sur l'ensemble du portefeuille —
+  une dépense qui vous rend la monnaie compte pour une seule sortie. Une clé privée étendue est
+  refusée à la saisie.
+- Secours pour les comptes on-chain EVM : Routescan sans clé (Ethereum), et une clé d'explorateur
+  facultative (Etherscan V2 ou Blockscout Pro) dans les Réglages — clé de lecture seule, sans accès
+  aux fonds. L'API publique Blockscout, utilisée par défaut, a été basculée vers une offre à clé par
+  son éditeur : l'application ne dépend plus d'un seul chemin, et la surveillance prévient si celui
+  sans clé s'arrête.
+- Fonds EVM reçus **via un contrat** (pont, DEX, vault) désormais visibles : ils n'apparaissaient
+  dans aucun flux jusqu'ici.
+- Interrupteur « Trades en direct » (opt-in) sur l'écran Trading : vos exécutions et votre funding
+  arrivent par WebSocket dès qu'ils ont lieu, sans cliquer « Actualiser ».
+- Convertisseurs natifs supplémentaires : **Binance** (les trois exports : Transaction History et
+  les deux Trade History), **Bitpanda** (préambule et lignes actions/ETF écartées) et **SwissBorg**
+  (colonnes dont le nom change avec la devise du compte). Binance ayant cessé ses services en France
+  le 1ᵉʳ juillet 2026, récupérer cet historique avant qu'il ne devienne inaccessible est une
+  urgence pratique.
+- Convertisseurs natifs d'import pour Kraken, Coinbase, Bitvavo, Ledger Live et Revolut : même
+  compte, mêmes règles de valorisation et de virements appariés que l'import pivot ; dédoublonnage
+  par hachage du contenu natif de la ligne, une correction de convertisseur ne duplique jamais une
+  ligne déjà importée.
+- Import JSON d'activités Ghostfolio (BUY/SELL/DIVIDEND/INTEREST/FEE) dans le même compte que les
+  CSV pivot et les convertisseurs natifs.
+- Rendement personnel annualisé (XIRR) dans la synthèse du Rapport (écran et PDF) : taux pondéré par
+  les flux réels du grand livre (méthode Excel, base 365), masqué sous 30 jours d'historique ou sur
+  des flux non calculables plutôt qu'un chiffre trompeur.
+- Suivi en lecture seule d'adresses publiques on-chain (Bitcoin via mempool.space, Ethereum/
+  Arbitrum One/Base via Blockscout) depuis l'écran Comptes : mouvements sans valeur EUR, candidats à
+  l'appariement de virement ou lignes à qualifier ; jetons ERC-20 reconnus par liste blanche
+  d'adresses de contrats, jamais par symbole affiché.
+- Interrupteur « Prix en direct » (opt-in) sur l'écran Trading : cotations Hyperliquid par WebSocket
+  pour les actifs détenus, jamais activées par défaut, jamais écrites dans le cache de prix persisté.
+- Espace Trading complet : tableau de bord (synthèse dépôts nets / équité / P&L total, courbe
+  d'équité et de P&L fournie par la plateforme et conservée hors ligne, résultat par période,
+  positions ouvertes en tableau — taille · entrée, marque · liquidation, valeur, latent et % sur
+  marge — reliées à leur aller-retour, avoirs spot, auto-vérification de réconciliation), onglets
+  Trades, Fills et Statistiques.
+- Graphique du détail d'un trade : prix quotidien de l'actif sur la fenêtre du trade, marqueurs
+  d'entrées/sorties et lignes de niveau comme sur la plateforme (entrée moyenne, prix de
+  liquidation, stop et objectif du plan).
+- Journal de trading : aller-retours reconstruits automatiquement depuis les fills (retournements,
+  liquidations, historique partiel signalé), saisie manuelle d'un trade, thèse/revue, setups,
+  erreurs, note, plan entrée / stop / objectif → résultat en R, export CSV des trades.
+- Statistiques de performance : espérance (devise et R), taux de réussite, profit factor, payoff,
+  drawdown maximal, séries, ventilations (setup, actif, sens, jour, heure, durée, compte),
+  avertissement d'échantillon sous 30 trades clos, résumé anonymisé à coller dans une IA.
+- Vue d'ensemble au format synthèse : valeur nette (investissement + équité de trading), colonnes
+  par espace, répartition du capital et flux vers/depuis le trading.
+- Rail de navigation à gauche sur grand écran (≥ 1024 px).
+
+- Bouton « Actualiser » sur la synthèse avec fraîcheur et source des prix, badge « périmé ».
+- Fournisseurs de prix Kraken, Hyperliquid (HYPE, PURR et tokens spot Hyperliquid) et DefiLlama,
+  prix en USD convertis au taux BCE du jour.
+- Clé CoinGecko Demo optionnelle dans les réglages.
+- Navigation en espaces : Vue d'ensemble (accueil), Investissement, Trading (en préparation), Plus ;
+  anciens liens (`#/asset/btc`, `#/import`…) toujours valables.
+- Comptes : écran « Comptes » (Plus), rattachement des saisies manuelles à un compte, filtre
+  « Plateforme » sur les positions avec PRU par plateforme, colonne « Compte » dans l'export des
+  opérations.
+- Sauvegarde robuste : état principal dans IndexedDB (plus de plafond de 5 Mo), miroir localStorage,
+  sauvegarde automatique dans un dossier choisi (Chrome/Edge), chiffrement optionnel de la
+  sauvegarde par phrase secrète, partage vers Fichiers et rappel « écran d'accueil » sur iPhone.
+- Import Hyperliquid en lecture seule par adresse publique (jamais de clé) : synchronisation
+  incrémentale des fills spot et perps, du funding et des mouvements du compte, bruts persistés pour
+  dépasser la fenêtre d'historique conservée par l'API.
+- Espace Trading : tableau de bord par compte Hyperliquid — équité, P&L net par période (réalisé
+  brut − frais + funding), positions ouvertes, avoirs spot, derniers fills, réconciliation
+  permanente de l'équité affichée à l'écran.
+- Option « traiter le spot comme de l'investissement » sur un compte Hyperliquid : route ses fills
+  spot vers le PRU de l'espace Investissement, contrepartie USDC convertie en euros au taux BCE du
+  jour.
+- Moteur Trading séparé du moteur d'investissement (`domain/trading`), jamais mêlé au PRU.
+- Import CSV « pivot » (CSV Universal Koinly, ou export interne Koinly lu aussi par Waltio) dans des
+  comptes dédiés de l'espace Investissement, multi-plateformes : dédoublonnage par hachage de
+  contenu, ré-import idempotent, écran « À qualifier » partagé avec l'import Coinhouse.
+- Virements internes appariés entre deux comptes (retrait sans produit et dépôt sans coût du même
+  actif, fenêtre 72 h, écart ≤ frais réseau) : le coût d'acquisition voyage vers le dépôt, aucune
+  plus-value fantôme ; correction manuelle et auto-vérification dans l'écran Comptes.
+- Export « Format Koinly / Waltio (CSV) » (Réglages) : toutes les opérations de l'app au format CSV
+  Universal, valeurs EUR déjà calculées, réimportable dans un autre outil.
+- Calendrier de P&L dans Trading → Statistiques : P&L réalisé net par jour de clôture, navigation
+  par mois, jour cliquable vers ses trades.
+
+### Fixed
+
+- **Calendrier de P&L : les gains et pertes tombaient au mauvais jour.** Tout le résultat d'un
+  aller-retour était affiché le jour de sa clôture. Une position allégée sur plusieurs jours
+  montrait donc 0 € les jours de prise de bénéfice puis tout d'un bloc le dernier jour, les frais et
+  le funding d'une position encore ouverte n'apparaissaient nulle part, et le total du mois ne
+  correspondait ni à votre plateforme ni au tableau de bord de l'application. Chaque montant est
+  désormais daté du jour où il a été réalisé, et cliquer sur une journée détaille ce que chaque
+  trade a réalisé **ce jour-là**.
+- Un virement interne apparié à cheval sur deux jours (retrait le soir, dépôt le surlendemain)
+  creusait un trou dans la courbe d'évolution : la valeur du portefeuille tombait à zéro puis
+  revenait, alors que les coins n'avaient jamais quitté votre patrimoine.
+
 ### Changed
 
-- Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
-  Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
-  trading et statistiques de performance. La version 1.1.0 reste la version publiée d'ici là.
+- **L'application est désormais organisée en deux espaces séparés** — « Investissement » (vos
+  positions, votre PRU, vos plus-values) et « Trading » (vos aller-retours, votre P&L, votre
+  journal) — reliés par une **Vue d'ensemble** qui additionne votre valeur nette. On additionne des
+  soldes, jamais des résultats de nature différente : une plus-value spot et un P&L à levier ne se
+  mélangent nulle part. Vos données de la version 1 sont reprises telles quelles, sans rien à
+  refaire ; les anciens liens (`#/portfolio`, `#/report`…) continuent de fonctionner.
 
 ## [1.1.0] - 2026-08-23
 

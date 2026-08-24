@@ -48,22 +48,89 @@ export interface RawCoinhouseRow {
   extra: Record<string, string>;
 }
 
+/** Montant + devise d'une colonne du CSV pivot (ticker normalisé en minuscules). */
+export interface PivotAmount {
+  amount: DecimalString;
+  currency: AssetCode;
+}
+
+/**
+ * Ligne du CSV pivot (Koinly « Universal » Sent/Received ou export interne From/To), conservée
+ * telle quelle après validation. Clé `pv:<hash de contenu>[#n]` : l'appartenance au compte est
+ * portée par `accountId` (un même fichier ne va que dans un compte).
+ */
+export interface RawPivotRow {
+  key: RowKey;
+  importId: string;
+  lineNo: number;
+  accountId: AccountId;
+  /** Date du fichier (UTC, verbatim). */
+  date: string;
+  /** Instant converti en heure de Paris (décision n° 21). */
+  at: NaiveDateTime;
+  sent: PivotAmount | null;
+  received: PivotAmount | null;
+  fee: PivotAmount | null;
+  netWorth: PivotAmount | null;
+  /** `Label` (Universal) ou `Tag` (export interne), en minuscules. */
+  label: string | null;
+  description: string | null;
+  txHash: string | null;
+}
+
 /** Une jambe d'opération : quantité strictement positive, le sens est donné par `out`/`in`. */
 export interface Leg {
   asset: AssetCode;
   qty: DecimalString;
 }
 
-export type EventSource = 'coinhouse-csv' | 'manual';
+export type EventSource = 'coinhouse-csv' | 'manual' | 'hyperliquid-api' | 'pivot-csv';
 
 /** `coinhouse` : participe au contrôle de solde ; `external` : hors plateforme, exclu. */
 export type EventScope = 'coinhouse' | 'external';
+
+/** Identifiant d'un compte (plateforme ou saisie) : `ch:main`, `man:default`, `man:<uuid>`, `hl:<adresse>`… */
+export type AccountId = string;
+export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv' | 'onchain';
+
+/** Chaîne suivie par un compte on-chain (adresse publique). */
+export type OnchainChain = 'btc' | 'eth' | 'arbitrum' | 'base';
+/** Espace d'appartenance d'un compte (proposition v2, § 6.0). */
+export type AccountSpace = 'invest' | 'trading';
+
+/**
+ * Compte de première classe : tout événement en porte un. Le PRU existe par compte (vue « par
+ * plateforme ») et consolidé (grand livre entier) ; le contrôle de solde Coinhouse reste piloté par
+ * `EventScope`.
+ */
+export interface Account {
+  id: AccountId;
+  kind: AccountKind;
+  label: string;
+  space: AccountSpace;
+  /** Trading seulement : router les achats spot « à garder » vers l'espace Investissement. */
+  spotAsInvestment?: boolean;
+  /** Adresse publique (Hyperliquid, on-chain) ; jamais une clé. */
+  address?: string;
+  /** Comptes on-chain : chaîne de l'adresse. */
+  chain?: OnchainChain;
+  /** ISO 8601. */
+  createdAt: string;
+}
+
+/** Compte implicite des lignes de l'export Coinhouse. */
+export const COINHOUSE_ACCOUNT_ID: AccountId = 'ch:main';
+/** Compte implicite des saisies manuelles « hors Coinhouse » antérieures aux comptes. */
+export const MANUAL_ACCOUNT_ID: AccountId = 'man:default';
+/** Compte implicite des trades saisis à la main (espace Trading, plateformes sans API). */
+export const MANUAL_TRADING_ACCOUNT_ID: AccountId = 'man:trading';
 
 export interface EventBase {
   id: EventId;
   at: NaiveDateTime;
   source: EventSource;
   scope: EventScope;
+  accountId: AccountId;
   rowKeys: RowKey[];
   warnings: string[];
 }
@@ -122,6 +189,11 @@ export interface DepositEvent extends EventBase {
   kind: 'deposit';
   in: Leg;
   costEur: DecimalString | null;
+  /**
+   * Retrait apparié (virement interne) : le coût de la cession au coût du retrait devient le
+   * coût d'acquisition de ce dépôt. Jamais persisté : posé par `pairTransfers` à chaque calcul.
+   */
+  transferFrom?: EventId;
 }
 
 /** Retrait on-chain : sortie sans produit (ou réalisée à une valeur donnée). */
@@ -129,6 +201,8 @@ export interface WithdrawalEvent extends EventBase {
   kind: 'withdrawal';
   out: Leg;
   proceedsEur: DecimalString | null;
+  /** Dépôt apparié (virement interne) : cession au coût, le coût voyage. Jamais persisté. */
+  transferTo?: EventId;
 }
 
 /** Solde d'ouverture : historique manquant avant le début de l'export. */
@@ -179,6 +253,8 @@ export interface ManualEvent {
    */
   amountEur: DecimalString | null;
   scope: EventScope;
+  /** Compte de rattachement ; absent (saisies v1) = déduit de `scope`. */
+  accountId?: AccountId;
   note: string;
 }
 

@@ -1,48 +1,37 @@
 <script lang="ts">
-  import { router, type Route } from '$lib/router.svelte';
+  import { router } from '$lib/router.svelte';
+  import { SPACES, spaceOf, type SpaceId } from '$lib/spaces';
 
-  const items: { route: Route; label: string; icon: string }[] = [
-    {
-      route: { name: 'portfolio' },
-      label: 'Portefeuille',
-      icon: 'M3 13h4v8H3zM10 3h4v18h-4zM17 8h4v13h-4z',
-    },
-    {
-      route: { name: 'import' },
-      label: 'Importer',
-      icon: 'M12 3v12m0 0l-4-4m4 4l4-4M4 17v3h16v-3',
-    },
-    { route: { name: 'add' }, label: 'Ajouter', icon: 'M12 5v14M5 12h14' },
-    {
-      route: { name: 'settings' },
-      label: 'Réglages',
-      icon: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8zm8 4l2-1-1-3-2 .3-1.4-1.4.3-2-3-1-1 2h-2l-1-2-3 1 .3 2L7 8.3 5 8l-1 3 2 1v2l-2 1 1 3 2-.3 1.4 1.4-.3 2 3 1 1-2h2l1 2 3-1-.3-2 1.4-1.4 2 .3 1-3-2-1z',
-    },
-  ];
-  const active = $derived(
-    (r: Route): boolean =>
-      r.name === router.route.name || (r.name === 'portfolio' && router.route.name === 'asset'),
-  );
+  /** Icônes par espace (tracés 24 × 24, trait courant). */
+  const ICONS: Record<SpaceId, string> = {
+    overview: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+    invest:
+      'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6',
+    trading: 'M7 3v4M7 17v4M5 7h4v10H5zM17 3v6M17 15v6M15 9h4v6h-4z',
+    more: 'M5 12h.01M12 12h.01M19 12h.01',
+  };
+  const current = $derived(spaceOf(router.route.name).id);
 </script>
 
 <nav class="nav" aria-label="Navigation principale">
-  {#each items as item (item.route.name)}
+  {#each SPACES as space (space.id)}
     <a
-      href={router.href(item.route)}
-      class:active={active(item.route)}
-      aria-current={active(item.route) ? 'page' : undefined}
+      href={router.href(space.home)}
+      class:active={current === space.id}
+      class={space.id}
+      aria-current={current === space.id ? 'page' : undefined}
     >
-      <svg viewBox="0 0 24 24" width="22" height="22"
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"
         ><path
-          d={item.icon}
+          d={ICONS[space.id]}
           fill="none"
           stroke="currentColor"
-          stroke-width="1.8"
+          stroke-width={space.id === 'more' ? 3 : 1.8}
           stroke-linecap="round"
           stroke-linejoin="round"
         /></svg
       >
-      <span>{item.label}</span>
+      <span>{space.label}</span>
     </a>
   {/each}
 </nav>
@@ -70,9 +59,16 @@
     color: var(--fg-muted);
     text-decoration: none;
     font-size: var(--fs-xs);
+    text-align: center;
   }
   a.active {
     color: var(--accent);
+  }
+  a.active.invest {
+    color: var(--accent-invest);
+  }
+  a.active.trading {
+    color: var(--accent-trading);
   }
   @media (min-width: 768px) {
     .nav {
@@ -91,6 +87,45 @@
       min-height: var(--tap);
       padding: 0 var(--space-2);
       font-size: var(--fs-sm);
+    }
+  }
+
+  /* ≥ 1024 px : rail de navigation à gauche (Material 3 / HIG), la gouttière est réservée par
+     `.app { padding-left }` dans App.svelte. Mêmes destinations, jamais la couleur seule. */
+  @media (min-width: 1024px) {
+    .nav {
+      position: fixed;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: auto;
+      width: 96px;
+      grid-template-columns: 1fr;
+      grid-auto-rows: min-content;
+      align-content: start;
+      justify-content: stretch;
+      gap: var(--space-2);
+      padding: var(--space-5) var(--space-2) var(--space-4);
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+    }
+    a {
+      flex-direction: column;
+      gap: 4px;
+      min-height: 64px;
+      justify-content: center;
+      padding: var(--space-2);
+      font-size: var(--fs-xs);
+      border-radius: var(--radius-sm);
+    }
+    /* Pastille d'état actif derrière la seule ICÔNE (Material 3) : posée sous le libellé, elle
+       éclaircissait le fond juste assez pour faire passer le texte 12 px sous 4,5:1 (axe WCAG
+       2.2 AA). Le libellé reste donc sur le fond plein de la barre. */
+    a.active svg {
+      display: block;
+      padding: 4px 14px;
+      border-radius: 999px;
+      background: color-mix(in srgb, currentColor 14%, transparent);
     }
   }
 </style>

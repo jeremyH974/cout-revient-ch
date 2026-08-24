@@ -14,6 +14,7 @@ const base = () => ({
   id: `t${++seq}`,
   source: 'manual' as const,
   scope: 'coinhouse' as const,
+  accountId: 'ch:main' as const,
   rowKeys: [],
   warnings: [],
 });
@@ -244,6 +245,7 @@ describe('moteur — correctifs de revue', () => {
         kind: 'deposit',
         at: '2026-01-02T10:00:00',
         scope: 'external',
+        accountId: 'man:default',
         in: { asset: 'btc', qty: '0.5' },
         costEur: '20000',
       },

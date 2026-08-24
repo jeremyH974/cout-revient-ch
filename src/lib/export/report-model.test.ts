@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '../domain/engine';
 import { ZERO, type Big } from '../domain/money';
+import { xirrEur } from '../domain/xirr';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
 import { fmtMoney, fmtPct } from '../format/fr';
 import {
@@ -20,6 +21,7 @@ const base = () => ({
   id: `t${++seq}`,
   source: 'manual' as const,
   scope: 'coinhouse' as const,
+  accountId: 'ch:main' as const,
   rowKeys: [],
   warnings: [],
 });
@@ -323,5 +325,31 @@ describe('modèle de rapport — mode discret et rapport vide', () => {
       expect(table.emptyText.length).toBeGreaterThan(0);
     }
     expect(kpi(empty.summary.kpis, 'ROI')?.value).toBe('—');
+  });
+});
+
+describe('rendement annualisé (XIRR) dans la synthèse', () => {
+  it('affiche le taux des flux du moteur, avec la date du premier flux', () => {
+    const row = model.summary.details.find((d) => d.label === 'Rendement annualisé (XIRR)');
+    expect(row).toBeDefined();
+    expect(row!.value).not.toBe('—');
+    expect(row!.hint).toContain('depuis le 01/01/2026');
+    // Le taux vient bien de xirrEur sur report.cashFlows + valeur finale.
+    const expected = xirrEur([...report.cashFlows], {
+      day: '2026-08-22',
+      valueEur: report.totals.value,
+    });
+    expect(expected.ok).toBe(true);
+    if (expected.ok) expect(nbsp(row!.value)).toBe(nbsp(fmtPct(expected.rate, { sign: true })));
+  });
+
+  it('explique pourquoi il manque quand la période est trop courte', () => {
+    const shortReport = compute([buy('2026-08-20T10:00:00', 'btc', '1', '100')], {
+      btc: price('btc', '250'),
+    });
+    const shortModel = buildReportModel(shortReport, opts);
+    const row = shortModel.summary.details.find((d) => d.label === 'Rendement annualisé (XIRR)');
+    expect(row!.value).toBe('—');
+    expect(row!.hint).toContain('30 jours');
   });
 });

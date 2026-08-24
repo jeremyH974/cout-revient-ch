@@ -28,7 +28,7 @@ test('accueil → démo → portefeuille : lignes et PRU identiques au moteur', 
   const pdfLink = page.locator('section.summary').getByRole('link', { name: 'Rapport PDF' });
   await expect(pdfLink).toBeVisible();
   await pdfLink.click();
-  await expect(page).toHaveURL(/#\/report$/);
+  await expect(page).toHaveURL(/#\/invest\/report$/);
   await expect(page.getByRole('button', { name: 'Télécharger le PDF' })).toBeVisible();
 });
 

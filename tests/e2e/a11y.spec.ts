@@ -19,7 +19,19 @@ test.beforeEach(async ({ context }) => {
 });
 
 test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
-  for (const route of ['#/welcome', '#/import', '#/add', '#/help', '#/privacy', '#/settings']) {
+  for (const route of [
+    '#/welcome',
+    '#/import',
+    '#/add',
+    '#/accounts',
+    '#/help',
+    '#/privacy',
+    '#/settings',
+    '#/trading',
+    '#/trading/add',
+    '#/more',
+    '#/news',
+  ]) {
     test(`sans données : ${route}`, async ({ page }) => {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
@@ -27,7 +39,20 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     });
   }
 
-  for (const route of ['#/', '#/asset/btc', '#/settings', '#/report']) {
+  for (const route of [
+    '#/',
+    '#/asset/btc',
+    '#/settings',
+    '#/report',
+    '#/invest',
+    '#/trading',
+    '#/trading/trades',
+    '#/trading/stats',
+    '#/trading/fills',
+    '#/more',
+    '#/accounts',
+    '#/invest/asset/btc',
+  ]) {
     test(`avec la démo : ${route}`, async ({ page }) => {
       await openDemo(page);
       await page.goto(route);
@@ -35,4 +60,22 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
       await expectNoViolations(page, route);
     });
   }
+
+  /**
+   * Le détail d'un trade est l'écran le plus interactif de l'app (formulaire de journal, plan,
+   * étiquettes, graphique) — donc celui où une violation est la plus probable. Son hash porte un
+   * identifiant : il ne peut pas figurer dans la liste ci-dessus, et il était le seul écran à
+   * n'être jamais passé sous axe.
+   */
+  test('avec la démo : #/trading/trade/<id> (détail et journal)', async ({ page }) => {
+    await openDemo(page);
+    await page.goto('#/trading/trades');
+    await page
+      .getByRole('link', { name: /Long|Short/ })
+      .first()
+      .click();
+    await expect(page).toHaveURL(/#\/trading\/trade\//);
+    await expect(page.getByRole('main')).toBeVisible();
+    await expectNoViolations(page, '#/trading/trade/<id>');
+  });
 });

@@ -4,6 +4,7 @@
   import Info from '../shared/Info.svelte';
   import Money from '../shared/Money.svelte';
   import Pct from '../shared/Pct.svelte';
+  import PriceFreshness from '../shared/PriceFreshness.svelte';
 
   const t = $derived(app.report.totals);
   const unpriced = $derived(t.unpricedAssets.length);
@@ -34,7 +35,37 @@
       >
       Rapport PDF
     </a>
+    <button
+      class="tool"
+      type="button"
+      onclick={() => void app.refreshPrices(true)}
+      disabled={app.priceStatus.loading || app.state.ui.priceSource === 'off'}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="18"
+        height="18"
+        aria-hidden="true"
+        class:spin={app.priceStatus.loading}
+        ><path
+          d="M20 12a8 8 0 1 1-2.3-5.7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        /><path
+          d="M20 4v5h-5"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        /></svg
+      >
+      Actualiser
+    </button>
   </div>
+  <div class="freshness"><PriceFreshness /></div>
   <div class="trio">
     <div>
       <p class="label">
@@ -169,11 +200,12 @@
   .tools {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
     margin-bottom: var(--space-3);
   }
   .title {
+    margin-right: auto;
     font-size: var(--fs-xs);
     font-weight: 600;
     text-transform: uppercase;
@@ -198,6 +230,21 @@
   .tool:hover {
     border-color: var(--accent);
     color: var(--accent);
+  }
+  .tool:disabled {
+    opacity: 0.6;
+    cursor: progress;
+  }
+  .freshness {
+    margin: calc(-1 * var(--space-2)) 0 var(--space-3);
+  }
+  .spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
   @media (min-width: 768px) {
     .trio {

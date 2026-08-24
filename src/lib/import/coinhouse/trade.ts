@@ -5,6 +5,7 @@
  * contrepartie (eur, sinon stablecoin). La jambe actif exprime son prix et sa contre-valeur
  * dans la devise de contrepartie (USDC quand on paie en USDC) : elle ne sert qu'à l'affichage.
  */
+import { COINHOUSE_ACCOUNT_ID } from '../../domain/types';
 import { isFiat, isStablecoin } from '../../domain/assets';
 import { D, ONE, ZERO, isNegative, isPositive, toDecimalString } from '../../domain/money';
 import type {
@@ -28,6 +29,7 @@ export function unqualifiedFromRows(
     at,
     source: 'coinhouse-csv',
     scope: 'coinhouse',
+    accountId: COINHOUSE_ACCOUNT_ID,
     rowKeys: rows.map((r) => r.key),
     warnings: [],
     rawType: rows[0]?.type ?? '',
@@ -108,6 +110,7 @@ export function buildTradeEvent(id: string, rows: RawCoinhouseRow[]): LedgerEven
     at,
     source: 'coinhouse-csv' as const,
     scope: 'coinhouse' as const,
+    accountId: COINHOUSE_ACCOUNT_ID,
     rowKeys: [a.key, b.key],
   };
   const counter = pickCounterLeg(negative, positive);

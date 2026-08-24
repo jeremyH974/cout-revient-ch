@@ -11,7 +11,7 @@ if (!target) throw new Error('Élément #app introuvable');
 
 // Les erreurs non interceptées alimentent le diagnostic copiable (jamais envoyées nulle part).
 installGlobalErrorCapture();
-app.init();
+await app.init();
 
 // Crochet de développement (absent du build) : pilotage depuis les outils de test.
 if (import.meta.env.DEV) Object.assign(window, { __crch: app });

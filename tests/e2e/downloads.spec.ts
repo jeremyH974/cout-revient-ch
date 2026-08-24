@@ -65,7 +65,8 @@ test('sauvegarde JSON → effacement → restauration : mêmes totaux', async ({
   await page.getByLabel('Mode de restauration').selectOption('replace');
   await page.setInputFiles('input[type="file"][accept*="json"]', backupPath);
   await expect(page.getByText('Sauvegarde restaurée.')).toBeVisible();
-  await expect(page).toHaveURL(/#\/$/);
+  await expect(page).toHaveURL(/#\/$/); // restauration → Vue d'ensemble
+  await page.goto('#/invest'); // la synthèse (section.summary) vit dans l'espace Investissement
   await expect(totals).toHaveCount(3);
   expect(await totals.allTextContents()).toEqual(before);
 });
