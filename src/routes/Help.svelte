@@ -84,6 +84,23 @@
       Contrairement au ROI, il tient compte du moment où l'argent est entré ou sorti. Affiché dans
       le Rapport ; pas calculé avec moins de 30 jours d'historique.
     </dd>
+    <dt>Rendement hors apports (TWR)</dt>
+    <dd>
+      Le même historique, mais découpé en journées dont on mesure la performance indépendamment des
+      versements qu'elles contiennent, puis enchaînées. Résultat : un taux que le calendrier de vos
+      apports ne peut pas déformer. <strong>Lisez les deux ensemble</strong> : si le TWR est nettement
+      au-dessus du XIRR, vos choix d'actifs ont été bons mais vos apports sont tombés aux mauvais moments
+      ; l'inverse signifie que le « timing » vous a servi. Le TWR se calcule sur la fenêtre réellement
+      couverte par les cotations disponibles, et une journée où un actif détenu n'a aucun cours connu
+      compte pour un rendement nul — le Rapport indique combien.
+    </dd>
+    <dt>Repère « mêmes apports en BTC »</dt>
+    <dd>
+      Vos apports et retraits réels — mêmes montants, mêmes dates — rejoués comme s'ils avaient tous
+      porté sur le bitcoin. C'est une arithmétique sur des cours passés, à seule fin de comparaison
+      : les performances passées ne préjugent pas des performances futures, et rien dans cette
+      application n'est un conseil en investissement.
+    </dd>
   </dl>
   <h2>Pourquoi les % de l'app Coinhouse paraissent faux</h2>
   <p>

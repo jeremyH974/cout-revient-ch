@@ -1,11 +1,16 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { nowIso } from '$lib/clock';
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
   import AppBar from '../../components/layout/AppBar.svelte';
   import { app } from '../../state/app.svelte';
+  import { history } from '../../state/history.svelte';
   import { toasts } from '../../state/ui.svelte';
+
+  // Le TWR et le repère se lisent dans l'historique quotidien des prix : on le charge à
+  // l'ouverture du rapport (idempotent, il ne redemande que ce qui manque).
+  onMount(() => void history.ensure());
 
   let generatedAt = $state(nowIso());
   let busy = $state(false);
@@ -17,6 +22,9 @@
       generatedAt,
       version: __APP_VERSION__,
       subscriptionsInPnl: app.state.engineSettings.includeSubscriptionsInPnl,
+      // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
+      // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
+      performance: history.status.loadedAt === null ? undefined : history.performance(),
     }),
   );
   const tables = $derived<ReportTable[]>([
