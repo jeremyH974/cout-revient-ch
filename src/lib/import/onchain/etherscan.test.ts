@@ -10,6 +10,17 @@ import { evmAttempts, syncEvmWithFallback } from './evm-sync';
 import { OnchainError } from './normalize';
 
 const ME = '0x1111111111111111111111111111111111111111';
+
+/**
+ * Aiguillage du double de `fetch` sur le NOM D'HÔTE, jamais sur une sous-chaîne de l'URL :
+ * `url.includes('blockscout.com')` répondrait aussi à `https://pirate.test/?x=blockscout.com`.
+ * Sans conséquence dans un test, mais c'est le motif qu'il ne faut jamais laisser s'installer —
+ * en production il deviendrait un contrôle d'hôte contournable (CodeQL le signale à raison).
+ */
+const isBlockscout = (url: string): boolean => {
+  const host = new URL(url).hostname;
+  return host === 'blockscout.com' || host.endsWith('.blockscout.com');
+};
 const OTHER = '0x2222222222222222222222222222222222222222';
 const USDC_ETH = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 
@@ -172,7 +183,7 @@ describe('ordre de repli', () => {
   it('bascule sur le suivant quand un fournisseur tombe, et dit qui a répondu', async () => {
     let blockscoutCalls = 0;
     const fetchLike = (url: string): Promise<Response> => {
-      if (url.includes('blockscout.com')) {
+      if (isBlockscout(url)) {
         blockscoutCalls++;
         return Promise.resolve(new Response('rate limited', { status: 429 }));
       }
