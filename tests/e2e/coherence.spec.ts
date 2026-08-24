@@ -387,3 +387,32 @@ test('Trading : la somme du calendrier = le réalisé net du tableau de bord', a
   expect(weeks).toBeGreaterThan(0);
   expect(Math.abs(calendar - realized)).toBeLessThanOrEqual(tol(weeks));
 });
+
+/**
+ * Vue d'ensemble : elle COMPOSE les deux espaces, elle ne recalcule rien. Personne ne le vérifiait —
+ * elle pouvait dériver de l'un ou de l'autre sans qu'aucun test ne bronche.
+ */
+test('Vue d’ensemble : valeur nette = valeur d’investissement + équité de trading', async ({
+  page,
+}) => {
+  test.skip(Boolean(REAL_CSV), 'Vue d’ensemble : jeu de démonstration seulement');
+  await openDemo(page);
+
+  await page.goto('#/');
+  const trio = page.locator('section.hero .trio');
+  await expect(trio).toBeVisible();
+  const big = trio.locator('.big');
+  const netWorth = toNumber(await big.nth(0).innerText());
+  const investCard = toNumber(await big.nth(1).innerText());
+  const tradingCard = toNumber(await big.nth(2).innerText());
+  // La carte se recoupe d'abord avec elle-même…
+  expect(Math.abs(netWorth - (investCard + tradingCard))).toBeLessThanOrEqual(tol(2));
+
+  // … puis avec chacun des deux espaces, lus sur leur propre écran.
+  await page.goto('#/invest');
+  expect(Math.abs(investCard - (await readSummary(page)).value)).toBeLessThanOrEqual(tol(1));
+
+  await page.goto('#/trading');
+  const equity = toNumber(await page.locator('section.summary .trio .big').nth(1).innerText());
+  expect(Math.abs(tradingCard - equity)).toBeLessThanOrEqual(tol(1));
+});
