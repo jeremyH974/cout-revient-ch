@@ -29,4 +29,10 @@ export async function waitForPrices(page: Page): Promise<void> {
   const summary = page.locator('section.summary');
   await expect(summary.getByRole('button', { name: 'Actualiser', exact: true })).toBeEnabled();
   await expect(summary.getByText(/^Prix : /)).toBeVisible();
+  // Les cotations sont appliquées fournisseur par fournisseur : la synthèse annonce « Prix : … »
+  // dès la première réponse, alors que la longue traîne (Hyperliquid pour l'actif que personne
+  // d'autre ne cote, puis DefiLlama) peut arriver plusieurs secondes plus tard. Tant qu'une
+  // position reste sans cours, les cellules « Valeur », « Latent » et « Total » affichent « — » :
+  // les specs qui recoupent des chiffres liraient un écran à moitié calculé.
+  await expect(page.getByText('Prix indisponible')).toHaveCount(0, { timeout: 20_000 });
 }

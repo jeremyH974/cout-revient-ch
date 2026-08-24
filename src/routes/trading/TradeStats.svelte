@@ -195,7 +195,9 @@
         </select>
       </label>
     </div>
-    <div class="scroll">
+    <!-- Un tableau qui défile horizontalement doit rester accessible au clavier (WCAG 2.1.1). -->
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div class="scroll" tabindex="0" role="region" aria-label="Répartition — tableau défilant">
       <table>
         <thead>
           <tr>
@@ -300,6 +302,10 @@
   }
   .scroll {
     overflow-x: auto;
+  }
+  .scroll:focus-visible {
+    outline: 2px solid var(--accent-trading);
+    outline-offset: 2px;
   }
   table {
     width: 100%;

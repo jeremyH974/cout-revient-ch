@@ -172,8 +172,8 @@ test('adresse on-chain BTC : suivi, synchronisation stubée, position = moteur, 
   const card = page.locator('section', {
     has: page.getByRole('heading', { name: 'Suivre une adresse on-chain' }),
   });
-  await card.getByLabel('Adresse publique').fill(ONCHAIN_BTC_ADDRESS);
-  await card.getByLabel('Nom (facultatif)').fill('Wallet BTC démo');
+  await card.getByLabel('Adresse à suivre').fill(ONCHAIN_BTC_ADDRESS);
+  await card.getByLabel('Nom du compte (facultatif)').fill('Wallet BTC démo');
   await card.getByRole('button', { name: 'Suivre et synchroniser' }).click();
   await expect(
     page.getByText(`Synchronisé : ${sync.movements.length} nouveau(x) mouvement(s)`, {

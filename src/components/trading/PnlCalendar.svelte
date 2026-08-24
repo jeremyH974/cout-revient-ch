@@ -132,7 +132,9 @@
   </div>
 </div>
 
-<div class="scroll">
+<!-- Un tableau qui défile horizontalement doit rester accessible au clavier (WCAG 2.1.1). -->
+<!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<div class="scroll" tabindex="0" role="region" aria-label="Calendrier de P&L — tableau défilant">
   <table>
     <caption class="sr-only"
       >Calendrier de P&L réalisé net par jour de clôture, {monthLabel}</caption
@@ -236,6 +238,10 @@
   .scroll {
     overflow-x: auto;
   }
+  .scroll:focus-visible {
+    outline: 2px solid var(--accent-trading);
+    outline-offset: 2px;
+  }
   table {
     width: 100%;
     min-width: 480px;
@@ -282,6 +288,13 @@
   }
   .day.tone-loss {
     background: color-mix(in srgb, var(--loss) 18%, transparent);
+  }
+  /* Dans une case teintée, le montant reprend la couleur du texte courant : vert sur vert clair
+     (ou rouge sur rouge clair) tombe sous 4,5:1 (axe WCAG 2.2 AA). La teinte de la case et le
+     signe du montant portent déjà l'information — la couleur n'est jamais le seul signal. */
+  .day.tone-gain :global(.num),
+  .day.tone-loss :global(.num) {
+    color: var(--fg);
   }
   .day[aria-pressed='true'] {
     box-shadow: inset 0 0 0 2px var(--accent-trading);

@@ -382,7 +382,7 @@
       </select>
     </label>
     <label class="field"
-      >Adresse publique
+      >Adresse à suivre
       <input
         type="text"
         bind:value={ocAddress}
@@ -393,7 +393,7 @@
       />
     </label>
     <label class="field"
-      >Nom (facultatif)
+      >Nom du compte (facultatif)
       <input
         type="text"
         bind:value={ocLabel}

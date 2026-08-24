@@ -118,8 +118,14 @@
       font-size: var(--fs-xs);
       border-radius: var(--radius-sm);
     }
-    a.active {
-      background: color-mix(in srgb, currentColor 12%, transparent);
+    /* Pastille d'état actif derrière la seule ICÔNE (Material 3) : posée sous le libellé, elle
+       éclaircissait le fond juste assez pour faire passer le texte 12 px sous 4,5:1 (axe WCAG
+       2.2 AA). Le libellé reste donc sur le fond plein de la barre. */
+    a.active svg {
+      display: block;
+      padding: 4px 14px;
+      border-radius: 999px;
+      background: color-mix(in srgb, currentColor 14%, transparent);
     }
   }
 </style>

@@ -74,7 +74,7 @@ test('démo : le tableau de bord Trading recoupe le moteur (équité, positions,
   await page.goto('#/trading');
   await expectDashboard(page, report);
   // Onglet Fills : les exécutions vivent là, 50 par 50.
-  await page.getByRole('link', { name: 'Fills' }).click();
+  await page.getByLabel('Espace Trading').getByRole('link', { name: 'Fills' }).click();
   await expect(page).toHaveURL(/#\/trading\/fills$/);
   const fillCount = report.executions.length;
   await expect(page.getByText(`${fillCount} fills (spot et perps)`)).toBeVisible();

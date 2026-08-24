@@ -149,6 +149,8 @@ export class AppState {
   });
   liveQuotes = $state<Record<AssetCode, PriceQuoteInput>>({});
   fxStatus = $state<{ loading: boolean; error: string | null }>({ loading: false, error: null });
+  /** Chargements de taux en cours, par devise : les appels concurrents partagent la même promesse. */
+  private fxInFlight: Partial<Record<Currency, Promise<void>>> = {};
   folderBackup = $state<FolderBackupStatus>({
     supported: false,
     folderName: null,
@@ -261,12 +263,16 @@ export class AppState {
     const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const trade: ManualTrade = { ...input, id };
     this.state.manualTrades = { ...this.state.manualTrades, [id]: trade };
+    // Un trade coté en dollars a besoin du taux BCE pour s'afficher : sans lui, son P&L reste
+    // « — » jusqu'à ce qu'un autre écran charge les taux.
+    if (trade.quote !== 'EUR') void this.ensureRates('USD');
     return trade;
   }
 
   updateManualTrade(trade: ManualTrade): void {
     if (!this.state.manualTrades[trade.id]) return;
     this.state.manualTrades = { ...this.state.manualTrades, [trade.id]: trade };
+    if (trade.quote !== 'EUR') void this.ensureRates('USD');
   }
 
   /** Supprime un trade manuel et l'entrée de journal qui lui est rattachée. */
@@ -1149,18 +1155,34 @@ export class AppState {
    * Taux BCE de la première opération à aujourd'hui (incrémental, mis en cache), pour la devise
    * d'affichage par défaut, ou pour la devise demandée (USD : conversion des prix cotés en dollars).
    */
+  /**
+   * Taux BCE d'une devise, chargés au plus une fois à la fois. Un appel concurrent ATTEND la
+   * requête déjà en vol au lieu d'abandonner : sinon `refreshPrices`, lancé en même temps que le
+   * chargement des données, construisait son convertisseur sur un cache encore vide et les actifs
+   * cotés en dollars (Hyperliquid, DefiLlama) restaient sans prix jusqu'à un « Actualiser » manuel.
+   */
   async ensureRates(currency: Currency = this.state.ui.displayCurrency): Promise<void> {
-    if (currency === 'EUR' || this.fxStatus.loading) return;
-    this.fxStatus = { loading: true, error: null };
-    const today = nowIso().slice(0, 10);
-    const result = await refreshRates(currency, $state.snapshot(this.state.fx), {
-      provider: frankfurterProvider(),
-      fromDay: earliestDay(this.events, today),
-      toDay: today,
-      now: nowMs,
-    });
-    if (result.fetched) this.state.fx = result.cache;
-    this.fxStatus = { loading: false, error: result.error };
+    if (currency === 'EUR') return;
+    const inFlight = this.fxInFlight[currency];
+    if (inFlight) return inFlight;
+    const run = (async () => {
+      this.fxStatus = { loading: true, error: null };
+      const today = nowIso().slice(0, 10);
+      const result = await refreshRates(currency, $state.snapshot(this.state.fx), {
+        provider: frankfurterProvider(),
+        fromDay: earliestDay(this.events, today),
+        toDay: today,
+        now: nowMs,
+      });
+      if (result.fetched) this.state.fx = result.cache;
+      this.fxStatus = { loading: false, error: result.error };
+    })();
+    this.fxInFlight[currency] = run;
+    try {
+      await run;
+    } finally {
+      delete this.fxInFlight[currency];
+    }
   }
 
   setUi(patch: Partial<UiSettings>): void {

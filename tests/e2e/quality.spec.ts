@@ -16,8 +16,16 @@ test('auto-vérifications : voyants verts sur la démo, rappel en pied de portef
 
   await page.goto('#/settings');
   const list = page.getByRole('list', { name: 'Vérifications automatiques' });
-  await expect(list.getByRole('listitem')).toHaveCount(6);
-  for (const label of ['Cohérence comptable', 'Lots et PRU', 'Soldes Coinhouse']) {
+  // Le nombre de contrôles grandit avec l'application (virements, flux datés…) : ce qui compte est
+  // qu'aucun ne soit en échec sur la démo, pas leur compte exact.
+  await expect(list.getByRole('listitem').first()).toBeVisible();
+  await expect(list.getByRole('listitem').filter({ has: page.locator('.fail') })).toHaveCount(0);
+  for (const label of [
+    'Cohérence comptable',
+    'Flux datés (XIRR)',
+    'Lots et PRU',
+    'Soldes Coinhouse',
+  ]) {
     const item = list.getByRole('listitem').filter({ hasText: label });
     await expect(item).toHaveClass(/\bok\b/);
   }

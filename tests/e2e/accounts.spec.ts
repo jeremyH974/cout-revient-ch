@@ -21,8 +21,8 @@ test('comptes : compte déclaré, saisie rattachée, filtre « Plateforme », su
   await expect(page.getByRole('heading', { name: 'Comptes', level: 1 })).toBeVisible();
 
   // Ajout d'un compte déclaré.
-  await page.getByLabel('Nom du compte').fill('Ledger');
-  await page.getByRole('button', { name: 'Ajouter' }).click();
+  await page.getByLabel('Nom du compte', { exact: true }).fill('Ledger');
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
   const list = page.getByRole('list', { name: 'Comptes' });
   await expect(list).toContainText('Ledger');
 
@@ -38,7 +38,7 @@ test('comptes : compte déclaré, saisie rattachée, filtre « Plateforme », su
   await page.getByLabel('Quantité').fill('100');
   await page.getByLabel(/Total payé en €/).fill('50');
   await page.getByLabel('Compte').selectOption({ label: 'Ledger' });
-  await page.getByRole('button', { name: 'Ajouter' }).click();
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
   await expect(page.locator('section.list p.line')).toHaveCount(1);
 
   // Données Coinhouse (démo) par-dessus : le compte Coinhouse implicite rejoint le compte déclaré.

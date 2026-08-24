@@ -54,7 +54,9 @@ test.describe('Vue d’ensemble', () => {
     await openDemo(page);
     await page.goto('#/');
     await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
-    await expect(page.getByText('Valeur nette', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('main').getByText('Valeur nette', { exact: true }).first(),
+    ).toBeVisible();
 
     const investCard = page.locator('a.card.space.invest');
     const tradingCard = page.locator('a.card.space.trading');
