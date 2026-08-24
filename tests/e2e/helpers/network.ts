@@ -170,6 +170,29 @@ function frankfurterRates(url: URL): {
   return { amount: 1, base: 'EUR', start_date: fromDay, end_date: toDay, rates };
 }
 
+/** Adresse BTC factice des tests on-chain (jamais une vraie adresse). */
+export const ONCHAIN_BTC_ADDRESS = 'bc1qdemo000000000000000000000000000000000';
+
+/**
+ * Transactions mempool.space synthétiques : un dépôt de 50 000 sats puis un envoi net de
+ * 20 000 sats (l'adresse dépense 50 000, récupère 30 000 de change). Ordre « plus récent
+ * d'abord » comme la vraie API.
+ */
+export const ONCHAIN_BTC_TXS = [
+  {
+    txid: 'oc-demo-out',
+    status: { confirmed: true, block_time: 1_755_600_000 },
+    vin: [{ prevout: { scriptpubkey_address: ONCHAIN_BTC_ADDRESS, value: 50_000 } }],
+    vout: [{ scriptpubkey_address: ONCHAIN_BTC_ADDRESS, value: 30_000 }],
+  },
+  {
+    txid: 'oc-demo-in',
+    status: { confirmed: true, block_time: 1_754_000_000 },
+    vin: [],
+    vout: [{ scriptpubkey_address: ONCHAIN_BTC_ADDRESS, value: 50_000 }],
+  },
+];
+
 export async function stubNetwork(context: BrowserContext): Promise<void> {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, async (route) => {
     const url = new URL(route.request().url());
@@ -244,6 +267,15 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
     }
     if (url.hostname === 'coins.llama.fi') return json({ coins: {} });
     if (url.hostname.startsWith('api.frankfurter.')) return json(frankfurterRates(url));
+    // On-chain (P25) : transactions synthétiques pour l'adresse de test, sinon vide.
+    if (url.hostname === 'mempool.space') {
+      if (url.pathname.includes('/txs')) {
+        return json(url.pathname.includes(ONCHAIN_BTC_ADDRESS) ? ONCHAIN_BTC_TXS : []);
+      }
+      return json({});
+    }
+    if (url.hostname.endsWith('.blockscout.com'))
+      return json({ items: [], next_page_params: null });
     return json({});
   });
 }

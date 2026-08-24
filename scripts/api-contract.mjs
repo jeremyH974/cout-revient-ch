@@ -228,6 +228,40 @@ await check(
   },
 );
 
+// On-chain (P25) : adresses publiques CANONIQUES et célèbres uniquement (genesis BTC, vitalik.eth),
+// jamais une adresse d'utilisateur — la sonde vérifie la FORME des réponses, pas des soldes.
+await check(
+  'mempool.space address txs (genesis)',
+  'https://mempool.space/api/address/1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa/txs',
+  (json) => {
+    if (!Array.isArray(json)) return ['réponse non tabulaire'];
+    const tx = json.find((t) => t?.status?.confirmed === true);
+    if (!tx) return ['aucune transaction confirmée'];
+    const problems = [];
+    if (typeof tx.txid !== 'string') problems.push('txid absent');
+    if (!isNum(tx.status?.block_time)) problems.push('status.block_time non numérique');
+    if (!Array.isArray(tx.vout) || !tx.vout.some((o) => isNum(o?.value)))
+      problems.push('vout[].value non numérique');
+    return problems;
+  },
+);
+
+await check(
+  'Blockscout eth token-transfers (vitalik.eth)',
+  'https://eth.blockscout.com/api/v2/addresses/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045/token-transfers?type=ERC-20',
+  (json) => {
+    if (!Array.isArray(json?.items)) return ['items absent'];
+    const item = json.items[0];
+    if (!item) return []; // liste vide possible : la forme de l'enveloppe suffit
+    const problems = [];
+    const contract = item?.token?.address_hash ?? item?.token?.address;
+    if (typeof contract !== 'string') problems.push('token.address_hash absent');
+    if (!isNumericString(item?.total?.value)) problems.push('total.value non décimal');
+    if (typeof item?.transaction_hash !== 'string') problems.push('transaction_hash absent');
+    return problems;
+  },
+);
+
 const failed = results.filter((r) => !r.ok);
 const lines = [
   `# Contrat des API tierces — ${new Date().toISOString()}`,

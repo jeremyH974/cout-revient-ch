@@ -7,7 +7,7 @@
    */
   import { D } from '$lib/domain/money';
   import { pairFeeQty } from '$lib/domain/transfers';
-  import type { Account } from '$lib/domain/types';
+  import type { Account, OnchainChain } from '$lib/domain/types';
   import { fmtDate, fmtQty } from '$lib/format/fr';
   import { HL_ADDRESS } from '$lib/import/hyperliquid/api-types';
   import { router } from '$lib/router.svelte';
@@ -42,7 +42,39 @@
     manual: 'Saisies manuelles',
     hyperliquid: 'Hyperliquid (adresse publique)',
     csv: 'Import CSV',
+    onchain: 'Adresse on-chain',
   };
+
+  // --- Adresses on-chain (lecture seule) --------------------------------------------------------
+  const OC_CHAIN_LABELS: Record<NonNullable<Account['chain']>, string> = {
+    btc: 'Bitcoin',
+    eth: 'Ethereum',
+    arbitrum: 'Arbitrum One',
+    base: 'Base',
+  };
+  let ocChain = $state<OnchainChain>('btc');
+  let ocAddress = $state('');
+  let ocLabel = $state('');
+
+  async function addOnchain(): Promise<void> {
+    const result = app.addOnchainAccount({ chain: ocChain, address: ocAddress, label: ocLabel });
+    if (!result.ok) return toasts.push(result.error, 'error');
+    ocAddress = '';
+    ocLabel = '';
+    toasts.push('Adresse suivie : synchronisation en cours…', 'success');
+    await syncOnchainNow(result.account.id);
+  }
+
+  async function syncOnchainNow(id: string): Promise<void> {
+    await app.syncOnchain(id);
+    const status = app.syncStatus[id];
+    if (status?.error) toasts.push(`Synchronisation interrompue : ${status.error}`, 'error');
+    else
+      toasts.push(
+        `Synchronisé : ${status?.added ?? 0} nouveau(x) mouvement(s)${status?.truncated ? ' (historique tronqué : relancez plus tard pour approfondir)' : ''}.`,
+        status?.truncated ? 'info' : 'success',
+      );
+  }
   const SPACE_LABELS: Record<Account['space'], string> = {
     invest: 'Investissement',
     trading: 'Trading',
@@ -122,6 +154,24 @@
                   ? 's'
                   : ''}{/if}</span
             >
+            {#if a.kind === 'onchain'}
+              <span class="muted small mono">{OC_CHAIN_LABELS[a.chain ?? 'btc']} · {a.address}</span
+              >
+              {#if app.syncStatus[a.id]?.error}
+                <span class="small error">{app.syncStatus[a.id]?.error}</span>
+              {:else if app.syncStatus[a.id]?.truncated}
+                <span class="muted small"
+                  >Historique tronqué (plafond de pages) : resynchronisez pour approfondir.</span
+                >
+              {/if}
+              <button
+                class="link small"
+                type="button"
+                disabled={app.syncStatus[a.id]?.syncing === true}
+                onclick={() => void syncOnchainNow(a.id)}
+                >{app.syncStatus[a.id]?.syncing ? 'Synchronisation…' : 'Synchroniser'}</button
+              >
+            {/if}
             {#if a.kind === 'hyperliquid'}
               <span class="muted small mono">{a.address}</span>
               <label class="check small"
@@ -305,6 +355,58 @@
   </form>
 </section>
 
+<section class="card">
+  <h2>Suivre une adresse on-chain</h2>
+  <p class="muted small">
+    Bitcoin, Ethereum, Arbitrum One ou Base : les mouvements de l'adresse deviennent des dépôts et
+    retraits de l'espace Investissement — à <strong>apparier</strong> à vos retraits de plateforme
+    (le coût d'acquisition voyage) ou à qualifier. Lecture seule : l'adresse n'est envoyée qu'à
+    <code>mempool.space</code> (Bitcoin) ou à l'instance Blockscout de sa chaîne, jamais ailleurs. Limites
+    v1 : ~200 dernières transactions par synchronisation, tokens ERC-20 hors USDC/USDT ignorés (anti-spam),
+    pas de xpub.
+  </p>
+  <form
+    class="add"
+    onsubmit={(e) => {
+      e.preventDefault();
+      void addOnchain();
+    }}
+  >
+    <label class="field"
+      >Chaîne
+      <select bind:value={ocChain}>
+        <option value="btc">Bitcoin</option>
+        <option value="eth">Ethereum</option>
+        <option value="arbitrum">Arbitrum One</option>
+        <option value="base">Base</option>
+      </select>
+    </label>
+    <label class="field"
+      >Adresse publique
+      <input
+        type="text"
+        bind:value={ocAddress}
+        placeholder={ocChain === 'btc' ? 'bc1… ou 1…/3…' : '0x… (40 caractères hexadécimaux)'}
+        autocomplete="off"
+        spellcheck="false"
+        maxlength="90"
+      />
+    </label>
+    <label class="field"
+      >Nom (facultatif)
+      <input
+        type="text"
+        bind:value={ocLabel}
+        placeholder="ex. Ledger BTC, Wallet ETH"
+        maxlength="60"
+      />
+    </label>
+    <button class="primary" type="submit" disabled={ocAddress.trim() === ''}
+      >Suivre et synchroniser</button
+    >
+  </form>
+</section>
+
 <style>
   .accounts {
     list-style: none;
@@ -368,6 +470,9 @@
   .transfers li + li,
   .pairline {
     border-top: 1px solid var(--border);
+  }
+  .error {
+    color: var(--loss, #b91c1c);
   }
   .linkish {
     background: none;

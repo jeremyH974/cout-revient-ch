@@ -91,7 +91,10 @@ export type EventScope = 'coinhouse' | 'external';
 
 /** Identifiant d'un compte (plateforme ou saisie) : `ch:main`, `man:default`, `man:<uuid>`, `hl:<adresse>`… */
 export type AccountId = string;
-export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv';
+export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv' | 'onchain';
+
+/** Chaîne suivie par un compte on-chain (adresse publique). */
+export type OnchainChain = 'btc' | 'eth' | 'arbitrum' | 'base';
 /** Espace d'appartenance d'un compte (proposition v2, § 6.0). */
 export type AccountSpace = 'invest' | 'trading';
 
@@ -109,6 +112,8 @@ export interface Account {
   spotAsInvestment?: boolean;
   /** Adresse publique (Hyperliquid, on-chain) ; jamais une clé. */
   address?: string;
+  /** Comptes on-chain : chaîne de l'adresse. */
+  chain?: OnchainChain;
   /** ISO 8601. */
   createdAt: string;
 }

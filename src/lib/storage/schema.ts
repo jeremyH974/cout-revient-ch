@@ -68,6 +68,8 @@ export interface UiSettings {
    * Propre à l'appareil (jamais dans une sauvegarde fusionnée), envoyée en en-tête uniquement.
    */
   coingeckoDemoKey: string | null;
+  /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
+  liveMids: boolean;
 }
 
 export interface StoredStateV1 {
@@ -111,6 +113,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   demoMode: false,
   lastSeenVersion: null,
   coingeckoDemoKey: null,
+  liveMids: false,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -348,7 +351,8 @@ function sanitizeManualTrade(id: string, raw: unknown): ManualTrade | null {
     quote: QUOTES.has(raw['quote'] as string) ? (raw['quote'] as ManualTrade['quote']) : 'USD',
   };
 }
-const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv']);
+const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv', 'onchain']);
+const ONCHAIN_CHAINS = new Set(['btc', 'eth', 'arbitrum', 'base']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
 
 function sanitizeAccount(id: string, raw: unknown): Account | null {
@@ -367,6 +371,8 @@ function sanitizeAccount(id: string, raw: unknown): Account | null {
   if (a['spotAsInvestment'] === true) account.spotAsInvestment = true;
   if (typeof a['address'] === 'string' && a['address'].length <= 120)
     account.address = a['address'];
+  if (typeof a['chain'] === 'string' && ONCHAIN_CHAINS.has(a['chain']))
+    account.chain = a['chain'] as 'btc' | 'eth' | 'arbitrum' | 'base';
   return account;
 }
 
@@ -516,6 +522,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };
   if (!METRICS.includes(state.ui.assetChartMetric))
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
+  if (typeof state.ui.liveMids !== 'boolean')
+    state = { ...state, ui: { ...state.ui, liveMids: false } };
   if (typeof state.ui.demoMode !== 'boolean')
     state = { ...state, ui: { ...state.ui, demoMode: false } };
   if (state.ui.lastSeenVersion !== null && typeof state.ui.lastSeenVersion !== 'string')
