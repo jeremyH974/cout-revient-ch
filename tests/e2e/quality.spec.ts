@@ -56,8 +56,11 @@ test('page Nouveautés et bandeau de mise à jour', async ({ page }) => {
   await openDemo(page);
   await page.goto('#/news');
   await expect(page.getByRole('heading', { level: 1, name: 'Nouveautés' })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2 }).first()).toContainText(
-    'Dernières évolutions',
+  // La page ouvre sur le bloc le plus récent du CHANGELOG : « Dernières évolutions » quand des
+  // changements attendent une publication, « Version X.Y.Z — date » juste après une release.
+  // Figer l'un des deux ferait rougir la CI à chaque publication — sans qu'aucun défaut existe.
+  await expect(page.getByRole('heading', { level: 2 }).first()).toHaveText(
+    /^(Dernières évolutions|Version \d+\.\d+\.\d+ — \d{4}-\d{2}-\d{2})$/,
   );
   expect(await page.getByRole('listitem').count()).toBeGreaterThan(5);
 
