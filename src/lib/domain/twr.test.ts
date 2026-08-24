@@ -126,6 +126,24 @@ describe('twrEur', () => {
     expect(twrEur([{ day: '2026-01-01', value: D('1') }], []).ok).toBe(false);
   });
 
+  it('la précision du produit chaîné reste bornée sur un long historique', () => {
+    // Sans arrondi à chaque pas, `Big` garde toute la précision de chaque facteur : le nombre de
+    // décimales enfle d'une journée à l'autre et le calcul devient quadratique (repéré par la CI,
+    // où l'instrumentation de couverture faisait dépasser le délai d'un test de deux ans).
+    const days = grid('2020-01-01', 2000);
+    const series: TwrDay[] = days.map((day, i) => ({
+      day,
+      value: D('1000').plus(D('7').times(String(i)).div('3')),
+    }));
+    const result = twrEur(series, []);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const decimals = (result.cumulative.toString().split('.')[1] ?? '').length;
+    expect(decimals).toBeLessThanOrEqual(18);
+    // Sans flux, le chaînage télescope : valeur finale ÷ valeur initiale − 1.
+    near(result.cumulative, (7 * 1999) / 3 / 1000, 1e-9);
+  });
+
   it('propriété : quel que soit le calendrier des apports, le TWR suit la trajectoire du prix', () => {
     fc.assert(
       fc.property(

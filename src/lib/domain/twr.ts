@@ -17,7 +17,7 @@
  * n'est pas un montant (décision n° 27), il ne repart jamais dans un calcul monétaire.
  */
 import { epochDayOf } from './date';
-import { D, ONE, ZERO, type Big } from './money';
+import { Big, D, ONE, ZERO } from './money';
 import type { NaiveDateTime } from './types';
 
 /** Valeur de marché du portefeuille à la clôture d'un jour. */
@@ -60,6 +60,8 @@ export const TWR_MIN_SPAN_DAYS = 30;
 const DAY_SECONDS = 86_400;
 const SECONDS = D(String(DAY_SECONDS));
 const HALF = D('0.5');
+/** Décimales conservées par le produit chaîné (voir la note dans `twrEur`). */
+const CHAIN_DP = 18;
 
 /**
  * Fraction du jour restant après l'instant `at` : 1 à minuit pile, 0 à la toute fin de journée.
@@ -124,7 +126,11 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
       neutralizedDays++;
       continue;
     }
-    chained = chained.times(factor);
+    // Arrondi à chaque pas : sans lui, le produit chaîné garde TOUTE la précision de chacun de ses
+    // facteurs et gagne des dizaines de décimales par journée — sur cinq ans d'historique le calcul
+    // devient quadratique et se traîne. 18 décimales sont dix ordres de grandeur au-delà de ce qui
+    // est affiché ; l'erreur accumulée reste négligeable devant le bruit des cotations.
+    chained = chained.times(factor).round(CHAIN_DP, Big.roundHalfUp);
     chainedAny = true;
   }
   if (!chainedAny) return { ok: false, reason: 'no-base' };
