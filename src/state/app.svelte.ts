@@ -56,9 +56,19 @@ import { normalizeHlAccount, type NormalizedHlAccount } from '$lib/import/hyperl
 import { syncAccount, type SyncProgress } from '$lib/import/hyperliquid/sync';
 import { manualAccountId, manualToLedgerEvent } from '$lib/import/manual';
 import { importGhostfolioJson } from '$lib/import/ghostfolio/index';
-import { BTC_ADDRESS_RE, syncBtcAddress } from '$lib/import/onchain/btc';
+import {
+  BTC_ADDRESS_RE,
+  syncBtcAddress,
+  syncBtcWallet,
+  type BtcScanProgress,
+} from '$lib/import/onchain/btc';
+import { EXTENDED_PRIVATE_RE, EXTENDED_PUBLIC_RE } from '$lib/import/onchain/xpub-detect';
 import { EVM_ADDRESS_RE, EVM_CHAINS, syncEvmAddress } from '$lib/import/onchain/evm';
-import { movementsToDrafts, OnchainError } from '$lib/import/onchain/normalize';
+import {
+  movementsToDrafts,
+  OnchainError,
+  type OnchainSyncResult,
+} from '$lib/import/onchain/normalize';
 import { pivotLedgerEvents } from '$lib/import/pivot/events';
 import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index';
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
@@ -120,6 +130,8 @@ export interface SyncStatus {
   truncated: boolean;
   /** Éléments nouveaux (fills + funding + mouvements) à la dernière synchronisation. */
   added: number;
+  /** Balayage d'un portefeuille Bitcoin dérivé d'une clé étendue (adresses vues, utilisées). */
+  scan: BtcScanProgress | null;
 }
 
 export interface QualifiedSummary {
@@ -540,7 +552,20 @@ export class AppState {
   }): { ok: true; account: Account } | { ok: false; error: string } {
     const chain = input.chain;
     const address = chain === 'btc' ? input.address.trim() : input.address.trim().toLowerCase();
-    const valid = chain === 'btc' ? BTC_ADDRESS_RE.test(address) : EVM_ADDRESS_RE.test(address);
+    // Une clé PRIVÉE étendue donne accès aux fonds : refus immédiat, avant toute écriture.
+    if (EXTENDED_PRIVATE_RE.test(address))
+      return {
+        ok: false,
+        error:
+          'Ceci est une clé PRIVÉE étendue (xprv/yprv/zprv) : elle donne accès à vos fonds. ' +
+          'Ne la collez nulle part. Utilisez la clé PUBLIQUE étendue (xpub, ypub ou zpub).',
+      };
+    const isWallet = chain === 'btc' && EXTENDED_PUBLIC_RE.test(address);
+    const valid = isWallet
+      ? true
+      : chain === 'btc'
+        ? BTC_ADDRESS_RE.test(address)
+        : EVM_ADDRESS_RE.test(address);
     if (!valid) return { ok: false, error: 'Adresse invalide pour cette chaîne.' };
     const existing = Object.values(this.state.accounts).find(
       (a) => a.kind === 'onchain' && a.chain === chain && a.address === address,
@@ -553,7 +578,9 @@ export class AppState {
       kind: 'onchain',
       label:
         input.label.trim().slice(0, 60) ||
-        `Adresse ${chain === 'btc' ? 'Bitcoin' : EVM_CHAINS[chain].label}`,
+        (isWallet
+          ? 'Portefeuille Bitcoin (clé étendue)'
+          : `Adresse ${chain === 'btc' ? 'Bitcoin' : EVM_CHAINS[chain].label}`),
       space: 'invest',
       address,
       chain,
@@ -575,15 +602,28 @@ export class AppState {
         error: null,
         truncated: false,
         added: 0,
+        scan: null,
       };
       this.syncStatus = { ...this.syncStatus, [accountId]: { ...current, ...p } };
     };
     patch({ syncing: true, error: null });
     try {
-      const result =
-        account.chain === 'btc'
-          ? await syncBtcAddress(account.address)
-          : await syncEvmAddress(account.chain, account.address);
+      // Clé étendue : dérivation locale + balayage avec gap limit ; les mouvements sont nets sur
+      // TOUTES les adresses du portefeuille, sinon la monnaie rendue passerait pour une réception.
+      let result: OnchainSyncResult;
+      if (account.chain === 'btc' && EXTENDED_PUBLIC_RE.test(account.address)) {
+        const wallet = await syncBtcWallet(account.address, {
+          onProgress: (p) => patch({ scan: p }),
+        });
+        patch({
+          scan: { scanned: wallet.derived, used: wallet.used, txs: wallet.movements.length },
+        });
+        result = wallet;
+      } else if (account.chain === 'btc') {
+        result = await syncBtcAddress(account.address);
+      } else {
+        result = await syncEvmAddress(account.chain, account.address);
+      }
       const now = nowMs();
       const importId = `imp:${now.toString(36)}`;
       const parsed = draftsToPivotRows(movementsToDrafts(result.movements), importId, accountId);
@@ -711,6 +751,7 @@ export class AppState {
         error: null,
         truncated: false,
         added: 0,
+        scan: null,
       };
       this.syncStatus = { ...this.syncStatus, [id]: { ...current, ...patch } };
     };

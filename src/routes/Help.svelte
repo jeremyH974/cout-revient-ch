@@ -131,13 +131,18 @@
   <h2>Suivre une adresse on-chain (Bitcoin, Ethereum, Arbitrum, Base)</h2>
   <p>
     Depuis l'écran <strong>Comptes</strong>, collez une <strong>adresse publique</strong> (jamais de
-    clé ni de phrase de récupération) pour suivre un wallet en auto-garde : Bitcoin (via
-    mempool.space) ou Ethereum/Arbitrum One/Base (via Blockscout). Seuls les mouvements natifs et
-    les jetons USDC/USDT reconnus sont importés, sans valeur en euros — un retrait d'une autre
-    plateforme vers cette adresse est apparié automatiquement comme un virement interne (le coût
-    voyage, aucune plus-value) ; sinon la ligne apparaît « à qualifier ». L'adresse n'est envoyée
-    qu'à l'API de sa propre chaîne, jamais ailleurs (<a href={router.href({ name: 'privacy' })}
-      >Confidentialité</a
+    clé privée ni de phrase de récupération) pour suivre un wallet en auto-garde : Bitcoin (via
+    mempool.space) ou Ethereum/Arbitrum One/Base (via Blockscout). Pour Bitcoin, vous pouvez aussi
+    coller la <strong>clé publique étendue</strong> du compte (<code>zpub</code>, <code>ypub</code>
+    ou <code>xpub</code>) : l'application dérive alors <em>dans votre navigateur</em> toutes les
+    adresses du portefeuille — réception et monnaie — et calcule les mouvements
+    <strong>nets sur l'ensemble</strong>, si bien qu'une dépense qui vous rend la monnaie compte
+    pour une seule sortie et non pour une sortie plus une entrée. La clé étendue n'est envoyée nulle
+    part. Seuls les mouvements natifs et les jetons USDC/USDT reconnus sont importés, sans valeur en
+    euros — un retrait d'une autre plateforme vers cette adresse est apparié automatiquement comme
+    un virement interne (le coût voyage, aucune plus-value) ; sinon la ligne apparaît « à qualifier
+    ». L'adresse n'est envoyée qu'à l'API de sa propre chaîne, jamais ailleurs (<a
+      href={router.href({ name: 'privacy' })}>Confidentialité</a
     >).
   </p>
   <h2>Qu'est-ce que l'espace Trading (Hyperliquid) ?</h2>

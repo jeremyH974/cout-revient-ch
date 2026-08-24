@@ -10,6 +10,7 @@
   import type { Account, OnchainChain } from '$lib/domain/types';
   import { fmtDate, fmtQty } from '$lib/format/fr';
   import { HL_ADDRESS } from '$lib/import/hyperliquid/api-types';
+  import { EXTENDED_PUBLIC_RE } from '$lib/import/onchain/xpub-detect';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import { app } from '../state/app.svelte';
@@ -52,6 +53,10 @@
     arbitrum: 'Arbitrum One',
     base: 'Base',
   };
+  /** Une clé étendue fait 111 caractères : illisible en entier, et inutile de l'étaler à l'écran. */
+  const shortKey = (value: string): string =>
+    EXTENDED_PUBLIC_RE.test(value) ? `${value.slice(0, 12)}…${value.slice(-6)}` : value;
+
   let ocChain = $state<OnchainChain>('btc');
   let ocAddress = $state('');
   let ocLabel = $state('');
@@ -155,13 +160,22 @@
                   : ''}{/if}</span
             >
             {#if a.kind === 'onchain'}
-              <span class="muted small mono">{OC_CHAIN_LABELS[a.chain ?? 'btc']} · {a.address}</span
+              <span class="muted small mono"
+                >{OC_CHAIN_LABELS[a.chain ?? 'btc']} · {shortKey(a.address ?? '')}</span
               >
+              {#if app.syncStatus[a.id]?.scan}
+                {@const scan = app.syncStatus[a.id]!.scan!}
+                <span class="muted small"
+                  >{scan.scanned} adresse{scan.scanned > 1 ? 's' : ''} dérivée{scan.scanned > 1
+                    ? 's'
+                    : ''}, {scan.used} utilisée{scan.used > 1 ? 's' : ''}</span
+                >
+              {/if}
               {#if app.syncStatus[a.id]?.error}
                 <span class="small error">{app.syncStatus[a.id]?.error}</span>
               {:else if app.syncStatus[a.id]?.truncated}
                 <span class="muted small"
-                  >Historique tronqué (plafond de pages) : resynchronisez pour approfondir.</span
+                  >Historique tronqué (plafond atteint) : resynchronisez pour approfondir.</span
                 >
               {/if}
               <button
@@ -361,9 +375,20 @@
     Bitcoin, Ethereum, Arbitrum One ou Base : les mouvements de l'adresse deviennent des dépôts et
     retraits de l'espace Investissement — à <strong>apparier</strong> à vos retraits de plateforme
     (le coût d'acquisition voyage) ou à qualifier. Lecture seule : l'adresse n'est envoyée qu'à
-    <code>mempool.space</code> (Bitcoin) ou à l'instance Blockscout de sa chaîne, jamais ailleurs. Limites
-    v1 : ~200 dernières transactions par synchronisation, tokens ERC-20 hors USDC/USDT ignorés (anti-spam),
-    pas de xpub.
+    <code>mempool.space</code> (Bitcoin) ou à l'instance Blockscout de sa chaîne, jamais ailleurs.
+  </p>
+  <p class="muted small">
+    <strong>Bitcoin :</strong> collez une adresse, ou la
+    <strong>clé publique étendue</strong> de votre compte (<code>zpub</code>, <code>ypub</code> ou
+    <code>xpub</code>, visible dans Ledger Live ou Sparrow) pour suivre le portefeuille entier. La
+    clé est dérivée <strong>dans votre navigateur</strong> et n'est envoyée nulle part : seules les
+    adresses qui en sortent sont interrogées. Une clé <strong>privée</strong> (<code>xprv</code>,
+    <code>yprv</code>, <code>zprv</code>) est refusée — ne la collez nulle part.
+  </p>
+  <p class="muted small">
+    Limites v1 : ~200 dernières transactions par adresse, arrêt après 20 adresses vides consécutives
+    (norme BIP44), tokens ERC-20 hors USDC/USDT ignorés (anti-spam), Taproot (<code>bc1p…</code>)
+    non couvert.
   </p>
   <form
     class="add"
@@ -382,14 +407,16 @@
       </select>
     </label>
     <label class="field"
-      >Adresse à suivre
+      >{ocChain === 'btc' ? 'Adresse ou clé publique étendue' : 'Adresse à suivre'}
       <input
         type="text"
         bind:value={ocAddress}
-        placeholder={ocChain === 'btc' ? 'bc1… ou 1…/3…' : '0x… (40 caractères hexadécimaux)'}
+        placeholder={ocChain === 'btc'
+          ? 'bc1…, 1…/3…, ou zpub/ypub/xpub'
+          : '0x… (40 caractères hexadécimaux)'}
         autocomplete="off"
         spellcheck="false"
-        maxlength="90"
+        maxlength="120"
       />
     </label>
     <label class="field"

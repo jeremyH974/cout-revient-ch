@@ -36,6 +36,14 @@
       autres, et stockée seulement sur cet appareil.
     </li>
     <li>
+      Si vous suivez un portefeuille Bitcoin par sa <strong>clé publique étendue</strong> (xpub,
+      ypub, zpub), cette clé <strong>ne quitte jamais votre navigateur</strong> : elle y est dérivée
+      localement, et seules les adresses individuelles qui en sortent sont interrogées. C'est
+      délibéré — confier un xpub à un service tiers lui donnerait la vue permanente de tout le
+      portefeuille, passé et à venir. Une clé <strong>privée</strong> étendue est refusée à la saisie
+      et n'est jamais enregistrée.
+    </li>
+    <li>
       Si vous activez « Prix en direct » sur l'écran Trading, un flux de cours de marché s'ouvre
       vers
       <code>wss://api.hyperliquid.xyz</code> ; aucune adresse ni donnée personnelle n'y transite, et il

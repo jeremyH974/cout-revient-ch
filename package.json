@@ -33,6 +33,9 @@
     "fixture:hl": "node scripts/generate-hl-fixture.ts"
   },
   "dependencies": {
+    "@noble/hashes": "2.3.0",
+    "@scure/base": "2.3.0",
+    "@scure/bip32": "2.3.0",
     "big.js": "7.0.1",
     "jspdf": "4.2.1",
     "jspdf-autotable": "5.0.8",
