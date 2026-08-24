@@ -76,3 +76,23 @@ describe('sections répétées', () => {
     expect(release?.sections[0]?.items).toEqual(['a', 'c']);
   });
 });
+
+describe('version sans entrée', () => {
+  it('écarte un bloc vide plutôt que d’ouvrir la page sur une carte sans contenu', () => {
+    const releases = parseChangelog(
+      [
+        '## [Unreleased]',
+        '',
+        '## [2.0.0] - 2026-08-24',
+        '',
+        '### Added',
+        '',
+        '- Deux espaces.',
+        '',
+      ].join('\n'),
+    );
+    expect(releases.map((r) => r.version)).toEqual(['2.0.0']);
+    // Une section déclarée mais vide ne suffit pas non plus à faire exister la version.
+    expect(parseChangelog('## [Unreleased]\n\n### Added\n').length).toBe(0);
+  });
+});

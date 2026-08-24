@@ -5,6 +5,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-24
+
 ### Added
 
 - Rendement hors apports (TWR) dans la synthèse du Rapport (écran et PDF), à côté du XIRR : taux
@@ -113,9 +115,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Changed
 
-- Version 2 en préparation (branche `v2`) : espaces « Investissement » et « Trading » séparés,
-  Vue d'ensemble consolidée, import Hyperliquid en lecture seule par adresse publique, journal de
-  trading et statistiques de performance. La version 1.1.0 reste la version publiée d'ici là.
+- **L'application est désormais organisée en deux espaces séparés** — « Investissement » (vos
+  positions, votre PRU, vos plus-values) et « Trading » (vos aller-retours, votre P&L, votre
+  journal) — reliés par une **Vue d'ensemble** qui additionne votre valeur nette. On additionne des
+  soldes, jamais des résultats de nature différente : une plus-value spot et un P&L à levier ne se
+  mélangent nulle part. Vos données de la version 1 sont reprises telles quelles, sans rien à
+  refaire ; les anciens liens (`#/portfolio`, `#/report`…) continuent de fonctionner.
 
 ## [1.1.0] - 2026-08-23
 
