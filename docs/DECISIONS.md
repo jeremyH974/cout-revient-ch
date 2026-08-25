@@ -593,3 +593,36 @@
     rejoué tel quel par un émetteur opt-in (micro-worker cron + Web Push VAPID, relais ntfy à
     sujet aléatoire) ou exposé par un serveur MCP local à côté du MCP officiel CoinGecko — sans
     changer une ligne des règles.
+
+37. **Un seuil de prix saisi en dollars reste ancré en dollars ; tout le reste convertit à la
+    frontière d'affichage** (25/08/2026). Quand le toggle d'affichage est en dollars, les feuilles
+    d'alerte et de simulation saisissent et affichent en dollars, mais le moteur ne voit toujours
+    que des euros : conversion au taux BCE du jour à l'entrée, reconversion au même taux à la
+    sortie (aller-retour exact). Exception sémantique assumée : le type « Prix exact » tapé
+    pendant un affichage dollar devient `price-usd` — le montant garde son sens en dollars, comme
+    une alerte de paire BTC/USD chez un exchange, et s'évalue par `seuil € = prix $ ÷ taux(jour)` ;
+    l'alternative (convertir une fois à la création) aurait fait dériver en silence le chiffre
+    affiché dès que l'euro-dollar bouge. Les seuils relatifs au PRU sont des pourcentages, donc
+    sans devise ; les libellés d'une règle gardent SA devise d'ancrage (jamais ré-ancrée par un
+    changement de toggle) ; l'historique convertit au taux du jour de l'événement, comme le reste
+    de l'app ; sans taux connu, une règle dollar est « dormante », jamais évaluée de travers.
+    Propriété vérifiée : évaluer `price-usd` au taux r ≡ évaluer le seuil euro `$ ÷ r`.
+
+38. **Vérification d'alertes app fermée : Periodic Background Sync opportuniste, service worker
+    sans moteur, comparaison décimale exacte** (25/08/2026). Sur Chromium avec la PWA installée,
+    le navigateur peut réveiller le service worker (`periodicsync`) à SA fréquence (liée à
+    l'engagement — en pratique quelques fois par jour au mieux) : un bonus best-effort au-dessus
+    de la veille onglet-ouvert, jamais une garantie, et l'interface le dit avec ces mots. Le
+    service worker ne recalcule jamais le moteur : l'app précalcule un instantané compact (seuils
+    EUR en chaînes via `alertThresholdEur`, identifiants CoinGecko, états d'armement) dans le
+    meta-store IndexedDB existant ; au réveil, `public/sw-alerts-core.js` compare en décimal
+    EXACT sans flottant (`cmpDec`, testé par propriétés contre big.js via node:vm) et rejoue la
+    même sémantique armé/désarmé + délai minimal (`decideFires` ≡ `evaluateAlerts`, propriété
+    testée) ; les déclenchements notifiés sont déposés dans IndexedDB et journalisés par l'app à
+    l'ouverture, sans re-notifier. Choix conservateurs : pas de ré-armement côté service worker
+    (l'app seule ré-arme — un faux silence est moins grave qu'un faux réveil), règle inconnue =
+    non armée, un client visible court-circuite le réveil (l'app ouverte fait mieux), et rien ne
+    sort de plus que la veille classique (identifiants d'actifs seuls — page Confidentialité mise
+    à jour). La notification garantie app fermée reste un non-objectif sans serveur :
+    `docs/proposals/2026-08-push-et-mcp.md` chiffre les deux options serveur (émetteur Web Push
+    opt-in, serveur MCP local) avec sources du 25/08/2026, recommandation : MCP local d'abord.

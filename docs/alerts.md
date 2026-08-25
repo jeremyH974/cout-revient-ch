@@ -1,6 +1,8 @@
 # Alertes de prix et simulateur « et si ? »
 
 > P29, livré le 25/08/2026 — décision de conception : `docs/DECISIONS.md` n° 36.
+> 2.2.0 : dollars avec le toggle (décision n° 37) et vérification opportuniste app fermée
+> (Periodic Background Sync, décision n° 38).
 > Recherche menée le 25/08/2026 (état de l'art des trackers, capacités réelles du web local-first,
 > simulateurs, intégrations TradingView/MCP) ; les sources sont en fin de document.
 
@@ -37,6 +39,15 @@ Depuis `#/invest/alerts` (ou la fiche d'un actif) :
   l'unique fonction `alertThresholdEur` — l'aperçu, la liste et l'évaluation ne peuvent pas se
   contredire.
 
+**Dollars avec le toggle (2.2.0, décision n° 37).** Quand l'affichage est en dollars, les
+feuilles saisissent et affichent en dollars, convertis au taux BCE du jour à la frontière — le
+moteur ne voit que des euros. Le type « Prix exact » tapé en dollars devient un seuil **ancré en
+dollars** (`price-usd`, évalué par `seuil € = prix $ ÷ taux(jour)`) : le chiffre tapé garde son
+sens, comme une alerte de paire BTC/USD chez un exchange, au lieu de dériver quand l'euro-dollar
+bouge. Les seuils en % du PRU sont sans devise ; une règle garde sa devise d'ancrage quel que
+soit le toggle ; sans taux connu, une règle dollar est « dormante ». Propriété vérifiée :
+évaluer `price-usd` au taux r ≡ évaluer le seuil euro `$ ÷ r`.
+
 **Seuil « net de frais »** : prix `P` tel que vendre toute la position dégage X % net au barème
 choisi — `P = (PRU × (1 + X %) + fixe ÷ quantité) ÷ (1 − taux)`. Vérifié par propriété : vendre
 au seuil rend exactement l'objectif (1e-9 près).
@@ -60,15 +71,28 @@ coûte 1,29 % et constitue une cession imposable — information indicative, pas
 
 ## Ce qui est possible sans serveur (et ce qui ne l'est pas)
 
-| Situation                                 | Évaluer les seuils                                                                                    | Notifier (système)                                                                                                                                                |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Onglet / PWA ouvert, même en arrière-plan | **Oui** (veille ≥ 1 min)                                                                              | **Oui** (permission accordée)                                                                                                                                     |
-| PWA installée mais fermée                 | Non fiable (Periodic Background Sync : Chromium seul, cadence non garantie, « harmful » pour Mozilla) | Non                                                                                                                                                               |
-| Navigateur fermé                          | Non                                                                                                   | Non — seul le Web Push réveille, et il **exige un serveur** (VAPID), y compris la « Declarative Web Push » de WebKit (qui simplifie la réception, pas l'émission) |
+| Situation                                 | Évaluer les seuils                                                                                                                          | Notifier (système)                                                                                                                                                |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Onglet / PWA ouvert, même en arrière-plan | **Oui** (veille ≥ 1 min)                                                                                                                    | **Oui** (permission accordée)                                                                                                                                     |
+| PWA installée mais fermée                 | **Opportuniste depuis 2.2.0** (Periodic Background Sync, décision n° 38 : Chromium seul, cadence décidée par le navigateur, jamais promise) | **Oui, quand le réveil a lieu** (mêmes notifications, mêmes seuils)                                                                                               |
+| Navigateur fermé                          | Non                                                                                                                                         | Non — seul le Web Push réveille, et il **exige un serveur** (VAPID), y compris la « Declarative Web Push » de WebKit (qui simplifie la réception, pas l'émission) |
 
 C'est le prix du « rien ne quitte le navigateur » : aucun serveur ne connaît les seuils ni le
 PRU. L'interface le dit en toutes lettres au lieu de le laisser deviner. Les Notification
 Triggers (notifications planifiées hors ligne) sont officiellement abandonnés par Chrome.
+
+**Comment marche la vérification opportuniste (2.2.0, décision n° 38).** L'app précalcule un
+instantané (seuils EUR en chaînes décimales, identifiants CoinGecko, états d'armement) dans le
+meta-store IndexedDB ; au réveil `periodicsync`, le service worker (`public/sw-alerts-core.js` +
+`sw-alert-sync.js`) demande les prix EUR à CoinGecko (identifiants d'actifs seuls — rien de plus
+que la veille classique), compare en **décimal exact sans flottant** (`cmpDec`, prouvé équivalent
+à big.js par propriétés via node:vm), notifie, et dépose les déclenchements que l'app journalise
+à l'ouverture. Conservateur par construction : pas de ré-armement côté service worker, règle
+inconnue = non armée, app visible = le service worker s'efface. Conditions : veille activée +
+notifications système accordées + au moins une alerte armée + PWA installée (Chromium). Pour la
+notification **garantie** app fermée et le serveur MCP local, voir la proposition chiffrée :
+`docs/proposals/2026-08-push-et-mcp.md` (sources du 25/08/2026 ; recommandation : MCP local
+d'abord).
 
 ## Ce que font les meilleurs (recherche du 25/08/2026)
 

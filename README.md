@@ -61,11 +61,14 @@ actif **passe sous votre PRU** (écart en % au choix), atteint un **objectif de 
 y compris **net de frais de vente** (grille Coinhouse, modifiable) — ou franchit un prix exact.
 Les seuils relatifs **suivent votre PRU** : un nouvel achat les déplace d'eux-mêmes. Déclenchement
 au franchissement (jamais de rappel en boucle), notifications système en option, veille des prix
-réglable (1 à 15 min, app ouverte). Chaque alerte propose de **simuler** le rachat ou la vente à
-ce prix : nouveau PRU, résultat net de frais, prix d'équilibre frais inclus, « récupérer ma
-mise », montant à investir pour viser un PRU cible. 100 % local : vos seuils ne quittent jamais le
-navigateur — en contrepartie, pas de notification quand l'app est fermée (il n'y a aucun
-serveur) ; détails et sources dans [docs/alerts.md](docs/alerts.md).
+réglable (1 à 15 min, app ouverte). Avec l'affichage en dollars, alertes et simulateur se
+saisissent **en dollars** (taux BCE du jour ; un prix exact tapé en $ reste ancré en $). Chaque
+alerte propose de **simuler** le rachat ou la vente à ce prix : nouveau PRU, résultat net de
+frais, prix d'équilibre frais inclus, « récupérer ma mise », montant à investir pour viser un PRU
+cible. 100 % local : vos seuils ne quittent jamais le navigateur. Sur Chrome/Edge avec l'app
+installée, une vérification **opportuniste** peut tourner app fermée (fréquence décidée par le
+navigateur, jamais garantie) ; la notification garantie app fermée demanderait un serveur — il
+n'y en a aucun. Détails et sources dans [docs/alerts.md](docs/alerts.md).
 
 ### Rapport PDF
 
