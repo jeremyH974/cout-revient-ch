@@ -149,6 +149,23 @@
     return spendNeeded === null ? null : { spendNeeded, qtyNeeded: spendNeeded.div(priceEurBig) };
   });
 
+  /** Variation de PRU masquée quand elle arrondit à zéro (« (0,0 %) » est du bruit). */
+  const pruChangeText = $derived.by((): string | null => {
+    const change = buyResult?.pruChange ?? null;
+    if (change === null || roundHalfUp(change, 3).eq('0')) return null;
+    return fmtPct(change);
+  });
+
+  /**
+   * Équivalent en actif du montant saisi, affiché SOUS le champ : attrape immédiatement la
+   * confusion montant ↔ quantité (taper « 0.5 » en pensant 0,5 BTC dans un champ en dollars).
+   */
+  const spendEquivalent = $derived.by((): Big | null => {
+    const spendEur = toEur(parseInput(spend));
+    if (spendEur === null || priceEurBig === null || !priceEurBig.gt('0')) return null;
+    return spendEur.div(priceEurBig);
+  });
+
   function setSellPct(pct: string): void {
     if (!position) return;
     sellQty =
@@ -176,11 +193,26 @@
       {/each}
     </nav>
 
+    <div class="position-card">
+      <div>
+        <span class="stat-label">Détenu</span>
+        <span class="stat-value">{qty(position.qty)} {asset.toUpperCase()}</span>
+      </div>
+      <div>
+        <span class="stat-label">PRU</span>
+        <span class="stat-value">{showPrice(position.pru)}</span>
+        {#if cur !== 'EUR' && position.pru !== null}
+          <span class="stat-sub">= {fmtPrice(position.pru)}</span>
+        {/if}
+      </div>
+      <div>
+        <span class="stat-label">Investi</span>
+        <span class="stat-value">{money(position.costBasis)}</span>
+      </div>
+    </div>
     <p class="context muted">
-      Position : {qty(position.qty)}
-      {asset.toUpperCase()} · PRU {showPrice(position.pru)} · coût {money(position.costBasis)}.
       Calcul local en euros{cur !== 'EUR' && usdPerEur !== null
-        ? `, saisie et affichage en dollars au taux BCE du jour (1 € = ${fmtPrice(usdPerEur, 'USD')})`
+        ? ` ; saisie et affichage en dollars au taux BCE du jour (1 € = ${fmtPrice(usdPerEur, 'USD')}). Le PRU en dollars bouge avec ce taux — votre PRU en euros, lui, ne change pas`
         : ''}.
     </p>
 
@@ -188,7 +220,13 @@
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
           <span>Montant à investir ({curWord}, tout compris)</span>
-          <input type="text" inputmode="decimal" bind:value={spend} placeholder="ex. 500" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={spend} placeholder="ex. 500" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
+          {#if spendEquivalent !== null}
+            <span class="equiv">≈ {qty(spendEquivalent)} {asset.toUpperCase()} au prix saisi</span>
+          {/if}
         </label>
         <div class="chips" role="group" aria-label="Montants rapides">
           {#each ['100', '250', '500', '1000'] as amount (amount)}
@@ -199,7 +237,10 @@
         </div>
         <label class="field">
           <span>Prix d’exécution ({curWord})</span>
-          <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 45000" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 45000" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
         </label>
         <label class="field">
           <span>Frais (grille Coinhouse, 18/08/2026 — modifiables)</span>
@@ -214,11 +255,17 @@
           <div class="custom">
             <label class="field">
               <span>Frais en %</span>
-              <input type="text" inputmode="decimal" bind:value={customPct} />
+              <span class="affix">
+                <input type="text" inputmode="decimal" bind:value={customPct} />
+                <span class="unit" aria-hidden="true">%</span>
+              </span>
             </label>
             <label class="field">
               <span>Frais fixes (€)</span>
-              <input type="text" inputmode="decimal" bind:value={customFixed} />
+              <span class="affix">
+                <input type="text" inputmode="decimal" bind:value={customFixed} />
+                <span class="unit" aria-hidden="true">€</span>
+              </span>
             </label>
           </div>
         {/if}
@@ -229,16 +276,21 @@
               <span class="muted">· frais {money(buyResult.feesEur)}</span>
             </p>
             <p>
-              PRU : {showPrice(buyResult.pruBefore)} →
+              PRU : {showPrice(buyResult.pruBefore)} <span class="arrow">→</span>
               <strong>{showPrice(buyResult.pruAfter)}</strong>
-              {#if buyResult.pruChange !== null}({fmtPct(buyResult.pruChange)}){/if}
+              {#if pruChangeText !== null}<span class="delta">{pruChangeText}</span>{/if}
             </p>
             <p class="muted">
               Nouvelle position : {qty(buyResult.qtyAfter)}
-              {asset.toUpperCase()} pour {money(buyResult.costAfter)} investis.
+              {asset.toUpperCase()} · exposition {money(position.costBasis)}
+              <span class="arrow">→</span>
+              {money(buyResult.costAfter)}.
             </p>
           {:else}
-            <p class="muted">Saisissez un montant et un prix.</p>
+            <p class="muted">
+              Saisissez un montant et un prix pour voir : quantité reçue, frais, nouveau PRU et
+              exposition — mêmes règles de calcul que le moteur.
+            </p>
           {/if}
         </div>
         <p class="notice">
@@ -251,7 +303,10 @@
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
           <span>Quantité à vendre ({asset.toUpperCase()})</span>
-          <input type="text" inputmode="decimal" bind:value={sellQty} placeholder="ex. 0.5" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={sellQty} placeholder="ex. 0.5" />
+            <span class="unit" aria-hidden="true">{asset.toUpperCase()}</span>
+          </span>
         </label>
         <div class="chips" role="group" aria-label="Fractions rapides">
           {#each ['25', '50', '75', '100'] as pct (pct)}
@@ -270,7 +325,10 @@
         </div>
         <label class="field">
           <span>Prix de vente ({curWord})</span>
-          <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 65000" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 65000" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
         </label>
         <label class="field">
           <span>Sortie et frais (grille Coinhouse, 18/08/2026 — modifiables)</span>
@@ -287,17 +345,23 @@
           <div class="custom">
             <label class="field">
               <span>Frais en %</span>
-              <input type="text" inputmode="decimal" bind:value={customPct} />
+              <span class="affix">
+                <input type="text" inputmode="decimal" bind:value={customPct} />
+                <span class="unit" aria-hidden="true">%</span>
+              </span>
             </label>
             <label class="field">
               <span>Frais fixes (€)</span>
-              <input type="text" inputmode="decimal" bind:value={customFixed} />
+              <span class="affix">
+                <input type="text" inputmode="decimal" bind:value={customFixed} />
+                <span class="unit" aria-hidden="true">€</span>
+              </span>
             </label>
           </div>
         {/if}
         <div class="result" aria-live="polite">
           {#if breakEven !== null}
-            <p>
+            <p class="be">
               Prix d’équilibre <strong>frais inclus</strong> :
               <strong>{showPrice(breakEven)}</strong>
               <span class="muted">— au-dessus, la vente est gagnante net de frais.</span>
@@ -322,7 +386,10 @@
                 : ' — position soldée'}.
             </p>
           {:else}
-            <p class="muted">Saisissez une quantité (au plus votre position) et un prix.</p>
+            <p class="muted">
+              Saisissez une quantité (au plus votre position) et un prix pour voir : produit net
+              encaissé, résultat net de frais et position restante.
+            </p>
           {/if}
         </div>
         <p class="notice">
@@ -335,11 +402,17 @@
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
           <span>PRU visé ({curWord})</span>
-          <input type="text" inputmode="decimal" bind:value={targetPru} placeholder="ex. 40000" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={targetPru} placeholder="ex. 40000" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
         </label>
         <label class="field">
           <span>Prix d’achat envisagé ({curWord})</span>
-          <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 35000" />
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 35000" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
         </label>
         <div class="result" aria-live="polite">
           {#if targetResult}
@@ -384,6 +457,37 @@
   .modes button.active {
     color: var(--accent-fg);
     background: var(--accent);
+  }
+  .position-card {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+  }
+  .position-card > div {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+    align-content: start;
+  }
+  .stat-label {
+    font-size: var(--fs-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-muted);
+  }
+  .stat-value {
+    font-size: var(--fs-sm);
+    font-weight: 650;
+    overflow-wrap: anywhere;
+  }
+  .stat-sub {
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+    overflow-wrap: anywhere;
   }
   .context {
     font-size: var(--fs-xs);
@@ -450,5 +554,43 @@
   .notice {
     font-size: var(--fs-xs);
     color: var(--fg-muted);
+  }
+  .affix {
+    position: relative;
+    display: block;
+  }
+  .affix input {
+    padding-right: 52px;
+  }
+  .unit {
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--fg-muted);
+    font-size: var(--fs-xs);
+    pointer-events: none;
+    max-width: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .equiv {
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+  }
+  .arrow {
+    color: var(--fg-muted);
+  }
+  .delta {
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 0 6px;
+    font-size: var(--fs-xs);
+    white-space: nowrap;
+  }
+  .be {
+    border-left: 3px solid var(--accent);
+    padding-left: var(--space-2);
   }
 </style>
