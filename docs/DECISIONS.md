@@ -521,3 +521,75 @@
     **Garde** : `coherence.spec.ts` couvrait l'espace Investissement seulement — c'est ce trou qui a
     laissé passer le défaut. Il vérifie maintenant aussi que la somme du calendrier égale le réalisé
     net du tableau de bord, écran contre écran.
+
+36. **Alertes de prix relatives au PRU et simulateur « et si ? » : locaux, au franchissement,
+    honnêtes sur leurs limites** (25/08/2026, P29). La feuille de route écartait « les alertes de
+    prix » comme « impossibles sans serveur » ; c'était vrai du push app fermée, pas des alertes
+    elles-mêmes. Recherche du 25/08/2026 (sources dans docs/alerts.md) : le Web Push exige un
+    émetteur authentifié VAPID — y compris la « Declarative Web Push » de WebKit, qui change la
+    réception, pas l'émission ; la Periodic Background Sync est Chromium seul, à cadence non
+    garantie (pilotée par le site engagement), jugée « harmful » par Mozilla ; les Notification
+    Triggers sont abandonnés. Donc : **évaluation quand l'app est ouverte uniquement**, dit tel
+    quel dans l'interface — c'est le prix du « rien ne quitte le navigateur », et un polling
+    ≥ 60 s survit au regroupement des réveils de Chrome (1/min en arrière-plan).
+
+    **Sémantique de déclenchement — franchissement, jamais niveau.** Une règle armée se déclenche
+    quand le prix franchit le seuil, se désarme, puis (si récurrente) se réarme quand le prix
+    s'éloigne d'au moins 1 % de l'autre côté, avec au plus un déclenchement par heure et par
+    règle ; un déclenchement retenu par ce délai reste dû (la règle reste armée), jamais perdu. À
+    la création, si la condition est déjà remplie, la règle naît désarmée et l'aperçu le dit :
+    **créer une alerte ne notifie jamais**. L'état des meilleurs (TradingView, Delta, Binance,
+    CoinGecko, CoinStats, Kraken…) n'offre que des anti-spam temporels (1 h fixe chez Delta,
+    1/jour chez Binance, once-per-bar chez TradingView) ; l'hystérésis de ré-armement n'est
+    documentée nulle part, et **aucun tracker grand public ne propose d'alerte relative au coût
+    de revient** (seul IBKR a une alerte de P&L du jour, en desktop pro) : c'est précisément le
+    différenciateur d'un outil qui calcule le PRU. Les seuils relatifs **suivent le PRU
+    recalculé** — un nouvel achat les déplace sans toucher aux règles, là où une alerte posée chez
+    un courtier devient obsolète en silence.
+
+    **Un seul calcul de seuil.** `alertThresholdEur` (domaine pur) sert l'aperçu de création, la
+    liste, et l'évaluation : aucun écran ne peut afficher un autre seuil que celui testé. Les
+    seuils vivent en euros (devise des données) ; l'évaluation lit un rapport recalculé en euros
+    quand l'affichage est en dollars, et ne consomme que des cotations fraîches — le cache périmé
+    ne déclenche jamais. L'évaluation est appelée explicitement (fin d'actualisation, mids live,
+    prix manuel, veille) plutôt que par effet réactif : flux lisible, testable, sans boucle.
+
+    **Objectif « net de frais »** : seuil = prix où vendre TOUTE la position dégage X % net, au
+    barème figé dans la règle — `P = (PRU × (1 + X %) + fixe ÷ qté) ÷ (1 − f)`. La grille
+    Coinhouse Particuliers « Classique » du 18/08/2026 (achat 0,99 % virement / 1,99 % carte,
+    vente 1,29 %, crypto↔crypto 0,79 %, stable↔stable 0,19 %, + 0,12 € fixes par transaction) est
+    reprise en préréglages **éditables et datés** dans `domain/fees.ts` ; le PDF source reste hors
+    du dépôt (`.gitignore`) — les taux sont des faits, le document ne nous appartient pas.
+
+    **Simulateur** : mêmes règles que le moteur (all-in : à l'achat les frais réduisent la
+    quantité reçue, jamais le coût de revient ; à la vente ils réduisent le produit net ; vendre
+    ne change jamais le PRU — affiché en toutes lettres, c'est contre-intuitif), montant en euros
+    d'abord (l'utilisateur Coinhouse achète en euros — les calculateurs du marché saisissent des
+    parts), mode inverse « quel montant pour amener mon PRU à la cible » (rare : confirmé chez le
+    seul StockAverager), « récupérer ma mise » net de frais, sortie euros vs stablecoin (0,79 %
+    et sursis 150 VH bis vs 1,29 % et cession imposable — information, jamais un conseil), et
+    mise en garde sobre : un PRU abaissé n'améliore pas l'actif, il grossit l'exposition.
+    Vérifié par propriétés (fast-check) : le PRU simulé reste strictement entre prix payé et PRU
+    initial, deux rachats successifs = le rachat cumulé, réalisé + latent restant = latent
+    initial, et vendre au prix d'équilibre rend exactement l'objectif net (1e-9).
+
+    **Notifications** : permission demandée uniquement depuis un clic (pre-prompt in-app — un
+    refus au prompt natif est quasi définitif), affichage par `registration.showNotification`
+    (seule voie Android/iOS installé ; `new Notification()` lève sur mobile), clic géré par
+    `public/sw-notifications.js` injecté dans le service worker généré (workbox `importScripts` —
+    le mode `generateSW` et le flux de mise à jour existants ne bougent pas) : focaliser l'app si
+    elle est ouverte, sinon ouvrir la page Alertes. Badging API en détection de capacité. La
+    veille (opt-in, décochée par défaut comme les flux live de la décision n° 29) réutilise la
+    cascade de fournisseurs existante à cadence choisie (1-15 min) et s'arrête d'elle-même sans
+    règle armée ; la page Confidentialité décrit ce qui sort (la même liste d'actifs, plus
+    souvent) et ce qui ne sort jamais (seuils, PRU).
+
+    **Écarté, et pourquoi** : webhooks TradingView (serveur public obligatoire, abonnement
+    payant, ToS hostiles aux accès programmatiques ; les serveurs MCP TradingView communautaires
+    reposent sur du scraping dont la bibliothèque de base est archivée) ; Periodic Background
+    Sync comme socle (au mieux un bonus opportuniste futur) ; rappels en boucle « tant que la
+    condition est vraie » (Delta) — un franchissement est une information, sa répétition est du
+    bruit. **Préparé pour la suite** : le moteur pur (`domain/alerts.ts`, sans DOM) peut être
+    rejoué tel quel par un émetteur opt-in (micro-worker cron + Web Push VAPID, relais ntfy à
+    sujet aléatoire) ou exposé par un serveur MCP local à côté du MCP officiel CoinGecko — sans
+    changer une ligne des règles.

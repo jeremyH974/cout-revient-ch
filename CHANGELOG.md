@@ -5,6 +5,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Alertes de prix relatives au PRU** (`#/invest/alerts`, aussi depuis la fiche de chaque actif) :
+  « sous le PRU de X % », « objectif PRU +X % », « objectif **net de frais de vente** » (grille
+  Coinhouse du 18/08/2026, modifiable) ou prix exact. Déclenchement au **franchissement** (jamais
+  de rappel en boucle), « une fois » ou récurrente avec ré-armement à marge de 1 % et au plus un
+  déclenchement par heure et par règle ; les seuils relatifs **suivent votre PRU** — un nouvel
+  achat les déplace d'eux-mêmes. Centre d'alertes (déclenchements récents, historique), pastille
+  d'application, notifications système **opt-in** (le clic ramène à l'app), veille des prix
+  opt-in (cadence 1 à 15 min, app ouverte). 100 % local : aucun serveur ne connaît vos seuils —
+  en contrepartie, pas de notification quand l'app est fermée, et l'interface le dit.
+- **Simulateur « et si ? »** sur chaque actif et depuis chaque alerte : **rachat** (nouveau PRU,
+  frais Coinhouse virement/carte ou personnalisés), **vente** (produit net, résultat réalisé net
+  de frais, **prix d'équilibre frais inclus**, « récupérer ma mise », sortie en euros ou en
+  stablecoin avec rappel du sursis fiscal de l'art. 150 VH bis), et **objectif de PRU** (montant à
+  investir pour amener le PRU à une cible). Mêmes règles de calcul que le moteur, vérifié par
+  tests de propriétés.
+- Échelle de prise de profit en un geste : trois alertes PRU +25 % / +50 % / +100 %.
+
 ## [2.0.0] - 2026-08-24
 
 ### Added

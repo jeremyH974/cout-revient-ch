@@ -24,5 +24,9 @@ Thumbs.db
 !tests/fixtures/**/*.csv
 /data/
 
+# Grille tarifaire Coinhouse (PDF tiers, non redistribuable) : ses taux sont repris, sourcés et
+# datés dans src/lib/domain/fees.ts — le document lui-même reste hors du dépôt public.
+docs/CH_-GrilleTarifaire*.pdf
+
 # Claude Code (réglages locaux)
 .claude/settings.local.json

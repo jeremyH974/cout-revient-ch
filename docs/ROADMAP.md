@@ -384,8 +384,12 @@ Toutes ces étapes sont livrées au 24/08/2026.
 
 ## 5. Ce qui n'est pas recommandé
 
-- **Alertes de prix / notifications push** : impossible sans serveur (et Coinhouse les annonce dans sa
-  propre roadmap [S8]).
+- **Notifications push app fermée** : impossible sans serveur — le Web Push exige un émetteur
+  authentifié (VAPID), y compris dans sa variante « déclarative » de WebKit. Nuance apportée le
+  25/08/2026 : des **alertes locales** (évaluées quand l'app est ouverte, notifications système
+  via le service worker) sont possibles sans serveur et sont **livrées** (P29,
+  docs/DECISIONS.md n° 36, docs/alerts.md) ; seul le push app fermée reste exclu tant que le
+  projet refuse tout backend.
 - **Comptes utilisateurs, cloud, analytics** : contraires à la promesse « rien ne quitte le
   navigateur », qui est l'argument n° 1 face aux fuites de 2024-2026 [S39].
 - **Bot Discord stockant les portefeuilles** : même objection.
