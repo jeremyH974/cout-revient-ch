@@ -227,6 +227,17 @@
   </section>
 {/if}
 
+{#if app.unreadAlertCount > 0}
+  <section class="card price-alerts">
+    <h2>Alertes de prix</h2>
+    <p class="small">
+      {app.unreadAlertCount} déclenchement{app.unreadAlertCount > 1 ? 's' : ''} depuis votre dernière
+      visite.
+      <a href={router.href({ name: 'alerts' })}>Ouvrir le centre d’alertes</a>
+    </p>
+  </section>
+{/if}
+
 {#if alerts.length > 0}
   <section class="card">
     <h2>À vérifier</h2>
@@ -246,6 +257,7 @@
 
 <p class="links small">
   <a href={router.href({ name: 'report' })}>Rapport PDF</a> ·
+  <a href={router.href({ name: 'alerts' })}>Alertes de prix</a> ·
   <a href={router.href({ name: 'import' })}>Importer un export</a> ·
   <a href={router.href({ name: 'add' })}>Ajouter une opération</a>
 </p>
@@ -416,6 +428,13 @@
     display: grid;
     gap: var(--space-2);
     padding-left: 1.2em;
+    font-size: var(--fs-sm);
+  }
+  .price-alerts {
+    border-left: 4px solid var(--accent-invest);
+    margin-bottom: var(--space-3);
+  }
+  .price-alerts .small {
     font-size: var(--fs-sm);
   }
   .links {

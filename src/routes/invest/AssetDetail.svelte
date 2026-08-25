@@ -6,6 +6,8 @@
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
+  import AlertRuleSheet from '../../components/alerts/AlertRuleSheet.svelte';
+  import SimulateSheet from '../../components/alerts/SimulateSheet.svelte';
   import CalcTab from '../../components/asset/CalcTab.svelte';
   import HistoryTab from '../../components/asset/HistoryTab.svelte';
   import LotsTab from '../../components/asset/LotsTab.svelte';
@@ -24,6 +26,9 @@
   let tab = $state<'lots' | 'history' | 'calc'>('history');
   let priceSheet = $state(false);
   let manualPrice = $state('');
+  let alertSheet = $state(false);
+  let simulateSheet = $state(false);
+  const assetAlertCount = $derived(app.alertRules.filter((r) => r.asset === asset).length);
 
   const position = $derived(
     [
@@ -135,6 +140,17 @@
   <EvolutionCard scope={asset} title="Évolution" />
 
   <p class="tools">
+    {#if !p.closed && !p.blocked}
+      <button class="link" type="button" onclick={() => (alertSheet = true)}
+        >Créer une alerte</button
+      >
+      <button class="link" type="button" onclick={() => (simulateSheet = true)}>Simuler</button>
+      {#if assetAlertCount > 0}
+        <a class="link" href={router.href({ name: 'alerts' })}
+          >{assetAlertCount} alerte{assetAlertCount > 1 ? 's' : ''}</a
+        >
+      {/if}
+    {/if}
     <button
       class="link"
       type="button"
@@ -161,6 +177,9 @@
   {#if tab === 'history'}<HistoryTab position={p} />{:else if tab === 'lots'}<LotsTab
       position={p}
     />{:else}<CalcTab position={p} />{/if}
+
+  <AlertRuleSheet bind:open={alertSheet} {asset} />
+  <SimulateSheet bind:open={simulateSheet} {asset} />
 
   <Sheet bind:open={priceSheet} title="Prix manuel pour {asset.toUpperCase()}">
     <p>
