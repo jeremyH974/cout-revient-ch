@@ -1,14 +1,14 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { COINHOUSE_FEES, ZERO_FEE, breakEvenSellPrice, type FeeRate } from '$lib/domain/fees';
-  import { D, parseDecimal, type Big } from '$lib/domain/money';
+  import { parseDecimal, type Big } from '$lib/domain/money';
   import {
     qtyToRecoverStake,
     simulateBuy,
     simulateSell,
     spendToReachPru,
   } from '$lib/domain/simulate';
-  import { MASK, fmtEur, fmtMasked, fmtPct, fmtPrice, fmtQty, roundHalfUp } from '$lib/format/fr';
+  import { MASK, fmtMasked, fmtMoney, fmtPct, fmtPrice, fmtQty, roundHalfUp } from '$lib/format/fr';
   import Sheet from '../shared/Sheet.svelte';
   import { app } from '../../state/app.svelte';
 
@@ -40,10 +40,26 @@
 
   const position = $derived(app.positionEur(asset));
   const discreet = $derived(app.state.ui.discreet);
-  const eur = (v: Big | null): string =>
-    v === null ? '—' : discreet ? fmtMasked('EUR') : fmtEur(v);
-  const eurSigned = (v: Big | null): string =>
-    v === null ? '—' : discreet ? fmtMasked('EUR') : fmtEur(v, { sign: true });
+  const cur = $derived(app.currency);
+  const usdPerEur = $derived(app.usdPerEurToday);
+  const curWord = $derived(cur === 'USD' ? 'dollars' : 'euros');
+  const curSymbol = $derived(cur === 'USD' ? '$' : '€');
+  /**
+   * Le moteur ne voit que des euros : la saisie en dollars est convertie au taux BCE du jour à
+   * l'entrée, les résultats reconvertis à l'affichage (même taux — l'aller-retour est exact).
+   */
+  const toEur = (v: Big | null): Big | null =>
+    v === null ? null : cur === 'EUR' ? v : usdPerEur === null ? null : v.div(usdPerEur);
+  const money = (v: Big | null): string =>
+    v === null ? '—' : discreet ? fmtMasked(cur) : fmtMoney(app.displayFromEur(v), cur);
+  const moneySigned = (v: Big | null): string =>
+    v === null
+      ? '—'
+      : discreet
+        ? fmtMasked(cur)
+        : fmtMoney(app.displayFromEur(v), cur, { sign: true });
+  const showPrice = (v: Big | string | null): string =>
+    v === null ? '—' : fmtPrice(app.displayFromEur(v), cur);
   const qty = (v: Big | null): string => (v === null ? '—' : discreet ? MASK : fmtQty(v));
   const spotEur = $derived.by((): string | null => {
     const quote = app.quotes[asset];
@@ -61,8 +77,11 @@
     if (!opening) return;
     untrack(() => {
       mode = initialMode;
-      // Suggestion éditable, pas un chiffre calculé : 2 décimales suffisent à la saisie.
-      price = initialPrice ?? (spotEur ? D(spotEur).round(2).toString() : '');
+      // Suggestion éditable (2 décimales suffisent), dans la devise d'affichage : `initialPrice`
+      // arrive en euros (journal des alertes), le champ se remplit dans la devise du toggle.
+      const baseEur = initialPrice ?? spotEur;
+      const shown = baseEur === null ? null : app.displayFromEur(baseEur);
+      price = shown === null ? '' : shown.round(2).toString();
       spend = '';
       sellQty = '';
       targetPru = '';
@@ -93,21 +112,22 @@
         : COINHOUSE_FEES[sellFeeChoice],
   );
 
-  const priceBig = $derived(parseInput(price));
+  /** Prix saisi (devise d'affichage) ramené en euros pour le moteur. */
+  const priceEurBig = $derived(toEur(parseInput(price)));
   const simPosition = $derived(
     position ? { qty: position.qty, costBasis: position.costBasis } : null,
   );
 
   const buyResult = $derived.by(() => {
-    const spendBig = parseInput(spend);
-    if (!simPosition || spendBig === null || priceBig === null || buyFee === null) return null;
-    return simulateBuy(simPosition, spendBig, priceBig, buyFee);
+    const spendEur = toEur(parseInput(spend));
+    if (!simPosition || spendEur === null || priceEurBig === null || buyFee === null) return null;
+    return simulateBuy(simPosition, spendEur, priceEurBig, buyFee);
   });
 
   const sellResult = $derived.by(() => {
     const qtyBig = parseInput(sellQty);
-    if (!simPosition || qtyBig === null || priceBig === null || sellFee === null) return null;
-    return simulateSell(simPosition, qtyBig, priceBig, sellFee);
+    if (!simPosition || qtyBig === null || priceEurBig === null || sellFee === null) return null;
+    return simulateSell(simPosition, qtyBig, priceEurBig, sellFee);
   });
 
   /** Prix d'équilibre frais inclus (objectif 0 %) au barème de sortie choisi. */
@@ -117,16 +137,16 @@
   });
 
   const recoupQty = $derived.by(() => {
-    if (!position || priceBig === null || sellFee === null) return null;
-    const needed = qtyToRecoverStake(position.netInvested, priceBig, sellFee);
+    if (!position || priceEurBig === null || sellFee === null) return null;
+    const needed = qtyToRecoverStake(position.netInvested, priceEurBig, sellFee);
     return needed !== null && needed.lte(position.qty) ? needed : null;
   });
 
   const targetResult = $derived.by(() => {
-    const target = parseInput(targetPru);
-    if (!simPosition || target === null || priceBig === null) return null;
-    const spendNeeded = spendToReachPru(simPosition, priceBig, target);
-    return spendNeeded === null ? null : { spendNeeded, qtyNeeded: spendNeeded.div(priceBig) };
+    const targetEur = toEur(parseInput(targetPru));
+    if (!simPosition || targetEur === null || priceEurBig === null) return null;
+    const spendNeeded = spendToReachPru(simPosition, priceEurBig, targetEur);
+    return spendNeeded === null ? null : { spendNeeded, qtyNeeded: spendNeeded.div(priceEurBig) };
   });
 
   function setSellPct(pct: string): void {
@@ -158,27 +178,27 @@
 
     <p class="context muted">
       Position : {qty(position.qty)}
-      {asset.toUpperCase()} · PRU {fmtPrice(position.pru)} · coût {eur(position.costBasis)}.
-      Simulation en euros, calcul local{app.currency !== 'EUR'
-        ? ' (la devise d’affichage n’est pas utilisée ici)'
+      {asset.toUpperCase()} · PRU {showPrice(position.pru)} · coût {money(position.costBasis)}.
+      Calcul local en euros{cur !== 'EUR' && usdPerEur !== null
+        ? `, saisie et affichage en dollars au taux BCE du jour (1 € = ${fmtPrice(usdPerEur, 'USD')})`
         : ''}.
     </p>
 
     {#if mode === 'buy'}
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
-          <span>Montant à investir (euros, tout compris)</span>
+          <span>Montant à investir ({curWord}, tout compris)</span>
           <input type="text" inputmode="decimal" bind:value={spend} placeholder="ex. 500" />
         </label>
         <div class="chips" role="group" aria-label="Montants rapides">
           {#each ['100', '250', '500', '1000'] as amount (amount)}
             <button type="button" class="chip" onclick={() => (spend = amount)}
-              >{amount}&nbsp;€</button
+              >{amount}&nbsp;{curSymbol}</button
             >
           {/each}
         </div>
         <label class="field">
-          <span>Prix d’exécution (euros)</span>
+          <span>Prix d’exécution ({curWord})</span>
           <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 45000" />
         </label>
         <label class="field">
@@ -206,16 +226,16 @@
           {#if buyResult}
             <p>
               Quantité reçue : <strong>{qty(buyResult.qtyBought)} {asset.toUpperCase()}</strong>
-              <span class="muted">· frais {eur(buyResult.feesEur)}</span>
+              <span class="muted">· frais {money(buyResult.feesEur)}</span>
             </p>
             <p>
-              PRU : {fmtPrice(buyResult.pruBefore)} →
-              <strong>{fmtPrice(buyResult.pruAfter)}</strong>
+              PRU : {showPrice(buyResult.pruBefore)} →
+              <strong>{showPrice(buyResult.pruAfter)}</strong>
               {#if buyResult.pruChange !== null}({fmtPct(buyResult.pruChange)}){/if}
             </p>
             <p class="muted">
               Nouvelle position : {qty(buyResult.qtyAfter)}
-              {asset.toUpperCase()} pour {eur(buyResult.costAfter)} investis.
+              {asset.toUpperCase()} pour {money(buyResult.costAfter)} investis.
             </p>
           {:else}
             <p class="muted">Saisissez un montant et un prix.</p>
@@ -249,7 +269,7 @@
           >
         </div>
         <label class="field">
-          <span>Prix de vente (euros)</span>
+          <span>Prix de vente ({curWord})</span>
           <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 65000" />
         </label>
         <label class="field">
@@ -279,26 +299,26 @@
           {#if breakEven !== null}
             <p>
               Prix d’équilibre <strong>frais inclus</strong> :
-              <strong>{fmtPrice(breakEven)}</strong>
+              <strong>{showPrice(breakEven)}</strong>
               <span class="muted">— au-dessus, la vente est gagnante net de frais.</span>
             </p>
           {/if}
           {#if sellResult}
             <p>
-              Produit brut {eur(sellResult.grossEur)} − frais {eur(sellResult.feesEur)} =
-              <strong>{eur(sellResult.netProceedsEur)}</strong> encaissés.
+              Produit brut {money(sellResult.grossEur)} − frais {money(sellResult.feesEur)} =
+              <strong>{money(sellResult.netProceedsEur)}</strong> encaissés.
             </p>
             <p>
               Résultat réalisé net de frais :
               <strong class={sellResult.realizedEur.lt('0') ? 'loss' : 'gain'}
-                >{eurSigned(sellResult.realizedEur)}</strong
+                >{moneySigned(sellResult.realizedEur)}</strong
               >
             </p>
             <p class="muted">
               Reste : {qty(sellResult.qtyAfter)}
-              {asset.toUpperCase()} ({eur(sellResult.costAfter)} investis). Une vente ne change jamais
+              {asset.toUpperCase()} ({money(sellResult.costAfter)} investis). Une vente ne change jamais
               votre PRU{sellResult.pruAfter
-                ? ` : il reste à ${fmtPrice(sellResult.pruAfter)}`
+                ? ` : il reste à ${showPrice(sellResult.pruAfter)}`
                 : ' — position soldée'}.
             </p>
           {:else}
@@ -314,17 +334,17 @@
     {:else}
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
-          <span>PRU visé (euros)</span>
+          <span>PRU visé ({curWord})</span>
           <input type="text" inputmode="decimal" bind:value={targetPru} placeholder="ex. 40000" />
         </label>
         <label class="field">
-          <span>Prix d’achat envisagé (euros)</span>
+          <span>Prix d’achat envisagé ({curWord})</span>
           <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 35000" />
         </label>
         <div class="result" aria-live="polite">
           {#if targetResult}
             <p>
-              Il faudrait investir <strong>{eur(targetResult.spendNeeded)}</strong>
+              Il faudrait investir <strong>{money(targetResult.spendNeeded)}</strong>
               <span class="muted"
                 >(≈ {qty(targetResult.qtyNeeded)} {asset.toUpperCase()}, montant tout compris)</span
               >
@@ -335,7 +355,7 @@
             </p>
           {:else}
             <p class="muted">
-              La cible doit être STRICTEMENT entre le prix d’achat et votre PRU actuel ({fmtPrice(
+              La cible doit être STRICTEMENT entre le prix d’achat et votre PRU actuel ({showPrice(
                 position.pru,
               )}) : en moyennant, le PRU se déplace vers le prix payé sans jamais l’atteindre.
             </p>

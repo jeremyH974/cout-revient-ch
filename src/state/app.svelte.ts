@@ -11,7 +11,14 @@ import {
   type AlertRuleState,
 } from '$lib/domain/alerts';
 import { fmtPrice } from '$lib/format/fr';
-import { showSystemNotification } from '$lib/notify/notifications';
+import {
+  buildAlertWatchSnapshot,
+  syncAlertWatchTask,
+  takePendingSwFires,
+  writeAlertWatchSnapshot,
+  type BackgroundSyncStatus,
+} from '$lib/notify/background-sync';
+import { alertsUrl, notifIconUrl, showSystemNotification } from '$lib/notify/notifications';
 import { toasts } from './ui.svelte';
 import {
   convertEvents,
@@ -34,7 +41,7 @@ import {
   type PositionReport,
   type PriceQuoteInput,
 } from '$lib/domain/engine';
-import { D, toDecimalString, type Big } from '$lib/domain/money';
+import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
 import {
@@ -450,6 +457,24 @@ export class AppState {
   });
 
   fxLookup = $derived.by(() => rateLookup(this.state.fx.rates[this.currency] ?? {}));
+
+  /** Taux BCE EUR→USD du jour (dernier connu) ; `null` tant que la série n'est pas chargée. */
+  usdPerEurToday = $derived.by((): DecimalString | null =>
+    rateLookup(this.state.fx.rates.USD ?? {}).rate(nowIso().slice(0, 10)),
+  );
+
+  /**
+   * Montant EUR → devise d'affichage, au taux BCE du jour demandé (aujourd'hui par défaut) :
+   * identité en euros, `null` si le taux manque. Frontière d'affichage uniquement — l'évaluation
+   * des alertes et le simulateur travaillent en euros.
+   */
+  displayFromEur(value: Big | DecimalString | null, day?: string): Big | null {
+    if (value === null) return null;
+    const big = D(value);
+    if (this.currency === 'EUR') return big;
+    const rate = this.fxLookup.rate(day ?? nowIso().slice(0, 10));
+    return rate === null ? null : big.times(rate);
+  }
 
   /** Grand livre dans la devise d'affichage : chaque mouvement au taux BCE de son jour. */
   displayEvents = $derived.by((): LedgerEvent[] => {
@@ -868,8 +893,13 @@ export class AppState {
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
     if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
-    // Taux EUR→USD nécessaires hors affichage dollar : lignes pivot en USD/stables, spot HL.
-    if (Object.keys(this.state.pivotRows).length > 0 || this.hlAccounts.length > 0)
+    // Taux EUR→USD nécessaires hors affichage dollar : lignes pivot en USD/stables, spot HL,
+    // et seuils d'alerte ancrés en dollars (dormants tant que le taux du jour manque).
+    if (
+      Object.keys(this.state.pivotRows).length > 0 ||
+      this.hlAccounts.length > 0 ||
+      Object.values(this.state.alerts.rules).some((r) => r.threshold.kind === 'price-usd')
+    )
       void this.ensureRates('USD');
     // Prix live opt-in : reprend seulement si l'utilisateur l'avait activé.
     if (this.liveWanted) this.startLive();
@@ -913,10 +943,13 @@ export class AppState {
       window.addEventListener('pagehide', flushSync);
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') flushSync();
+        // Retour au premier plan : rapatrier ce que le service worker a déclenché app fermée.
+        else void this.ingestSwFires();
       });
     }
     this.ensureAlertWatch();
     this.updateAppBadge();
+    void this.ingestSwFires();
     void this.initFolderBackup();
   }
 
@@ -1441,6 +1474,10 @@ export class AppState {
 
   private alertWatchTimer: ReturnType<typeof setInterval> | null = null;
   private alertVisibilityHandler: (() => void) | null = null;
+  /** Vérification en arrière-plan (Periodic Background Sync, décision n° 38) : état affiché. */
+  backgroundSyncStatus = $state<BackgroundSyncStatus>('idle');
+  private lastAlertSnapshotJson: string | null = null;
+  private lastBackgroundWanted: boolean | null = null;
 
   /**
    * Rapport EN EUROS pour les alertes : les seuils sont stockés en euros (devise des données),
@@ -1516,6 +1553,7 @@ export class AppState {
       states: this.state.alerts.states,
       pricesEur: this.alertPricesEur(),
       positions: this.alertPositions,
+      usdPerEur: this.usdPerEurToday,
       nowMs: nowMs(),
     });
     if (fired.length > 0) {
@@ -1549,8 +1587,13 @@ export class AppState {
   private notifyAlert(fire: AlertFire): void {
     const asset = fire.rule.asset.toUpperCase();
     const sign = fire.rule.direction === 'below' ? '≤' : '≥';
-    const body = `${fmtPrice(fire.priceEur)} ${sign} seuil ${fmtPrice(fire.thresholdEur)}${
-      fire.pruEur !== null ? ` · PRU ${fmtPrice(fire.pruEur)}` : ''
+    // Montants dans la devise d'affichage (repli euro si le taux du jour manque).
+    const show = (v: DecimalString): string => {
+      const converted = this.displayFromEur(v);
+      return converted === null ? fmtPrice(v) : fmtPrice(converted, this.currency);
+    };
+    const body = `${show(fire.priceEur)} ${sign} seuil ${show(fire.thresholdEur)}${
+      fire.pruEur !== null ? ` · PRU ${show(fire.pruEur)}` : ''
     }`;
     toasts.push(`Alerte ${asset} : ${body}`, 'info', 8000);
     if (this.state.alerts.settings.systemNotifications)
@@ -1593,13 +1636,19 @@ export class AppState {
       rules: { ...this.state.alerts.rules, [id]: rule },
       states: { ...this.state.alerts.states, [id]: this.freshAlertState(rule) },
     };
+    // Seuil ancré en dollars : il a besoin du taux BCE du jour pour s'évaluer.
+    if (rule.threshold.kind === 'price-usd') void this.ensureRates('USD');
     this.ensureAlertWatch();
     return rule;
   }
 
   /** État neuf d'une règle : armée seulement si la condition n'est pas déjà remplie. */
   private freshAlertState(rule: AlertRule): AlertRuleState {
-    const threshold = alertThresholdEur(rule, this.alertPositions[rule.asset] ?? null);
+    const threshold = alertThresholdEur(
+      rule,
+      this.alertPositions[rule.asset] ?? null,
+      this.usdPerEurToday,
+    );
     const price = this.alertPricesEur()[rule.asset];
     const condition =
       threshold !== null &&
@@ -1715,6 +1764,108 @@ export class AppState {
         this.alertVisibilityHandler = null;
       }
     }
+    this.syncAlertBackground();
+  }
+
+  /**
+   * Aligne l'instantané du service worker et l'enregistrement Periodic Background Sync
+   * (décision n° 38) sur l'état courant : mêmes conditions que la veille, plus les notifications
+   * système accordées (sans elles, un réveil app fermée n'aurait aucun canal). Appelée par
+   * `ensureAlertWatch`, donc après chaque évaluation, règle ou réglage modifiés.
+   */
+  private syncAlertBackground(): void {
+    if (typeof window === 'undefined') return;
+    // `systemNotifications` vaut intention : il ne s'active que via un `requestPermission`
+    // accordé, et l'affichage re-vérifie la permission au dernier moment (une révocation rend
+    // la notification muette, jamais fautive). Ne PAS relire `Notification.permission` ici :
+    // le getter statique peut différer du résultat de `requestPermission` (vu en headless).
+    const wanted =
+      this.state.alerts.settings.watch &&
+      this.state.alerts.settings.systemNotifications &&
+      this.state.ui.priceSource !== 'off' &&
+      this.armedAlertCount > 0;
+    const snapshot = wanted
+      ? buildAlertWatchSnapshot({
+          rules: Object.values(this.state.alerts.rules),
+          states: this.state.alerts.states,
+          positions: this.alertPositions,
+          usdPerEur: this.usdPerEurToday,
+          idOverrides: Object.fromEntries(
+            Object.entries(this.state.assetSettings).map(([a, s]) => [a, s.coingeckoId]),
+          ),
+          coingeckoDemoKey: this.state.ui.coingeckoDemoKey,
+          notifUrl: alertsUrl(),
+          icon: notifIconUrl(),
+          nowMs: nowMs(),
+        })
+      : null;
+    // L'horodatage change à chaque appel : la comparaison l'ignore pour n'écrire que l'utile.
+    const comparable = snapshot === null ? null : JSON.stringify({ ...snapshot, updatedAtMs: 0 });
+    if (comparable !== this.lastAlertSnapshotJson) {
+      this.lastAlertSnapshotJson = comparable;
+      void writeAlertWatchSnapshot(snapshot);
+    }
+    const effective = wanted && snapshot !== null && snapshot.rules.some((r) => r.armed);
+    if (effective !== this.lastBackgroundWanted) {
+      this.lastBackgroundWanted = effective;
+      void syncAlertWatchTask(effective, this.state.alerts.settings.watchMinutes).then((status) => {
+        this.backgroundSyncStatus = status;
+      });
+    }
+  }
+
+  /**
+   * Journalise les déclenchements survenus APP FERMÉE (déposés par le service worker) : états
+   * désarmés, événements ajoutés, badge — mais jamais de nouvelle notification système (le
+   * service worker l'a déjà montrée). Un déclenchement plus vieux que le dernier connu de
+   * l'app est ignoré (l'app a déjà mieux).
+   */
+  private async ingestSwFires(): Promise<void> {
+    const fires = await takePendingSwFires();
+    if (fires.length === 0) return;
+    const rules = this.state.alerts.rules;
+    let states = this.state.alerts.states;
+    const events: AlertEvent[] = [];
+    for (const fire of fires) {
+      if (!rules[fire.ruleId]) continue;
+      const previous = states[fire.ruleId];
+      const last = previous?.lastTriggeredAtMs ?? null;
+      if (last !== null && fire.atMs <= last) continue;
+      states = {
+        ...states,
+        [fire.ruleId]: {
+          armed: false,
+          lastTriggeredAtMs: fire.atMs,
+          triggerCount: (previous?.triggerCount ?? 0) + 1,
+        },
+      };
+      events.push({
+        id: `al:sw${fire.atMs.toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        ruleId: fire.ruleId,
+        asset: fire.asset,
+        direction: fire.direction,
+        thresholdEur: fire.thresholdEur,
+        priceEur: fire.priceEur,
+        pruEur: fire.pruEur,
+        at: nowIso(fire.atMs),
+        read: false,
+      });
+    }
+    if (events.length === 0) return;
+    this.state.alerts = {
+      ...this.state.alerts,
+      states,
+      events: [...events, ...this.state.alerts.events].slice(0, MAX_ALERT_EVENTS),
+    };
+    toasts.push(
+      events.length === 1
+        ? 'Une alerte s’est déclenchée en arrière-plan (app fermée).'
+        : `${events.length} alertes se sont déclenchées en arrière-plan (app fermée).`,
+      'info',
+      8000,
+    );
+    this.updateAppBadge();
+    this.ensureAlertWatch();
   }
 
   /** Un tick n'actualise que si la dernière cotation est plus vieille que la cadence choisie. */

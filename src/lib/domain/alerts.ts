@@ -17,6 +17,13 @@ export type AlertThresholdSpec =
   /** Prix EUR fixe (l'euro reste la devise des données, quelle que soit la devise d'affichage). */
   | { kind: 'price'; priceEur: DecimalString }
   /**
+   * Prix ANCRÉ EN DOLLARS (saisi pendant un affichage en dollars) : le montant tapé garde son
+   * sens en $, comme une alerte de paire chez un exchange. Évalué en euros via le taux BCE du
+   * jour (`priceUsd ÷ taux`) — le même taux que tout l'affichage dollar de l'app ; sans taux
+   * connu, la règle est dormante.
+   */
+  | { kind: 'price-usd'; priceUsd: DecimalString }
+  /**
    * Objectif de gain NET DE FRAIS DE VENTE : seuil = prix où vendre toute la position dégage
    * `percent` % net, au barème figé dans la règle (grille Coinhouse du moment, éditable). Le
    * seuil suit le PRU et la quantité — il dépend du frais fixe réparti sur la position.
@@ -81,6 +88,8 @@ export interface AlertsEvaluationInput {
   pricesEur: Readonly<Record<AssetCode, DecimalString>>;
   /** Positions par actif (PRU + quantité) ; un actif absent laisse ses règles dormantes. */
   positions: Readonly<Record<AssetCode, AlertPositionInput>>;
+  /** Taux BCE EUR→USD du jour (seuils `price-usd`) ; absent → ces règles restent dormantes. */
+  usdPerEur?: DecimalString | null;
   /** Epoch ms de l'évaluation (horloge injectée par l'appelant). */
   nowMs: number;
 }
@@ -111,8 +120,13 @@ const HUNDRED = D('100');
 export function alertThresholdEur(
   rule: AlertRule,
   position: AlertPositionInput | null,
+  usdPerEur: DecimalString | null = null,
 ): Big | null {
   if (rule.threshold.kind === 'price') return D(rule.threshold.priceEur);
+  if (rule.threshold.kind === 'price-usd') {
+    if (usdPerEur === null || !D(usdPerEur).gt(ZERO)) return null;
+    return D(rule.threshold.priceUsd).div(usdPerEur);
+  }
   if (position === null || position.pruEur === null) return null;
   if (rule.threshold.kind === 'pru-net-pct') {
     const qty = D(position.qty);
@@ -179,7 +193,7 @@ export function evaluateAlerts(input: AlertsEvaluationInput): AlertsEvaluation {
     const priceRaw = input.pricesEur[rule.asset];
     if (priceRaw === undefined) continue;
     const position = input.positions[rule.asset] ?? null;
-    const threshold = alertThresholdEur(rule, position);
+    const threshold = alertThresholdEur(rule, position, input.usdPerEur ?? null);
     if (threshold === null) continue;
     const price = D(priceRaw);
     const condition = alertConditionMet(rule.direction, price, threshold);

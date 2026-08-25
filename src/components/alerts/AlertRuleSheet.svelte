@@ -9,7 +9,8 @@
     type AlertThresholdSpec,
   } from '$lib/domain/alerts';
   import { COINHOUSE_FEES } from '$lib/domain/fees';
-  import { D, parseDecimal, type Big } from '$lib/domain/money';
+  import { D, parseDecimal, type Big, type DecimalString } from '$lib/domain/money';
+  import type { Currency } from '$lib/fx';
   import { fmtPct, fmtPrice } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import Sheet from '../shared/Sheet.svelte';
@@ -28,6 +29,12 @@
   let percent = $state('10');
   let price = $state('');
   let priceDirection = $state<AlertDirection>('below');
+  /**
+   * Devise du seuil « Prix exact », figée à l'ouverture : celle du toggle à la création (un prix
+   * tapé en dollars reste ancré en dollars), celle de la règle à l'édition (jamais ré-ancrée en
+   * silence par un changement d'affichage).
+   */
+  let priceCurrency = $state<Currency>('EUR');
   let feeKind = $state<'crypto-crypto' | 'sell-eur'>('crypto-crypto');
   let repeat = $state<'once' | 'recurring'>('recurring');
   let note = $state('');
@@ -40,6 +47,13 @@
     const quote = app.quotes[formAsset];
     return quote && !quote.stale ? quote.priceEur : null;
   });
+  const cur = $derived(app.currency);
+  const usdPerEur = $derived(app.usdPerEurToday);
+  /** Montant EUR → devise d'affichage (repli euro si le taux du jour manque). */
+  const showPrice = (v: Big | DecimalString | null): string => {
+    const converted = app.displayFromEur(v);
+    return converted === null ? fmtPrice(v) : fmtPrice(converted, cur);
+  };
 
   /**
    * À l'ouverture SEULEMENT : préremplir depuis la règle éditée, ou des défauts sains. Le corps
@@ -59,9 +73,10 @@
       repeat = rule.repeat;
       note = rule.note;
       const t = rule.threshold;
-      if (t.kind === 'price') {
+      if (t.kind === 'price' || t.kind === 'price-usd') {
         kind = 'price';
-        price = t.priceEur;
+        priceCurrency = t.kind === 'price-usd' ? 'USD' : 'EUR';
+        price = t.kind === 'price-usd' ? t.priceUsd : t.priceEur;
         priceDirection = rule.direction;
       } else if (t.kind === 'pru-net-pct') {
         kind = 'net-pct';
@@ -76,8 +91,12 @@
     formAsset = asset || (Object.keys(app.alertPositions).sort()[0] ?? '');
     kind = 'below-pct';
     percent = '10';
+    priceCurrency = cur;
     // Suggestion éditable, pas un chiffre calculé : 2 décimales suffisent pour saisir un seuil.
-    price = spotEur ? D(spotEur).round(2).toString() : '';
+    if (spotEur === null) price = '';
+    else if (priceCurrency === 'USD')
+      price = usdPerEur === null ? '' : D(spotEur).times(usdPerEur).round(2).toString();
+    else price = D(spotEur).round(2).toString();
     priceDirection = 'below';
     feeKind = 'crypto-crypto';
     repeat = 'recurring';
@@ -94,7 +113,10 @@
     if (kind === 'price') {
       const value = parseInput(price);
       if (value === null || value.lt('0')) return null;
-      threshold = { kind: 'price', priceEur: value.toString() };
+      threshold =
+        priceCurrency === 'USD'
+          ? { kind: 'price-usd', priceUsd: value.toString() }
+          : { kind: 'price', priceEur: value.toString() };
       direction = priceDirection;
     } else {
       const pct = parseInput(percent);
@@ -119,7 +141,7 @@
     };
   });
 
-  const threshold = $derived(draft ? alertThresholdEur(draft, position) : null);
+  const threshold = $derived(draft ? alertThresholdEur(draft, position, usdPerEur) : null);
   const conditionNow = $derived(
     draft !== null &&
       threshold !== null &&
@@ -135,7 +157,10 @@
   function suggestDirection(): void {
     const value = parseInput(price);
     if (value === null || spotEur === null) return;
-    priceDirection = value.lte(D(spotEur)) ? 'below' : 'above';
+    // Comparaison en euros : un prix tapé en dollars est ramené au taux BCE du jour.
+    const valueEur = priceCurrency === 'USD' ? (usdPerEur ? value.div(usdPerEur) : null) : value;
+    if (valueEur === null) return;
+    priceDirection = valueEur.lte(D(spotEur)) ? 'below' : 'above';
   }
 
   function save(): void {
@@ -221,7 +246,7 @@
 
     {#if kind === 'price'}
       <label class="field">
-        <span>Prix en euros</span>
+        <span>Prix en {priceCurrency === 'USD' ? 'dollars (US$)' : 'euros'}</span>
         <input
           type="text"
           inputmode="decimal"
@@ -286,14 +311,15 @@
         </p>
       {:else if threshold !== null}
         <p>
-          Seuil actuel : <strong>{fmtPrice(threshold)}</strong>
+          Seuil actuel : <strong>{showPrice(threshold)}</strong>
+          {#if cur !== 'EUR'}<span class="muted">({fmtPrice(threshold)})</span>{/if}
           {#if needsPru && position?.pruEur}
-            <span class="muted">· PRU {fmtPrice(position.pruEur)} — le seuil suit votre PRU</span>
+            <span class="muted">· PRU {showPrice(position.pruEur)} — le seuil suit votre PRU</span>
           {/if}
         </p>
         {#if spotEur !== null}
           <p class="muted">
-            Prix actuel : {fmtPrice(spotEur)}
+            Prix actuel : {showPrice(spotEur)}
             {#if distance !== null}
               ({fmtPct(distance)} par rapport au seuil)
             {/if}
@@ -305,6 +331,11 @@
             l’autre côté du seuil, puis se déclenchera au prochain franchissement.
           </p>
         {/if}
+      {:else if kind === 'price' && priceCurrency === 'USD' && usdPerEur === null}
+        <p class="warn">
+          Taux euro-dollar indisponible : cette alerte en dollars restera dormante jusqu’au
+          chargement du taux BCE.
+        </p>
       {:else}
         <p class="muted">Saisissez un seuil pour voir l’aperçu.</p>
       {/if}

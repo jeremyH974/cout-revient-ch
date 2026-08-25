@@ -14,6 +14,9 @@ export function ruleLabel(rule: AlertRule): string {
   const t = rule.threshold;
   if (t.kind === 'price')
     return `Prix ${rule.direction === 'below' ? '≤' : '≥'} ${fmtPrice(t.priceEur)}`;
+  // Seuil ancré en dollars : le libellé garde la devise de la règle, pas celle de l'affichage.
+  if (t.kind === 'price-usd')
+    return `Prix ${rule.direction === 'below' ? '≤' : '≥'} ${fmtPrice(t.priceUsd, 'USD')}`;
   if (t.kind === 'pru-net-pct')
     return t.percent === '0'
       ? 'Équilibre net de frais de vente'

@@ -114,8 +114,10 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: `${BASE}index.html`,
         runtimeCaching: [],
-        // Clic sur une notification d'alerte : focaliser ou ouvrir l'app (public/sw-notifications.js).
-        importScripts: ['sw-notifications.js'],
+        // Clic sur une notification d'alerte (sw-notifications.js) + vérification opportuniste
+        // des alertes app fermée : noyau pur (sw-alerts-core.js, testé via node:vm) puis
+        // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte.
+        importScripts: ['sw-notifications.js', 'sw-alerts-core.js', 'sw-alert-sync.js'],
       },
     }),
   ],

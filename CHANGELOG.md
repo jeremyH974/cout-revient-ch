@@ -5,6 +5,30 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-25
+
+### Added
+
+- **Alertes et simulateur en dollars, avec le toggle de devise** : quand l'affichage est en
+  dollars, les feuilles saisissent et affichent en dollars (taux BCE du jour, comme le reste de
+  l'app) — le moteur reste en euros. Un seuil « Prix exact » tapé en dollars est **ancré en
+  dollars** (comme une alerte de paire chez un exchange) : le montant garde son sens quand
+  l'euro-dollar bouge ; sans taux connu, la règle est « dormante » et le dit. Aperçu bi-devise
+  (dollars + euros), historique converti au taux du jour de chaque événement. Décision n° 37,
+  propriété vérifiée : évaluer un seuil `$` au taux r ≡ évaluer le seuil `€ = $ ÷ r`.
+- **Vérification opportuniste des alertes app fermée** (Chrome/Edge, PWA installée) : quand la
+  veille et les notifications système sont activées, le navigateur peut réveiller le service
+  worker de temps en temps (Periodic Background Sync) pour comparer les seuils **précalculés en
+  euros** aux prix CoinGecko et notifier — à sa fréquence, jamais garantie, et l'interface le dit
+  avec ces mots. Le service worker compare en décimal exact (jamais de flottant sur un montant,
+  équivalence avec le moteur prouvée par propriétés) et ne ré-arme jamais ; les déclenchements
+  sont journalisés par l'app à l'ouverture. Rien de plus ne sort de l'appareil que la veille
+  classique (identifiants d'actifs seuls) — page Confidentialité mise à jour. Décision n° 38.
+- **Proposition chiffrée** pour la suite (`docs/proposals/2026-08-push-et-mcp.md`, sources
+  vérifiées le 25/08/2026) : émetteur Web Push opt-in (Cloudflare Worker + VAPID, 0 €/mois en
+  free tier, 3-5 j, seuils hors de l'appareil) contre serveur MCP local en lecture seule
+  (0 €, 1,5-2,5 j, rien ne sort) — recommandation : MCP local d'abord.
+
 ## [2.1.0] - 2026-08-25
 
 ### Added

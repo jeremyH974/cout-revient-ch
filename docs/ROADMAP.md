@@ -386,11 +386,14 @@ Toutes ces étapes sont livrées au 24/08/2026.
 ## 5. Ce qui n'est pas recommandé
 
 - **Notifications push app fermée** : impossible sans serveur — le Web Push exige un émetteur
-  authentifié (VAPID), y compris dans sa variante « déclarative » de WebKit. Nuance apportée le
+  authentifié (VAPID), y compris dans sa variante « déclarative » de WebKit. Nuances apportées le
   25/08/2026 : des **alertes locales** (évaluées quand l'app est ouverte, notifications système
   via le service worker) sont possibles sans serveur et sont **livrées** (P29,
-  docs/DECISIONS.md n° 36, docs/alerts.md) ; seul le push app fermée reste exclu tant que le
-  projet refuse tout backend.
+  docs/DECISIONS.md n° 36, docs/alerts.md) ; en 2.2.0 s'y ajoute une vérification
+  **opportuniste** app fermée (Periodic Background Sync, Chromium installé, jamais garantie —
+  décision n° 38). Seul le push **garanti** app fermée reste exclu tant que le projet refuse tout
+  backend ; les deux options serveur (émetteur Web Push opt-in, serveur MCP local) sont chiffrées
+  et sourcées dans docs/proposals/2026-08-push-et-mcp.md — recommandation : MCP local d'abord.
 - **Comptes utilisateurs, cloud, analytics** : contraires à la promesse « rien ne quitte le
   navigateur », qui est l'argument n° 1 face aux fuites de 2024-2026 [S39].
 - **Bot Discord stockant les portefeuilles** : même objection.

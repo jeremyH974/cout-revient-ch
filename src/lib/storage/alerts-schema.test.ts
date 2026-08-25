@@ -62,10 +62,12 @@ describe('withDefaults / sanitizeState (alerts)', () => {
       direction: 'above',
       threshold: { kind: 'pru-net-pct', percent: '25', fee: { pctFee: '1.29', fixedEur: '0.12' } },
     });
+    const usdAnchored = rule('al:3', { threshold: { kind: 'price-usd', priceUsd: '110000' } });
     const input = withAlerts({
       rules: {
         'al:1': good,
         'al:2': netFee,
+        'al:3': usdAnchored,
         'al:bad-dir': { ...rule('al:bad-dir'), direction: 'sideways' } as unknown as AlertRule,
         'al:bad-pct': rule('al:bad-pct', {
           threshold: { kind: 'pru-pct', percent: '-5' },
@@ -73,6 +75,10 @@ describe('withDefaults / sanitizeState (alerts)', () => {
         'al:bad-fee': {
           ...rule('al:bad-fee'),
           threshold: { kind: 'pru-net-pct', percent: '10', fee: { pctFee: 'x', fixedEur: '0' } },
+        } as unknown as AlertRule,
+        'al:bad-usd': {
+          ...rule('al:bad-usd'),
+          threshold: { kind: 'price-usd', priceUsd: '-1' },
         } as unknown as AlertRule,
       },
       states: {
@@ -82,8 +88,9 @@ describe('withDefaults / sanitizeState (alerts)', () => {
       },
     });
     const { state: sane, dropped } = sanitizeState(input);
-    expect(Object.keys(sane.alerts.rules).sort()).toEqual(['al:1', 'al:2']);
+    expect(Object.keys(sane.alerts.rules).sort()).toEqual(['al:1', 'al:2', 'al:3']);
     expect(sane.alerts.rules['al:2']?.threshold).toEqual(netFee.threshold);
+    expect(sane.alerts.rules['al:3']?.threshold).toEqual(usdAnchored.threshold);
     // États : l'orphelin part sans compter, l'état lisible reste, l'illisible est réparé a minima.
     expect(sane.alerts.states['al:1']).toEqual(armedState());
     expect('al:orphan' in sane.alerts.states).toBe(false);
@@ -92,7 +99,7 @@ describe('withDefaults / sanitizeState (alerts)', () => {
       lastTriggeredAtMs: null,
       triggerCount: 0,
     });
-    expect(dropped).toBe(3);
+    expect(dropped).toBe(4);
   });
 
   it('borne le journal, le trie du plus récent au plus ancien, répare les réglages', () => {
