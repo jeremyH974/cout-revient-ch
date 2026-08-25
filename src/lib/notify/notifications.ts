@@ -33,8 +33,13 @@ export interface SystemNotificationInput {
 }
 
 /** URL absolue de la page Alertes (cible du clic sur une notification, via le service worker). */
-function alertsUrl(): string {
+export function alertsUrl(): string {
   return new URL(`${import.meta.env.BASE_URL}#/invest/alerts`, window.location.origin).toString();
+}
+
+/** URL absolue de l'icône des notifications (page et service worker). */
+export function notifIconUrl(): string {
+  return new URL(`${import.meta.env.BASE_URL}pwa-192x192.png`, window.location.origin).toString();
 }
 
 /**
