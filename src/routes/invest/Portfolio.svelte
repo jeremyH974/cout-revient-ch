@@ -259,6 +259,10 @@
     : 'jamais ⚠'} ·
   <a href={router.href({ name: 'import' })}>Ré-importer</a> ·
   <a href={router.href({ name: 'report' })}>Rapport PDF</a> ·
+  <a href={router.href({ name: 'alerts' })}
+    >Alertes{app.unreadAlertCount > 0 ? ` (${app.unreadAlertCount})` : ''}</a
+  >
+  ·
   <a href={router.href({ name: 'settings' })} class="checks-link"><SelfChecks compact /></a>
 </footer>
 

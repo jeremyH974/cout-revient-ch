@@ -11,3 +11,4 @@ package-lock.json
 tests/fixtures/**/*.csv
 *.csv
 tests/fixtures/**/*.json
+.claude

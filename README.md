@@ -54,6 +54,19 @@ Arbitrum One, Base) se suit en lecture seule depuis l'écran Comptes, sans clé 
 | **Net investi**                | Somme des achats − somme des ventes : l'argent encore engagé. S'il est négatif, vous avez récupéré votre capital.                                                                                                               |
 | **Rendement annualisé (XIRR)** | Taux annuel qui égalise tous vos flux datés (achats et frais en sortie, produits en entrée) et la valeur actuelle du portefeuille — méthode Excel, base 365 jours. Affiché dans le Rapport ; masqué sous 30 jours d'historique. |
 
+### Alertes de prix et simulateur
+
+Depuis l'espace Investissement (`#/invest/alerts` ou la fiche d'un actif) : soyez prévenu quand un
+actif **passe sous votre PRU** (écart en % au choix), atteint un **objectif de plus-value** —
+y compris **net de frais de vente** (grille Coinhouse, modifiable) — ou franchit un prix exact.
+Les seuils relatifs **suivent votre PRU** : un nouvel achat les déplace d'eux-mêmes. Déclenchement
+au franchissement (jamais de rappel en boucle), notifications système en option, veille des prix
+réglable (1 à 15 min, app ouverte). Chaque alerte propose de **simuler** le rachat ou la vente à
+ce prix : nouveau PRU, résultat net de frais, prix d'équilibre frais inclus, « récupérer ma
+mise », montant à investir pour viser un PRU cible. 100 % local : vos seuils ne quittent jamais le
+navigateur — en contrepartie, pas de notification quand l'app est fermée (il n'y a aucun
+serveur) ; détails et sources dans [docs/alerts.md](docs/alerts.md).
+
 ### Rapport PDF
 
 Depuis le portefeuille ou les réglages, « Rapport PDF » ouvre une vue imprimable (`#/report`) et

@@ -167,18 +167,19 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 
 ### 3 bis. Propositions ajoutées le 23/08/2026 (version 2 — détail dans `docs/proposals/`)
 
-| #   | Proposition                                                                                                            | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |                                                  Phase                                                  |
-| --- | ---------------------------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :-----------------------------------------------------------------------------------------------------: |
-| P27 | « Copier un résumé anonymisé de mes stats » pour une revue assistée par l'IA de son choix                              |   2    |     1     |    3    |   0,5    | **12** |                                               livré (v2)                                                |
-| P23 | Bouton « Actualiser » v2 : horodatage, source, badge « périmé », prix Hyperliquid/DefiLlama, clé CoinGecko optionnelle |   3    |     4     |    4    |    1     | **11** |                                         livré (v2, 23/08/2026)                                          |
-| P28 | Vue d'ensemble v2 : valeur nette consolidée, cartes des deux espaces, flux entre espaces, alertes                      |   4    |     3     |    5    |   1,5    |   8    |                                 livré (v2, hors courbe de valeur nette)                                 |
-| P22 | Statistiques de trading : espérance, profit factor, drawdown, ventilations, calendrier, garde-fous, export             |   5    |     2     |    4    |   2,5    |  4,4   |                                               livré (v2)                                                |
-| P21 | Journal de trading : aller-retours automatiques, saisie manuelle, notes, tags/setups, plan → R                         |   5    |     2     |    5    |    3     |   4    |                                               livré (v2)                                                |
-| P19 | Espaces Investissement / Trading + comptes de première classe + navigation v2 + Vue d'ensemble v1                      |   4    |     3     |    4    |    3     |  3,7   |                              livré (v2, 23/08/2026 — rail desktop compris)                              |
-| P20 | Import Hyperliquid en lecture seule (adresse publique) : fills spot + perps, funding, dépôts/retraits                  |   5    |     3     |    5    |    4     |  3,3   |                                               livré (v2)                                                |
-| P24 | Import « format pivot » (CSV Universal Koinly/Waltio) + virements internes appariés + convertisseurs natifs            |   4    |     3     |    3    |   3 +    |  3,3   | livré (v2, 23/08/2026 ; convertisseurs natifs par plateforme livrés le 24/08/2026, voir P24 ci-dessous) |
-| P26 | Mode « live » WebSocket optionnel sur l'écran Trading                                                                  |   2    |     1     |    2    |   1,5    |  3,3   |                               livré (v2, 24/08/2026 — prix ET exécutions)                               |
-| P25 | Lecture on-chain par adresse (BTC mempool.space, EVM Etherscan V2 / Blockscout)                                        |   2    |     2     |    3    |    3     |  2,3   |      livré (v2, 24/08/2026 — BTC adresse et xpub, EVM Blockscout + secours Routescan/Etherscan V2)      |
+| #   | Proposition                                                                                                                    | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |                                                  Phase                                                  |
+| --- | ------------------------------------------------------------------------------------------------------------------------------ | :----: | :-------: | :-----: | :------: | :----: | :-----------------------------------------------------------------------------------------------------: |
+| P27 | « Copier un résumé anonymisé de mes stats » pour une revue assistée par l'IA de son choix                                      |   2    |     1     |    3    |   0,5    | **12** |                                               livré (v2)                                                |
+| P23 | Bouton « Actualiser » v2 : horodatage, source, badge « périmé », prix Hyperliquid/DefiLlama, clé CoinGecko optionnelle         |   3    |     4     |    4    |    1     | **11** |                                         livré (v2, 23/08/2026)                                          |
+| P28 | Vue d'ensemble v2 : valeur nette consolidée, cartes des deux espaces, flux entre espaces, alertes                              |   4    |     3     |    5    |   1,5    |   8    |                                 livré (v2, hors courbe de valeur nette)                                 |
+| P22 | Statistiques de trading : espérance, profit factor, drawdown, ventilations, calendrier, garde-fous, export                     |   5    |     2     |    4    |   2,5    |  4,4   |                                               livré (v2)                                                |
+| P21 | Journal de trading : aller-retours automatiques, saisie manuelle, notes, tags/setups, plan → R                                 |   5    |     2     |    5    |    3     |   4    |                                               livré (v2)                                                |
+| P19 | Espaces Investissement / Trading + comptes de première classe + navigation v2 + Vue d'ensemble v1                              |   4    |     3     |    4    |    3     |  3,7   |                              livré (v2, 23/08/2026 — rail desktop compris)                              |
+| P20 | Import Hyperliquid en lecture seule (adresse publique) : fills spot + perps, funding, dépôts/retraits                          |   5    |     3     |    5    |    4     |  3,3   |                                               livré (v2)                                                |
+| P24 | Import « format pivot » (CSV Universal Koinly/Waltio) + virements internes appariés + convertisseurs natifs                    |   4    |     3     |    3    |   3 +    |  3,3   | livré (v2, 23/08/2026 ; convertisseurs natifs par plateforme livrés le 24/08/2026, voir P24 ci-dessous) |
+| P26 | Mode « live » WebSocket optionnel sur l'écran Trading                                                                          |   2    |     1     |    2    |   1,5    |  3,3   |                               livré (v2, 24/08/2026 — prix ET exécutions)                               |
+| P25 | Lecture on-chain par adresse (BTC mempool.space, EVM Etherscan V2 / Blockscout)                                                |   2    |     2     |    3    |    3     |  2,3   |      livré (v2, 24/08/2026 — BTC adresse et xpub, EVM Blockscout + secours Routescan/Etherscan V2)      |
+| P29 | Alertes de prix relatives au PRU (repli, objectif, net de frais) + simulateur rachat/vente/objectif de PRU aux frais Coinhouse |   4    |     2     |    5    |   1,5    |  7,3   |                       livré (2.1.0, 25/08/2026 — docs/alerts.md, décision n° 36)                        |
 
 P12 (sauvegarde robuste, IndexedDB) devient un **prérequis** de P20 (volume des fills Hyperliquid).
 **P17 est remplacé par P24** (format pivot, complété par des convertisseurs natifs livrés le
@@ -384,8 +385,12 @@ Toutes ces étapes sont livrées au 24/08/2026.
 
 ## 5. Ce qui n'est pas recommandé
 
-- **Alertes de prix / notifications push** : impossible sans serveur (et Coinhouse les annonce dans sa
-  propre roadmap [S8]).
+- **Notifications push app fermée** : impossible sans serveur — le Web Push exige un émetteur
+  authentifié (VAPID), y compris dans sa variante « déclarative » de WebKit. Nuance apportée le
+  25/08/2026 : des **alertes locales** (évaluées quand l'app est ouverte, notifications système
+  via le service worker) sont possibles sans serveur et sont **livrées** (P29,
+  docs/DECISIONS.md n° 36, docs/alerts.md) ; seul le push app fermée reste exclu tant que le
+  projet refuse tout backend.
 - **Comptes utilisateurs, cloud, analytics** : contraires à la promesse « rien ne quitte le
   navigateur », qui est l'argument n° 1 face aux fuites de 2024-2026 [S39].
 - **Bot Discord stockant les portefeuilles** : même objection.

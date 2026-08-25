@@ -17,6 +17,7 @@
   import TradeDetail from './routes/trading/TradeDetail.svelte';
   import Trades from './routes/trading/Trades.svelte';
   import Welcome from './routes/Welcome.svelte';
+  import Alerts from './routes/invest/Alerts.svelte';
   import AssetDetail from './routes/invest/AssetDetail.svelte';
   import Import from './routes/invest/Import.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
@@ -134,6 +135,8 @@
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}
         <Import />
+      {:else if route.name === 'alerts'}
+        <Alerts />
       {:else if route.name === 'add'}
         <ManualEntry />
       {:else if route.name === 'settings'}

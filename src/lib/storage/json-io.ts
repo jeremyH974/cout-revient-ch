@@ -1,7 +1,7 @@
 /** Sauvegarde / restauration JSON (la seule protection contre « vider les données de navigation »). */
 import type { HlState } from '../import/hyperliquid/data';
 import { migrateState } from './migrations';
-import { APP_ID, SCHEMA_VERSION, type StoredStateV1 } from './schema';
+import { APP_ID, MAX_ALERT_EVENTS, SCHEMA_VERSION, type StoredStateV1 } from './schema';
 
 export interface BackupFile {
   app: typeof APP_ID;
@@ -71,6 +71,23 @@ const maxOrNull = (a: number | null, b: number | null): number | null =>
 const newest = <T extends { at: string }>(a: T | null, b: T | null): T | null =>
   a === null ? b : b === null ? a : a.at >= b.at ? a : b;
 
+/** Fusion des alertes : union des règles et du journal ; réglages de l'état courant conservés. */
+function mergeAlerts(
+  current: StoredStateV1['alerts'],
+  incoming: StoredStateV1['alerts'],
+): StoredStateV1['alerts'] {
+  const events = [...current.events];
+  for (const event of incoming.events)
+    if (!events.some((e) => e.id === event.id)) events.push(event);
+  events.sort((a, b) => b.at.localeCompare(a.at));
+  return {
+    rules: { ...incoming.rules, ...current.rules },
+    states: { ...incoming.states, ...current.states },
+    events: events.slice(0, MAX_ALERT_EVENTS),
+    settings: current.settings,
+  };
+}
+
 /** Fusion : union des lignes, saisies et qualifications ; réglages de l'état courant conservés. */
 export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): StoredStateV1 {
   const imports = [...current.imports];
@@ -90,5 +107,6 @@ export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): St
     hyperliquid: mergeHyperliquid(current.hyperliquid, incoming.hyperliquid),
     journal: { ...incoming.journal, ...current.journal },
     manualTrades: { ...incoming.manualTrades, ...current.manualTrades },
+    alerts: mergeAlerts(current.alerts, incoming.alerts),
   };
 }

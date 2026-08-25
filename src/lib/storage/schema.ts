@@ -1,4 +1,5 @@
 /** État persisté (localStorage + sauvegarde JSON), versionné. */
+import type { AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
@@ -82,6 +83,37 @@ export interface UiSettings {
   liveFills: boolean;
 }
 
+/** Réglages des alertes de prix (P29, décision n° 36). */
+export interface AlertsSettings {
+  /** Veille automatique des prix quand des alertes sont armées (onglet ouvert uniquement). */
+  watch: boolean;
+  /** Cadence de la veille en minutes (1 à 60 ; ≥ 1 min pour rester sous le throttling navigateur). */
+  watchMinutes: number;
+  /** Notifications système (opt-in explicite, en plus du centre in-app). */
+  systemNotifications: boolean;
+}
+
+/** Alertes de prix : règles, états d'armement, journal des déclenchements, réglages. */
+export interface AlertsState {
+  rules: Record<string, AlertRule>;
+  states: Record<string, AlertRuleState>;
+  /** Déclenchements, du plus récent au plus ancien, bornés à `MAX_ALERT_EVENTS`. */
+  events: AlertEvent[];
+  settings: AlertsSettings;
+}
+
+export const DEFAULT_ALERTS_SETTINGS: AlertsSettings = {
+  watch: false,
+  watchMinutes: 2,
+  systemNotifications: false,
+};
+
+export const MAX_ALERT_EVENTS = 100;
+
+export function emptyAlertsState(): AlertsState {
+  return { rules: {}, states: {}, events: [], settings: { ...DEFAULT_ALERTS_SETTINGS } };
+}
+
 export interface StoredStateV1 {
   schemaVersion: typeof SCHEMA_VERSION;
   imports: ImportBatchMeta[];
@@ -107,6 +139,8 @@ export interface StoredStateV1 {
   priceCache: Record<AssetCode, PriceQuoteInput>;
   /** Taux de change BCE mis en cache (EUR → devises d'affichage). */
   fx: FxCache;
+  /** Alertes de prix relatives au PRU (règles, états, journal, réglages). */
+  alerts: AlertsState;
   ui: UiSettings;
 }
 
@@ -147,6 +181,7 @@ export function emptyState(): StoredStateV1 {
     engineSettings: { ...DEFAULT_ENGINE_SETTINGS },
     priceCache: {},
     fx: { ...EMPTY_FX_CACHE, rates: {}, updatedAt: {} },
+    alerts: emptyAlertsState(),
     ui: { ...DEFAULT_UI_SETTINGS },
   };
 }
@@ -186,6 +221,16 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     manualTrades: isRecord(state.manualTrades) ? state.manualTrades : {},
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
     fx: isRecord(state.fx) ? { ...empty.fx, ...state.fx } : empty.fx,
+    alerts: isRecord(state.alerts)
+      ? {
+          ...empty.alerts,
+          ...state.alerts,
+          settings: {
+            ...empty.alerts.settings,
+            ...(isRecord(state.alerts.settings) ? state.alerts.settings : {}),
+          },
+        }
+      : empty.alerts,
   };
 }
 
@@ -364,6 +409,91 @@ function sanitizeManualTrade(id: string, raw: unknown): ManualTrade | null {
     quote: QUOTES.has(raw['quote'] as string) ? (raw['quote'] as ManualTrade['quote']) : 'USD',
   };
 }
+// --- Alertes de prix (P29) --------------------------------------------------------------------
+
+const ALERT_DIRECTIONS = new Set(['below', 'above']);
+const ALERT_REPEATS = new Set(['once', 'recurring']);
+const ALERT_ID = /^[A-Za-z0-9:._-]{1,80}$/;
+/** Pourcentage d'écart raisonnable (magnitude) : au-delà, la saisie est manifestement corrompue. */
+const isPct = (v: unknown): v is string => isDecimal(v) && !v.startsWith('-');
+
+function sanitizeAlertFee(raw: unknown): { pctFee: string; fixedEur: string } | null {
+  if (!isRecord(raw)) return null;
+  if (!isPct(raw['pctFee']) || !isPct(raw['fixedEur'])) return null;
+  return { pctFee: raw['pctFee'], fixedEur: raw['fixedEur'] };
+}
+
+function sanitizeAlertThreshold(raw: unknown): AlertRule['threshold'] | null {
+  if (!isRecord(raw)) return null;
+  if (raw['kind'] === 'price' && isDecimal(raw['priceEur']) && !raw['priceEur'].startsWith('-'))
+    return { kind: 'price', priceEur: raw['priceEur'] };
+  if (raw['kind'] === 'pru-pct' && isPct(raw['percent']))
+    return { kind: 'pru-pct', percent: raw['percent'] };
+  if (raw['kind'] === 'pru-net-pct' && isPct(raw['percent'])) {
+    const fee = sanitizeAlertFee(raw['fee']);
+    if (fee) return { kind: 'pru-net-pct', percent: raw['percent'], fee };
+  }
+  return null;
+}
+
+function sanitizeAlertRule(id: string, raw: unknown): AlertRule | null {
+  if (!isRecord(raw) || !ALERT_ID.test(id)) return null;
+  if (typeof raw['asset'] !== 'string' || raw['asset'] === '' || raw['asset'].length > 30)
+    return null;
+  if (typeof raw['direction'] !== 'string' || !ALERT_DIRECTIONS.has(raw['direction'])) return null;
+  if (typeof raw['repeat'] !== 'string' || !ALERT_REPEATS.has(raw['repeat'])) return null;
+  const threshold = sanitizeAlertThreshold(raw['threshold']);
+  if (!threshold) return null;
+  return {
+    id,
+    asset: raw['asset'],
+    direction: raw['direction'] as AlertRule['direction'],
+    threshold,
+    repeat: raw['repeat'] as AlertRule['repeat'],
+    enabled: raw['enabled'] !== false,
+    note: textOrEmpty(raw['note'], 200),
+    createdAt: typeof raw['createdAt'] === 'string' ? raw['createdAt'] : '',
+  };
+}
+
+function sanitizeAlertRuleState(raw: unknown): AlertRuleState | null {
+  if (!isRecord(raw)) return null;
+  const last = raw['lastTriggeredAtMs'];
+  if (last !== null && last !== undefined && (typeof last !== 'number' || !Number.isFinite(last)))
+    return null;
+  return {
+    armed: raw['armed'] === true,
+    lastTriggeredAtMs: typeof last === 'number' ? last : null,
+    triggerCount:
+      typeof raw['triggerCount'] === 'number' && Number.isFinite(raw['triggerCount'])
+        ? Math.max(0, Math.floor(raw['triggerCount']))
+        : 0,
+  };
+}
+
+function sanitizeAlertEvent(raw: unknown): AlertEvent | null {
+  if (!isRecord(raw)) return null;
+  if (typeof raw['id'] !== 'string' || !ALERT_ID.test(raw['id'])) return null;
+  if (typeof raw['ruleId'] !== 'string' || !ALERT_ID.test(raw['ruleId'])) return null;
+  if (typeof raw['asset'] !== 'string' || raw['asset'] === '' || raw['asset'].length > 30)
+    return null;
+  if (typeof raw['direction'] !== 'string' || !ALERT_DIRECTIONS.has(raw['direction'])) return null;
+  if (!isDecimal(raw['thresholdEur']) || !isDecimal(raw['priceEur'])) return null;
+  if (!isDecimalOrNull(raw['pruEur'])) return null;
+  if (typeof raw['at'] !== 'string') return null;
+  return {
+    id: raw['id'],
+    ruleId: raw['ruleId'],
+    asset: raw['asset'],
+    direction: raw['direction'] as AlertEvent['direction'],
+    thresholdEur: raw['thresholdEur'],
+    priceEur: raw['priceEur'],
+    pruEur: decOrNull(raw['pruEur']),
+    at: raw['at'],
+    read: raw['read'] === true,
+  };
+}
+
 const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv', 'onchain']);
 const ONCHAIN_CHAINS = new Set(['btc', 'eth', 'arbitrum', 'base']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
@@ -522,6 +652,42 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       taxAnnotations[id] = { portfolioValueEur: decOrNull(raw['portfolioValueEur']) };
     else dropped++;
   }
+  // Alertes de prix : règles et journal assainis champ par champ ; les états orphelins (règle
+  // disparue) sont écartés sans bruit — ils ne sont pas des données de l'utilisateur.
+  const alertRules: Record<string, AlertRule> = {};
+  for (const [id, raw] of Object.entries(state.alerts.rules)) {
+    const rule = sanitizeAlertRule(id, raw);
+    if (rule) alertRules[id] = rule;
+    else dropped++;
+  }
+  const alertStates: Record<string, AlertRuleState> = {};
+  for (const [id, raw] of Object.entries(state.alerts.states)) {
+    if (!(id in alertRules)) continue;
+    const ruleState = sanitizeAlertRuleState(raw);
+    if (ruleState) alertStates[id] = ruleState;
+    else dropped++;
+  }
+  const alertEvents: AlertEvent[] = [];
+  for (const raw of Array.isArray(state.alerts.events) ? state.alerts.events : []) {
+    const event = sanitizeAlertEvent(raw);
+    if (event) alertEvents.push(event);
+    else dropped++;
+  }
+  alertEvents.sort((a, b) => b.at.localeCompare(a.at));
+  const rawWatchMinutes = state.alerts.settings.watchMinutes;
+  const alerts: AlertsState = {
+    rules: alertRules,
+    states: alertStates,
+    events: alertEvents.slice(0, MAX_ALERT_EVENTS),
+    settings: {
+      watch: state.alerts.settings.watch === true,
+      watchMinutes:
+        typeof rawWatchMinutes === 'number' && Number.isFinite(rawWatchMinutes)
+          ? Math.min(60, Math.max(1, Math.round(rawWatchMinutes)))
+          : DEFAULT_ALERTS_SETTINGS.watchMinutes,
+      systemNotifications: state.alerts.settings.systemNotifications === true,
+    },
+  };
   // Réglages du moteur : unions de chaînes et booléens, jamais assainis jusqu'ici alors que tous
   // leurs voisins l'étaient. `includeSubscriptionsInPnl` est lu en truthy par `aggregate.ts` — une
   // sauvegarde éditée à la main portant la CHAÎNE "false" aurait retranché les abonnements du P&L
@@ -594,6 +760,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       manualTrades,
       engineSettings,
       fx,
+      alerts,
     },
     dropped,
   };

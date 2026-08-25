@@ -114,6 +114,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
         navigateFallback: `${BASE}index.html`,
         runtimeCaching: [],
+        // Clic sur une notification d'alerte : focaliser ou ouvrir l'app (public/sw-notifications.js).
+        importScripts: ['sw-notifications.js'],
       },
     }),
   ],

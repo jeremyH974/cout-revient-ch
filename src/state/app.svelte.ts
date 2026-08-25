@@ -1,5 +1,19 @@
 import { nowIso, nowMs } from '$lib/clock';
 import {
+  alertConditionMet,
+  alertThresholdEur,
+  evaluateAlerts,
+  initialAlertState,
+  type AlertEvent,
+  type AlertFire,
+  type AlertPositionInput,
+  type AlertRule,
+  type AlertRuleState,
+} from '$lib/domain/alerts';
+import { fmtPrice } from '$lib/format/fr';
+import { showSystemNotification } from '$lib/notify/notifications';
+import { toasts } from './ui.svelte';
+import {
   convertEvents,
   convertQuotes,
   earliestDay,
@@ -17,6 +31,7 @@ import {
   computePortfolio,
   computePortfolioByAccount,
   type PortfolioReport,
+  type PositionReport,
   type PriceQuoteInput,
 } from '$lib/domain/engine';
 import { D, toDecimalString, type Big } from '$lib/domain/money';
@@ -105,7 +120,9 @@ import {
   savePersistedState,
 } from '$lib/storage/state-store';
 import {
+  MAX_ALERT_EVENTS,
   emptyState,
+  type AlertsSettings,
   type AssetSettings,
   type StoredStateV1,
   type UiSettings,
@@ -156,6 +173,28 @@ const EPOCH = '1970-01-01T00:00:00.000Z';
 const FOLDER_WRITE_DEBOUNCE_MS = 2_000;
 const PRICE_MAX_AGE_MS = 10 * 60_000;
 const SAVE_DEBOUNCE_MS = 300;
+/** Le planificateur de veille des alertes se réveille souvent mais n'actualise qu'à échéance. */
+const ALERT_WATCH_TICK_MS = 30_000;
+
+/** Égalité des états d'armement : évite de réécrire (et re-sauvegarder) un état identique. */
+function sameAlertStates(
+  a: Readonly<Record<string, AlertRuleState>>,
+  b: Readonly<Record<string, AlertRuleState>>,
+): boolean {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((k) => {
+    const x = a[k];
+    const y = b[k];
+    return (
+      x !== undefined &&
+      y !== undefined &&
+      x.armed === y.armed &&
+      x.lastTriggeredAtMs === y.lastTriggeredAtMs &&
+      x.triggerCount === y.triggerCount
+    );
+  });
+}
 
 export class AppState {
   state = $state<StoredStateV1>(emptyState());
@@ -876,6 +915,8 @@ export class AppState {
         if (document.visibilityState === 'hidden') flushSync();
       });
     }
+    this.ensureAlertWatch();
+    this.updateAppBadge();
     void this.initFolderBackup();
   }
 
@@ -1235,6 +1276,7 @@ export class AppState {
         manualPriceAt: priceEur ? nowIso(now) : null,
       },
     };
+    this.runAlertEvaluation();
   }
 
   setCurrency(currency: Currency): void {
@@ -1392,6 +1434,296 @@ export class AppState {
     if (Object.keys(quotes).length === 0) return;
     this.lastLiveApplyMs = now;
     this.liveQuotes = { ...this.liveQuotes, ...quotes };
+    this.runAlertEvaluation();
+  }
+
+  // --- Alertes de prix (P29, décision n° 36) ----------------------------------------------------
+
+  private alertWatchTimer: ReturnType<typeof setInterval> | null = null;
+  private alertVisibilityHandler: (() => void) | null = null;
+
+  /**
+   * Rapport EN EUROS pour les alertes : les seuils sont stockés en euros (devise des données),
+   * l'évaluation ne doit jamais dépendre de la devise d'affichage. Quand l'affichage est en
+   * euros, c'est le rapport courant ; sinon il est recalculé sur les cotations EUR.
+   */
+  private reportEurForAlerts = $derived.by((): PortfolioReport =>
+    this.currency === 'EUR'
+      ? this.report
+      : computePortfolio({
+          events: this.events,
+          prices: this.quotes,
+          settings: this.state.engineSettings,
+          balances: balanceRecords(Object.values(this.state.rawRows)),
+        }),
+  );
+
+  /** Positions vues par les alertes : PRU et quantité EUR par actif détenu. */
+  alertPositions = $derived.by((): Record<AssetCode, AlertPositionInput> => {
+    const result: Record<AssetCode, AlertPositionInput> = {};
+    const report = this.reportEurForAlerts;
+    for (const p of [...report.positions, ...report.stablecoins])
+      result[p.asset] = {
+        pruEur: p.pru ? toDecimalString(p.pru) : null,
+        qty: toDecimalString(p.qty),
+      };
+    return result;
+  });
+
+  /** Position du rapport EN EUROS (simulateur, alertes) ; `null` si l'actif est inconnu. */
+  positionEur(asset: AssetCode): PositionReport | null {
+    const report = this.reportEurForAlerts;
+    return (
+      [...report.positions, ...report.stablecoins, ...report.closed, ...report.blocked].find(
+        (p) => p.asset === asset,
+      ) ?? null
+    );
+  }
+
+  /** Règles triées par actif puis ancienneté (ordre stable de la page Alertes). */
+  alertRules = $derived.by((): AlertRule[] =>
+    Object.values(this.state.alerts.rules).sort(
+      (a, b) => a.asset.localeCompare(b.asset) || a.createdAt.localeCompare(b.createdAt),
+    ),
+  );
+
+  unreadAlertCount = $derived(this.state.alerts.events.filter((e) => !e.read).length);
+
+  /** Règles actives et armées : la veille n'a de raison de tourner que s'il y en a. */
+  armedAlertCount = $derived(
+    this.alertRules.filter((r) => r.enabled && (this.state.alerts.states[r.id]?.armed ?? false))
+      .length,
+  );
+
+  /** Cotations EUR fraîches uniquement : le cache périmé ne déclenche jamais une alerte. */
+  private alertPricesEur(): Record<AssetCode, string> {
+    const prices: Record<AssetCode, string> = {};
+    for (const [asset, quote] of Object.entries(this.quotes))
+      if (!quote.stale) prices[asset] = quote.priceEur;
+    return prices;
+  }
+
+  /**
+   * Évalue toutes les règles sur les cotations fraîches ; journalise, notifie et ré-évalue la
+   * veille. Appelée après chaque arrivée de prix (actualisation, live, prix manuel) — jamais en
+   * boucle réactive : le flux reste lisible et testable.
+   */
+  private runAlertEvaluation(): void {
+    const rules = Object.values(this.state.alerts.rules);
+    if (rules.length === 0) return;
+    const { states, fired } = evaluateAlerts({
+      rules,
+      states: this.state.alerts.states,
+      pricesEur: this.alertPricesEur(),
+      positions: this.alertPositions,
+      nowMs: nowMs(),
+    });
+    if (fired.length > 0) {
+      const at = nowIso();
+      const stamp = nowMs().toString(36);
+      const events: AlertEvent[] = fired.map((f, i) => ({
+        id: `al:e${stamp}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        ruleId: f.rule.id,
+        asset: f.rule.asset,
+        direction: f.rule.direction,
+        thresholdEur: f.thresholdEur,
+        priceEur: f.priceEur,
+        pruEur: f.pruEur,
+        at,
+        read: false,
+      }));
+      this.state.alerts = {
+        ...this.state.alerts,
+        states,
+        events: [...events, ...this.state.alerts.events].slice(0, MAX_ALERT_EVENTS),
+      };
+      for (const fire of fired) this.notifyAlert(fire);
+    } else if (!sameAlertStates(states, this.state.alerts.states)) {
+      this.state.alerts = { ...this.state.alerts, states };
+    }
+    this.updateAppBadge();
+    this.ensureAlertWatch();
+  }
+
+  /** Toast in-app systématique + notification système si l'utilisateur l'a activée. */
+  private notifyAlert(fire: AlertFire): void {
+    const asset = fire.rule.asset.toUpperCase();
+    const sign = fire.rule.direction === 'below' ? '≤' : '≥';
+    const body = `${fmtPrice(fire.priceEur)} ${sign} seuil ${fmtPrice(fire.thresholdEur)}${
+      fire.pruEur !== null ? ` · PRU ${fmtPrice(fire.pruEur)}` : ''
+    }`;
+    toasts.push(`Alerte ${asset} : ${body}`, 'info', 8000);
+    if (this.state.alerts.settings.systemNotifications)
+      void showSystemNotification({ title: `Alerte ${asset}`, body, tag: fire.rule.id });
+  }
+
+  /** Pastille d'application (PWA installée, Chromium/iOS) : nombre d'alertes non lues. */
+  private updateAppBadge(): void {
+    if (typeof navigator === 'undefined') return;
+    const nav = navigator as Navigator & {
+      setAppBadge?: (count?: number) => Promise<void>;
+      clearAppBadge?: () => Promise<void>;
+    };
+    try {
+      const unread = this.unreadAlertCount;
+      if (unread > 0) void nav.setAppBadge?.(unread)?.catch(() => {});
+      else void nav.clearAppBadge?.()?.catch(() => {});
+    } catch {
+      // Badging API absente : le badge in-app suffit.
+    }
+  }
+
+  /** Crée une règle, armée sans jamais déclencher à la création (franchissement seulement). */
+  addAlertRule(
+    input: Pick<AlertRule, 'asset' | 'direction' | 'threshold' | 'repeat' | 'note'>,
+  ): AlertRule {
+    const id = `al:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
+    const rule: AlertRule = {
+      id,
+      asset: input.asset,
+      direction: input.direction,
+      threshold: input.threshold,
+      repeat: input.repeat,
+      enabled: true,
+      note: input.note.trim().slice(0, 200),
+      createdAt: nowIso(),
+    };
+    this.state.alerts = {
+      ...this.state.alerts,
+      rules: { ...this.state.alerts.rules, [id]: rule },
+      states: { ...this.state.alerts.states, [id]: this.freshAlertState(rule) },
+    };
+    this.ensureAlertWatch();
+    return rule;
+  }
+
+  /** État neuf d'une règle : armée seulement si la condition n'est pas déjà remplie. */
+  private freshAlertState(rule: AlertRule): AlertRuleState {
+    const threshold = alertThresholdEur(rule, this.alertPositions[rule.asset] ?? null);
+    const price = this.alertPricesEur()[rule.asset];
+    const condition =
+      threshold !== null &&
+      price !== undefined &&
+      alertConditionMet(rule.direction, D(price), threshold);
+    return initialAlertState(condition);
+  }
+
+  /** Modifie une règle ; le seuil ayant pu changer, l'armement est recalculé (compteurs gardés). */
+  updateAlertRule(rule: AlertRule): void {
+    const existing = this.state.alerts.rules[rule.id];
+    if (!existing) return;
+    const previous = this.state.alerts.states[rule.id];
+    const fresh = this.freshAlertState(rule);
+    this.state.alerts = {
+      ...this.state.alerts,
+      rules: { ...this.state.alerts.rules, [rule.id]: { ...rule, note: rule.note.slice(0, 200) } },
+      states: {
+        ...this.state.alerts.states,
+        [rule.id]: previous
+          ? {
+              ...fresh,
+              lastTriggeredAtMs: previous.lastTriggeredAtMs,
+              triggerCount: previous.triggerCount,
+            }
+          : fresh,
+      },
+    };
+    this.ensureAlertWatch();
+  }
+
+  removeAlertRule(id: string): void {
+    if (!this.state.alerts.rules[id]) return;
+    const { [id]: _rule, ...rules } = this.state.alerts.rules;
+    void _rule;
+    const { [id]: _state, ...states } = this.state.alerts.states;
+    void _state;
+    this.state.alerts = { ...this.state.alerts, rules, states };
+    this.ensureAlertWatch();
+  }
+
+  setAlertRuleEnabled(id: string, enabled: boolean): void {
+    const rule = this.state.alerts.rules[id];
+    if (!rule) return;
+    this.updateAlertRule({ ...rule, enabled });
+  }
+
+  /** Ré-arme une règle déclenchée (sans déclenchement immédiat si la condition tient encore). */
+  rearmAlertRule(id: string): void {
+    const rule = this.state.alerts.rules[id];
+    const previous = this.state.alerts.states[id];
+    if (!rule || !previous) return;
+    this.state.alerts = {
+      ...this.state.alerts,
+      states: {
+        ...this.state.alerts.states,
+        [id]: {
+          ...this.freshAlertState(rule),
+          lastTriggeredAtMs: null,
+          triggerCount: previous.triggerCount,
+        },
+      },
+    };
+    this.ensureAlertWatch();
+  }
+
+  markAlertEventsRead(): void {
+    if (this.unreadAlertCount === 0) return;
+    this.state.alerts = {
+      ...this.state.alerts,
+      events: this.state.alerts.events.map((e) => (e.read ? e : { ...e, read: true })),
+    };
+    this.updateAppBadge();
+  }
+
+  clearAlertEvents(): void {
+    if (this.state.alerts.events.length === 0) return;
+    this.state.alerts = { ...this.state.alerts, events: [] };
+    this.updateAppBadge();
+  }
+
+  setAlertsSettings(patch: Partial<AlertsSettings>): void {
+    this.state.alerts = {
+      ...this.state.alerts,
+      settings: { ...this.state.alerts.settings, ...patch },
+    };
+    this.ensureAlertWatch();
+  }
+
+  /**
+   * Démarre/arrête la veille des prix : seulement si elle est activée, qu'au moins une règle est
+   * armée et que la source de prix automatique n'est pas coupée. Onglet ouvert uniquement — le
+   * navigateur regroupe les réveils en arrière-plan à la minute, ce qu'une cadence ≥ 1 min
+   * absorbe ; au retour au premier plan, un tick immédiat rattrape un franchissement manqué.
+   */
+  private ensureAlertWatch(): void {
+    if (typeof document === 'undefined') return;
+    const wanted =
+      this.state.alerts.settings.watch &&
+      this.armedAlertCount > 0 &&
+      this.state.ui.priceSource !== 'off';
+    if (wanted && this.alertWatchTimer === null) {
+      this.alertWatchTimer = setInterval(() => this.alertWatchTick(), ALERT_WATCH_TICK_MS);
+      this.alertVisibilityHandler = () => {
+        if (document.visibilityState === 'visible') this.alertWatchTick();
+      };
+      document.addEventListener('visibilitychange', this.alertVisibilityHandler);
+    } else if (!wanted && this.alertWatchTimer !== null) {
+      clearInterval(this.alertWatchTimer);
+      this.alertWatchTimer = null;
+      if (this.alertVisibilityHandler) {
+        document.removeEventListener('visibilitychange', this.alertVisibilityHandler);
+        this.alertVisibilityHandler = null;
+      }
+    }
+  }
+
+  /** Un tick n'actualise que si la dernière cotation est plus vieille que la cadence choisie. */
+  private alertWatchTick(): void {
+    this.ensureAlertWatch();
+    if (this.alertWatchTimer === null || this.priceStatus.loading) return;
+    const last = this.priceStatus.lastRefreshAt ? Date.parse(this.priceStatus.lastRefreshAt) : 0;
+    if (nowMs() - last >= this.state.alerts.settings.watchMinutes * 60_000)
+      void this.refreshPrices(true);
   }
 
   async refreshPrices(force = false): Promise<void> {
@@ -1438,6 +1770,7 @@ export class AppState {
       missing: result.missing,
       lastRefreshAt: nowIso(),
     };
+    this.runAlertEvaluation();
   }
 
   exportBackup(now = nowMs()): string {
@@ -1454,6 +1787,8 @@ export class AppState {
     this.exitDemo();
     this.state =
       mode === 'replace' ? parsed.state : mergeStates($state.snapshot(this.state), parsed.state);
+    this.ensureAlertWatch();
+    this.updateAppBadge();
     return { ok: true };
   }
 
@@ -1463,6 +1798,8 @@ export class AppState {
     this.liveQuotes = {};
     this.syncStatus = {};
     this.hlClient = null;
+    this.ensureAlertWatch();
+    this.updateAppBadge();
   }
 }
 

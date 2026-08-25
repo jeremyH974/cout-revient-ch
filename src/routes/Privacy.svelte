@@ -57,6 +57,14 @@
       flux sont <strong>décochés par défaut</strong>, ne s'ouvrent jamais sans votre clic, et se
       coupent dès que l'onglet passe en arrière-plan.
     </li>
+    <li>
+      Si vous activez la <strong>veille des alertes de prix</strong> (décochée par défaut), l'app
+      interroge les mêmes fournisseurs de prix que le bouton « Actualiser », simplement plus souvent
+      (cadence choisie, 1 à 15 min), et seulement quand elle est ouverte. Vos
+      <strong>seuils d'alerte et votre PRU ne sortent jamais</strong> de l'appareil : la comparaison se
+      fait localement, et les notifications sont générées par votre navigateur — aucun serveur de notification
+      n'existe.
+    </li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>
   <p>
