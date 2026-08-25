@@ -5,6 +5,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-25
+
+### Changed
+
+- **Feuille « Créer une alerte » repensée** : les quatre types d'alerte deviennent des cartes
+  expliquées en une ligne chacune (le groupe de boutons radio, visuellement cassé, est remplacé) ;
+  une **jauge** situe d'un coup d'œil le PRU, le seuil et le prix actuel avec la zone de
+  déclenchement teintée ; unités (€, $, %) affichées dans les champs ; un dépliant « Comment
+  fonctionne le déclenchement ? » explique franchissement, ré-armement à 1 % et délai d'une heure.
+- **Simulateur plus lisible et plus sûr** : position résumée en trois repères (Détenu, PRU,
+  Investi — avec l'équivalent en euros du PRU quand l'affichage est en dollars : le PRU en
+  dollars bouge avec le taux BCE du jour, celui en euros non) ; **équivalent « ≈ x BTC » sous le
+  montant saisi** (fini le 0,5 $ tapé en croyant saisir 0,5 BTC) ; unités dans tous les champs ;
+  états vides qui annoncent ce que le calcul produira ; variation de PRU masquée quand elle
+  arrondit à zéro ; exposition avant → après affichée avec le résultat d'achat ; prix d'équilibre
+  mis en évidence côté vente. Aucun changement de calcul — moteur, seuils et règles inchangés.
+
 ## [2.2.0] - 2026-08-25
 
 ### Added
