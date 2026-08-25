@@ -44,9 +44,10 @@ const FALLTHROUGH_ASSET = {
 /**
  * Taux EUR→USD fixe des tests, sur toute la plage demandée à Frankfurter : décimales exactes avec
  * STUB_PRICES_EUR pour que « usd ÷ taux » retombe pile sur le prix EUR d'origine
- * (2 × 1,1 = 2,2 ; 60000 × 1,1 = 66000 — voir HYPERLIQUID_MIDS).
+ * (2 × 1,1 = 2,2 ; 60000 × 1,1 = 66000 — voir HYPERLIQUID_MIDS). Exporté pour que les specs
+ * (affichage dollar, alertes ancrées en $) recalculent les conversions côté moteur.
  */
-const EUR_USD_RATE = '1.1';
+export const EUR_USD_RATE = '1.1';
 
 /** Mids Hyperliquid (USDC, en chaînes comme la vraie API) dérivés de STUB_PRICES_EUR × EUR_USD_RATE. */
 const HYPERLIQUID_MIDS: Record<string, string> = {

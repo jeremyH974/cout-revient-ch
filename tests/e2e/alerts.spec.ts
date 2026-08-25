@@ -13,7 +13,7 @@ import { simulateBuy } from '../../src/lib/domain/simulate';
 import { fmtPrice } from '../../src/lib/format/fr';
 import { openDemo } from './helpers/demo';
 import { fixtureReport, normalize, position } from './helpers/expected';
-import { STUB_PRICES_EUR, stubNetwork } from './helpers/network';
+import { EUR_USD_RATE, STUB_PRICES_EUR, stubNetwork } from './helpers/network';
 
 test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
@@ -122,6 +122,128 @@ test('franchissement par prix manuel : notification in-app, centre d’alertes, 
   await page.keyboard.press('Escape');
   await page.goto('#/');
   await expect(page.getByRole('heading', { name: 'Alertes de prix' })).toHaveCount(0);
+});
+
+test('affichage en dollars : alerte ancrée en $, aperçu bi-devise, simulateur converti au taux BCE', async ({
+  page,
+}) => {
+  const { report } = fixtureReport();
+  const btc = position(report, 'btc');
+  const rate = EUR_USD_RATE; // 1,1 sur toute la plage (stub Frankfurter)
+
+  await openDemo(page);
+  await page.goto('#/settings');
+  // Rôle explicite : l'app-bar porte aussi un BOUTON « Devise d'affichage » (bascule rapide).
+  await page.getByRole('combobox', { name: /Devise d'affichage/ }).selectOption('USD');
+  // Les taux BCE stub sont chargés par ce geste : attendre qu'un montant s'affiche en dollars.
+  await page.goto('#/');
+  await expect(page.locator('main')).toContainText('$');
+
+  // Alerte « Prix exact » saisie en dollars : ANCRÉE en dollars, évaluée en euros via le taux.
+  await page.goto('#/invest/alerts');
+  await page.getByRole('button', { name: 'Créer une alerte' }).click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.getByLabel('Actif').selectOption('btc');
+  await sheet.getByRole('radio', { name: 'Prix exact' }).check();
+  const priceUsd = '59400'; // ÷ 1,1 = 54 000 € : sous le prix stub (60 000 €) → l'alerte naît armée.
+  await sheet.getByLabel(/Prix en dollars/).fill(priceUsd);
+  await sheet.getByLabel('Se déclenche quand le prix').selectOption('below');
+
+  const thresholdEur = alertThresholdEur(
+    { ...belowRule('btc'), threshold: { kind: 'price-usd', priceUsd } },
+    null,
+    rate,
+  )!;
+  const usdText = normalize(fmtPrice(thresholdEur.times(rate), 'USD'));
+  const eurText = normalize(fmtPrice(thresholdEur));
+  await expect(sheet.locator('.preview')).toContainText(`Seuil actuel : ${usdText}`);
+  await expect(sheet.locator('.preview')).toContainText(`(${eurText})`);
+
+  await sheet.getByRole('button', { name: 'Créer l’alerte' }).click();
+  await expect(page.getByText(/^Alerte créée/)).toBeVisible();
+  const rule = page.locator('li.rule').filter({ hasText: 'BTC' });
+  await expect(rule).toContainText(`Prix ≤ ${usdText}`); // libellé ancré en dollars
+  await expect(rule).toContainText(`Seuil : ${usdText}`);
+  await expect(rule.getByText('armée', { exact: true })).toBeVisible();
+
+  // Simulateur : saisie en dollars convertie pour le moteur (euros), résultats réaffichés en $.
+  await page.goto('#/invest/asset/btc');
+  await page.getByRole('button', { name: 'Simuler' }).click();
+  const sim = page.locator('dialog[open]');
+  await expect(sim.getByText(/taux BCE du jour/)).toBeVisible();
+  await sim.getByLabel('Montant à investir (dollars, tout compris)').fill('1100'); // ÷ 1,1 = 1 000 €
+  await sim.getByLabel('Prix d’exécution (dollars)').fill('56100'); // ÷ 1,1 = 51 000 €
+  const expected = simulateBuy(
+    { qty: btc.qty, costBasis: btc.costBasis },
+    D('1000'),
+    D('51000'),
+    COINHOUSE_FEES['buy-sepa'],
+  )!;
+  const pruAfterUsd = normalize(
+    fmtPrice(D(toDecimalString(expected.pruAfter!)).times(rate), 'USD'),
+  );
+  await expect(sim.locator('.result').getByText(pruAfterUsd)).toBeVisible();
+});
+
+test('veille + notifications : l’instantané du service worker reflète les seuils du moteur', async ({
+  context,
+  page,
+}) => {
+  await context.grantPermissions(['notifications']);
+  const spot = STUB_PRICES_EUR['bitcoin']!;
+  const thresholdEur = String(Math.round(spot * 0.9)); // 54 000 € : sous le prix stub → armée.
+
+  await openDemo(page);
+  await page.goto('#/invest/alerts');
+  await page.getByRole('button', { name: 'Créer une alerte' }).click();
+  const sheet = page.locator('dialog[open]');
+  await sheet.getByLabel('Actif').selectOption('btc');
+  await sheet.getByRole('radio', { name: 'Prix exact' }).check();
+  await sheet.getByLabel('Prix en euros').fill(thresholdEur);
+  await sheet.getByLabel('Se déclenche quand le prix').selectOption('below');
+  await sheet.getByRole('button', { name: 'Créer l’alerte' }).click();
+  await expect(page.locator('li.rule').getByText('armée', { exact: true })).toBeVisible();
+
+  await page.getByRole('checkbox', { name: 'Veille automatique des prix (app ouverte)' }).check();
+  await page.getByRole('button', { name: 'Activer les notifications système' }).click();
+  await expect(page.getByText('Notifications système :')).toBeVisible();
+
+  // L'instantané écrit pour le service worker doit porter EXACTEMENT le seuil du moteur.
+  const readSnapshot = (): Promise<unknown> =>
+    page.evaluate(
+      () =>
+        new Promise((resolve, reject) => {
+          const open = indexedDB.open('crch-state', 1);
+          open.onsuccess = () => {
+            const db = open.result;
+            const tx = db.transaction('meta', 'readonly');
+            const request = tx.objectStore('meta').get('alerts.watch-snapshot');
+            request.onsuccess = () => resolve(request.result ?? null);
+            tx.onerror = () => reject(tx.error);
+          };
+          open.onerror = () => reject(open.error);
+        }),
+    );
+  interface SwRule {
+    asset: string;
+    coingeckoId: string;
+    direction: string;
+    thresholdEur: string;
+    armed: boolean;
+  }
+  await expect
+    .poll(async () => {
+      const snapshot = (await readSnapshot()) as { rules?: SwRule[] } | null;
+      return snapshot?.rules?.length ?? 0;
+    })
+    .toBeGreaterThan(0);
+  const snapshot = (await readSnapshot()) as { v: number; minGapMs: number; rules: SwRule[] };
+  expect(snapshot.v).toBe(1);
+  const swRule = snapshot.rules.find((r) => r.asset === 'btc')!;
+  expect(swRule.coingeckoId).toBe('bitcoin');
+  expect(swRule.direction).toBe('below');
+  expect(swRule.armed).toBe(true);
+  expect(D(swRule.thresholdEur).eq(D(thresholdEur))).toBe(true);
 });
 
 test('sans données : la page explique et renvoie vers l’import', async ({ page }) => {
