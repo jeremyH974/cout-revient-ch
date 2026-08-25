@@ -60,7 +60,10 @@
     <li>
       Si vous activez la <strong>veille des alertes de prix</strong> (décochée par défaut), l'app
       interroge les mêmes fournisseurs de prix que le bouton « Actualiser », simplement plus souvent
-      (cadence choisie, 1 à 15 min), et seulement quand elle est ouverte. Vos
+      (cadence choisie, 1 à 15 min), et seulement quand elle est ouverte. Sur Chrome/Edge avec l'app
+      installée et les notifications activées, le navigateur peut en plus réveiller de temps en
+      temps une vérification <strong>app fermée</strong> : elle envoie la même requête de prix
+      (identifiants d'actifs uniquement), rien de plus. Vos
       <strong>seuils d'alerte et votre PRU ne sortent jamais</strong> de l'appareil : la comparaison se
       fait localement, et les notifications sont générées par votre navigateur — aucun serveur de notification
       n'existe.

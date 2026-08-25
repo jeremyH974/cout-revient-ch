@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { alertDistance, alertThresholdEur, type AlertRule } from '$lib/domain/alerts';
-  import { D } from '$lib/domain/money';
+  import { D, type Big, type DecimalString } from '$lib/domain/money';
   import { fmtDateTime, fmtPct, fmtPrice, fmtRelative } from '$lib/format/fr';
   import {
     notifyPermission,
@@ -87,10 +87,19 @@
   }
 
   const thresholdOf = (rule: AlertRule) =>
-    alertThresholdEur(rule, app.alertPositions[rule.asset] ?? null);
+    alertThresholdEur(rule, app.alertPositions[rule.asset] ?? null, app.usdPerEurToday);
   const freshPriceOf = (asset: string): string | null => {
     const quote = app.quotes[asset];
     return quote && !quote.stale ? quote.priceEur : null;
+  };
+  const cur = $derived(app.currency);
+  /**
+   * Montant EUR → devise d'affichage (repli euro si le taux manque) ; pour l'historique, la
+   * conversion se fait au taux du JOUR de l'événement, comme partout ailleurs dans l'app.
+   */
+  const showPrice = (v: Big | DecimalString | null, day?: string): string => {
+    const converted = app.displayFromEur(v, day);
+    return converted === null ? fmtPrice(v) : fmtPrice(converted, cur);
   };
 
   interface RuleStatus {
@@ -99,7 +108,14 @@
   }
   function statusOf(rule: AlertRule): RuleStatus {
     if (!rule.enabled) return { text: 'en pause', tone: 'muted' };
-    if (thresholdOf(rule) === null) return { text: 'dormante — PRU indisponible', tone: 'warn' };
+    if (thresholdOf(rule) === null)
+      return {
+        text:
+          rule.threshold.kind === 'price-usd'
+            ? 'dormante — taux dollar indisponible'
+            : 'dormante — PRU indisponible',
+        tone: 'warn',
+      };
     const state = app.state.alerts.states[rule.id];
     if (!state || state.armed) return { text: 'armée', tone: 'ok' };
     if (state.lastTriggeredAtMs !== null)
@@ -186,11 +202,26 @@
         {/if}
       {/if}
     </div>
+    {#if settings.watch && settings.systemNotifications && permission === 'granted' && app.backgroundSyncStatus !== 'unsupported'}
+      <p class="muted small">
+        App fermée (Chrome/Edge, app installée) :
+        {#if app.backgroundSyncStatus === 'registered'}
+          <strong>vérification opportuniste activée</strong> — à la fréquence choisie par le navigateur
+          (au mieux quelques fois par jour), jamais garantie.
+        {:else if app.backgroundSyncStatus === 'denied'}
+          refusée par le navigateur — installez l’app (menu « Installer ») et utilisez-la
+          régulièrement pour qu’il l’accorde.
+        {:else}
+          en attente d’une alerte armée.
+        {/if}
+      </p>
+    {/if}
     <p class="muted small">
-      100 % local : vos seuils ne quittent jamais ce navigateur. En contrepartie, les alertes ne
-      s’évaluent que quand l’app est ouverte (onglet ou PWA installée, même en arrière-plan) — pas
-      de serveur, donc pas de notification app fermée. Sur iPhone/iPad, installez l’app sur l’écran
-      d’accueil pour recevoir les notifications.
+      100 % local : vos seuils ne quittent jamais ce navigateur (les requêtes de prix ne portent que
+      des identifiants d’actifs). Les alertes s’évaluent quand l’app est ouverte ; sur Chrome/Edge
+      avec l’app installée, le navigateur peut en plus réveiller une vérification app fermée de
+      temps en temps — sans garantie : une notification app fermée fiable demanderait un serveur.
+      Sur iPhone/iPad, installez l’app sur l’écran d’accueil pour recevoir les notifications.
     </p>
   </section>
 
@@ -205,8 +236,13 @@
               <p>
                 <strong>{event.asset.toUpperCase()}</strong>
                 {event.direction === 'below' ? 'est passé sous' : 'a atteint'} le seuil
-                {fmtPrice(event.thresholdEur)} — prix {fmtPrice(event.priceEur)}{#if event.pruEur}
-                  <span class="muted"> · PRU {fmtPrice(event.pruEur)}</span>{/if}
+                {showPrice(event.thresholdEur, event.at.slice(0, 10))} — prix {showPrice(
+                  event.priceEur,
+                  event.at.slice(0, 10),
+                )}{#if event.pruEur}
+                  <span class="muted">
+                    · PRU {showPrice(event.pruEur, event.at.slice(0, 10))}</span
+                  >{/if}
               </p>
               <p class="muted small">{fmtDateTime(event.at.slice(0, 19))}</p>
               <p class="event-actions">
@@ -257,11 +293,11 @@
               </p>
               <p class="small">
                 {#if threshold !== null}
-                  Seuil : <strong>{fmtPrice(threshold)}</strong>
+                  Seuil : <strong>{showPrice(threshold)}</strong>
                   {#if price !== null}
                     {@const distance = alertDistance(D(price), threshold)}
                     <span class="muted"
-                      >· prix {fmtPrice(price)}{#if distance !== null}
+                      >· prix {showPrice(price)}{#if distance !== null}
                         ({fmtPct(distance)}){/if}</span
                     >
                   {/if}
@@ -303,7 +339,10 @@
               <p class="small">
                 {fmtDateTime(event.at.slice(0, 19))} — <strong>{event.asset.toUpperCase()}</strong>
                 {event.direction === 'below' ? 'sous' : 'au-dessus de'}
-                {fmtPrice(event.thresholdEur)} (prix {fmtPrice(event.priceEur)})
+                {showPrice(event.thresholdEur, event.at.slice(0, 10))} (prix {showPrice(
+                  event.priceEur,
+                  event.at.slice(0, 10),
+                )})
               </p>
             </div>
           </li>
