@@ -14,6 +14,7 @@
   import { fmtPct, fmtPrice } from '$lib/format/fr';
   import { assetName } from '$lib/pricing/tickers';
   import Sheet from '../shared/Sheet.svelte';
+  import ThresholdGauge from './ThresholdGauge.svelte';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -209,6 +210,13 @@
     'net-pct': 'Objectif net de frais de vente',
     price: 'Prix exact',
   };
+  /** Une ligne d'explication par type : le choix s'enseigne au moment où il se fait. */
+  const KIND_DESCRIPTIONS: Record<FormKind, string> = {
+    'below-pct': 'Être prévenu si le prix retombe de X % sous votre prix de revient.',
+    'above-pct': 'Être prévenu quand la plus-value atteint X % au-dessus de votre PRU.',
+    'net-pct': 'Objectif atteint une fois les frais de vente Coinhouse déduits.',
+    price: 'Un niveau de prix fixe, indépendant de votre PRU.',
+  };
   const PCT_CHIPS: Record<FormKind, string[]> = {
     'below-pct': ['0', '5', '10', '20'],
     'above-pct': ['10', '25', '50', '100'],
@@ -236,24 +244,38 @@
 
     <fieldset>
       <legend>Type d’alerte</legend>
-      {#each KINDS as value (value)}
-        <label class="radio">
-          <input type="radio" name="alert-kind" {value} bind:group={kind} />
-          <span>{KIND_LABELS[value]}</span>
-        </label>
-      {/each}
+      <div class="cards">
+        {#each KINDS as value (value)}
+          <label class="card" class:selected={kind === value}>
+            <!-- L'input couvre toute la carte (cible tactile) ; nom accessible = le titre seul. -->
+            <input
+              type="radio"
+              name="alert-kind"
+              {value}
+              bind:group={kind}
+              aria-labelledby="alert-kind-title-{value}"
+              aria-describedby="alert-kind-desc-{value}"
+            />
+            <span class="card-title" id="alert-kind-title-{value}">{KIND_LABELS[value]}</span>
+            <span class="card-desc" id="alert-kind-desc-{value}">{KIND_DESCRIPTIONS[value]}</span>
+          </label>
+        {/each}
+      </div>
     </fieldset>
 
     {#if kind === 'price'}
       <label class="field">
         <span>Prix en {priceCurrency === 'USD' ? 'dollars (US$)' : 'euros'}</span>
-        <input
-          type="text"
-          inputmode="decimal"
-          bind:value={price}
-          oninput={suggestDirection}
-          placeholder="ex. 50000"
-        />
+        <span class="affix">
+          <input
+            type="text"
+            inputmode="decimal"
+            bind:value={price}
+            oninput={suggestDirection}
+            placeholder="ex. 50000"
+          />
+          <span class="unit" aria-hidden="true">{priceCurrency === 'USD' ? '$' : '€'}</span>
+        </span>
       </label>
       <label class="field">
         <span>Se déclenche quand le prix</span>
@@ -267,7 +289,10 @@
         <span
           >{kind === 'below-pct' ? 'Écart sous le PRU (%)' : 'Objectif au-dessus du PRU (%)'}</span
         >
-        <input type="text" inputmode="decimal" bind:value={percent} placeholder="ex. 10" />
+        <span class="affix">
+          <input type="text" inputmode="decimal" bind:value={percent} placeholder="ex. 10" />
+          <span class="unit" aria-hidden="true">%</span>
+        </span>
       </label>
       <div class="chips" role="group" aria-label="Pourcentages rapides">
         {#each chips as chip (chip)}
@@ -310,6 +335,12 @@
           exact ».
         </p>
       {:else if threshold !== null}
+        <ThresholdGauge
+          pru={position?.pruEur ? app.displayFromEur(position.pruEur) : null}
+          threshold={app.displayFromEur(threshold)}
+          price={spotEur === null ? null : app.displayFromEur(spotEur)}
+          direction={draft?.direction ?? 'below'}
+        />
         <p>
           Seuil actuel : <strong>{showPrice(threshold)}</strong>
           {#if cur !== 'EUR'}<span class="muted">({fmtPrice(threshold)})</span>{/if}
@@ -341,6 +372,27 @@
       {/if}
     </div>
 
+    <details class="how">
+      <summary>Comment fonctionne le déclenchement ?</summary>
+      <ul>
+        <li>
+          L’alerte sonne au <strong>franchissement</strong> du seuil, puis se met en veille — jamais de
+          rappel en boucle tant que la condition reste vraie.
+        </li>
+        <li>
+          Une alerte <strong>récurrente</strong> se réarme quand le prix s’éloigne d’au moins 1 % de l’autre
+          côté du seuil ; « une seule fois » attend votre ré-armement.
+        </li>
+        <li>
+          Au plus <strong>un déclenchement par heure</strong> et par règle ; un franchissement retenu
+          par ce délai reste dû, jamais perdu.
+        </li>
+        <li>
+          Les seuils en % <strong>suivent votre PRU</strong> : un nouvel achat les déplace automatiquement.
+        </li>
+      </ul>
+    </details>
+
     <div class="actions">
       <button class="primary" type="submit">{rule ? 'Enregistrer' : 'Créer l’alerte'}</button>
       {#if !rule && (kind === 'above-pct' || kind === 'net-pct')}
@@ -370,7 +422,9 @@
     color: var(--fg-muted);
     font-size: var(--fs-xs);
   }
-  input,
+  /* `:not([type='radio'])` : sinon les radios des cartes hériteraient de width:100 %/min-height
+     et se disloqueraient (bug d'origine : cercles en cascade, libellés décollés à droite). */
+  input:not([type='radio']),
   select {
     min-height: var(--tap);
     border: 1px solid var(--border);
@@ -392,11 +446,88 @@
     font-size: var(--fs-xs);
     margin-bottom: var(--space-1);
   }
-  .radio {
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
+  }
+  @media (min-width: 480px) {
+    .cards {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .card {
+    position: relative;
+    display: grid;
+    gap: 2px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    cursor: pointer;
+  }
+  /* La radio couvre toute la carte : cible tactile complète, focus natif, clic direct. */
+  .card input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    margin: 0;
+    cursor: pointer;
+  }
+  .card:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .card.selected {
+    border-color: var(--accent);
+    background: var(--bg-sunken);
+  }
+  .card-title {
+    font-size: var(--fs-sm);
+    font-weight: 600;
+  }
+  .card.selected .card-title {
+    color: var(--accent);
+  }
+  .card-desc {
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+  }
+  .affix {
+    position: relative;
+    display: block;
+  }
+  .affix input {
+    padding-right: 40px;
+  }
+  .unit {
+    position: absolute;
+    right: var(--space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--fg-muted);
+    font-size: var(--fs-sm);
+    pointer-events: none;
+  }
+  .how {
+    font-size: var(--fs-sm);
+  }
+  .how summary {
+    cursor: pointer;
+    color: var(--fg-muted);
+    font-size: var(--fs-xs);
+    min-height: 24px;
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    min-height: 32px;
+  }
+  .how ul {
+    margin: var(--space-2) 0 0;
+    padding-left: var(--space-4);
+    display: grid;
+    gap: var(--space-1);
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
   }
   .chips {
     display: flex;

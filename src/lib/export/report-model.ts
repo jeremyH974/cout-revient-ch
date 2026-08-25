@@ -9,6 +9,7 @@
  */
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
+import type { SubscriptionAnalysis } from '../domain/subscription';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
 import type { BenchmarkResult } from '../domain/benchmark';
 import type { TwrResult } from '../domain/twr';
@@ -93,6 +94,8 @@ export interface ReportModel {
     disclaimer: string;
   };
   summary: { title: string; kpis: ReportKpi[]; details: ReportKpi[] };
+  /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
+  subscription: { title: string; details: ReportKpi[]; note: string } | null;
   allocation: ReportTable;
   positions: ReportTable;
   stablecoins: ReportTable;
@@ -117,6 +120,8 @@ export interface ReportModelOptions {
    * modèle reste pur et calculable sans historique chargé — les lignes affichent alors « — ».
    */
   performance?: ReportPerformance | undefined;
+  /** Analyse de l'abonnement Coinhouse (décision n° 39), calculée par l'appelant sur ses événements. */
+  subscription?: SubscriptionAnalysis | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -427,6 +432,17 @@ function benchmarkKpi(
 
 const METHODOLOGY: ReportParagraph[] = [
   {
+    title: 'Abonnement Coinhouse',
+    text:
+      'L’offre est déduite de l’export, jamais demandée : les lignes « Abonnement » facturées ' +
+      'disent si une offre est payée (et laquelle, par leur montant sur 12 mois glissants) ; la ' +
+      'colonne de remises dit ce que l’offre a réellement fait gagner. La rentabilité affichée ' +
+      'est « remises obtenues − abonnements payés » sur la même fenêtre. Le contrefactuel ' +
+      '« grille Classique » applique la grille Particuliers du 18/08/2026 aux mêmes opérations, ' +
+      'achat supposé par virement SEPA (l’export ne distingue pas la carte) : c’est une ' +
+      'estimation prudente, pas une facture.',
+  },
+  {
     title: 'Rendement hors apports (TWR)',
     text:
       'Rendement pondéré par le temps : on découpe l’historique en journées, on mesure la ' +
@@ -522,6 +538,88 @@ const METHODOLOGY: ReportParagraph[] = [
       'différente du PRU par actif.',
   },
 ];
+
+const TIER_LABELS: Record<SubscriptionAnalysis['detectedTier'], string> = {
+  classique: 'Classique',
+  investisseur: 'Investisseur',
+  'gestion-privee': 'Gestion Privée',
+};
+
+/**
+ * Section « Abonnement Coinhouse » (décision n° 39) : tout est DÉDUIT de l'export — lignes
+ * d'abonnement facturées, colonne de remises — jamais demandé à l'utilisateur. Masquée sans
+ * opération Coinhouse ; le contrefactuel Classique est une estimation prudente et le dit.
+ */
+function subscriptionSection(
+  s: SubscriptionAnalysis | undefined,
+  f: Formatter,
+): ReportModel['subscription'] {
+  if (!s || (s.tradeCount === 0 && s.subscriptionCount === 0)) return null;
+  const details: ReportKpi[] = [
+    {
+      label: 'Offre détectée',
+      value: TIER_LABELS[s.detectedTier],
+      tone: 'neutral',
+      hint: s.detectionNote,
+    },
+  ];
+  if (s.detectedTier === 'classique') {
+    details.push(
+      {
+        label: 'Frais payés (12 derniers mois)',
+        value: f.money(D(s.feesNet12m)),
+        tone: 'neutral',
+        hint: `volume d'opérations sur 12 mois : ${f.money(D(s.volume12m))} ; depuis le début : ${f.money(D(s.feesNet))} de frais`,
+      },
+      {
+        label: 'Seuil de rentabilité de l’offre Investisseur',
+        value:
+          s.breakEvenAnnualVolume === null
+            ? NONE
+            : `≈ ${f.money(D(s.breakEvenAnnualVolume))} d'opérations par an`,
+        tone: 'neutral',
+        hint: 'abonnement 118,80 €/an (grille du 18/08/2026), hypothèse « frais offerts sur ce volume » — vérifiez les conditions de l’offre',
+      },
+    );
+  } else {
+    details.push(
+      {
+        label: 'Abonnements payés (12 derniers mois)',
+        value: f.money(D(s.subscriptions12m)),
+        tone: 'neutral',
+        hint: `depuis le début de l'export : ${f.money(D(s.subscriptionsTotal))}`,
+      },
+      {
+        label: 'Remises de frais obtenues (12 derniers mois)',
+        value: f.money(D(s.rebates12m)),
+        tone: 'neutral',
+        hint: `depuis le début : ${f.money(D(s.rebates))} de remises, pour ${f.money(D(s.feesGross))} de frais bruts (${f.money(D(s.feesNet))} réellement payés)`,
+      },
+      {
+        label: 'Rentabilité de l’offre (12 derniers mois)',
+        value: f.money(D(s.netOfSubscription12m ?? '0'), true),
+        tone: toneOf(D(s.netOfSubscription12m ?? '0')),
+        hint:
+          'remises obtenues − abonnements payés : positif, l’offre s’est remboursée ; ' +
+          `depuis le début : ${f.money(D(s.netOfSubscription ?? '0'), true)}`,
+      },
+      {
+        label: 'Économies vs grille Classique (estimation)',
+        value: f.money(D(s.savedVsClassique), true),
+        tone: toneOf(D(s.savedVsClassique)),
+        hint: 'mêmes opérations aux frais Classique du 18/08/2026, achat supposé par virement — estimation',
+      },
+    );
+  }
+  return {
+    title: 'Abonnement Coinhouse',
+    details,
+    note:
+      'Déduit de votre export : lignes d’abonnement facturées et remises de frais. Les montants ' +
+      'suivent la devise d’affichage ; la fenêtre « 12 derniers mois » se termine à votre ' +
+      'dernière opération Coinhouse. Les grilles et offres évoluent — vérifiez la vôtre.',
+  };
+}
 
 export function buildReportModel(report: PortfolioReport, opts: ReportModelOptions): ReportModel {
   const currency: Currency = opts.currency ?? 'EUR';
@@ -693,6 +791,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       disclaimer: DISCLAIMER,
     },
     summary: { title: 'Synthèse', kpis, details },
+    subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),
     positions: positionsTable(
       'positions',

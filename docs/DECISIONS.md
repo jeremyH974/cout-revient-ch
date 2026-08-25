@@ -626,3 +626,22 @@
     à jour). La notification garantie app fermée reste un non-objectif sans serveur :
     `docs/proposals/2026-08-push-et-mcp.md` chiffre les deux options serveur (émetteur Web Push
     opt-in, serveur MCP local) avec sources du 25/08/2026, recommandation : MCP local d'abord.
+
+39. **L'offre Coinhouse est DÉDUITE des données, jamais demandée ; la rentabilité affichée est
+    celle qui s'est réellement produite** (25/08/2026). Le rapport gagne une section « Abonnement
+    Coinhouse » : les lignes « Abonnement » facturées dans l'export disent si une offre est payée
+    et laquelle (Classique / Investisseur / Gestion Privée, classées par le montant annualisé sur
+    12 mois glissants — frontière à 400 €, qui sépare des ordres de grandeur) ; la colonne de
+    remises de l'export dit ce que l'offre a fait gagner ; la rentabilité = remises − abonnements
+    sur la même fenêtre, fenêtre qui se termine au dernier événement Coinhouse (pas à l'horloge :
+    un export s'arrête quand il s'arrête). Deux compléments, tous deux annoncés comme estimations :
+    le contrefactuel « qu'aurait coûté la grille Classique sur les mêmes opérations » (grille du
+    18/08/2026, achat supposé par virement — l'export ne distingue pas la carte ; pourcentage de la
+    grille + fixe paramétré une seule fois) et, pour un compte Classique, le volume annuel
+    d'équilibre de l'offre Investisseur (118,80 €/an ÷ taux de frais effectif observé, hypothèse
+    « frais offerts » explicitée — la grille publiée ne chiffre pas lisiblement les plafonds, et
+    les montants anti-copie du PDF ne se laissent pas extraire : on n'encode que ce qui est sûr).
+    Un seul modèle de rapport sert l'écran et le PDF ; la cohérence écran ↔ moteur est vérifiée
+    par la spec `coherence`, rejouable sur l'export réel. Personne côté trackers grand public ne
+    fait ce calcul (les courtiers pro affichent des « commission savings ») : c'est le même
+    différenciateur que l'alerte relative au PRU — l'outil connaît VOS flux réels.

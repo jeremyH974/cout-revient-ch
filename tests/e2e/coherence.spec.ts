@@ -7,7 +7,13 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { D } from '../../src/lib/domain/money';
+import { analyzeSubscription } from '../../src/lib/domain/subscription';
+import { normalizeCoinhouseRows } from '../../src/lib/import/coinhouse/normalize';
+import { importCoinhouseCsv } from '../../src/lib/import/coinhouse/index';
+import { fmtMoney } from '../../src/lib/format/fr';
 import { openDemo, waitForPrices } from './helpers/demo';
+import { FIXTURE, normalize } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
 
 /**
@@ -358,6 +364,43 @@ test('rapport et export CSV reprennent la synthèse', async ({ page }) => {
  * tout le résultat d'un aller-retour à son jour de CLÔTURE — les jours de prise de bénéfice
  * partielle affichaient zéro, et le mois ne collait ni au tableau de bord ni à la plateforme.
  */
+/**
+ * Rapport « Abonnement Coinhouse » (décision n° 39) : l'écran reprend l'analyse du moteur —
+ * offre détectée depuis les lignes d'abonnement de l'export, montants de la bonne branche.
+ */
+test('le rapport « Abonnement Coinhouse » reprend l’analyse du moteur', async ({ page }) => {
+  const csv = REAL_CSV ?? FIXTURE;
+  const parsed = importCoinhouseCsv(readFileSync(csv, 'utf8'), {}, 'imp:coh');
+  if (!parsed.ok) throw new Error(parsed.error);
+  const { events } = normalizeCoinhouseRows(Object.values(parsed.rows));
+  const analysis = analyzeSubscription(events);
+  const TIER_LABELS = {
+    classique: 'Classique',
+    investisseur: 'Investisseur',
+    'gestion-privee': 'Gestion Privée',
+  } as const;
+
+  await openDataset(page);
+  await page.goto('#/report');
+  // Niveau 2 : la méthodologie porte un h3 du même nom.
+  await expect(page.getByRole('heading', { level: 2, name: 'Abonnement Coinhouse' })).toBeVisible();
+  await expect(page.locator('tr', { hasText: 'Offre détectée' })).toContainText(
+    TIER_LABELS[analysis.detectedTier],
+  );
+  if (analysis.detectedTier === 'classique') {
+    await expect(page.locator('tr', { hasText: 'Frais payés (12 derniers mois)' })).toContainText(
+      normalize(fmtMoney(D(analysis.feesNet12m))),
+    );
+  } else {
+    await expect(
+      page.locator('tr', { hasText: 'Abonnements payés (12 derniers mois)' }),
+    ).toContainText(normalize(fmtMoney(D(analysis.subscriptions12m))));
+    await expect(page.locator('tr', { hasText: 'Rentabilité de l’offre' })).toContainText(
+      normalize(fmtMoney(D(analysis.netOfSubscription12m ?? '0'), 'EUR', { sign: true })),
+    );
+  }
+});
+
 test('Trading : la somme du calendrier = le réalisé net du tableau de bord', async ({ page }) => {
   test.skip(Boolean(REAL_CSV), 'espace Trading : jeu de démonstration seulement');
   await openDemo(page);

@@ -376,6 +376,11 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
   sectionTitle(model.summary.title);
   kpiGrid(model.summary.kpis);
   detailsTable(model.summary.details);
+  if (model.subscription) {
+    sectionTitle(model.subscription.title);
+    detailsTable(model.subscription.details);
+    paragraph(model.subscription.note, 8.5, COLOR.muted);
+  }
   table(model.allocation);
   newPage();
   table(model.positions);

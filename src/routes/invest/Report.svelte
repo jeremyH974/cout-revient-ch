@@ -22,6 +22,7 @@
       generatedAt,
       version: __APP_VERSION__,
       subscriptionsInPnl: app.state.engineSettings.includeSubscriptionsInPnl,
+      subscription: app.subscriptionAnalysis,
       // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
       // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
       performance: history.status.loadedAt === null ? undefined : history.performance(),
@@ -112,6 +113,24 @@
       </tbody>
     </table>
   </section>
+
+  {#if model.subscription}
+    <section class="card">
+      <h2>{model.subscription.title}</h2>
+      <table class="details">
+        <tbody>
+          {#each model.subscription.details as d (d.label)}
+            <tr>
+              <th scope="row">{d.label}</th>
+              <td class="right num {d.tone}">{d.value}</td>
+              <td class="hint">{d.hint ?? ''}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="note">{model.subscription.note}</p>
+    </section>
+  {/if}
 
   {#each tables as table (table.kind)}
     <section class="card">

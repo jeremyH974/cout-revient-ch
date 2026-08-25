@@ -5,6 +5,34 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-25
+
+### Added
+
+- **Section « Abonnement Coinhouse » dans le rapport** (écran et PDF) : l'offre est **déduite de
+  votre export** (Classique, Investisseur ou Gestion Privée, d'après les lignes d'abonnement
+  facturées) ; les **remises de frais** réellement obtenues, les abonnements payés et la
+  **rentabilité de l'offre** (remises − abonnements, sur 12 mois glissants et depuis le début) ;
+  l'estimation « qu'aurait coûté la grille Classique sur les mêmes opérations » ; et, pour un
+  compte Classique, le **volume annuel à partir duquel l'offre Investisseur (118,80 €/an) se
+  rembourserait** à votre taux de frais effectif observé. Tout est déduit des données — rien
+  n'est demandé — et chaque estimation est annoncée comme telle. Décision n° 39.
+
+### Changed
+
+- **Feuille « Créer une alerte » repensée** : les quatre types d'alerte deviennent des cartes
+  expliquées en une ligne chacune (le groupe de boutons radio, visuellement cassé, est remplacé) ;
+  une **jauge** situe d'un coup d'œil le PRU, le seuil et le prix actuel avec la zone de
+  déclenchement teintée ; unités (€, $, %) affichées dans les champs ; un dépliant « Comment
+  fonctionne le déclenchement ? » explique franchissement, ré-armement à 1 % et délai d'une heure.
+- **Simulateur plus lisible et plus sûr** : position résumée en trois repères (Détenu, PRU,
+  Investi — avec l'équivalent en euros du PRU quand l'affichage est en dollars : le PRU en
+  dollars bouge avec le taux BCE du jour, celui en euros non) ; **équivalent « ≈ x BTC » sous le
+  montant saisi** (fini le 0,5 $ tapé en croyant saisir 0,5 BTC) ; unités dans tous les champs ;
+  états vides qui annoncent ce que le calcul produira ; variation de PRU masquée quand elle
+  arrondit à zéro ; exposition avant → après affichée avec le résultat d'achat ; prix d'équilibre
+  mis en évidence côté vente. Aucun changement de calcul — moteur, seuils et règles inchangés.
+
 ## [2.2.0] - 2026-08-25
 
 ### Added

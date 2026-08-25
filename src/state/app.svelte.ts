@@ -42,6 +42,7 @@ import {
   type PriceQuoteInput,
 } from '$lib/domain/engine';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
+import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
 import {
@@ -493,6 +494,17 @@ export class AppState {
       prices: this.displayQuotes,
       settings: this.state.engineSettings,
       balances: balanceRecords(Object.values(this.state.rawRows)),
+    }),
+  );
+
+  /**
+   * Analyse de l'abonnement Coinhouse (décision n° 39) : calculée sur les événements dans la
+   * DEVISE D'AFFICHAGE (mêmes montants que le rapport) ; le frais fixe du contrefactuel (0,12 €)
+   * est converti au même taux du jour.
+   */
+  subscriptionAnalysis = $derived.by((): SubscriptionAnalysis =>
+    analyzeSubscription(this.displayEvents, {
+      fixedPerTrade: toDecimalString(this.displayFromEur('0.12') ?? D('0.12')),
     }),
   );
 
