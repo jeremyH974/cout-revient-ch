@@ -427,6 +427,8 @@ function sanitizeAlertThreshold(raw: unknown): AlertRule['threshold'] | null {
   if (!isRecord(raw)) return null;
   if (raw['kind'] === 'price' && isDecimal(raw['priceEur']) && !raw['priceEur'].startsWith('-'))
     return { kind: 'price', priceEur: raw['priceEur'] };
+  if (raw['kind'] === 'price-usd' && isDecimal(raw['priceUsd']) && !raw['priceUsd'].startsWith('-'))
+    return { kind: 'price-usd', priceUsd: raw['priceUsd'] };
   if (raw['kind'] === 'pru-pct' && isPct(raw['percent']))
     return { kind: 'pru-pct', percent: raw['percent'] };
   if (raw['kind'] === 'pru-net-pct' && isPct(raw['percent'])) {

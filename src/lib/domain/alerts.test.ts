@@ -105,6 +105,70 @@ describe('alertThresholdEur', () => {
   });
 });
 
+describe('seuil ancré en dollars (price-usd)', () => {
+  const usd = (priceUsd: string): AlertRule => rule({ threshold: { kind: 'price-usd', priceUsd } });
+
+  it('convertit au taux BCE du jour et reste dormant sans taux', () => {
+    expect(alertThresholdEur(usd('110'), null, '1.1')?.toString()).toBe('100');
+    expect(alertThresholdEur(usd('110'), null)).toBeNull();
+    expect(alertThresholdEur(usd('110'), null, null)).toBeNull();
+    expect(alertThresholdEur(usd('110'), null, '0')).toBeNull();
+  });
+
+  it('propriété : évaluer un seuil $ au taux r ≡ évaluer le seuil € correspondant (€ = $ ÷ r)', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10_000_000 }),
+        fc.integer({ min: 1, max: 10_000_000 }),
+        fc.integer({ min: 101, max: 300 }),
+        fc.constantFrom<'below' | 'above'>('below', 'above'),
+        (usdCents, spotCents, rateCents, direction) => {
+          const priceUsd = D(String(usdCents)).div('100').toString();
+          const spot = D(String(spotCents)).div('100').toString();
+          const rate = D(String(rateCents)).div('100').toString();
+          const rUsd = rule({ direction, threshold: { kind: 'price-usd', priceUsd } });
+          const rEur = rule({
+            direction,
+            threshold: { kind: 'price', priceEur: D(priceUsd).div(rate).toString() },
+          });
+          const evalUsd = evaluateAlerts({
+            rules: [rUsd],
+            states: { [rUsd.id]: armed },
+            pricesEur: { btc: spot },
+            positions: {},
+            usdPerEur: rate,
+            nowMs: 1_000_000,
+          });
+          const evalEur = evaluateAlerts({
+            rules: [rEur],
+            states: { [rEur.id]: armed },
+            pricesEur: { btc: spot },
+            positions: {},
+            nowMs: 1_000_000,
+          });
+          expect(evalUsd.fired.length).toBe(evalEur.fired.length);
+          expect(evalUsd.states[rUsd.id]?.armed).toBe(evalEur.states[rEur.id]?.armed);
+          if (evalUsd.fired[0])
+            expect(evalUsd.fired[0].thresholdEur).toBe(evalEur.fired[0]!.thresholdEur);
+        },
+      ),
+    );
+  });
+
+  it('sans taux, la règle dollar est ignorée par l’évaluation (état inchangé)', () => {
+    const r = usd('110');
+    const result = evaluateAlerts({
+      rules: [r],
+      states: { [r.id]: armed },
+      pricesEur: { btc: '50' },
+      positions: {},
+      nowMs: 1_000_000,
+    });
+    expect(result.fired).toEqual([]);
+    expect(result.states[r.id]).toEqual(armed);
+  });
+});
+
 describe('alertConditionMet / alertDistance', () => {
   it('teste le bon côté, seuil inclus', () => {
     expect(alertConditionMet('below', D('90'), D('90'))).toBe(true);
