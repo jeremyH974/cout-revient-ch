@@ -275,6 +275,18 @@
   .tools {
     padding: var(--space-2) var(--space-4);
     font-size: var(--fs-sm);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+  /* Cibles tactiles ≥ 24 px (WCAG 2.2 AA, target-size) : les liens-outils se replient sur
+     mobile — sans hauteur minimale ni espacement, axe échoue (vu en CI Linux, pas sous Windows). */
+  .tools .link {
+    margin-left: 0;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
   }
   .tabs {
     display: grid;

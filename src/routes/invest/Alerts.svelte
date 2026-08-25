@@ -393,10 +393,14 @@
     display: grid;
     gap: var(--space-1);
   }
+  /* Cibles tactiles ≥ 24 px (WCAG 2.2 AA, target-size), même pour les liens en fs-xs. */
   .link {
     color: var(--accent);
     text-decoration: underline;
     font-size: inherit;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
   }
   .link.danger {
     color: var(--loss);
@@ -451,7 +455,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: var(--space-1);
+    gap: var(--space-2);
     font-size: var(--fs-xs);
     white-space: nowrap;
   }
