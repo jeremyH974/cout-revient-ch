@@ -5,6 +5,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-25
+
 ### Added
 
 - **Alertes de prix relatives au PRU** (`#/invest/alerts`, aussi depuis la fiche de chaque actif) :
