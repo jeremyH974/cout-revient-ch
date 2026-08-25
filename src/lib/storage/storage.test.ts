@@ -350,6 +350,33 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       stale: true,
     };
     s.fx.rates.USD = { '2026-01-01': '1.1' };
+    s.alerts.rules['al:1'] = {
+      id: 'al:1',
+      asset: 'btc',
+      direction: 'below',
+      threshold: { kind: 'pru-pct', percent: '10' },
+      repeat: 'recurring',
+      enabled: true,
+      note: 'seuil de renfort',
+      createdAt: '2026-01-01T10:00:00Z',
+    };
+    s.alerts.states['al:1'] = {
+      armed: false,
+      lastTriggeredAtMs: 1_700_000_000_000,
+      triggerCount: 1,
+    };
+    s.alerts.events.push({
+      id: 'al:e1',
+      ruleId: 'al:1',
+      asset: 'btc',
+      direction: 'below',
+      thresholdEur: '45000',
+      priceEur: '44900',
+      pruEur: '50000',
+      at: '2026-01-02T10:00:00Z',
+      read: false,
+    });
+    s.alerts.settings.watch = true;
     s.ui.theme = 'light';
     return s;
   }
@@ -396,6 +423,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       'hyperliquid',
       'journal',
       'manualTrades',
+      'alerts',
     ] as const;
     // Conteneurs LOCAUX : l'état courant l'emporte (docstring de `mergeStates`).
     const KEPT = ['schemaVersion', 'engineSettings', 'priceCache', 'fx', 'ui'] as const;
