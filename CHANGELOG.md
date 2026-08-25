@@ -7,6 +7,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [2.3.0] - 2026-08-25
 
+### Added
+
+- **Section « Abonnement Coinhouse » dans le rapport** (écran et PDF) : l'offre est **déduite de
+  votre export** (Classique, Investisseur ou Gestion Privée, d'après les lignes d'abonnement
+  facturées) ; les **remises de frais** réellement obtenues, les abonnements payés et la
+  **rentabilité de l'offre** (remises − abonnements, sur 12 mois glissants et depuis le début) ;
+  l'estimation « qu'aurait coûté la grille Classique sur les mêmes opérations » ; et, pour un
+  compte Classique, le **volume annuel à partir duquel l'offre Investisseur (118,80 €/an) se
+  rembourserait** à votre taux de frais effectif observé. Tout est déduit des données — rien
+  n'est demandé — et chaque estimation est annoncée comme telle. Décision n° 39.
+
 ### Changed
 
 - **Feuille « Créer une alerte » repensée** : les quatre types d'alerte deviennent des cartes
