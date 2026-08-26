@@ -5,6 +5,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-08-26
+
+### Added
+
+- **Contexte de marché (P34), opt-in** : l’indice Fear & Greed du jour s’affiche sur la Vue
+  d’ensemble quand vous cochez le réglage correspondant (décoché par défaut). Il décrit l’humeur du
+  marché entier, pas votre portefeuille, et ne dit pas quoi en faire. La requête ne transporte
+  aucune de vos données ; la source (alternative.me) est citée à l’écran comme ses conditions
+  l’exigent. Décision n° 43.
+
 ## [2.6.0] - 2026-08-26
 
 ### Added

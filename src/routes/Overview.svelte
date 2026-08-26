@@ -5,6 +5,8 @@
    * et, demain, le P&L de trading restent côte à côte (proposition v2, § 6.0).
    */
   import { nowIso } from '$lib/clock';
+  import { fmtDate } from '$lib/format/fr';
+  import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
   import { router } from '$lib/router.svelte';
   import { isIOS, isStandalone } from '$lib/support/environment';
@@ -47,6 +49,21 @@
   });
   /** Constats mis en avant sur l'accueil ; la liste complète vit dans le rapport. */
   const INSIGHTS_ON_OVERVIEW = 6;
+
+  /** Libellés français des bandes publiées par la source (jamais traduits en conseil). */
+  const FEAR_GREED_LABELS = {
+    'extreme-fear': 'peur extrême',
+    fear: 'peur',
+    neutral: 'neutre',
+    greed: 'avidité',
+    'extreme-greed': 'avidité extrême',
+    unknown: 'non classé',
+  } as const;
+
+  // Le contexte n'est chargé que si l'opt-in réseau est coché ; l'appel est idempotent.
+  $effect(() => {
+    if (app.state.ui.marketContext && app.marketContext === null) void app.refreshMarketContext();
+  });
   const insights = $derived(
     renderInsights(app.insights, {
       discreet: app.state.ui.discreet,
@@ -213,6 +230,24 @@
     {/if}
   </a>
 </div>
+
+{#if app.state.ui.marketContext && app.marketContext}
+  {@const fg = app.marketContext}
+  <section class="card context" aria-labelledby="context-title">
+    <h2 id="context-title">Contexte de marché</h2>
+    <div class="gauge">
+      <div class="track" role="img" aria-label="Indice Fear & Greed : {fg.value} sur 100">
+        <span class="fill" style="width: {fg.value}%"></span>
+      </div>
+      <p class="value"><strong>{fg.value}</strong> / 100 · {FEAR_GREED_LABELS[fg.band]}</p>
+    </div>
+    <p class="muted small">
+      Indice de sentiment du marché crypto au {fmtDate(fg.day)}, source
+      <strong>{FEAR_GREED_ATTRIBUTION}</strong>. Il décrit l'humeur du marché entier, pas votre
+      portefeuille — et ne dit pas quoi en faire.
+    </p>
+  </section>
+{/if}
 
 {#if insights.length > 0}
   <section class="card insights" aria-labelledby="insights-title">
@@ -388,6 +423,38 @@
     display: grid;
     gap: var(--space-2);
     margin-bottom: var(--space-3);
+  }
+  .context {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .context h2 {
+    margin: 0;
+    font-size: var(--fs-md);
+  }
+  .gauge {
+    display: grid;
+    gap: var(--space-1);
+  }
+  .track {
+    height: 12px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--loss), var(--warn), var(--gain));
+    position: relative;
+    overflow: hidden;
+  }
+  .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-right: 3px solid var(--fg);
+  }
+  .context .value {
+    font-size: var(--fs-sm);
+    margin: 0;
+  }
+  .context .small {
+    font-size: var(--fs-sm);
   }
   .insights {
     display: grid;

@@ -268,6 +268,12 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
     }
     if (url.hostname === 'coins.llama.fi') return json({ coins: {} });
     if (url.hostname.startsWith('api.frankfurter.')) return json(frankfurterRates(url));
+    // Contexte de marché (opt-in) : valeur fixe, pour que l'écran soit reproductible.
+    if (url.hostname === 'api.alternative.me')
+      return json({
+        name: 'Fear and Greed Index',
+        data: [{ value: '42', value_classification: 'Fear', timestamp: '1787356800' }],
+      });
     // On-chain (P25) : transactions synthétiques pour l'adresse de test, sinon vide.
     if (url.hostname === 'mempool.space') {
       if (url.pathname.includes('/txs')) {

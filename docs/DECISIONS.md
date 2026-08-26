@@ -704,3 +704,16 @@
     portefeuille entier du contribuable, et la valeur globale est reconstituée. Montants toujours
     en euros, même quand l'app affiche en dollars. **Rien de tout cela ne remplace un
     professionnel**, et le rapport l'écrit.
+43. **Le contexte de marché est un opt-in réseau distinct, et il ne devient jamais un signal**
+    (26/08/2026). L'indice Fear & Greed d'alternative.me est la SEULE donnée de l'app qui ne vienne
+    ni des opérations de l'utilisateur ni des cours de ses actifs : il a donc sa propre case à
+    cocher (`ui.marketContext`, décochée par défaut), séparée de la source de prix, et rien n'est
+    chargé tant qu'elle n'est pas cochée. Trois garde-fous : l'**attribution** à la source est une
+    condition d'utilisation, donc affichée avec la valeur ; la bande publiée par la source fait
+    autorité (on ne reclasse la valeur nous-mêmes que si le libellé devient inconnu — il a déjà
+    changé) ; et l'indice est présenté comme l'humeur du marché entier, explicitement pas comme un
+    signal sur le portefeuille. Toute réponse hors contrat (valeur non numérique, hors de
+    l'échelle 0-100, horodatage absent) rend `null` : mieux vaut ne rien afficher qu'un contexte
+    faux. La requête ne transporte aucune donnée de l'utilisateur — elle est identique pour tout le
+    monde. Le stub E2E la sert en local (aucun test ne sort sur Internet) et le monitor vérifie le
+    contrat des trois champs lus.

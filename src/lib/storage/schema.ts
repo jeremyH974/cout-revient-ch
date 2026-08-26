@@ -79,6 +79,11 @@ export interface UiSettings {
   explorerFlavor: ExplorerFlavor;
   /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
   liveMids: boolean;
+  /**
+   * Contexte de marché (indice Fear & Greed d’alternative.me) : opt-in RÉSEAU distinct des prix,
+   * décoché par défaut — c’est la seule donnée qui ne vienne ni de vos opérations ni de vos actifs.
+   */
+  marketContext: boolean;
   /** Exécutions en direct (`userFills`) : opt-in distinct des prix, même socket. */
   liveFills: boolean;
 }
@@ -160,6 +165,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   explorerKey: null,
   explorerFlavor: 'etherscan',
   liveMids: false,
+  marketContext: false,
   liveFills: false,
 };
 
@@ -727,6 +733,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, assetChartMetric: 'pru' } };
   if (typeof state.ui.liveMids !== 'boolean')
     state = { ...state, ui: { ...state.ui, liveMids: false } };
+  if (typeof state.ui.marketContext !== 'boolean')
+    state = { ...state, ui: { ...state.ui, marketContext: false } };
   if (typeof state.ui.liveFills !== 'boolean')
     state = { ...state, ui: { ...state.ui, liveFills: false } };
   if (typeof state.ui.demoMode !== 'boolean')

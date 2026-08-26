@@ -11,6 +11,7 @@ import {
   type AlertRuleState,
 } from '$lib/domain/alerts';
 import { fmtPrice } from '$lib/format/fr';
+import { loadFearGreed, type FearGreedPoint } from '$lib/pricing/fear-greed';
 import {
   buildAlertWatchSnapshot,
   syncAlertWatchTask,
@@ -477,6 +478,28 @@ export class AppState {
     if (this.currency === 'EUR') return big;
     const rate = this.fxLookup.rate(day ?? nowIso().slice(0, 10));
     return rate === null ? null : big.times(rate);
+  }
+
+  /**
+   * Contexte de marché (décision n° 43) : indice Fear & Greed du jour, `null` tant qu'il n'a pas
+   * été demandé. Chargé UNIQUEMENT si le réglage opt-in est coché — jamais au démarrage.
+   */
+  marketContext = $state<FearGreedPoint | null>(null);
+  marketContextLoading = $state(false);
+
+  /** Recharge l'indice si l'opt-in est actif ; sans opt-in, efface ce qui traînerait en mémoire. */
+  async refreshMarketContext(): Promise<void> {
+    if (!this.state.ui.marketContext) {
+      this.marketContext = null;
+      return;
+    }
+    if (this.marketContextLoading) return;
+    this.marketContextLoading = true;
+    try {
+      this.marketContext = await loadFearGreed();
+    } finally {
+      this.marketContextLoading = false;
+    }
   }
 
   /**
