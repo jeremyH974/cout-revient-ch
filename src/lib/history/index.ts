@@ -24,13 +24,17 @@ export {
 } from './days';
 export {
   COINGECKO_MAX_DAYS,
+  DEFILLAMA_MAX_SPAN,
   KRAKEN_MAX_DAYS,
   coinbaseExchangeHistoryProvider,
   coinbaseProductId,
   coingeckoHistoryProvider,
   defaultHistoryProviders,
+  defillamaHistoryProvider,
+  defillamaHistoryQueue,
   krakenHistoryProvider,
   krakenPairName,
+  type UsdToEurAt,
 } from './providers';
 export { RequestQueue, type RequestQueueOptions } from './queue';
 export {

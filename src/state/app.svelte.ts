@@ -481,7 +481,7 @@ export class AppState {
   }
 
   /**
-   * Contexte de marché (décision n° 43) : indice Fear & Greed du jour, `null` tant qu'il n'a pas
+   * Contexte de marché (décision n° 44) : indice Fear & Greed du jour, `null` tant qu'il n'a pas
    * été demandé. Chargé UNIQUEMENT si le réglage opt-in est coché — jamais au démarrage.
    */
   marketContext = $state<FearGreedPoint | null>(null);

@@ -1,6 +1,6 @@
 /**
  * Fiscalité française des actifs numériques — **estimation**, jamais un calcul officiel
- * (décision n° 42). Article 150 VH bis du CGI, méthode dite « globale » :
+ * (décision n° 43). Article 150 VH bis du CGI, méthode dite « globale » :
  *
  *   plus-value = prix de cession − prix total d'acquisition × (prix de cession ÷ valeur globale
  *                                                              du portefeuille au jour de la cession)

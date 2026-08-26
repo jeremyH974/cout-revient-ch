@@ -35,10 +35,10 @@
 > P32 (projections), P34 (contexte de marché).
 >
 > **P30 (aperçu fiscal avant cession) est livré** en 2.6.0 le 26/08/2026 —
-> [docs/tax-fr.md](tax-fr.md), décision n° 42. Le formulaire 2086 pré-rempli et la réconciliation
+> [docs/tax-fr.md](tax-fr.md), décision n° 43. Le formulaire 2086 pré-rempli et la réconciliation
 > DAC8 restent le périmètre de P13.
 >
-> **P34, P35 et P32 sont livrés** le 26/08/2026 (2.7.0 à 2.9.0, décisions n° 43 à 45) : contexte de
+> **P34, P35 et P32 sont livrés** le 26/08/2026 (2.7.0 à 2.9.0, décisions n° 44 à 45) : contexte de
 > marché opt-in, expiration et conditions composées des alertes, mode « Plan mensuel » du
 > simulateur. **Les six briques de l’étude sont donc livrées.** Restent en réserve : la courbe de
 > valeur nette consolidée (avec P28), le rapport 2086 et la réconciliation DAC8 (P13), le spread

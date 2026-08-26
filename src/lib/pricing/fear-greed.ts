@@ -1,5 +1,5 @@
 /**
- * Indice « Fear & Greed » crypto d'alternative.me (décision n° 43) — du CONTEXTE, pas un signal.
+ * Indice « Fear & Greed » crypto d'alternative.me (décision n° 44) — du CONTEXTE, pas un signal.
  *
  * Trois choses en font une brique à part dans cette app :
  * 1. **C'est la seule donnée qui ne vienne pas de vos opérations ni des cours de vos actifs.** Elle

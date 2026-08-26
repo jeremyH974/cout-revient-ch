@@ -1,6 +1,6 @@
 # Estimation fiscale française — l'aperçu avant de vendre
 
-> P30, livré le 26/08/2026 — décision de conception : [`docs/DECISIONS.md`](DECISIONS.md) n° 42.
+> P30, livré le 26/08/2026 — décision de conception : [`docs/DECISIONS.md`](DECISIONS.md) n° 43.
 > Issu de l'étude [`proposals/2026-08-26-aide-a-la-decision.md`](proposals/2026-08-26-aide-a-la-decision.md).
 > **Ce document décrit une estimation. Ni déclaration, ni conseil fiscal.**
 

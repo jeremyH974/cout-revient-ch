@@ -277,7 +277,7 @@ describe('evaluateAlerts', () => {
   });
 });
 
-describe('expiration et conditions composées (décision n° 44)', () => {
+describe('expiration et conditions composées (décision n° 45)', () => {
   const NOW = 1_800_000_000_000;
   const evaluateWith = (r: AlertRule, fearGreed: number | null = null, nowMs = NOW) =>
     evaluateAlerts({

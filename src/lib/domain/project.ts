@@ -1,5 +1,5 @@
 /**
- * Projections « et si ? » (décision n° 45) — des SCÉNARIOS, jamais des prévisions.
+ * Projections « et si ? » (décision n° 46) — des SCÉNARIOS, jamais des prévisions.
  *
  * Rien ici ne devine l'avenir : l'utilisateur choisit lui-même la variation de prix à supposer, et
  * le module se contente d'en tirer les conséquences arithmétiques sur son PRU, son investi et sa

@@ -160,7 +160,7 @@ describe('mergeStates (alerts)', () => {
   });
 });
 
-describe('expiration et condition composée (décision n° 44)', () => {
+describe('expiration et condition composée (décision n° 45)', () => {
   const withRule = (over: Record<string, unknown>) =>
     sanitizeState({
       ...emptyState(),

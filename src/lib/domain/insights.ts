@@ -88,7 +88,7 @@ export interface InsightContext {
   xirr?: XirrResult | null | undefined;
   /** Mesures de risque sur l'indice de performance (décision n° 41), si l'historique est chargé. */
   risk?: RiskMetrics | null | undefined;
-  /** Estimation fiscale française (décision n° 42), si l'historique est chargé. */
+  /** Estimation fiscale française (décision n° 43), si l'historique est chargé. */
   tax?: TaxLedger | null | undefined;
   /** Année de référence du constat fiscal (l'appelant fournit l'horloge, le moteur n'en a pas). */
   taxYear?: number | undefined;

@@ -93,7 +93,7 @@ describe('takePendingSwFires', () => {
   });
 });
 
-describe('règles que le service worker ne doit PAS voir (décision n° 44)', () => {
+describe('règles que le service worker ne doit PAS voir (décision n° 45)', () => {
   const NOW = 1_800_000_000_000;
 
   it('écarte les règles expirées et celles à condition composée', () => {

@@ -47,7 +47,7 @@
   let customFixed = $state('0');
 
   /**
-   * Estimation fiscale (décision n° 42) : repliée par défaut, elle ne charge l'historique des prix
+   * Estimation fiscale (décision n° 43) : repliée par défaut, elle ne charge l'historique des prix
    * qu'à l'ouverture — la feuille reste instantanée pour qui ne s'en sert pas.
    */
   let taxOpen = $state(false);

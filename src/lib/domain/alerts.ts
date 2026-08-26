@@ -43,7 +43,7 @@ export interface AlertRule {
   /** ISO 8601. */
   createdAt: string;
   /**
-   * Expiration explicite (ISO 8601) ou `null` pour « sans limite » (décision n° 44). Passée cette
+   * Expiration explicite (ISO 8601) ou `null` pour « sans limite » (décision n° 45). Passée cette
    * date, la règle ne se déclenche plus : une alerte oubliée finit toujours par se déclencher pour
    * une raison qui n'a plus rien à voir avec l'intention de départ.
    */
@@ -55,7 +55,7 @@ export interface AlertRule {
   gate?: AlertGate | null;
 }
 
-/** Condition composée : le seuil de prix ET cette condition doivent être vrais (décision n° 44). */
+/** Condition composée : le seuil de prix ET cette condition doivent être vrais (décision n° 45). */
 export type AlertGate = {
   kind: 'fear-greed';
   direction: AlertDirection;
@@ -110,7 +110,7 @@ export interface AlertsEvaluationInput {
   /** Taux BCE EUR→USD du jour (seuils `price-usd`) ; absent → ces règles restent dormantes. */
   usdPerEur?: DecimalString | null;
   /**
-   * Indice Fear & Greed du jour (contexte de marché opt-in, décision n° 43) ; absent → les règles
+   * Indice Fear & Greed du jour (contexte de marché opt-in, décision n° 44) ; absent → les règles
    * qui portent une condition composée dessus restent dormantes.
    */
   fearGreed?: number | null;

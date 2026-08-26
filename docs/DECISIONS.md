@@ -683,7 +683,30 @@
     tableau annoncent le même repli. La répartition est triée par part décroissante et doublée d'un
     anneau SVG maison (`AllocationDonut`, aucune dépendance, décoratif pour un lecteur d'écran —
     le tableau reste la source lisible).
-42. **L'estimation fiscale française rejoue les cessions avec la méthode GLOBALE, et n'est jamais
+42. **Historique profond DefiLlama, interrogé en dernier, conversion injectée** (26/08/2026).
+    Les séries quotidiennes butaient sur la profondeur des fournisseurs : 365 jours chez CoinGecko,
+    721 points chez Kraken ; seul Coinbase pagine tout l'historique, et uniquement pour les paires
+    qu'il cote en euros. Un portefeuille ouvert il y a plus d'un an, ou un actif de longue traîne,
+    voyait donc **le TWR, le repère et la fiche actif travailler sur un historique tronqué**.
+    `coins.llama.fi/chart` comble ce trou : profondeur réelle jusqu'à 2013 pour BTC, et les jetons
+    morts restent servis (LUNC renvoie ses points de mai 2022). Trois choix, dans cet ordre
+    d'importance. **(a) Il est appelé en dernier** : les trois autres cotent nativement en euros,
+    lui seul cote en dollars et impose une conversion — on préfère toujours un prix coté à un prix
+    converti, et le service ne fait remplir à chaque fournisseur que les bords encore vides, si
+    bien qu'il ne reçoit que ce que personne n'a couvert. **(b) La conversion est injectée, jamais
+    devinée** (`usdToEurAt`, série `fx.rates.USD` au taux BCE du jour, chargée indépendamment de la
+    devise d'affichage — `app.fxLookup`, lui, suit l'affichage et serait vide en euros) ; un jour
+    sans taux voit son point **omis**, le service marquant alors l'actif `partial`, plutôt que
+    converti à un taux approximatif. **(c) `start` est ancré à midi UTC**, si bien qu'un point
+    appartient sans ambiguïté à sa journée, sans la bascule de minuit que `closeDayOf` traite chez
+    CoinGecko ; ces points sont donc des cours de milieu de journée et non des clôtures, ce qui ne
+    mélange jamais deux natures dans une même journée puisque les bords remplis sont disjoints.
+    Contrat établi par sondes réelles du 26/08/2026, la documentation officielle
+    (`docs.llama.fi/coin-prices-api`) étant en 404 : CORS ouvert sur l'origine du projet, `span`
+    plafonné à 500 points (501 → HTTP 400), `start` et `end` mutuellement exclusifs, actif inconnu
+    → `{"coins":{}}` en HTTP 200. `scripts/api-contract.mjs` surveille la forme **et** le plafond,
+    parce qu'une baisse silencieuse de celui-ci ferait échouer toutes nos requêtes d'un coup.
+43. **L'estimation fiscale française rejoue les cessions avec la méthode GLOBALE, et n'est jamais
     présentée comme un calcul** (26/08/2026). L'article 150 VH bis impose une formule qui ne
     ressemble à rien de ce que fait le reste de l'app : la plus-value se calcule sur le prix total
     d'acquisition du PORTEFEUILLE (pas sur le PRU d'un actif — décision n° 10) et sur la valeur
@@ -704,7 +727,7 @@
     portefeuille entier du contribuable, et la valeur globale est reconstituée. Montants toujours
     en euros, même quand l'app affiche en dollars. **Rien de tout cela ne remplace un
     professionnel**, et le rapport l'écrit.
-43. **Le contexte de marché est un opt-in réseau distinct, et il ne devient jamais un signal**
+44. **Le contexte de marché est un opt-in réseau distinct, et il ne devient jamais un signal**
     (26/08/2026). L'indice Fear & Greed d'alternative.me est la SEULE donnée de l'app qui ne vienne
     ni des opérations de l'utilisateur ni des cours de ses actifs : il a donc sa propre case à
     cocher (`ui.marketContext`, décochée par défaut), séparée de la source de prix, et rien n'est
@@ -717,7 +740,7 @@
     faux. La requête ne transporte aucune donnée de l'utilisateur — elle est identique pour tout le
     monde. Le stub E2E la sert en local (aucun test ne sort sur Internet) et le monitor vérifie le
     contrat des trois champs lus.
-44. **Une alerte peut expirer et porter une seconde condition, mais le service worker ne voit ni
+45. **Une alerte peut expirer et porter une seconde condition, mais le service worker ne voit ni
     l'une ni l'autre** (26/08/2026). Deux manques relevés par l'étude face à TradingView :
     l'**expiration** (leur défaut est de deux mois — une alerte oubliée finit toujours par se
     déclencher pour une raison étrangère à l'intention de départ) et les **conditions composées**.
@@ -734,7 +757,7 @@
     (décision n° 38), et l'interface le dit à la création. Enfin, les deux champs ne sont **écrits
     dans la sauvegarde que s'ils portent une valeur** : une règle ordinaire garde exactement la
     forme qu'elle avait, ce que vérifient les tests d'aller-retour.
-45. **Une projection est un scénario CHOISI par l'utilisateur, jamais une prévision**
+46. **Une projection est un scénario CHOISI par l'utilisateur, jamais une prévision**
     (26/08/2026). Le mode « Plan mensuel » du simulateur déroule des versements réguliers et en
     tire les conséquences arithmétiques sur le PRU, la position, les frais et le latent — mais la
     variation de prix supposée est saisie par l'utilisateur, pas produite par un modèle. C'est la

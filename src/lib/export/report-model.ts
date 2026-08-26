@@ -148,7 +148,7 @@ export interface ReportModelOptions {
   insights?: readonly Insight[] | undefined;
   /** Mesures de risque sur l'indice de performance (décision n° 41), calculées par l'appelant. */
   risk?: RiskMetrics | null | undefined;
-  /** Estimation fiscale française (décision n° 42), calculée par l'appelant. Toujours en euros. */
+  /** Estimation fiscale française (décision n° 43), calculée par l'appelant. Toujours en euros. */
   tax?: TaxLedger | null | undefined;
 }
 
@@ -637,7 +637,7 @@ function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): Report
 }
 
 /**
- * Fiscalité française (décision n° 42) — **estimation**, et rien d'autre. Les montants restent en
+ * Fiscalité française (décision n° 43) — **estimation**, et rien d'autre. Les montants restent en
  * EUROS même si l'app affiche en dollars : c'est une obligation française. Le mode discret masque
  * quand même les montants, ce sont des montants.
  */

@@ -536,7 +536,7 @@ test('le repli maximal dit la même chose dans le constat et dans le tableau', a
 });
 
 /**
- * Fiscalité (décision n° 42) : le constat « Fiscalité de l'année » et le tableau « Fiscalité
+ * Fiscalité (décision n° 43) : le constat « Fiscalité de l'année » et le tableau « Fiscalité
  * française » sont deux rendus de la MÊME estimation. On compare l'écran à lui-même : rejouer la
  * valeur globale du portefeuille au jour de chaque cession demande l'historique de prix, que seul
  * le navigateur charge.

@@ -13,7 +13,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   une hypothèse de prix que VOUS choisissez (de −50 % à +100 %). L’app en tire le PRU projeté, la
   quantité acquise, les frais et le latent. **Un scénario, pas une prévision** : la variation est
   répartie linéairement, et le PRU obtenu dépend du chemin autant que du point d’arrivée — le repère
-  Vanguard (2023) est cité pour que l’étalement ne passe pas pour une martingale. Décision n° 45.
+  Vanguard (2023) est cité pour que l’étalement ne passe pas pour une martingale. Décision n° 46.
 
 ## [2.8.0] - 2026-08-26
 
@@ -25,7 +25,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   doivent être vrais en même temps. Une condition non satisfaite bloque le déclenchement sans
   désarmer la règle ; sans contexte de marché disponible, la règle reste dormante et le dit. Ces
   règles sont évaluées **app ouverte seulement** : le service worker ne sait comparer qu’un prix à
-  un seuil. Décision n° 44.
+  un seuil. Décision n° 45.
 
 ## [2.7.0] - 2026-08-26
 
@@ -35,7 +35,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   d’ensemble quand vous cochez le réglage correspondant (décoché par défaut). Il décrit l’humeur du
   marché entier, pas votre portefeuille, et ne dit pas quoi en faire. La requête ne transporte
   aucune de vos données ; la source (alternative.me) est citée à l’écran comme ses conditions
-  l’exigent. Décision n° 43.
+  l’exigent. Décision n° 44.
 
 ## [2.6.0] - 2026-08-26
 
@@ -52,8 +52,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   restent en sursis ; taux par millésime (30 % jusqu’aux cessions 2024, 31,4 % ensuite) ;
   moins-values imputables sur la seule année, sans report. Quand une valeur manque, l’app le dit
   au lieu d’inventer une plus-value. **Estimation, ni déclaration ni conseil fiscal** — faites
-  vérifier votre situation par un professionnel. Détail : `docs/tax-fr.md`, décision n° 42.
+  vérifier votre situation par un professionnel. Détail : `docs/tax-fr.md`, décision n° 43.
 - **Nouveau constat « Fiscalité de l’année »**.
+
+## [2.5.1] - 2026-08-26
+
+### Added
+
+- **Historique de prix profond** : les courbes ne s'arrêtent plus à un an. Un quatrième
+  fournisseur (DefiLlama) complète Coinbase, Kraken et CoinGecko lorsque ceux-ci butent sur leur
+  profondeur — 365 jours pour CoinGecko, 721 points pour Kraken. Le rendement pondéré par le temps,
+  le repère, la section « Risque » et la fiche actif remontent désormais jusqu'à la première
+  opération du grand livre, y compris pour les actifs peu courants et ceux qui ne sont plus cotés.
+  Il est interrogé en dernier : les trois autres cotant nativement en euros, on leur laisse la
+  priorité et la conversion au taux BCE du jour n'intervient que sur ce qu'eux seuls ne couvrent
+  pas. Un jour sans taux de change laisse son point de côté plutôt que d'afficher une valeur
+  approximative (docs/DECISIONS.md n° 42).
 
 ## [2.5.0] - 2026-08-26
 

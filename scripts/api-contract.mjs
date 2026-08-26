@@ -214,6 +214,42 @@ await check(
   },
 );
 
+// Historique profond (src/lib/history/providers/defillama.ts) : `start` ancré à midi UTC,
+// `confidence` au niveau de la série (et non par point comme /batchHistorical), pas de clé.
+await check(
+  'DefiLlama chart (série quotidienne)',
+  'https://coins.llama.fi/chart/coingecko:bitcoin?start=1704110400&span=5&period=1d',
+  (json) => {
+    const series = json?.coins?.['coingecko:bitcoin'];
+    if (!series) return ['coins["coingecko:bitcoin"] absent'];
+    const problems = [];
+    if (!isNum(series.confidence)) problems.push('confidence non numérique au niveau série');
+    const prices = series.prices;
+    if (!Array.isArray(prices) || prices.length < 2)
+      return [...problems, 'prices absent ou trop court'];
+    if (!prices.every((p) => isNum(p?.timestamp) && isNum(p?.price) && p.price > 0)) {
+      problems.push('un point sans timestamp/price numériques positifs');
+    }
+    const gap = prices[1].timestamp - prices[0].timestamp;
+    if (Math.abs(gap - 86_400) > 120) problems.push(`écart non journalier : ${gap} s`);
+    return problems;
+  },
+);
+
+// Le fournisseur pagine par fenêtres de 500 points : c'est la borne haute acceptée par l'API
+// (`span=501` répond HTTP 400). Si ce plafond baissait, toutes nos requêtes échoueraient d'un coup
+// — ce contrôle le détecte avant les utilisateurs.
+await check(
+  'DefiLlama chart : plafond de 500 points accepté',
+  'https://coins.llama.fi/chart/coingecko:bitcoin?start=1704110400&span=500&period=1d',
+  (json) => {
+    const prices = json?.coins?.['coingecko:bitcoin']?.prices;
+    return Array.isArray(prices) && prices.length > 0
+      ? []
+      : ['span=500 refusé ou série vide : le plafond a peut-être baissé'];
+  },
+);
+
 await check(
   'Frankfurter (BCE) v1',
   'https://api.frankfurter.dev/v1/2026-08-03..2026-08-07?base=EUR&symbols=USD',
