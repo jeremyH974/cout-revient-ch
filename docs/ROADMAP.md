@@ -17,6 +17,14 @@
 > Ses propositions P19-P28 sont reprises ci-dessous (§ 3 bis et phase T). La version 1 est figée
 > (`v1.0.0`) ; la version 2 se développe sur la branche `v2`.
 
+> **Complément du 26/08/2026 — aide à la décision** : étude sourcée (concurrents France/monde,
+> inspirations hors-concurrence, cadre AMF/MiCA, fiscalité 2026, faisabilité données) et briques
+> P30-P35 dans
+> [`docs/proposals/2026-08-26-aide-a-la-decision.md`](proposals/2026-08-26-aide-a-la-decision.md).
+> Au passage : le volet « abonnement rentable ? » de P7 est livré (2.3.0, décision n° 39) ; le
+> spread implicite par opération reste à faire ; P11, P15 et le reliquat de P28 (courbe de valeur
+> nette) sont refondus dans P31.
+
 ## 1. État des lieux (mesuré le 23/08/2026)
 
 **Forces**
