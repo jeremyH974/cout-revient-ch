@@ -3,7 +3,9 @@
   import { nowIso } from '$lib/clock';
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildInsights } from '$lib/domain/insights';
+  import { riskMetrics } from '$lib/domain/risk';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
+  import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import InsightList from '../../components/shared/InsightList.svelte';
   import { app } from '../../state/app.svelte';
@@ -24,8 +26,18 @@
   );
 
   /**
-   * Constats du rapport : ceux de l'accueil, ENRICHIS du repère « mêmes apports en BTC » — l'écran
-   * d'accueil ne charge pas l'historique de prix, celui-ci si.
+   * Risque : mesuré sur l'INDICE du TWR (apports et retraits neutralisés), jamais sur la valeur —
+   * sinon un virement passerait pour une perte. Nul tant que l'historique n'est pas chargé.
+   */
+  const risk = $derived(
+    performance?.twr.ok === true
+      ? riskMetrics(performance.twr.index, performance.twr.annualized)
+      : null,
+  );
+
+  /**
+   * Constats du rapport : ceux de l'accueil, ENRICHIS du repère « mêmes apports en BTC » et des
+   * mesures de risque — l'écran d'accueil ne charge pas l'historique de prix, celui-ci si.
    */
   const insights = $derived(
     buildInsights({
@@ -33,6 +45,7 @@
       subscription: app.subscriptionAnalysis,
       xirr: app.portfolioXirr,
       benchmark: performance?.benchmark ?? null,
+      risk,
     }),
   );
 
@@ -45,6 +58,7 @@
       subscriptionsInPnl: app.state.engineSettings.includeSubscriptionsInPnl,
       subscription: app.subscriptionAnalysis,
       insights,
+      risk,
       performance,
     }),
   );
@@ -142,6 +156,24 @@
     </section>
   {/if}
 
+  {#if model.risk}
+    <section class="card">
+      <h2>{model.risk.title}</h2>
+      <table class="details">
+        <tbody>
+          {#each model.risk.details as d (d.label)}
+            <tr>
+              <th scope="row">{d.label}</th>
+              <td class="right num {d.tone}">{d.value}</td>
+              <td class="hint">{d.hint ?? ''}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="note">{model.risk.note}</p>
+    </section>
+  {/if}
+
   {#if model.subscription}
     <section class="card">
       <h2>{model.subscription.title}</h2>
@@ -164,6 +196,9 @@
     <section class="card">
       <h2>{table.title}</h2>
       {#if table.note}<p class="note">{table.note}</p>{/if}
+      {#if table.kind === 'allocation' && table.rows.length > 0}
+        <AllocationDonut entries={app.report.allocation} />
+      {/if}
       {#if table.rows.length === 0}
         <p class="muted">{table.emptyText}</p>
       {:else}

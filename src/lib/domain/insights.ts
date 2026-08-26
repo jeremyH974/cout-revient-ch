@@ -13,6 +13,7 @@
 import { benchmarkGap, type BenchmarkResult } from './benchmark';
 import type { PortfolioReport, PositionReport } from './engine/report';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from './money';
+import type { RiskMetrics } from './risk';
 import type { CoinhouseTier, SubscriptionAnalysis } from './subscription';
 import type { AssetCode } from './types';
 import type { XirrResult } from './xirr';
@@ -42,6 +43,8 @@ export type InsightCode =
   | 'subscription-net'
   | 'fees-12m'
   | 'concentration'
+  | 'top3-share'
+  | 'max-drawdown'
   | 'xirr'
   | 'benchmark-gap'
   | 'realized'
@@ -80,6 +83,8 @@ export interface InsightContext {
   benchmark?: BenchmarkResult | null | undefined;
   /** Rendement personnel annualisé, calculé par l'appelant sur les flux du rapport. */
   xirr?: XirrResult | null | undefined;
+  /** Mesures de risque sur l'indice de performance (décision n° 41), si l'historique est chargé. */
+  risk?: RiskMetrics | null | undefined;
 }
 
 /** Sous une unité de la devise affichée (1 € ou 1 $), un montant ne fait pas un constat. */
@@ -87,6 +92,10 @@ export const MIN_NOTABLE = D('1');
 /** Part d'un actif dans la valeur : signalée à partir de 25 %, mise en avant à partir de 50 %. */
 export const CONCENTRATION_NOTE = D('0.25');
 export const CONCENTRATION_HIGH = D('0.5');
+/** Part des trois premiers actifs : signalée à partir de 75 % (un portefeuille de fait concentré). */
+export const TOP3_SHARE_NOTE = D('0.75');
+/** Repli maximal à partir duquel le constat est mis en avant plutôt que simplement informatif. */
+export const DRAWDOWN_HIGH = D('0.3');
 /** En dessous de 5 %, les stablecoins ne caractérisent pas le portefeuille. */
 export const STABLE_SHARE_MIN = D('0.05');
 
@@ -100,6 +109,8 @@ const PRIORITY: Record<InsightCode, number> = {
   'subscription-net': 80,
   'fees-12m': 70,
   concentration: 60,
+  'top3-share': 58,
+  'max-drawdown': 57,
   xirr: 55,
   'benchmark-gap': 50,
   realized: 45,
@@ -196,6 +207,45 @@ const concentrationRule: InsightRule = (ctx) => {
       top.share.gte(CONCENTRATION_HIGH) ? 'attention' : 'neutral',
       { assets: assets([top.asset]), share: ratio(top.share), amount: money(top.value) },
       { route: 'asset', asset: top.asset },
+    ),
+  ];
+};
+
+/** Poids cumulé des trois premiers actifs : la structure réelle, au-delà du seul premier. */
+const top3Rule: InsightRule = (ctx) => {
+  const sorted = [...ctx.report.allocation].sort((a, b) => b.share.cmp(a.share));
+  if (sorted.length < 3) return [];
+  const top3 = sorted.slice(0, 3);
+  const share = top3.reduce((acc, entry) => acc.plus(entry.share), ZERO);
+  if (share.lt(TOP3_SHARE_NOTE)) return [];
+  return [
+    make(
+      'top3-share',
+      'neutral',
+      { share: ratio(share), assets: assets(top3.map((entry) => entry.asset)) },
+      { route: 'portfolio' },
+    ),
+  ];
+};
+
+/**
+ * Repli maximal encaissé sur la période — mesuré sur l'indice de performance, donc INSENSIBLE aux
+ * apports et aux retraits (décision n° 41).
+ */
+const drawdownRule: InsightRule = (ctx) => {
+  const drawdown = ctx.risk?.maxDrawdown;
+  if (!drawdown || !drawdown.depth.gt(ZERO)) return [];
+  return [
+    make(
+      'max-drawdown',
+      drawdown.depth.gte(DRAWDOWN_HIGH) ? 'attention' : 'neutral',
+      {
+        share: ratio(drawdown.depth),
+        from: day(drawdown.peakDay),
+        to: day(drawdown.troughDay),
+        ...(drawdown.recoveredDay === null ? {} : { recovered: day(drawdown.recoveredDay) }),
+      },
+      { route: 'report' },
     ),
   ];
 };
@@ -323,6 +373,8 @@ const RULES: readonly InsightRule[] = [
   subscriptionRule,
   feesRule,
   concentrationRule,
+  top3Rule,
+  drawdownRule,
   xirrRule,
   benchmarkRule,
   realizedRule,

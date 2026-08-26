@@ -5,6 +5,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-08-26
+
+### Added
+
+- **Section « Risque » dans le rapport (P31)**, écran et PDF : repli maximal avec ses dates et la
+  date de retour au niveau, repli en cours, volatilité annualisée, ratio de Sortino, jours gagnants
+  et perdants. **Ces mesures portent sur l’indice de performance, apports et retraits neutralisés**
+  — un virement ne compte pas comme une baisse, à la différence de ce que montre un solde de compte.
+  Sortino plutôt que Sharpe (pas de taux sans risque à inventer) ; volatilité annoncée à partir de
+  30 jours de recul seulement. Détail : `docs/risk.md`, décision n° 41.
+- **Anneau de répartition** dans le rapport (SVG maison, aucune dépendance) et tableau « Répartition »
+  trié de la plus grosse part à la plus petite. L’anneau est décoratif : le tableau reste la source
+  lisible par un lecteur d’écran.
+- **Deux nouveaux constats** : « Repli maximal » et « Vos trois premiers actifs »
+  (`docs/insights.md`).
+
 ## [2.4.0] - 2026-08-26
 
 ### Added

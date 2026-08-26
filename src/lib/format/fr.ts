@@ -91,6 +91,16 @@ export function fmtPct(ratio: Big | DecimalString | null, opts: { sign?: boolean
   return signed(PCT_1.format(toNumber(rounded.abs(), 3)), rounded, opts.sign ?? true);
 }
 
+/** Nombre sans unité (ratio de Sortino, multiple…), `dp` décimales, arrondi une seule fois. */
+export function fmtRatio(value: Big | DecimalString | null, dp = 2): string {
+  if (value === null) return '—';
+  const rounded = roundHalfUp(D(value), dp);
+  const text = intl({ minimumFractionDigits: dp, maximumFractionDigits: dp }).format(
+    toNumber(rounded.abs(), dp),
+  );
+  return signed(text, rounded, false);
+}
+
 /** Nombre de décimales significatives pour un prix ou une quantité. */
 function adaptiveDecimals(abs: Big, max: number): number {
   if (abs.eq('0')) return 2;

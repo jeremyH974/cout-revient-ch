@@ -406,6 +406,11 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     insightBullets(model.insights.items);
     paragraph(model.insights.note, 8.5, COLOR.muted);
   }
+  if (model.risk) {
+    sectionTitle(model.risk.title);
+    detailsTable(model.risk.details);
+    paragraph(model.risk.note, 8.5, COLOR.muted);
+  }
   if (model.subscription) {
     sectionTitle(model.subscription.title);
     detailsTable(model.subscription.details);

@@ -36,6 +36,16 @@ export interface TwrFlow {
 
 export type TwrFailure = 'insufficient-series' | 'no-base';
 
+/**
+ * Indice de performance : croissance d'une unité investie au premier jour, apports et retraits
+ * NEUTRALISÉS (base 1). C'est la seule série sur laquelle une mesure de risque a un sens — un
+ * retrait fait plonger la valeur brute sans qu'aucune perte n'ait eu lieu.
+ */
+export interface TwrIndexPoint {
+  day: string;
+  index: Big;
+}
+
 export type TwrResult =
   | {
       ok: true;
@@ -51,6 +61,8 @@ export type TwrResult =
       estimatedDays: number;
       /** Jours écartés du chaînage faute de base positive (portefeuille vide au départ du jour). */
       neutralizedDays: number;
+      /** Indice base 1 jour par jour (un point par jour de la série, jours neutralisés à plat). */
+      index: readonly TwrIndexPoint[];
     }
   | { ok: false; reason: TwrFailure };
 
@@ -107,6 +119,9 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
   let estimatedDays = 0;
   let neutralizedDays = 0;
   let chainedAny = false;
+  // Un point par jour de la série : les jours neutralisés reportent l'indice de la veille (à
+  // plat), pour que la série reste alignée sur le calendrier — c'est elle que lit `risk.ts`.
+  const index: TwrIndexPoint[] = [{ day: first.day, index: ONE }];
   for (let i = 1; i < days.length; i++) {
     const today = days[i]!;
     const yesterday = days[i - 1]!;
@@ -117,6 +132,7 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
       // Portefeuille vide au départ du jour (ou apport en toute fin de journée) : aucun capital
       // n'a travaillé, le jour ne peut pas porter de rendement. Neutralisé plutôt que divisé.
       if (!net.eq(ZERO) || !today.value.eq(yesterday.value)) neutralizedDays++;
+      index.push({ day: today.day, index: chained });
       continue;
     }
     const factor = ONE.plus(today.value.minus(yesterday.value).minus(net).div(base));
@@ -124,6 +140,7 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
       // Perte de plus de 100 % en un jour : impossible sur un portefeuille détenu, donc une
       // donnée aberrante. On neutralise au lieu d'annuler tout le chaînage.
       neutralizedDays++;
+      index.push({ day: today.day, index: chained });
       continue;
     }
     // Arrondi à chaque pas : sans lui, le produit chaîné garde TOUTE la précision de chacun de ses
@@ -132,6 +149,7 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
     // est affiché ; l'erreur accumulée reste négligeable devant le bruit des cotations.
     chained = chained.times(factor).round(CHAIN_DP, Big.roundHalfUp);
     chainedAny = true;
+    index.push({ day: today.day, index: chained });
   }
   if (!chainedAny) return { ok: false, reason: 'no-base' };
 
@@ -149,6 +167,7 @@ export function twrEur(days: readonly TwrDay[], flows: readonly TwrFlow[]): TwrR
     days: span,
     estimatedDays,
     neutralizedDays,
+    index,
   };
 }
 

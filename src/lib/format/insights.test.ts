@@ -30,6 +30,16 @@ function insight(code: InsightCode, over: Partial<Insight> = {}): Insight {
       share: { kind: 'ratio', value: '0.72' },
       amount: { kind: 'money', value: '69415.83' },
     },
+    'top3-share': {
+      share: { kind: 'ratio', value: '0.85' },
+      assets: { kind: 'assets', value: ['btc', 'eth', 'sol'] },
+    },
+    'max-drawdown': {
+      share: { kind: 'ratio', value: '0.42' },
+      from: { kind: 'day', value: '2025-01-20' },
+      to: { kind: 'day', value: '2025-04-08' },
+      recovered: { kind: 'day', value: '2025-10-02' },
+    },
     xirr: { rate: { kind: 'ratio', value: '0.184' }, since: { kind: 'day', value: '2024-03-12' } },
     'benchmark-gap': {
       amount: { kind: 'money', value: '-1234' },
@@ -71,6 +81,8 @@ const ALL_CODES: InsightCode[] = [
   'subscription-net',
   'fees-12m',
   'concentration',
+  'top3-share',
+  'max-drawdown',
   'xirr',
   'benchmark-gap',
   'realized',

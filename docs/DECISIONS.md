@@ -664,3 +664,22 @@
     vendre ni d'arbitrer — c'est la frontière information / conseil que la doctrine AMF du
     04/08/2026 trace pour les crypto-actifs (MiCA art. 3, § 1, 24), et elle est écrite dans le
     rapport lui-même.
+41. **Le risque se mesure sur l'INDICE de performance, jamais sur la valeur du portefeuille**
+    (26/08/2026). Un retrait de 10 000 € fait chuter la valeur brute sans qu'aucune perte n'ait eu
+    lieu : un repli calculé dessus inventerait des krachs les jours de virement, et un utilisateur
+    qui a beaucoup versé verrait sa « volatilité » gonfler à mesure qu'il investit. `twrEur` expose
+    donc désormais son indice chaîné jour par jour (base 1, apports et retraits neutralisés par le
+    Dietz modifié déjà en place, jours neutralisés reportés à plat), et `src/lib/domain/risk.ts`
+    en tire repli maximal (profondeur, dates de sommet et de creux, date de retour au niveau),
+    repli en cours, volatilité annualisée (écart-type d'échantillon × √365 — la crypto se négocie
+    en continu, pas 252 jours), volatilité baissière, ratio de Sortino et régularité (jours
+    gagnants/perdants, meilleur et pire jour). Choix assumés : **Sortino plutôt que Sharpe**, parce
+    qu'il ne demande pas de taux sans risque à inventer et qu'il ne pénalise que les baisses, ce
+    que la littérature crypto recommande pour des rendements asymétriques ; **cible de rendement à
+    0 %**, annoncée à l'affichage ; **30 jours de recul minimum** avant d'annoncer une volatilité
+    (en dessous, un écart-type n'est que du bruit) ; le repli, lui, se mesure dès le premier recul.
+    La section « Risque » du rapport (écran et PDF) écrit noir sur blanc que ces chiffres ne se
+    comparent pas à un relevé de compte, et la spec `coherence` vérifie que le constat et le
+    tableau annoncent le même repli. La répartition est triée par part décroissante et doublée d'un
+    anneau SVG maison (`AllocationDonut`, aucune dépendance, décoratif pour un lecteur d'écran —
+    le tableau reste la source lisible).

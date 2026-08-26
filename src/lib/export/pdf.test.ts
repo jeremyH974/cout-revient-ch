@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio } from '../domain/engine';
 import { buildInsights } from '../domain/insights';
+import { D } from '../domain/money';
+import { riskMetrics } from '../domain/risk';
 import { DEFAULT_ENGINE_SETTINGS, type TradeEvent } from '../domain/types';
 import { buildReportPdf, reportFileName, toPdfText } from './pdf';
 import { buildReportModel } from './report-model';
@@ -74,7 +76,7 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-');
   });
 
-  it('dessine la section « Constats » sans rompre la pagination', async () => {
+  it('dessine les sections « Constats » et « Risque » sans rompre la pagination', async () => {
     const insights = buildInsights({ report });
     expect(insights.length).toBeGreaterThan(0);
     const withInsights = buildReportModel(report, {
@@ -83,6 +85,11 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
       version: '0.1.0',
       timeZone: 'Europe/Paris',
       insights,
+      risk: riskMetrics([
+        { day: '2026-01-01', index: D('1') },
+        { day: '2026-01-02', index: D('1.4') },
+        { day: '2026-01-03', index: D('0.95') },
+      ]),
     });
     const doc = await buildReportPdf(withInsights);
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(4);
