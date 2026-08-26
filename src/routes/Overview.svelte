@@ -5,15 +5,18 @@
    * et, demain, le P&L de trading restent côte à côte (proposition v2, § 6.0).
    */
   import { nowIso } from '$lib/clock';
+  import { insightsToText, renderInsights } from '$lib/format/insights';
   import { router } from '$lib/router.svelte';
   import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks } from '$lib/support/self-check';
   import AppBar from '../components/layout/AppBar.svelte';
   import Info from '../components/shared/Info.svelte';
+  import InsightList from '../components/shared/InsightList.svelte';
   import Money from '../components/shared/Money.svelte';
   import Pct from '../components/shared/Pct.svelte';
   import PriceFreshness from '../components/shared/PriceFreshness.svelte';
   import { app } from '../state/app.svelte';
+  import { toasts } from '../state/ui.svelte';
 
   const t = $derived(app.report.totals);
   const openCount = $derived(app.report.positions.length + app.report.stablecoins.length);
@@ -42,6 +45,24 @@
     const withdrawals = app.usdcToDisplay(trading.totals.withdrawals);
     return deposits === null || withdrawals === null ? null : { deposits, withdrawals };
   });
+  /** Constats mis en avant sur l'accueil ; la liste complète vit dans le rapport. */
+  const INSIGHTS_ON_OVERVIEW = 6;
+  const insights = $derived(
+    renderInsights(app.insights, {
+      discreet: app.state.ui.discreet,
+      currency: app.currency,
+    }),
+  );
+
+  async function copyInsights(): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(insightsToText(insights));
+      toasts.push('Constats copiés : collez-les où vous voulez.', 'success');
+    } catch {
+      toasts.push('Copie impossible dans ce navigateur.', 'error');
+    }
+  }
+
   const alerts = $derived(
     runSelfChecks({
       report: app.hasData ? app.report : null,
@@ -192,6 +213,24 @@
     {/if}
   </a>
 </div>
+
+{#if insights.length > 0}
+  <section class="card insights" aria-labelledby="insights-title">
+    <div class="tools">
+      <h2 id="insights-title">Constats</h2>
+      <button class="tool" type="button" onclick={copyInsights}>Copier</button>
+    </div>
+    <InsightList insights={insights.slice(0, INSIGHTS_ON_OVERVIEW)} />
+    <p class="muted small">
+      Des observations chiffrées tirées de vos données — jamais un conseil d'achat ou de vente.
+      {#if insights.length > INSIGHTS_ON_OVERVIEW}
+        <a href={router.href({ name: 'report' })}>Voir les {insights.length} constats</a>
+      {:else}
+        <a href={router.href({ name: 'report' })}>Le détail est dans le rapport</a>
+      {/if}
+    </p>
+  </section>
+{/if}
 
 {#if split || flows}
   <section class="card capital">
@@ -349,6 +388,18 @@
     display: grid;
     gap: var(--space-2);
     margin-bottom: var(--space-3);
+  }
+  .insights {
+    display: grid;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .insights h2 {
+    margin: 0;
+    font-size: var(--fs-md);
+  }
+  .insights .small {
+    font-size: var(--fs-sm);
   }
   .capital h2 {
     margin: 0;

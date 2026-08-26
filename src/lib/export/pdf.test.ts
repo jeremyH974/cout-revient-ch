@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio } from '../domain/engine';
+import { buildInsights } from '../domain/insights';
 import { DEFAULT_ENGINE_SETTINGS, type TradeEvent } from '../domain/types';
 import { buildReportPdf, reportFileName, toPdfText } from './pdf';
 import { buildReportModel } from './report-model';
@@ -69,6 +70,22 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     const { width, height } = doc.internal.pageSize;
     expect(Math.round(width)).toBe(210);
     expect(Math.round(height)).toBe(297);
+    const bytes = new Uint8Array(doc.output('arraybuffer'));
+    expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-');
+  });
+
+  it('dessine la section « Constats » sans rompre la pagination', async () => {
+    const insights = buildInsights({ report });
+    expect(insights.length).toBeGreaterThan(0);
+    const withInsights = buildReportModel(report, {
+      discreet: false,
+      generatedAt: '2026-08-22T10:00:00.000Z',
+      version: '0.1.0',
+      timeZone: 'Europe/Paris',
+      insights,
+    });
+    const doc = await buildReportPdf(withInsights);
+    expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(4);
     const bytes = new Uint8Array(doc.output('arraybuffer'));
     expect(String.fromCharCode(...bytes.slice(0, 5))).toBe('%PDF-');
   });

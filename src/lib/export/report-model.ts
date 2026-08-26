@@ -14,7 +14,9 @@ import type { AssetCode, NaiveDateTime } from '../domain/types';
 import type { BenchmarkResult } from '../domain/benchmark';
 import type { TwrResult } from '../domain/twr';
 import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
+import type { Insight } from '../domain/insights';
 import { MASK, fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty, roundsToZero } from '../format/fr';
+import { TIER_LABELS, renderInsights, type RenderedInsight } from '../format/insights';
 import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
@@ -94,6 +96,11 @@ export interface ReportModel {
     disclaimer: string;
   };
   summary: { title: string; kpis: ReportKpi[]; details: ReportKpi[] };
+  /**
+   * Constats (décision n° 40), déjà rendus en français : l'écran et le PDF affichent EXACTEMENT
+   * les mêmes phrases, calculées une seule fois.
+   */
+  insights: { title: string; note: string; items: RenderedInsight[] } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
   subscription: { title: string; details: ReportKpi[]; note: string } | null;
   allocation: ReportTable;
@@ -122,6 +129,8 @@ export interface ReportModelOptions {
   performance?: ReportPerformance | undefined;
   /** Analyse de l'abonnement Coinhouse (décision n° 39), calculée par l'appelant sur ses événements. */
   subscription?: SubscriptionAnalysis | undefined;
+  /** Constats du moteur de règles (décision n° 40), calculés par l'appelant. */
+  insights?: readonly Insight[] | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -539,11 +548,25 @@ const METHODOLOGY: ReportParagraph[] = [
   },
 ];
 
-const TIER_LABELS: Record<SubscriptionAnalysis['detectedTier'], string> = {
-  classique: 'Classique',
-  investisseur: 'Investisseur',
-  'gestion-privee': 'Gestion Privée',
-};
+/**
+ * Constats : le rapport ne les recalcule pas, il rend en français ceux que l'appelant a produits
+ * (mêmes phrases qu'à l'écran d'accueil, mêmes réglages de devise et de mode discret).
+ */
+function insightsSection(
+  list: readonly Insight[] | undefined,
+  discreet: boolean,
+  currency: Currency,
+): ReportModel['insights'] {
+  if (list === undefined || list.length === 0) return null;
+  return {
+    title: 'Constats',
+    note:
+      'Observations calculées à partir de vos seules données, à la date de ce rapport. Elles ' +
+      'décrivent votre portefeuille : ce ne sont ni des recommandations d’achat ou de vente, ni ' +
+      'un conseil en investissement.',
+    items: renderInsights(list, { discreet, currency }),
+  };
+}
 
 /**
  * Section « Abonnement Coinhouse » (décision n° 39) : tout est DÉDUIT de l'export — lignes
@@ -791,6 +814,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       disclaimer: DISCLAIMER,
     },
     summary: { title: 'Synthèse', kpis, details },
+    insights: insightsSection(opts.insights, opts.discreet, currency),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),
     positions: positionsTable(

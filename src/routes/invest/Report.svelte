@@ -2,8 +2,10 @@
   import { onMount, tick } from 'svelte';
   import { nowIso } from '$lib/clock';
   import { downloadReportPdf } from '$lib/export/pdf';
+  import { buildInsights } from '$lib/domain/insights';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
   import AppBar from '../../components/layout/AppBar.svelte';
+  import InsightList from '../../components/shared/InsightList.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
   import { toasts } from '../../state/ui.svelte';
@@ -15,6 +17,25 @@
   let generatedAt = $state(nowIso());
   let busy = $state(false);
 
+  // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
+  // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
+  const performance = $derived(
+    history.status.loadedAt === null ? undefined : history.performance(),
+  );
+
+  /**
+   * Constats du rapport : ceux de l'accueil, ENRICHIS du repère « mêmes apports en BTC » — l'écran
+   * d'accueil ne charge pas l'historique de prix, celui-ci si.
+   */
+  const insights = $derived(
+    buildInsights({
+      report: app.report,
+      subscription: app.subscriptionAnalysis,
+      xirr: app.portfolioXirr,
+      benchmark: performance?.benchmark ?? null,
+    }),
+  );
+
   const model = $derived<ReportModel>(
     buildReportModel(app.report, {
       discreet: app.state.ui.discreet,
@@ -23,9 +44,8 @@
       version: __APP_VERSION__,
       subscriptionsInPnl: app.state.engineSettings.includeSubscriptionsInPnl,
       subscription: app.subscriptionAnalysis,
-      // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
-      // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
-      performance: history.status.loadedAt === null ? undefined : history.performance(),
+      insights,
+      performance,
     }),
   );
   const tables = $derived<ReportTable[]>([
@@ -113,6 +133,14 @@
       </tbody>
     </table>
   </section>
+
+  {#if model.insights}
+    <section class="card">
+      <h2>{model.insights.title}</h2>
+      <InsightList insights={model.insights.items} />
+      <p class="note">{model.insights.note}</p>
+    </section>
+  {/if}
 
   {#if model.subscription}
     <section class="card">

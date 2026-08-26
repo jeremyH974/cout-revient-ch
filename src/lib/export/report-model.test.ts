@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '../domain/engine';
 import { ZERO, type Big } from '../domain/money';
+import { buildInsights } from '../domain/insights';
 import { xirrEur } from '../domain/xirr';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
-import { fmtMoney, fmtPct } from '../format/fr';
+import { MASK, fmtMoney, fmtPct } from '../format/fr';
+import { renderInsights } from '../format/insights';
 import {
   buildReportModel,
   type ReportKpi,
@@ -351,5 +353,29 @@ describe('rendement annualisé (XIRR) dans la synthèse', () => {
     const row = shortModel.summary.details.find((d) => d.label === 'Rendement annualisé (XIRR)');
     expect(row!.value).toBe('—');
     expect(row!.hint).toContain('30 jours');
+  });
+});
+
+describe('section « Constats »', () => {
+  it('absente sans constat fourni, sinon reprend mot pour mot les phrases du moteur', () => {
+    expect(model.insights).toBeNull();
+
+    const insights = buildInsights({ report });
+    expect(insights.length).toBeGreaterThan(0);
+    const withInsights = buildReportModel(report, { ...opts, insights });
+    expect(withInsights.insights?.title).toBe('Constats');
+    // Le rapport ne reformule pas : il rend les mêmes constats, avec ses propres réglages.
+    expect(withInsights.insights?.items).toEqual(
+      renderInsights(insights, { discreet: false, currency: 'EUR' }),
+    );
+    // La note dit ce que ces observations ne sont pas (frontière information / conseil).
+    expect(withInsights.insights?.note).toContain('ni un conseil en investissement');
+  });
+
+  it('masque les montants des constats en mode discret', () => {
+    const insights = buildInsights({ report });
+    const discreet = buildReportModel(report, { ...opts, discreet: true, insights });
+    const text = (discreet.insights?.items ?? []).map((i) => i.detail).join(' ');
+    expect(text).toContain(MASK);
   });
 });

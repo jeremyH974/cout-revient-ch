@@ -5,6 +5,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-26
+
+### Added
+
+- **Section « Constats » (P33)** : l'app tire de vos chiffres des observations en une phrase, avec
+  le nombre qui les fonde — frais payés sur 12 mois et leur part du volume, rentabilité de l'offre
+  Coinhouse, concentration du portefeuille, rendement personnel (XIRR), résultat encaissé, actifs
+  qui pèsent le plus en bien et en mal, mise de départ déjà récupérée, part des stablecoins, lignes
+  à qualifier, actifs sans cours. Visibles sur la **Vue d'ensemble** (les 6 principales, avec un
+  bouton « Copier »), dans le **Rapport** (toutes, plus le repère « mêmes apports en BTC ») et dans
+  le **PDF**. Un constat constate : il ne recommande jamais d'acheter, de vendre ni d'arbitrer
+  (frontière information / conseil, doctrine AMF du 04/08/2026). Détail : `docs/insights.md`,
+  décision n° 40.
+- **Étude « aide à la décision »** (26/08/2026) : panorama sourcé des concurrents France et monde,
+  des références hors crypto, du cadre AMF/MiCA et de la fiscalité 2026, avec six briques chiffrées
+  P30-P35 — `docs/proposals/2026-08-26-aide-a-la-decision.md`.
+
 ## [2.3.0] - 2026-08-25
 
 ### Added
