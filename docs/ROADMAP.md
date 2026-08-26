@@ -26,9 +26,13 @@
 > nette) sont refondus dans P31.
 >
 > **P33 (constats automatiques) est livré** en 2.4.0 le 26/08/2026 —
-> [`docs/insights.md`](insights.md), décision n° 40. Restent, dans cet ordre : P31 (risque et
-> structure), P30 (aperçu fiscal avant cession), P35 (alertes v2), P32 (projections), P34
-> (contexte de marché).
+> [`docs/insights.md`](insights.md), décision n° 40. **P31 (risque et structure) est livré** en
+> 2.5.0 le 26/08/2026 — [`docs/risk.md`](risk.md), décision n° 41 : repli maximal, volatilité,
+> Sortino, régularité (tous mesurés sur l'indice de performance), anneau de répartition et
+> tableau trié. Reste de P31 : la **courbe de valeur nette consolidée** (investissement +
+> trading), qui exige un historique de l'équité de trading inexistant à ce jour — reportée avec
+> P28. Restent ensuite, dans cet ordre : P30 (aperçu fiscal avant cession), P35 (alertes v2),
+> P32 (projections), P34 (contexte de marché).
 
 ## 1. État des lieux (mesuré le 23/08/2026)
 

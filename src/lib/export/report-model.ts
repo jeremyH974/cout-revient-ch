@@ -15,7 +15,17 @@ import type { BenchmarkResult } from '../domain/benchmark';
 import type { TwrResult } from '../domain/twr';
 import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import type { Insight } from '../domain/insights';
-import { MASK, fmtDate, fmtMoney, fmtPct, fmtPrice, fmtQty, roundsToZero } from '../format/fr';
+import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
+import {
+  MASK,
+  fmtDate,
+  fmtMoney,
+  fmtPct,
+  fmtPrice,
+  fmtQty,
+  fmtRatio,
+  roundsToZero,
+} from '../format/fr';
 import { TIER_LABELS, renderInsights, type RenderedInsight } from '../format/insights';
 import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
@@ -101,6 +111,8 @@ export interface ReportModel {
    * les mêmes phrases, calculées une seule fois.
    */
   insights: { title: string; note: string; items: RenderedInsight[] } | null;
+  /** Risque : repli maximal, volatilité, régularité — mesurés sur l'indice de performance. */
+  risk: { title: string; details: ReportKpi[]; note: string } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
   subscription: { title: string; details: ReportKpi[]; note: string } | null;
   allocation: ReportTable;
@@ -131,6 +143,8 @@ export interface ReportModelOptions {
   subscription?: SubscriptionAnalysis | undefined;
   /** Constats du moteur de règles (décision n° 40), calculés par l'appelant. */
   insights?: readonly Insight[] | undefined;
+  /** Mesures de risque sur l'indice de performance (décision n° 41), calculées par l'appelant. */
+  risk?: RiskMetrics | null | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -354,7 +368,8 @@ function closedTable(items: PositionReport[], f: Formatter): ReportTable {
 
 function allocationTable(report: PortfolioReport, f: Formatter): ReportTable {
   // Seules les positions valorisées comptent (le moteur peut lister des clôturées à 0).
-  const rows = report.allocation
+  const rows = [...report.allocation]
+    .sort((a, b) => b.share.cmp(a.share))
     .filter((a) => a.value.gt(ZERO))
     .map((a) => [assetCell(a.asset), cell(f.money(a.value)), cell(f.pct(a.share, false))]);
   const unpriced = report.totals.unpricedAssets;
@@ -547,6 +562,74 @@ const METHODOLOGY: ReportParagraph[] = [
       'différente du PRU par actif.',
   },
 ];
+
+/**
+ * Risque (décision n° 41). Toutes ces mesures portent sur l'INDICE de performance, apports et
+ * retraits neutralisés : un virement ne doit jamais ressembler à une perte. La note le dit, parce
+ * qu'un repli affiché sans cette précision se compare à tort au relevé de compte.
+ */
+function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): ReportModel['risk'] {
+  if (!risk) return null;
+  const drawdown = risk.maxDrawdown;
+  const details: ReportKpi[] = [
+    {
+      label: 'Repli maximal',
+      // Un repli est une baisse : on l'affiche négatif, comme une perte.
+      value: drawdown === null ? NONE : f.pct(drawdown.depth.times('-1')),
+      tone: drawdown === null ? 'neutral' : 'loss',
+      hint:
+        drawdown === null
+          ? 'l’indice n’a jamais reculé sur la période'
+          : `du ${fmtDate(drawdown.peakDay)} au ${fmtDate(drawdown.troughDay)} · ${
+              drawdown.recoveredDay === null
+                ? 'niveau pas encore retrouvé'
+                : `retrouvé le ${fmtDate(drawdown.recoveredDay)}`
+            }`,
+    },
+    {
+      label: 'Repli en cours',
+      value: f.pct(risk.currentDrawdown.times('-1')),
+      tone: toneOf(risk.currentDrawdown.times('-1'), 3),
+      hint: 'écart avec le plus haut atteint',
+    },
+    {
+      label: 'Volatilité annualisée',
+      value: f.pct(risk.volatilityAnnual, false),
+      tone: 'neutral',
+      hint:
+        risk.volatilityAnnual === null
+          ? `moins de ${RISK_MIN_DAYS} jours de recul`
+          : 'écart-type des variations quotidiennes, × √365',
+    },
+    {
+      label: 'Ratio de Sortino',
+      value: risk.sortino === null ? NONE : fmtRatio(risk.sortino),
+      tone: risk.sortino === null ? 'neutral' : toneOf(risk.sortino, 2),
+      hint:
+        risk.sortino === null
+          ? 'demande un rendement annualisé et des jours de baisse'
+          : 'rendement annualisé ÷ volatilité des seules baisses (cible 0 %)',
+    },
+    {
+      label: 'Jours gagnants',
+      value: `${risk.positiveDays} / ${risk.days}`,
+      tone: 'neutral',
+      hint: plural(risk.negativeDays, 'jour perdant', 'jours perdants'),
+    },
+  ];
+  const extremes =
+    risk.bestDay && risk.worstDay
+      ? ` Meilleur jour ${f.pct(risk.bestDay.ret)} (${fmtDate(risk.bestDay.day)}), pire jour ${f.pct(risk.worstDay.ret)} (${fmtDate(risk.worstDay.day)}).`
+      : '';
+  return {
+    title: 'Risque',
+    details,
+    note:
+      'Mesuré sur l’indice de performance (apports et retraits neutralisés) : un virement ne compte ' +
+      'pas comme une baisse, à la différence de ce que montre un solde de compte.' +
+      extremes,
+  };
+}
 
 /**
  * Constats : le rapport ne les recalcule pas, il rend en français ceux que l'appelant a produits
@@ -815,6 +898,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     },
     summary: { title: 'Synthèse', kpis, details },
     insights: insightsSection(opts.insights, opts.discreet, currency),
+    risk: riskSection(opts.risk, f),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),
     positions: positionsTable(

@@ -3,6 +3,7 @@ import type { BenchmarkResult } from './benchmark';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from './engine';
 import { buildInsights, type Insight, type InsightCode, type InsightContext } from './insights';
 import { D } from './money';
+import { riskMetrics } from './risk';
 import type { SubscriptionAnalysis } from './subscription';
 import {
   DEFAULT_ENGINE_SETTINGS,
@@ -183,6 +184,48 @@ describe('buildInsights', () => {
     expect(find(buildInsights({ report: flat }), 'concentration')).toBeUndefined();
   });
 
+  it('signale le poids cumulé des trois premiers actifs, à partir de quatre lignes', () => {
+    // 45 / 30 / 15 / 10 % : les trois premiers pèsent 90 %.
+    const report = compute(
+      [
+        buy('2026-01-01T10:00:00', 'btc', '1', '10000'),
+        buy('2026-01-02T10:00:00', 'eth', '10', '10000'),
+        buy('2026-01-03T10:00:00', 'sol', '100', '10000'),
+        buy('2026-01-04T10:00:00', 'ada', '1000', '10000'),
+      ],
+      {
+        btc: price('btc', '45000'),
+        eth: price('eth', '3000'),
+        sol: price('sol', '150'),
+        ada: price('ada', '10'),
+      },
+    );
+    const top3 = find(buildInsights({ report }), 'top3-share');
+    expect(raw(top3, 'share')).toBe('0.9');
+    expect(raw(top3, 'assets')).toBe('btc,eth,sol');
+  });
+
+  it('reprend le repli maximal fourni, et hausse le ton au-delà de 30 %', () => {
+    const report = compute([buy('2026-01-01T10:00:00', 'btc', '1', '40000')], {
+      btc: price('btc', '50000'),
+    });
+    const risk = riskMetrics(
+      ['1', '1.5', '0.9', '1.2'].map((value, i) => ({
+        day: `2026-01-0${i + 1}`,
+        index: D(value),
+      })),
+    );
+    const drawdown = find(buildInsights({ report, risk }), 'max-drawdown');
+    // 1,5 → 0,9 : −40 %, jamais recomblé (le dernier point est à 1,2).
+    expect(raw(drawdown, 'share')).toBe('0.4');
+    expect(raw(drawdown, 'from')).toBe('2026-01-02');
+    expect(raw(drawdown, 'to')).toBe('2026-01-03');
+    expect(drawdown?.values['recovered']).toBeUndefined();
+    expect(drawdown?.tone).toBe('attention');
+
+    // Sans mesure de risque (accueil : pas d’historique chargé), rien à dire.
+    expect(find(buildInsights({ report }), 'max-drawdown')).toBeUndefined();
+  });
   it('rapporte les contributeurs extrêmes, jamais sur une position unique', () => {
     const events = [
       buy('2026-01-01T10:00:00', 'btc', '1', '40000'),

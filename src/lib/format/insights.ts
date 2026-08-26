@@ -141,6 +141,18 @@ function textOf(insight: Insight, opts: RenderOptions): { title: string; detail:
         title: 'Concentration',
         detail: `${ticker(insight, 'assets')} représente ${pct(insight, 'share')} de la valeur de vos positions (${money(insight, 'amount', opts)}).`,
       };
+    case 'top3-share':
+      return {
+        title: 'Vos trois premiers actifs',
+        detail: `${tickers(insight, 'assets')} pèsent à eux trois ${pct(insight, 'share')} de la valeur de vos positions.`,
+      };
+    case 'max-drawdown':
+      return {
+        title: 'Repli maximal',
+        detail: has(insight, 'recovered')
+          ? `Votre plus forte baisse a été de ${pct(insight, 'share')}, du ${dayOf(insight, 'from')} au ${dayOf(insight, 'to')} ; le niveau précédent a été retrouvé le ${dayOf(insight, 'recovered')}.`
+          : `Votre plus forte baisse a été de ${pct(insight, 'share')}, du ${dayOf(insight, 'from')} au ${dayOf(insight, 'to')} ; ce niveau n’a pas encore été retrouvé.`,
+      };
     case 'xirr':
       return {
         title: 'Rendement personnel',

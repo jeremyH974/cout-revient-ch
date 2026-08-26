@@ -505,3 +505,32 @@ test('les « Constats » reprennent le moteur de règles', async ({ page }) => {
   // Et la frontière information / conseil est écrite noir sur blanc.
   await expect(section).toContainText('ni un conseil en investissement');
 });
+
+/**
+ * Risque (décision n° 41) : le constat « Repli maximal » et la ligne du tableau « Risque » sont
+ * deux rendus de la MÊME mesure — s'ils divergent, c'est qu'un des deux recalcule dans son coin.
+ * On compare l'écran à lui-même, faute de pouvoir rejouer l'historique de prix hors navigateur.
+ */
+test('le repli maximal dit la même chose dans le constat et dans le tableau', async ({ page }) => {
+  await openDataset(page);
+  await page.goto('#/report');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Risque' }) });
+  await expect(section).toBeVisible();
+
+  const row = section.locator('tr', { hasText: 'Repli maximal' });
+  const rowText = plain(await row.innerText());
+  const rowPct = /(\d+[.,]\d+)\s*%/.exec(rowText)?.[1];
+  expect(rowPct, rowText).toBeDefined();
+
+  const insight = page.locator('.detail', { hasText: 'plus forte baisse' });
+  if ((await insight.count()) === 0) {
+    // Aucun repli sur la période : le tableau doit alors afficher « — », pas un chiffre.
+    expect(rowText).toContain('—');
+    return;
+  }
+  const insightText = plain(await insight.first().innerText());
+  expect(insightText).toContain(rowPct!);
+  // Et la mention de recouvrement est la même des deux côtés.
+  const recovered = rowText.includes('pas encore retrouvé');
+  expect(insightText.includes('n’a pas encore été retrouvé')).toBe(recovered);
+});

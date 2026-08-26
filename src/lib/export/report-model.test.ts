@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '../domain/engine';
-import { ZERO, type Big } from '../domain/money';
+import { D, ZERO, type Big } from '../domain/money';
 import { buildInsights } from '../domain/insights';
+import { riskMetrics } from '../domain/risk';
 import { xirrEur } from '../domain/xirr';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
@@ -377,5 +378,39 @@ describe('section « Constats »', () => {
     const discreet = buildReportModel(report, { ...opts, discreet: true, insights });
     const text = (discreet.insights?.items ?? []).map((i) => i.detail).join(' ');
     expect(text).toContain(MASK);
+  });
+});
+
+describe('section « Risque »', () => {
+  /** Indice de performance : +50 %, puis −40 % depuis ce plus haut, puis remontée partielle. */
+  const index = ['1', '1.5', '0.9', '1.2'].map((value, i) => ({
+    day: `2026-01-0${i + 1}`,
+    index: D(value),
+  }));
+
+  it('absente sans mesure fournie', () => {
+    expect(model.risk).toBeNull();
+  });
+
+  it('affiche le repli comme une baisse, avec ses dates et la mention « pas encore retrouvé »', () => {
+    const risk = riskMetrics(index);
+    const m = buildReportModel(report, { ...opts, risk });
+    expect(m.risk?.title).toBe('Risque');
+    const line = m.risk!.details.find((d) => d.label === 'Repli maximal')!;
+    // Un repli s'affiche négatif : c'est une perte, pas une performance.
+    expect(nbsp(line.value)).toBe(nbsp(fmtPct(D('-0.4'))));
+    expect(line.tone).toBe('loss');
+    expect(line.hint).toContain('du 02/01/2026 au 03/01/2026');
+    expect(line.hint).toContain('pas encore retrouvé');
+    // La note dit pourquoi ce chiffre ne colle pas au relevé de compte.
+    expect(m.risk!.note).toContain('apports et retraits neutralisés');
+  });
+
+  it('avoue ce qu’elle ne peut pas calculer sur une série courte', () => {
+    const m = buildReportModel(report, { ...opts, risk: riskMetrics(index) });
+    const volatility = m.risk!.details.find((d) => d.label === 'Volatilité annualisée')!;
+    expect(volatility.value).toBe('—');
+    expect(volatility.hint).toContain('30 jours');
+    expect(m.risk!.details.find((d) => d.label === 'Ratio de Sortino')!.value).toBe('—');
   });
 });
