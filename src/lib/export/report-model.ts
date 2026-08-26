@@ -8,7 +8,7 @@
  * (`Formatter.money`) pour préparer la bascule de devise.
  */
 import type { PortfolioReport, PositionReport } from '../domain/engine';
-import { D, ZERO, type Big } from '../domain/money';
+import { D, ZERO, type Big, type DecimalString } from '../domain/money';
 import type { SubscriptionAnalysis } from '../domain/subscription';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
 import type { BenchmarkResult } from '../domain/benchmark';
@@ -16,6 +16,7 @@ import type { TwrResult } from '../domain/twr';
 import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import type { Insight } from '../domain/insights';
 import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
+import { EXEMPTION_THRESHOLD, type TaxLedger } from '../domain/tax-fr';
 import {
   MASK,
   fmtDate,
@@ -113,6 +114,8 @@ export interface ReportModel {
   insights: { title: string; note: string; items: RenderedInsight[] } | null;
   /** Risque : repli maximal, volatilité, régularité — mesurés sur l'indice de performance. */
   risk: { title: string; details: ReportKpi[]; note: string } | null;
+  /** Fiscalité française : estimation par millésime, méthode globale de l'article 150 VH bis. */
+  tax: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
   subscription: { title: string; details: ReportKpi[]; note: string } | null;
   allocation: ReportTable;
@@ -145,6 +148,8 @@ export interface ReportModelOptions {
   insights?: readonly Insight[] | undefined;
   /** Mesures de risque sur l'indice de performance (décision n° 41), calculées par l'appelant. */
   risk?: RiskMetrics | null | undefined;
+  /** Estimation fiscale française (décision n° 42), calculée par l'appelant. Toujours en euros. */
+  tax?: TaxLedger | null | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -632,6 +637,84 @@ function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): Report
 }
 
 /**
+ * Fiscalité française (décision n° 42) — **estimation**, et rien d'autre. Les montants restent en
+ * EUROS même si l'app affiche en dollars : c'est une obligation française. Le mode discret masque
+ * quand même les montants, ce sont des montants.
+ */
+function taxSection(tax: TaxLedger | null | undefined, discreet: boolean): ReportModel['tax'] {
+  if (!tax || tax.years.length === 0) return null;
+  const eur = (value: DecimalString | Big, sign = false): string =>
+    discreet ? MASK : fmtMoney(D(value), 'EUR', { sign });
+  const details: ReportKpi[] = [];
+  // Les trois derniers millésimes suffisent à un rapport : au-delà, c'est de l'archive.
+  for (const year of tax.years.slice(0, 3)) {
+    details.push({
+      label: `${year.year} · cessions imposables`,
+      value: eur(year.proceedsEur),
+      tone: 'neutral',
+      hint: `${plural(year.cessionCount, 'cession', 'cessions')} vers une monnaie ayant cours légal${
+        year.exempt ? ` · sous le seuil de ${EXEMPTION_THRESHOLD} €, exonéré` : ''
+      }`,
+    });
+    details.push({
+      label: `${year.year} · résultat net`,
+      value: eur(year.netEur, true),
+      tone: toneOf(D(year.netEur)),
+      hint: `${eur(year.gainsEur)} de plus-values, ${eur(year.lossesEur)} de moins-values (imputables sur la seule année ${year.year})`,
+    });
+    details.push({
+      label: `${year.year} · impôt estimé`,
+      value: eur(year.taxEur),
+      tone: 'neutral',
+      hint: year.exempt
+        ? 'exonéré : total des cessions sous le seuil'
+        : D(year.netEur).lte(ZERO)
+          ? 'année nette perdante : rien à payer, et la perte ne se reporte pas'
+          : `prélèvement forfaitaire unique ${year.rateLabel}`,
+    });
+  }
+  details.push({
+    label: 'Prix total d’acquisition restant',
+    value: eur(tax.ptaAfter),
+    tone: 'neutral',
+    hint: 'base de la prochaine cession — celui du PORTEFEUILLE, sans rapport avec le PRU par actif',
+  });
+
+  const warnings: string[] = [];
+  if (tax.unknownGlobalValue > 0)
+    warnings.push(
+      `${plural(tax.unknownGlobalValue, 'cession n’a pas pu être chiffrée', 'cessions n’ont pas pu être chiffrées')} : la valeur du portefeuille au jour de l’opération est inconnue (historique de prix trop court).`,
+    );
+  if (tax.externalInflows > 0)
+    warnings.push(
+      `${plural(tax.externalInflows, 'entrée venue de l’extérieur est sans coût connu', 'entrées venues de l’extérieur sont sans coût connu')} : le prix d’acquisition est sous-estimé, donc la plus-value surestimée.`,
+    );
+  if (tax.externalOutflows > 0)
+    warnings.push(
+      `${plural(tax.externalOutflows, 'sortie vers l’extérieur n’est pas classée', 'sorties vers l’extérieur ne sont pas classées')} : un simple transfert n’est pas imposable, un paiement en crypto l’est — un export ne permet pas de les distinguer.`,
+    );
+  if (tax.rewards > 0)
+    warnings.push(
+      `${plural(tax.rewards, 'récompense reçue', 'récompenses reçues')} : leur régime propre n’est pas traité ici.`,
+    );
+
+  return {
+    title: 'Fiscalité française (estimation)',
+    details,
+    note:
+      'Estimation calculée selon la méthode globale de l’article 150 VH bis du CGI : plus-value = ' +
+      'prix de cession − prix total d’acquisition × (prix de cession ÷ valeur globale du portefeuille ' +
+      'au jour de la cession). Seules les sorties vers l’euro sont imposables ; les échanges entre ' +
+      'actifs numériques, stablecoins compris, bénéficient du sursis. Deux hypothèses commandent le ' +
+      'résultat : ce portefeuille est supposé être VOTRE PORTEFEUILLE ENTIER (des avoirs détenus ' +
+      'ailleurs changeraient le calcul), et la valeur globale de chaque jour est reconstituée à ' +
+      'partir des cours de clôture. **Ce n’est ni une déclaration, ni un conseil fiscal** : faites ' +
+      'vérifier votre situation par un professionnel.',
+    warnings,
+  };
+}
+
+/**
  * Constats : le rapport ne les recalcule pas, il rend en français ceux que l'appelant a produits
  * (mêmes phrases qu'à l'écran d'accueil, mêmes réglages de devise et de mode discret).
  */
@@ -899,6 +982,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     summary: { title: 'Synthèse', kpis, details },
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
+    tax: taxSection(opts.tax, opts.discreet),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),
     positions: positionsTable(

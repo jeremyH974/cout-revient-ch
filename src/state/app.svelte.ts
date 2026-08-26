@@ -479,6 +479,21 @@ export class AppState {
     return rate === null ? null : big.times(rate);
   }
 
+  /**
+   * Retour à l'euro depuis la devise d'affichage, au taux du jour indiqué. Réciproque exacte de
+   * `displayFromEur` : les calculs qui doivent rester en euros quoi qu'affiche l'app (la fiscalité
+   * française, par exemple) repassent par ici.
+   */
+  eurFromDisplay(value: Big | DecimalString | null, day?: string): Big | null {
+    if (value === null) return null;
+    const big = D(value);
+    if (this.currency === 'EUR') return big;
+    const rate = this.fxLookup.rate(day ?? nowIso().slice(0, 10));
+    if (rate === null) return null;
+    const perEur = D(rate);
+    return perEur.eq(D('0')) ? null : big.div(perEur);
+  }
+
   /** Grand livre dans la devise d'affichage : chaque mouvement au taux BCE de son jour. */
   displayEvents = $derived.by((): LedgerEvent[] => {
     if (this.currency === 'EUR') return this.events;

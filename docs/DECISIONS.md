@@ -683,3 +683,24 @@
     tableau annoncent le même repli. La répartition est triée par part décroissante et doublée d'un
     anneau SVG maison (`AllocationDonut`, aucune dépendance, décoratif pour un lecteur d'écran —
     le tableau reste la source lisible).
+42. **L'estimation fiscale française rejoue les cessions avec la méthode GLOBALE, et n'est jamais
+    présentée comme un calcul** (26/08/2026). L'article 150 VH bis impose une formule qui ne
+    ressemble à rien de ce que fait le reste de l'app : la plus-value se calcule sur le prix total
+    d'acquisition du PORTEFEUILLE (pas sur le PRU d'un actif — décision n° 10) et sur la valeur
+    globale du portefeuille au jour de la cession. `src/lib/domain/tax-fr.ts` rejoue donc le grand
+    livre dans l'ordre en maintenant ce PTA résiduel. Seules les sorties vers une monnaie ayant
+    cours légal sont des cessions ; tout échange entre actifs numériques — stablecoins compris, y
+    compris un stablecoin euro — est en sursis et ne touche à rien. La valeur globale d'un jour
+    passé est reconstituée comme « valeur de clôture + produits encaissés ce jour-là » (une clôture
+    est postérieure à la vente, l'actif vendu n'y figure plus) ; le champ `taxAnnotations`, réservé
+    depuis la v1, permet de la corriger à la main. Quand elle manque, le module **ne consomme pas
+    le PTA et laisse la plus-value à `null`** : mieux vaut un PTA trop élevé qu'une plus-value
+    inventée, et l'écran le dit. Seuil de 305 € sur la SOMME DES PRIX DE CESSION (pas un
+    abattement), taux par millésime (30 % jusqu'aux cessions 2024, 31,4 % ensuite — table à une
+    ligne par changement), moins-values imputables sur la seule année, jamais reportées. L'aperçu
+    avant vente affiche l'EFFET de la vente sur l'impôt de l'année (supplément, réduction si elle
+    dégage une moins-value, exonération, année perdante), pas un montant hors contexte. Deux
+    hypothèses sont écrites partout où le résultat s'affiche : ce portefeuille est supposé être le
+    portefeuille entier du contribuable, et la valeur globale est reconstituée. Montants toujours
+    en euros, même quand l'app affiche en dollars. **Rien de tout cela ne remplace un
+    professionnel**, et le rapport l'écrit.

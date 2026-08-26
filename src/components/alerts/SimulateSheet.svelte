@@ -1,7 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { COINHOUSE_FEES, ZERO_FEE, breakEvenSellPrice, type FeeRate } from '$lib/domain/fees';
-  import { parseDecimal, type Big } from '$lib/domain/money';
+  import { nowIso } from '$lib/clock';
+  import { D, parseDecimal, type Big } from '$lib/domain/money';
+  import { previewCession } from '$lib/domain/tax-fr';
   import {
     qtyToRecoverStake,
     simulateBuy,
@@ -11,6 +13,7 @@
   import { MASK, fmtMasked, fmtMoney, fmtPct, fmtPrice, fmtQty, roundHalfUp } from '$lib/format/fr';
   import Sheet from '../shared/Sheet.svelte';
   import { app } from '../../state/app.svelte';
+  import { history } from '../../state/history.svelte';
 
   type SimulateMode = 'buy' | 'sell' | 'target';
 
@@ -37,6 +40,60 @@
   let sellFeeChoice = $state<SellFeeChoice>('crypto-crypto');
   let customPct = $state('0');
   let customFixed = $state('0');
+
+  /**
+   * Estimation fiscale (décision n° 42) : repliée par défaut, elle ne charge l'historique des prix
+   * qu'à l'ouverture — la feuille reste instantanée pour qui ne s'en sert pas.
+   */
+  let taxOpen = $state(false);
+  let taxLoading = $state(false);
+  $effect(() => {
+    if (!taxOpen || history.status.loadedAt !== null || taxLoading) return;
+    taxLoading = true;
+    void history.ensure().finally(() => {
+      taxLoading = false;
+    });
+  });
+
+  const taxLedger = $derived(
+    taxOpen && history.status.loadedAt !== null ? history.frenchTax() : null,
+  );
+
+  /** Aperçu de la vente en cours, en EUROS (la fiscalité française ne connaît que l'euro). */
+  const taxPreview = $derived.by(() => {
+    if (taxLedger === null || sellResult === null) return null;
+    // Le simulateur calcule DÉJÀ en euros (`priceEurBig`, `positionEur`) : rien à convertir ici.
+    // Le rapport, lui, est dans la devise d'affichage — la valeur globale doit repasser en euros.
+    const proceeds = sellResult.netProceedsEur;
+    const globalValue = app.eurFromDisplay(app.report.totals.value);
+    if (globalValue === null) return null;
+    const year = Number(nowIso().slice(0, 4));
+    const current = taxLedger.years.find((y) => y.year === year);
+    const preview = previewCession({
+      ptaBefore: D(taxLedger.ptaAfter),
+      proceedsEur: proceeds,
+      globalValueEur: globalValue,
+      year,
+      yearProceedsEur: current ? D(current.proceedsEur) : undefined,
+      yearNetEur: current ? D(current.netEur) : undefined,
+    });
+    if (preview === null) return null;
+    return {
+      year,
+      proceeds,
+      gain: D(preview.gainEur),
+      share: D(preview.acquisitionShareEur),
+      delta: D(preview.taxDeltaEur),
+      yearNet: D(preview.yearNetEur),
+      exempt: preview.exempt,
+      rateLabel: preview.rateLabel,
+      unknown: taxLedger.unknownGlobalValue,
+    };
+  });
+
+  /** Montant en euros : la fiscalité s'exprime en euros même si l'app affiche en dollars. */
+  const moneyEur = (value: Big, sign = false): string =>
+    discreet ? fmtMasked('EUR') : fmtMoney(value, 'EUR', { sign });
 
   const position = $derived(app.positionEur(asset));
   const discreet = $derived(app.state.ui.discreet);
@@ -392,6 +449,74 @@
             </p>
           {/if}
         </div>
+        {#if sellFeeChoice === 'sell-eur'}
+          <details class="tax" bind:open={taxOpen}>
+            <summary>Estimation fiscale française (avant de vendre)</summary>
+            {#if taxLoading}
+              <p class="muted">Chargement de l’historique des prix…</p>
+            {:else if taxPreview}
+              <p>
+                Plus-value imposable estimée :
+                <strong class={taxPreview.gain.lt('0') ? 'loss' : 'gain'}
+                  >{moneyEur(taxPreview.gain, true)}</strong
+                >
+                <span class="muted"
+                  >— prix de cession {moneyEur(taxPreview.proceeds)} moins {moneyEur(
+                    taxPreview.share,
+                  )} de prix d’acquisition imputé.</span
+                >
+              </p>
+              <p>
+                {#if taxPreview.delta.gt('0')}
+                  Impôt supplémentaire dû à cette vente :
+                  <strong>{moneyEur(taxPreview.delta)}</strong>
+                  <span class="muted"
+                    >— prélèvement forfaitaire unique {taxPreview.rateLabel}, sur {moneyEur(
+                      taxPreview.yearNet,
+                      true,
+                    )} de résultat net {taxPreview.year}.</span
+                  >
+                {:else if taxPreview.delta.lt('0')}
+                  Cette vente <strong>réduirait</strong> l’impôt de l’année de
+                  <strong>{moneyEur(taxPreview.delta.abs())}</strong>
+                  <span class="muted"
+                    >— sa moins-value s’impute sur vos plus-values {taxPreview.year}.</span
+                  >
+                {:else if taxPreview.exempt}
+                  Aucun impôt estimé
+                  <span class="muted"
+                    >— vos cessions {taxPreview.year} restent sous le seuil de 305 €, donc exonérées.</span
+                  >
+                {:else}
+                  Aucun impôt estimé
+                  <span class="muted"
+                    >— l’année {taxPreview.year} resterait nette perdante ({moneyEur(
+                      taxPreview.yearNet,
+                      true,
+                    )}) : rien à payer, et cette perte ne se reporte pas sur les années suivantes.</span
+                  >
+                {/if}
+              </p>
+              {#if taxPreview.unknown > 0}
+                <p class="muted">
+                  {taxPreview.unknown} cession passée n’a pas pu être chiffrée (historique de prix trop
+                  court) : le prix d’acquisition restant, donc cette estimation, sont approximatifs.
+                </p>
+              {/if}
+            {:else}
+              <p class="muted">
+                Saisissez une quantité et un prix pour voir la plus-value imposable estimée et
+                l’impôt correspondant.
+              </p>
+            {/if}
+            <p class="muted">
+              Méthode globale de l’article 150 VH bis : la plus-value se calcule sur le PORTEFEUILLE
+              entier, pas sur cet actif — elle n’a rien à voir avec le PRU affiché plus haut. Le
+              calcul suppose que cette app contient tous vos actifs numériques. Estimation, ni
+              déclaration ni conseil fiscal.
+            </p>
+          </details>
+        {/if}
         <p class="notice">
           Convertir vers un stablecoin (USDC, EURCV) coûte 0,79 % et reste un échange crypto↔crypto
           (sursis fiscal de l’art. 150 VH bis) ; vendre en euros coûte 1,29 % et constitue une

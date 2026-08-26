@@ -95,6 +95,11 @@ function dayOf(insight: Insight, key: string): string {
   return value !== undefined && value.kind === 'day' ? fmtDate(value.value) : NONE;
 }
 
+function yearOf(insight: Insight, key: string): string {
+  const value = valueOf(insight, key);
+  return value !== undefined && value.kind === 'year' ? String(value.value) : NONE;
+}
+
 function tierOf(insight: Insight, key: string): string {
   const value = valueOf(insight, key);
   return value !== undefined && value.kind === 'tier' ? TIER_LABELS[value.value] : NONE;
@@ -153,6 +158,24 @@ function textOf(insight: Insight, opts: RenderOptions): { title: string; detail:
           ? `Votre plus forte baisse a été de ${pct(insight, 'share')}, du ${dayOf(insight, 'from')} au ${dayOf(insight, 'to')} ; le niveau précédent a été retrouvé le ${dayOf(insight, 'recovered')}.`
           : `Votre plus forte baisse a été de ${pct(insight, 'share')}, du ${dayOf(insight, 'from')} au ${dayOf(insight, 'to')} ; ce niveau n’a pas encore été retrouvé.`,
       };
+    case 'tax-year': {
+      const year = yearOf(insight, 'year');
+      const count = num(insight, 'count');
+      const head = `En ${year}, ${count} ${plural(count, 'cession imposable', 'cessions imposables')} pour ${money(insight, 'proceeds', opts)}`;
+      if (has(insight, 'exempt'))
+        return {
+          title: 'Fiscalité de l’année',
+          detail: `${head} : sous le seuil de 305 €, vos plus-values de l’année sont exonérées.`,
+        };
+      const tax = valueOf(insight, 'tax');
+      const zeroTax = tax !== undefined && tax.kind === 'money' && D(tax.value).lte('0');
+      return {
+        title: 'Fiscalité de l’année',
+        detail: zeroTax
+          ? `${head} : l’année est nette perdante (${money(insight, 'net', opts, true)}), aucun impôt estimé — et cette perte ne se reporte pas.`
+          : `${head} : impôt estimé ${money(insight, 'tax', opts)} sur ${money(insight, 'net', opts, true)} de résultat net.`,
+      };
+    }
     case 'xirr':
       return {
         title: 'Rendement personnel',

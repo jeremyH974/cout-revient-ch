@@ -14,6 +14,7 @@ import { benchmarkGap, type BenchmarkResult } from './benchmark';
 import type { PortfolioReport, PositionReport } from './engine/report';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from './money';
 import type { RiskMetrics } from './risk';
+import type { TaxLedger } from './tax-fr';
 import type { CoinhouseTier, SubscriptionAnalysis } from './subscription';
 import type { AssetCode } from './types';
 import type { XirrResult } from './xirr';
@@ -35,7 +36,8 @@ export type InsightValue =
   | { kind: 'count'; value: number }
   | { kind: 'assets'; value: readonly AssetCode[] }
   | { kind: 'day'; value: string }
-  | { kind: 'tier'; value: CoinhouseTier };
+  | { kind: 'tier'; value: CoinhouseTier }
+  | { kind: 'year'; value: number };
 
 export type InsightCode =
   | 'unqualified'
@@ -45,6 +47,7 @@ export type InsightCode =
   | 'concentration'
   | 'top3-share'
   | 'max-drawdown'
+  | 'tax-year'
   | 'xirr'
   | 'benchmark-gap'
   | 'realized'
@@ -85,6 +88,10 @@ export interface InsightContext {
   xirr?: XirrResult | null | undefined;
   /** Mesures de risque sur l'indice de performance (décision n° 41), si l'historique est chargé. */
   risk?: RiskMetrics | null | undefined;
+  /** Estimation fiscale française (décision n° 42), si l'historique est chargé. */
+  tax?: TaxLedger | null | undefined;
+  /** Année de référence du constat fiscal (l'appelant fournit l'horloge, le moteur n'en a pas). */
+  taxYear?: number | undefined;
 }
 
 /** Sous une unité de la devise affichée (1 € ou 1 $), un montant ne fait pas un constat. */
@@ -111,6 +118,7 @@ const PRIORITY: Record<InsightCode, number> = {
   concentration: 60,
   'top3-share': 58,
   'max-drawdown': 57,
+  'tax-year': 56,
   xirr: 55,
   'benchmark-gap': 50,
   realized: 45,
@@ -126,6 +134,7 @@ const count = (value: number): InsightValue => ({ kind: 'count', value });
 const assets = (value: readonly AssetCode[]): InsightValue => ({ kind: 'assets', value });
 const day = (value: string): InsightValue => ({ kind: 'day', value });
 const tierValue = (value: CoinhouseTier): InsightValue => ({ kind: 'tier', value });
+const yearValue = (value: number): InsightValue => ({ kind: 'year', value });
 
 function make(
   code: InsightCode,
@@ -244,6 +253,31 @@ const drawdownRule: InsightRule = (ctx) => {
         from: day(drawdown.peakDay),
         to: day(drawdown.troughDay),
         ...(drawdown.recoveredDay === null ? {} : { recovered: day(drawdown.recoveredDay) }),
+      },
+      { route: 'report' },
+    ),
+  ];
+};
+
+/**
+ * Situation fiscale de l'année en cours : total des cessions imposables et impôt estimé. Un
+ * constat, pas une déclaration — le rapport porte les hypothèses et les avertissements.
+ */
+const taxYearRule: InsightRule = (ctx) => {
+  const year = ctx.tax?.years.find((y) => y.year === ctx.taxYear);
+  if (!year || year.cessionCount === 0) return [];
+  const tax = D(year.taxEur);
+  return [
+    make(
+      'tax-year',
+      tax.gt(ZERO) ? 'attention' : 'neutral',
+      {
+        year: yearValue(year.year),
+        proceeds: money(D(year.proceedsEur)),
+        net: money(D(year.netEur)),
+        tax: money(tax),
+        count: count(year.cessionCount),
+        ...(year.exempt ? { exempt: count(1) } : {}),
       },
       { route: 'report' },
     ),
@@ -375,6 +409,7 @@ const RULES: readonly InsightRule[] = [
   concentrationRule,
   top3Rule,
   drawdownRule,
+  taxYearRule,
   xirrRule,
   benchmarkRule,
   realizedRule,

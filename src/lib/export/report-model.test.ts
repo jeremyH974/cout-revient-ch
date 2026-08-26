@@ -3,6 +3,7 @@ import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '..
 import { D, ZERO, type Big } from '../domain/money';
 import { buildInsights } from '../domain/insights';
 import { riskMetrics } from '../domain/risk';
+import { computeFrenchTax } from '../domain/tax-fr';
 import { xirrEur } from '../domain/xirr';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
@@ -412,5 +413,50 @@ describe('section « Risque »', () => {
     expect(volatility.value).toBe('—');
     expect(volatility.hint).toContain('30 jours');
     expect(m.risk!.details.find((d) => d.label === 'Ratio de Sortino')!.value).toBe('—');
+  });
+});
+
+describe('section « Fiscalité française (estimation) »', () => {
+  const taxEvents: LedgerEvent[] = [
+    buy('2026-01-01T10:00:00', 'btc', '1', '10000'),
+    sell('2026-06-01T10:00:00', 'btc', '0.5', '5000'),
+  ];
+  const taxLedger = computeFrenchTax({
+    events: taxEvents,
+    closingValueAt: (day) => (day === '2026-06-01' ? D('15000') : null),
+  });
+
+  it('absente sans estimation fournie', () => {
+    expect(model.tax).toBeNull();
+  });
+
+  it('donne le millésime, le net, l’impôt estimé et le PTA restant', () => {
+    const m = buildReportModel(report, { ...opts, tax: taxLedger });
+    expect(m.tax?.title).toBe('Fiscalité française (estimation)');
+    const label = (name: string) => m.tax!.details.find((d) => d.label === name)!;
+    // Global 20 000 (clôture 15 000 + 5 000 encaissés) → imputé 2 500, plus-value 2 500.
+    expect(nbsp(label('2026 · résultat net').value)).toBe(
+      nbsp(fmtMoney(D('2500'), 'EUR', { sign: true })),
+    );
+    expect(nbsp(label('2026 · impôt estimé').value)).toBe(
+      nbsp(fmtMoney(D('2500').times('0.314'), 'EUR')),
+    );
+    expect(nbsp(label('Prix total d’acquisition restant').value)).toBe(
+      nbsp(fmtMoney(D('7500'), 'EUR')),
+    );
+    // La note porte les deux hypothèses et le refus de tenir lieu de conseil.
+    expect(m.tax!.note).toContain('PORTEFEUILLE ENTIER');
+    expect(m.tax!.note).toContain('ni un conseil fiscal');
+  });
+
+  it('reste en euros même quand l’app affiche en dollars', () => {
+    const usd = buildReportModel(report, { ...opts, currency: 'USD', tax: taxLedger });
+    expect(usd.tax!.details.every((d) => !d.value.includes('$'))).toBe(true);
+  });
+
+  it('avertit quand des cessions n’ont pas pu être chiffrées', () => {
+    const blind = computeFrenchTax({ events: taxEvents });
+    const m = buildReportModel(report, { ...opts, tax: blind });
+    expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
   });
 });

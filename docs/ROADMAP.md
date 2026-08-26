@@ -33,6 +33,10 @@
 > trading), qui exige un historique de l'équité de trading inexistant à ce jour — reportée avec
 > P28. Restent ensuite, dans cet ordre : P30 (aperçu fiscal avant cession), P35 (alertes v2),
 > P32 (projections), P34 (contexte de marché).
+>
+> **P30 (aperçu fiscal avant cession) est livré** en 2.6.0 le 26/08/2026 —
+> [docs/tax-fr.md](tax-fr.md), décision n° 42. Le formulaire 2086 pré-rempli et la réconciliation
+> DAC8 restent le périmètre de P13. Restent P35, P32, P34.
 
 ## 1. État des lieux (mesuré le 23/08/2026)
 

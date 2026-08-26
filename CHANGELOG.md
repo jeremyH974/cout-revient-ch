@@ -5,6 +5,24 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-08-26
+
+### Added
+
+- **Estimation fiscale française (P30)** — la brique que personne n’offre en méthode française.
+  Dans le **simulateur**, en mode « Vendre » avec sortie en euros, un dépliant donne la plus-value
+  imposable estimée et l’effet de la vente sur l’impôt de l’année (supplément dû, réduction si la
+  vente dégage une moins-value, exonération sous 305 €, ou année nette perdante). Dans le
+  **rapport** (écran et PDF), une section « Fiscalité française (estimation) » récapitule les trois
+  derniers millésimes et le prix total d’acquisition restant. Méthode GLOBALE de l’article 150 VH
+  bis : la plus-value porte sur le portefeuille entier, pas sur le PRU d’un actif ; seules les
+  sorties vers l’euro sont imposables, les échanges entre actifs numériques (stablecoins compris)
+  restent en sursis ; taux par millésime (30 % jusqu’aux cessions 2024, 31,4 % ensuite) ;
+  moins-values imputables sur la seule année, sans report. Quand une valeur manque, l’app le dit
+  au lieu d’inventer une plus-value. **Estimation, ni déclaration ni conseil fiscal** — faites
+  vérifier votre situation par un professionnel. Détail : `docs/tax-fr.md`, décision n° 42.
+- **Nouveau constat « Fiscalité de l’année »**.
+
 ## [2.5.0] - 2026-08-26
 
 ### Added
