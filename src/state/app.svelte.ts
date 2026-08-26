@@ -41,8 +41,10 @@ import {
   type PositionReport,
   type PriceQuoteInput,
 } from '$lib/domain/engine';
+import { buildInsights, type Insight } from '$lib/domain/insights';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
+import { xirrEur, type XirrResult } from '$lib/domain/xirr';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
 import {
@@ -506,6 +508,31 @@ export class AppState {
     analyzeSubscription(this.displayEvents, {
       fixedPerTrade: toDecimalString(this.displayFromEur('0.12') ?? D('0.12')),
     }),
+  );
+
+  /**
+   * Rendement personnel (XIRR) des flux du rapport, valorisé au JOUR DE LA COTATION retenue par le
+   * moteur — pas « aujourd'hui » : un `$derived` qui lirait l'horloge se figerait au premier calcul.
+   */
+  portfolioXirr = $derived.by((): XirrResult | null => {
+    const value = this.report.totals.value;
+    const pricedAt = this.report.pricedAt;
+    if (value === null || pricedAt === null) return null;
+    return xirrEur(this.report.cashFlows, { day: pricedAt.slice(0, 10), valueEur: value });
+  });
+
+  /**
+   * Constats (décision n° 40) : calculés à partir du rapport déjà en devise d'affichage. Le repère
+   * BTC exige l'historique de prix (écran Rapport) ; sans lui, la règle correspondante se tait.
+   */
+  insights = $derived.by((): Insight[] =>
+    this.hasData
+      ? buildInsights({
+          report: this.report,
+          subscription: this.subscriptionAnalysis,
+          xirr: this.portfolioXirr,
+        })
+      : [],
   );
 
   hasData = $derived(

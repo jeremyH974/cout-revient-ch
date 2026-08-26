@@ -645,3 +645,22 @@
     par la spec `coherence`, rejouable sur l'export réel. Personne côté trackers grand public ne
     fait ce calcul (les courtiers pro affichent des « commission savings ») : c'est le même
     différenciateur que l'alerte relative au PRU — l'outil connaît VOS flux réels.
+40. **Les constats sont produits par des règles pures et CODÉES ; le français est un rendu, pas le
+    calcul** (26/08/2026). Le moteur `src/lib/domain/insights.ts` observe le rapport déjà calculé
+    et émet des constats `{code, tone, priority, values}` où chaque valeur annonce sa nature
+    (`money`, `ratio`, `count`, `assets`, `day`, `tier`) en chaîne décimale — jamais une phrase.
+    `src/lib/format/insights.ts` en fait des phrases françaises, seul endroit où le mode discret
+    masque les montants et où la devise d'affichage s'applique. Trois conséquences voulues : la
+    version anglaise (P18) ne touchera pas au calcul ; l'écran d'accueil, le rapport, le PDF et le
+    presse-papier affichent EXACTEMENT les mêmes phrases, calculées une fois ; un constat est du
+    JSON simple, donc exposable tel quel par un futur serveur MCP. Le `switch` du rendu est
+    exhaustif : ajouter un code sans écrire sa phrase ne compile pas. Le ton distingue le SIGNE
+    d'un chiffre (`positive`/`negative`) d'un POINT À TRAITER (`attention` : lignes à qualifier,
+    actifs sans cours, concentration) — les confondre peindrait tout un portefeuille en baisse en
+    orange et noierait les vrais problèmes de données. L'ordre est déterministe (priorité
+    déclarée en un seul endroit, égalité départagée par l'identifiant) et la qualité des données
+    passe avant les chiffres, parce qu'un total calculé sur des lignes non qualifiées est faux.
+    Enfin, la règle intangible : **un constat constate, il ne recommande jamais** d'acheter, de
+    vendre ni d'arbitrer — c'est la frontière information / conseil que la doctrine AMF du
+    04/08/2026 trace pour les crypto-actifs (MiCA art. 3, § 1, 24), et elle est écrite dans le
+    rapport lui-même.

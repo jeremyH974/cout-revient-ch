@@ -7,11 +7,16 @@
  */
 import { existsSync, readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { computePortfolio } from '../../src/lib/domain/engine/aggregate';
+import { buildInsights } from '../../src/lib/domain/insights';
 import { D } from '../../src/lib/domain/money';
 import { analyzeSubscription } from '../../src/lib/domain/subscription';
+import { DEFAULT_ENGINE_SETTINGS } from '../../src/lib/domain/types';
+import { balanceRecords } from '../../src/lib/import/coinhouse/balances';
 import { normalizeCoinhouseRows } from '../../src/lib/import/coinhouse/normalize';
 import { importCoinhouseCsv } from '../../src/lib/import/coinhouse/index';
 import { fmtMoney } from '../../src/lib/format/fr';
+import { renderInsights } from '../../src/lib/format/insights';
 import { openDemo, waitForPrices } from './helpers/demo';
 import { FIXTURE, normalize } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
@@ -458,4 +463,45 @@ test('Vue d’ensemble : valeur nette = valeur d’investissement + équité de 
   await page.goto('#/trading');
   const equity = toNumber(await page.locator('section.summary .trio .big').nth(1).innerText());
   expect(Math.abs(tradingCard - equity)).toBeLessThanOrEqual(tol(1));
+});
+
+/**
+ * Constats (décision n° 40) : l'écran affiche EXACTEMENT les phrases produites par le moteur de
+ * règles suivi de son rendu français — pas une reformulation faite dans le composant. On compare
+ * sur les constats indépendants des prix (frais et abonnement), reproductibles hors navigateur.
+ */
+test('les « Constats » reprennent le moteur de règles', async ({ page }) => {
+  const csv = REAL_CSV ?? FIXTURE;
+  const parsed = importCoinhouseCsv(readFileSync(csv, 'utf8'), {}, 'imp:coh');
+  if (!parsed.ok) throw new Error(parsed.error);
+  const rows = Object.values(parsed.rows);
+  const { events } = normalizeCoinhouseRows(rows);
+  const report = computePortfolio({
+    events,
+    prices: {},
+    settings: DEFAULT_ENGINE_SETTINGS,
+    balances: balanceRecords(rows),
+  });
+  const expected = renderInsights(
+    buildInsights({ report, subscription: analyzeSubscription(events) }),
+    { discreet: false, currency: 'EUR' },
+  );
+  const sentence = (code: string): string | null =>
+    expected.find((i) => i.code === code)?.detail ?? null;
+
+  await openDataset(page);
+  await page.goto('#/');
+  await expect(page.getByRole('heading', { level: 2, name: 'Constats' })).toBeVisible();
+  await expect(page.locator('section.insights li')).not.toHaveCount(0);
+
+  // Le rapport les montre tous : c'est là qu'on vérifie les phrases mot pour mot.
+  await page.goto('#/report');
+  const section = page.locator('section', { has: page.getByRole('heading', { name: 'Constats' }) });
+  for (const code of ['fees-12m', 'subscription-net']) {
+    const detail = sentence(code);
+    if (detail === null) continue;
+    await expect(section).toContainText(normalize(detail));
+  }
+  // Et la frontière information / conseil est écrite noir sur blanc.
+  await expect(section).toContainText('ni un conseil en investissement');
 });

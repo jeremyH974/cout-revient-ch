@@ -24,6 +24,11 @@
 > Au passage : le volet « abonnement rentable ? » de P7 est livré (2.3.0, décision n° 39) ; le
 > spread implicite par opération reste à faire ; P11, P15 et le reliquat de P28 (courbe de valeur
 > nette) sont refondus dans P31.
+>
+> **P33 (constats automatiques) est livré** en 2.4.0 le 26/08/2026 —
+> [`docs/insights.md`](insights.md), décision n° 40. Restent, dans cet ordre : P31 (risque et
+> structure), P30 (aperçu fiscal avant cession), P35 (alertes v2), P32 (projections), P34
+> (contexte de marché).
 
 ## 1. État des lieux (mesuré le 23/08/2026)
 

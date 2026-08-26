@@ -6,6 +6,7 @@
  */
 import type { jsPDF } from 'jspdf';
 import type { CellDef, UserOptions } from 'jspdf-autotable';
+import type { RenderedInsight } from '../format/insights';
 import type {
   ReportCell,
   ReportKpi,
@@ -37,6 +38,8 @@ const COLOR = {
   accent: [37, 99, 235] as Rgb,
   gain: [21, 128, 61] as Rgb,
   loss: [185, 28, 28] as Rgb,
+  /** Ambre foncé du thème clair (`--warn`) : lisible à l'impression, contraste ≥ 4,5:1 sur blanc. */
+  warn: [180, 83, 9] as Rgb,
   white: [255, 255, 255] as Rgb,
 };
 
@@ -136,8 +139,9 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     size: number,
     color: Rgb,
     style: TextStyle = 'normal',
-    x = MARGIN.left,
-    width = CONTENT_WIDTH,
+    // Types explicites : `MARGIN` est figé (`as const`), sa valeur littérale ne se réélargit pas.
+    x: number = MARGIN.left,
+    width: number = CONTENT_WIDTH,
   ): void => {
     font(style, size, color);
     const lh = lineHeight(size);
@@ -278,6 +282,27 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     y = finalY() + 10;
   };
 
+  /** Constats : pastille colorée par le ton, intitulé en gras, phrase chiffrée en dessous. */
+  const insightBullets = (items: readonly RenderedInsight[]): void => {
+    const TONE_COLOR: Record<RenderedInsight['tone'], Rgb> = {
+      positive: COLOR.gain,
+      negative: COLOR.loss,
+      attention: COLOR.warn,
+      neutral: COLOR.accent,
+    };
+    for (const item of items) {
+      ensure(16);
+      doc.setFillColor(...TONE_COLOR[item.tone]);
+      doc.rect(MARGIN.left, y - 2.2, 1.8, 1.8, 'F');
+      font('bold', 9.5, COLOR.ink);
+      write(item.title, MARGIN.left + 4.5, y);
+      y += 4.8;
+      paragraph(item.detail, 9, COLOR.muted, 'normal', MARGIN.left + 4.5, CONTENT_WIDTH - 4.5);
+      y += 3;
+    }
+    y += 3;
+  };
+
   const table = (t: ReportTable): void => {
     sectionTitle(t.title);
     if (t.note) {
@@ -376,6 +401,11 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
   sectionTitle(model.summary.title);
   kpiGrid(model.summary.kpis);
   detailsTable(model.summary.details);
+  if (model.insights) {
+    sectionTitle(model.insights.title);
+    insightBullets(model.insights.items);
+    paragraph(model.insights.note, 8.5, COLOR.muted);
+  }
   if (model.subscription) {
     sectionTitle(model.subscription.title);
     detailsTable(model.subscription.details);
