@@ -131,66 +131,101 @@ Le signaler évite de rouvrir le sujet dans six mois.
 _« Le seul écran que tous ont et pas nous »_ — reliquat de P31, repris en P38 par l'étude de
 consolidation patrimoniale.
 
-## P38.1 — Le moteur : consolider les deux espaces
+## P38.0 — Le constat de la feuille de route est faux
 
-**Constat vérifié** — `src/lib/history/series.ts` fournit déjà `holdingsByDay`, `valueSeries`,
-`periodPerformance`, `periodWindow`. `EvolutionCard` est monté sur `Portfolio` (Investissement) et
-`AssetDetail`. Ce qui manque est la **consolidation** : aucune série ne somme Investissement +
-Trading, et la Vue d'ensemble n'a aucune courbe.
+La feuille de route reporte P38 au motif qu'il _« exige un historique de l'équité de trading
+inexistant à ce jour »_. **Cet historique existe, et il est déjà utilisé.**
 
-**Décisions de conception**
+- Hyperliquid le sert par son point d'entrée `portfolio`, parsé par `parsePortfolio`
+  (`api-types.ts:366`) en séries `[ms UTC, valeur]` pour les périodes `day`, `week`, `month`,
+  `allTime` et leurs variantes `perp*`.
+- Il est **récupéré à chaque synchronisation** (`sync.ts:184-187`), **rangé** dans
+  `data.portfolio` (`data.ts:43`) et **survit à la sauvegarde** (`sanitize.ts:156`).
+- Il est **déjà affiché** : l'écran Trading en trace la courbe, avec bascule équité / P&L et
+  sélecteur 1J / 1S / 1M / Tout (`Trading.svelte:96-120`).
 
-- Une fonction `netWorthSeries` qui produit, jour par jour : valeur brute des avoirs, passif,
-  **valeur nette**, apports nets cumulés, et un drapeau `estimated` quand un jour manque de cours.
-  Un jour sans cotation est **porté au coût et signalé**, jamais retiré : un trou dans la courbe se
-  lit comme une chute.
-- **Le trading entre par son equity, jamais par son notionnel** — un perp à 10× ne multiplie pas la
-  valeur nette par dix. La règle est écrite dans la décision associée pour ne pas se rediscuter.
-- Les **virements internes ne créent pas de marche** : `pairTransfers` existe et apparie déjà les
-  deux jambes ; la série s'appuie dessus.
+Le vrai obstacle est ailleurs, et il est de nature différente — c'est lui que ce plan doit traiter.
 
-**Prêt pour le futur — c'est ici que tout se joue.** La série est définie dès maintenant comme
+## P38.1 — Le vrai obstacle : deux séries de natures incompatibles
+
+|                 | Côté Investissement                            | Côté Trading                                                                                                                                         |
+| --------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Origine         | **calculée** du grand livre + cours quotidiens | **servie** telle quelle par la plateforme                                                                                                            |
+| Cadence         | strictement **quotidienne** (`DayString`)      | horodatages **irréguliers** (12:00, 00:00, …)                                                                                                        |
+| Profondeur      | première opération du grand livre              | **ouverture du compte Hyperliquid**                                                                                                                  |
+| Échantillonnage | un point par jour                              | **sous-échantillonné par la plateforme** — 41 points pour ~6 mois sur `allTime` (mesuré sur la fixture)                                              |
+| Consolidation   | naturelle, tous actifs confondus               | **impossible telle quelle** : `Trading.svelte:92` ne trace la courbe que s'il n'y a **qu'un seul compte**, faute d'horodatages alignés entre comptes |
+
+Additionner ces deux séries point à point est donc faux à trois titres : elles n'ont ni la même
+cadence, ni la même profondeur, ni la même granularité.
+
+## P38.2 — La décision de conception : rééchantillonner pour consolider, réconcilier pour prouver
+
+**Ce qui est fait.** La contribution du trading est ramenée au **pas quotidien** par
+`lastPointAtOrBefore` — la fonction existe déjà (`series.ts:86`, recherche dichotomique sur points
+triés) et c'est exactement la convention maison : `valueSeries` fait déjà porter au dernier prix
+connu, `fillGaps` fait déjà le report. Avant le premier point d'un compte, sa contribution vaut
+**zéro** : le compte n'existait pas, ce n'est pas une valeur manquante.
+
+**Ce qui n'est PAS fait, et c'est délibéré.** L'écran Trading **garde sa courbe exacte**, non
+rééchantillonnée. Son commentaire dit pourquoi : _« l'écraser à un point par jour déforme les
+épisodes violents »_. La courbe consolidée est **un autre objet, pour une autre question** —
+« combien vaut l'ensemble de mon patrimoine, jour après jour » et non « qu'a fait mon compte de
+trading cette semaine ». Les deux coexistent, et l'écart entre elles est assumé et écrit, pas
+masqué.
+
+**La preuve que le rééchantillonnage ne ment pas.** `compute.ts` réconcilie déjà
+`accountValue ≈ Σ flux + Σ closedPnl − Σ frais + Σ funding + latent` et **expose l'écart**
+(`{ expected, actual, gap }`). La courbe consolidée est donc vérifiable contre un calcul
+indépendant, dérivé du grand livre et non de la plateforme. Un écart matériel se signale au lieu
+de se fondre dans la courbe.
+
+## P38.3 — Prêt pour le futur : la forme de la série
+
+C'est ici que se joue la demande « prêt pour le futur ». La série est définie **dès maintenant**
+comme
 
 ```
 valeurNette(jour) = Σ contributions(jour) − Σ passifs(jour)
 ```
 
-où une **contribution** est une interface générique — un actif crypto valorisé par son cours _est
-un cas particulier_. `P36` (immobilier, AV, PER, objets, via `ValuationEvent`) et `P41` (actions et
-ETF) s'y branchent en ajoutant un producteur de contributions ; `P37` remplit le terme de passif,
-aujourd'hui constant à zéro. **Aucun de ces trois ne demandera de réécrire la courbe** — c'est
-exactement le sens de « prêt pour le futur » dans ta demande.
+où une **contribution** est une interface générique — `{ id, label, valueAt(day), firstDay }` — et
+où un actif crypto valorisé par son cours **n'est qu'un cas particulier**. Trois producteurs
+existent au départ : les avoirs d'investissement (`valueSeries`), chaque compte de trading
+(équité rééchantillonnée), et les avoirs on-chain. Le terme de passif est **constant à zéro**.
 
-**Fichiers** — `src/lib/history/net-worth.ts` (nouveau, moteur pur), son test colocalisé,
-`src/lib/history/index.ts` (ré-exports).
+Conséquence concrète : **P36** (immobilier, AV, PER, objets, via `ValuationEvent`) et **P41**
+(actions et ETF) s'y branchent en ajoutant un producteur ; **P37** remplit le terme de passif.
+Aucun des trois ne demande de réécrire la courbe. Sans cette forme, chacun exigerait une refonte —
+c'est la dette que P38 paie d'avance.
 
-## P38.2 — Le rendu
+## P38.4 — Le rendu
 
 **Décision : ne pas écrire un second graphique.** `EvolutionChart.svelte` (678 lignes) porte déjà
 les marqueurs d'achat/vente, les lignes de niveau, trois modes de couleur, le mode masqué
-(`fmtMasked`), la devise d'affichage et l'intraday. Un deuxième composant serait une divergence
-garantie. On ajoute un **mode** à l'existant.
+(`fmtMasked`), la devise d'affichage et l'intraday. Un deuxième composant divergerait. On ajoute un
+**mode** à l'existant, et `PeriodToggle` est réutilisé tel quel.
 
-- Courbe principale = valeur nette. Courbe secondaire = **apports nets cumulés**. L'écart entre les
-  deux _est_ le gain — c'est ce que montrent Finary et Ghostfolio, et c'est ce qui distingue cette
-  courbe d'un solde de compte, où un virement ressemble à une performance.
-- `PeriodToggle` existe et est réutilisé tel quel.
+- Courbe principale = **valeur nette**. Courbe secondaire = **apports nets cumulés** (`ValuePoint`
+  porte déjà `cost` du côté investissement ; `compute.ts` porte les flux du côté trading).
+  L'écart entre les deux **est** le gain — c'est ce que montrent Finary et Ghostfolio, et c'est ce
+  qui distingue cette courbe d'un solde de compte, où un virement ressemble à une performance.
+- Un jour sans cours est **porté au coût et marqué `estimated`**, jamais retiré : `valueSeries`
+  le fait déjà et remplit `missing`. Un trou se lit comme une chute — c'est le piège à éviter.
 - Emplacement : **Vue d'ensemble**, au-dessus des cartes des deux espaces.
 
-**Fichiers** — `src/components/charts/EvolutionChart.svelte` (mode ajouté),
-`src/components/charts/NetWorthCard.svelte` (nouveau, mince), `src/routes/Overview.svelte`.
+## P38.5 — Vérification
 
-## P38.3 — Vérification
-
-- **Le dernier point de la courbe égale au centime le total affiché par la Vue d'ensemble.** C'est
-  un contrôle de `src/lib/support/self-check.ts` et une assertion de `coherence.spec.ts`, qui
-  recoupe déjà les écrans entre eux.
-- Propriété (fast-check) : ajouter un dépôt déplace la courbe d'apports nets **exactement** du
-  montant déposé et **laisse l'indice de performance inchangé** — c'est la décision n° 41 rendue
+- **Le dernier point de la courbe égale au centime le total affiché par la Vue d'ensemble.**
+  Contrôle dans `self-check.ts` et assertion dans `coherence.spec.ts`, qui recoupe déjà les écrans
+  entre eux.
+- **Réconciliation** : pour chaque compte de trading, l'équité rééchantillonnée du dernier jour
+  concorde avec `compute.ts` à l'écart près déjà exposé par `reconcile`.
+- **Propriété** (fast-check) : ajouter un dépôt déplace la courbe d'apports nets **exactement** du
+  montant déposé et **laisse l'indice de performance inchangé** — la décision n° 41 rendue
   exécutable.
-- Un jour sans cours produit un point `estimated`, jamais un trou.
-
----
+- **Cas limite à couvrir explicitement** : deux comptes de trading aux horodatages disjoints. C'est
+  précisément ce que la plateforme ne sait pas consolider, et donc ce que ce module doit prouver.
 
 # P7 — Coût réel et spread implicite par opération
 

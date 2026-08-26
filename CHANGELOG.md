@@ -7,6 +7,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Courbe « Évolution de la valeur nette » sur la Vue d'ensemble (P38)** : ce que vous possédez
+  jour après jour, **investissement et trading réunis**, avec vos apports nets en second plan —
+  l'écart entre les deux courbes est votre gain. Un virement déplace les deux ensemble et ne
+  ressemble donc jamais à une performance, à la différence d'un solde de compte. Période
+  sélectionnable, mode discret et devise d'affichage respectés, et une phrase sous le graphique en
+  donne l'équivalent lisible à voix haute.
+  L'équité de trading, servie par la plateforme à des instants irréguliers, est **ramenée à un
+  point par jour** pour pouvoir s'additionner : la courbe de l'écran Trading, elle, reste non
+  amincie et demeure la référence pour lire un épisode violent. Un jour dont un compte n'a pas pu
+  être converti est signalé comme **incomplet** — le total y est trop bas, et non approché
+  (`docs/DECISIONS.md` n° 48).
+
 - **Section « Sources des données » dans les réglages (P8)** : les douze services que
   l'application interroge depuis votre navigateur, chacun avec son rôle et son lien. Trois d'entre
   eux imposent contractuellement une mention — CoinGecko, Etherscan et alternative.me — et elle est

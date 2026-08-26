@@ -565,3 +565,36 @@ test('l’estimation fiscale dit la même chose dans le constat et dans le table
   const rowAmount = /(\d[\d  ]*,\d{2}) €/.exec(plain(await row.innerText()))![1]!;
   expect(text).toContain(rowAmount);
 });
+
+/**
+ * P38 — la courbe de valeur nette et le bandeau de la Vue d'ensemble doivent finir sur le MÊME
+ * nombre. Ils ne le calculent pourtant pas de la même façon : le bandeau additionne la valeur du
+ * rapport et l'équité de l'instantané, la courbe additionne la série quotidienne du grand livre et
+ * l'équité de la plateforme rééchantillonnée au jour. Ces deux chemins se rejoignent parce que le
+ * dernier point de la courbe reprend l'instantané (`live`) — exactement comme `mergeLivePoint`
+ * remplace la clôture provisoire d'un cours. Sans ce test, la divergence serait invisible : deux
+ * montants plausibles, à deux endroits de la même page.
+ *
+ * **Portée exacte.** Sur la fixture, l'instantané vaut EXACTEMENT le dernier point servi par
+ * `portfolio` (`6034.8580085` des deux côtés) : le remplacement `live` y est un non-événement, et
+ * l'ôter ne fait PAS tomber ce test — vérifié par mutation. Ce test prouve l'accord des deux
+ * écrans ; c'est `net-worth.test.ts` qui prouve le mécanisme du remplacement, et lui échoue bien
+ * quand on l'ôte. Le dire évite de croire cette couverture plus large qu'elle n'est.
+ */
+test('la courbe de valeur nette finit sur le total de la Vue d’ensemble', async ({ page }) => {
+  await openDataset(page);
+  await page.goto('#/');
+  await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
+
+  const hero = page.locator('.trio > div').filter({ hasText: 'Valeur nette' }).locator('.big');
+  await expect(hero).toBeVisible();
+  const curve = page.getByTestId('net-worth-latest-value');
+  await expect(curve).toBeVisible();
+
+  const heroText = plain(await hero.innerText());
+  const curveText = plain(await curve.innerText());
+  // Le bandeau abrège au-delà de 100 000 (`compact`) : on compare alors à l'euro près, sinon au
+  // centime. Une valeur en millions (« 12,6 M ») n'est pas comparable et fait échouer franchement.
+  expect(abbreviated(heroText), 'valeur abrégée en millions : comparaison impossible').toBe(false);
+  expect(toNumber(curveText)).toBeCloseTo(toNumber(heroText), abbreviated(heroText) ? 0 : 1);
+});
