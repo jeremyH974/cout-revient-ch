@@ -11,6 +11,7 @@
  * garantie — la seule voie garantie app fermée reste un serveur push (docs/proposals/).
  */
 import {
+  isAlertExpired,
   alertThresholdEur,
   MIN_TRIGGER_GAP_MS,
   type AlertPositionInput,
@@ -91,6 +92,10 @@ export function buildAlertWatchSnapshot(input: BuildSnapshotInput): AlertWatchSn
   const rules: AlertWatchRule[] = [];
   for (const rule of input.rules) {
     if (!rule.enabled) continue;
+    // Le service worker ne sait comparer qu'un prix à un seuil : une règle EXPIRÉE ou portant une
+    // CONDITION COMPOSÉE (qui exige le contexte de marché) reste évaluée app ouverte seulement.
+    // C'est ce qui garde l'équivalence prouvée entre `decideFires` et `evaluateAlerts`.
+    if (isAlertExpired(rule, input.nowMs) || rule.gate) continue;
     const coingeckoId = input.idOverrides[rule.asset] ?? TICKERS[rule.asset]?.coingeckoId ?? null;
     if (!coingeckoId) continue;
     const position = input.positions[rule.asset] ?? null;

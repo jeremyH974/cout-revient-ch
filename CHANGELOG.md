@@ -5,6 +5,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.8.0] - 2026-08-26
+
+### Added
+
+- **Alertes v2 (P35)** : une règle peut désormais **expirer** (sans limite, 1, 2, 3 ou 6 mois — une
+  alerte oubliée finit par se déclencher pour une raison qui n’a plus rien à voir avec l’intention
+  de départ) et porter une **condition supplémentaire** sur l’indice Fear & Greed : les deux termes
+  doivent être vrais en même temps. Une condition non satisfaite bloque le déclenchement sans
+  désarmer la règle ; sans contexte de marché disponible, la règle reste dormante et le dit. Ces
+  règles sont évaluées **app ouverte seulement** : le service worker ne sait comparer qu’un prix à
+  un seuil. Décision n° 44.
+
 ## [2.7.0] - 2026-08-26
 
 ### Added

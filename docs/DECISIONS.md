@@ -717,3 +717,20 @@
     faux. La requête ne transporte aucune donnée de l'utilisateur — elle est identique pour tout le
     monde. Le stub E2E la sert en local (aucun test ne sort sur Internet) et le monitor vérifie le
     contrat des trois champs lus.
+44. **Une alerte peut expirer et porter une seconde condition, mais le service worker ne voit ni
+    l'une ni l'autre** (26/08/2026). Deux manques relevés par l'étude face à TradingView :
+    l'**expiration** (leur défaut est de deux mois — une alerte oubliée finit toujours par se
+    déclencher pour une raison étrangère à l'intention de départ) et les **conditions composées**.
+    L'app ajoute donc `expiresAt` (absolu, `null` = sans limite, choisi parmi des durées relatives)
+    et `gate`, une condition supplémentaire sur le contexte de marché (décision n° 43) : les deux
+    termes doivent être vrais ensemble. Trois règles de comportement : une règle expirée ne se
+    déclenche plus **mais garde son état** (retirer l'expiration ne doit pas la ré-armer par
+    surprise) ; une condition non satisfaite **bloque sans désarmer** (le seuil reste franchi, la
+    règle partira dès que le contexte suivra) ; et sans contexte disponible, une règle conditionnée
+    reste **dormante** — on ne déclenche pas une alerte dont la moitié des termes est invérifiable.
+    Conséquence structurante : ces règles sont **exclues de l'instantané du service worker**, qui
+    ne sait comparer qu'un prix à un seuil et ne peut vérifier ni une date au réveil ni un indice
+    externe. C'est ce qui préserve l'équivalence prouvée entre `decideFires` et `evaluateAlerts`
+    (décision n° 38), et l'interface le dit à la création. Enfin, les deux champs ne sont **écrits
+    dans la sauvegarde que s'ils portent une valeur** : une règle ordinaire garde exactement la
+    forme qu'elle avait, ce que vérifient les tests d'aller-retour.

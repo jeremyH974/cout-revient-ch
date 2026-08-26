@@ -6,7 +6,9 @@ import {
   alertDistance,
   alertThresholdEur,
   evaluateAlerts,
+  gateSatisfied,
   initialAlertState,
+  isAlertExpired,
   type AlertPositionInput,
   type AlertRule,
   type AlertRuleState,
@@ -272,5 +274,66 @@ describe('evaluateAlerts', () => {
         },
       ),
     );
+  });
+});
+
+describe('expiration et conditions composées (décision n° 44)', () => {
+  const NOW = 1_800_000_000_000;
+  const evaluateWith = (r: AlertRule, fearGreed: number | null = null, nowMs = NOW) =>
+    evaluateAlerts({
+      rules: [r],
+      states: { [r.id]: armed },
+      pricesEur: { btc: '80' },
+      positions: { btc: pos('100') },
+      fearGreed,
+      nowMs,
+    });
+
+  it('une règle sans date d’expiration ne se périme jamais', () => {
+    expect(isAlertExpired(rule(), NOW)).toBe(false);
+    expect(evaluateWith(rule()).fired).toHaveLength(1);
+  });
+
+  it('une règle expirée ne se déclenche plus, et son état reste intact', () => {
+    const expired = rule({ expiresAt: new Date(NOW - 1000).toISOString() });
+    expect(isAlertExpired(expired, NOW)).toBe(true);
+    const result = evaluateWith(expired);
+    expect(result.fired).toHaveLength(0);
+    // L'état est conservé : retirer l'expiration ne doit pas ré-armer par surprise.
+    expect(result.states[expired.id]).toEqual(armed);
+  });
+
+  it('une règle qui expire dans le futur se déclenche normalement', () => {
+    const later = rule({ expiresAt: new Date(NOW + 86_400_000).toISOString() });
+    expect(evaluateWith(later).fired).toHaveLength(1);
+  });
+
+  it('la condition composée bloque le déclenchement sans désarmer la règle', () => {
+    const gated = rule({ gate: { kind: 'fear-greed', direction: 'below', value: 20 } });
+    // Indice à 50 : le seuil de prix est franchi, mais pas la seconde condition.
+    const blocked = evaluateWith(gated, 50);
+    expect(blocked.fired).toHaveLength(0);
+    expect(blocked.states[gated.id]!.armed).toBe(true);
+    // Indice à 15 : les deux conditions sont vraies.
+    expect(evaluateWith(gated, 15).fired).toHaveLength(1);
+  });
+
+  it('sans contexte de marché, une règle conditionnée reste dormante', () => {
+    const gated = rule({ gate: { kind: 'fear-greed', direction: 'above', value: 70 } });
+    expect(evaluateWith(gated, null).fired).toHaveLength(0);
+    expect(evaluateWith(gated, 75).fired).toHaveLength(1);
+  });
+
+  it('gateSatisfied : bornes incluses, et faux dès que le contexte manque', () => {
+    const below = { kind: 'fear-greed', direction: 'below', value: 20 } as const;
+    expect(gateSatisfied(below, 20)).toBe(true);
+    expect(gateSatisfied(below, 21)).toBe(false);
+    const above = { kind: 'fear-greed', direction: 'above', value: 70 } as const;
+    expect(gateSatisfied(above, 70)).toBe(true);
+    expect(gateSatisfied(above, 69)).toBe(false);
+    expect(gateSatisfied(above, null)).toBe(false);
+    expect(gateSatisfied(above, Number.NaN)).toBe(false);
+    // Sans condition, rien ne bloque.
+    expect(gateSatisfied(null, null)).toBe(true);
   });
 });

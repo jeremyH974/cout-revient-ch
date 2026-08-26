@@ -1,5 +1,5 @@
 /** État persisté (localStorage + sauvegarde JSON), versionné. */
-import type { AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
+import type { AlertGate, AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
@@ -452,6 +452,7 @@ function sanitizeAlertRule(id: string, raw: unknown): AlertRule | null {
   if (typeof raw['repeat'] !== 'string' || !ALERT_REPEATS.has(raw['repeat'])) return null;
   const threshold = sanitizeAlertThreshold(raw['threshold']);
   if (!threshold) return null;
+  const gate = sanitizeAlertGate(raw['gate']);
   return {
     id,
     asset: raw['asset'],
@@ -461,7 +462,23 @@ function sanitizeAlertRule(id: string, raw: unknown): AlertRule | null {
     enabled: raw['enabled'] !== false,
     note: textOrEmpty(raw['note'], 200),
     createdAt: typeof raw['createdAt'] === 'string' ? raw['createdAt'] : '',
+    // Champs de la version 2.8.0 : ÉMIS SEULEMENT s'ils portent une valeur, pour qu'une règle
+    // ordinaire garde exactement la forme qu'elle avait dans les sauvegardes existantes.
+    // Une date illisible vaut « sans limite » : jamais une règle muette par accident.
+    ...(typeof raw['expiresAt'] === 'string' && Number.isFinite(Date.parse(raw['expiresAt']))
+      ? { expiresAt: raw['expiresAt'] }
+      : {}),
+    ...(gate === null ? {} : { gate }),
   };
+}
+
+/** Condition composée : rejetée en bloc au moindre doute (une règle sans condition se déclenche). */
+function sanitizeAlertGate(raw: unknown): AlertGate | null {
+  if (!isRecord(raw) || raw['kind'] !== 'fear-greed') return null;
+  if (typeof raw['direction'] !== 'string' || !ALERT_DIRECTIONS.has(raw['direction'])) return null;
+  const value = Number(raw['value']);
+  if (!Number.isFinite(value) || value < 0 || value > 100) return null;
+  return { kind: 'fear-greed', direction: raw['direction'] as AlertGate['direction'], value };
 }
 
 function sanitizeAlertRuleState(raw: unknown): AlertRuleState | null {

@@ -1,9 +1,14 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
-  import { alertDistance, alertThresholdEur, type AlertRule } from '$lib/domain/alerts';
+  import {
+    alertDistance,
+    alertThresholdEur,
+    isAlertExpired,
+    type AlertRule,
+  } from '$lib/domain/alerts';
   import { D, type Big, type DecimalString } from '$lib/domain/money';
-  import { fmtDateTime, fmtPct, fmtPrice, fmtRelative } from '$lib/format/fr';
+  import { fmtDate, fmtDateTime, fmtPct, fmtPrice, fmtRelative } from '$lib/format/fr';
   import {
     notifyPermission,
     requestNotifyPermission,
@@ -108,6 +113,14 @@
   }
   function statusOf(rule: AlertRule): RuleStatus {
     if (!rule.enabled) return { text: 'en pause', tone: 'muted' };
+    // L'expiration passe avant tout le reste : une règle périmée ne se déclenchera plus.
+    if (isAlertExpired(rule, nowMs()))
+      return {
+        text: `expirée le ${fmtDate(new Date(rule.expiresAt!).toISOString().slice(0, 10))}`,
+        tone: 'muted',
+      };
+    if (rule.gate && app.marketContext === null)
+      return { text: 'dormante — contexte de marché désactivé', tone: 'warn' };
     if (thresholdOf(rule) === null)
       return {
         text:
@@ -305,6 +318,13 @@
                 <span class="status {status.tone}">{status.text}</span>
               </p>
               {#if rule.note}<p class="muted small">{rule.note}</p>{/if}
+              {#if rule.gate}
+                <p class="muted small">
+                  Condition supplémentaire : indice Fear &amp; Greed
+                  {rule.gate.direction === 'below' ? 'au plus' : 'au moins'}
+                  {rule.gate.value}.
+                </p>
+              {/if}
             </div>
             <div class="rule-actions">
               {#if rule.enabled && !(app.state.alerts.states[rule.id]?.armed ?? true) && threshold !== null}

@@ -1631,6 +1631,8 @@ export class AppState {
       pricesEur: this.alertPricesEur(),
       positions: this.alertPositions,
       usdPerEur: this.usdPerEurToday,
+      // Contexte de marché : `null` si l'opt-in est décoché — les règles qui en dépendent dorment.
+      fearGreed: this.marketContext?.value ?? null,
       nowMs: nowMs(),
     });
     if (fired.length > 0) {
