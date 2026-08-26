@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { LedgerEvent, TradeEvent } from '../domain/types';
-import { convertEvents, convertQuotes, earliestDay, rateLookup, toEurConverter } from './convert';
+import {
+  convertEvents,
+  convertQuotes,
+  earliestDay,
+  rateLookup,
+  toEurAtDay,
+  toEurConverter,
+} from './convert';
 import { addDays, refreshRates } from './service';
 import { EMPTY_FX_CACHE, type FxProvider, type RateSeries } from './types';
 
@@ -147,5 +154,28 @@ describe('toEurConverter (prix cotés en dollars)', () => {
     const toEur = toEurConverter({ '2026-08-20': '1.25' }, '2026-08-20');
     expect(toEur('0.0000125')).toBe('0.00001');
     expect(toEur('80')).toBe('64');
+  });
+});
+
+describe('toEurAtDay (séries historiques cotées en dollars)', () => {
+  it('convertit chaque valeur au taux de son propre jour', () => {
+    const toEur = toEurAtDay({ '2026-08-18': '1.25', '2026-08-19': '2' });
+    expect(toEur('2026-08-18', '100')).toBe('80');
+    expect(toEur('2026-08-19', '100')).toBe('50');
+  });
+
+  it('reporte le dernier jour coté sur un jour sans taux (week-end, férié BCE)', () => {
+    const toEur = toEurAtDay({ '2026-08-19': '2' });
+    expect(toEur('2026-08-22', '100')).toBe('50'); // samedi → jeudi 19/08
+  });
+
+  it('renvoie null pour un jour sans taux disponible plutôt que de convertir de travers', () => {
+    expect(toEurAtDay({})('2026-08-20', '100')).toBeNull();
+    expect(toEurAtDay({ '2026-08-20': '0' })('2026-08-20', '100')).toBeNull();
+  });
+
+  it('donne le même résultat que toEurConverter pour un jour donné', () => {
+    const day = '2026-08-19';
+    expect(toEurAtDay(series)(day, '1000')).toBe(toEurConverter(series, day)('1000'));
   });
 });

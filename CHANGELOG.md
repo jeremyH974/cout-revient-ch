@@ -5,6 +5,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Historique de prix profond** : les courbes ne s'arrêtent plus à un an. Un quatrième
+  fournisseur (DefiLlama) complète Coinbase, Kraken et CoinGecko lorsque ceux-ci butent sur leur
+  profondeur — 365 jours pour CoinGecko, 721 points pour Kraken. Le rendement pondéré par le temps,
+  le repère, la section « Risque » et la fiche actif remontent désormais jusqu'à la première
+  opération du grand livre, y compris pour les actifs peu courants et ceux qui ne sont plus cotés.
+  Il est interrogé en dernier : les trois autres cotant nativement en euros, on leur laisse la
+  priorité et la conversion au taux BCE du jour n'intervient que sur ce qu'eux seuls ne couvrent
+  pas. Un jour sans taux de change laisse son point de côté plutôt que d'afficher une valeur
+  approximative (docs/DECISIONS.md n° 42).
+
 ## [2.5.0] - 2026-08-26
 
 ### Added

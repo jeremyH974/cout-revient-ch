@@ -4,6 +4,7 @@ export {
   convertQuotes,
   earliestDay,
   rateLookup,
+  toEurAtDay,
   toEurConverter,
   type RateLookup,
 } from './convert';

@@ -85,6 +85,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   api.coingecko.com, api.coinbase.com, api.exchange.coinbase.com, api.kraken.com,
   api.hyperliquid.xyz, wss://api.hyperliquid.xyz, coins.llama.fi, api.frankfurter.dev/.app,
   mempool.space, eth/arbitrum/base.blockscout.com (ces deux derniers pour `import/onchain`).
+- `src/lib/history` — séries de prix **quotidiennes en euros** par actif (`DailyPoint.priceEur`),
+  socle du TWR, du repère et de la fiche actif. Cache IndexedDB ne comblant que les bords manquants
+  (`service.ts` : `probedFrom` mémorise une absence déjà constatée, `fillGaps` reporte la dernière
+  valeur connue). Quatre fournisseurs interrogés **dans l'ordre**, chacun ne recevant que ce que les
+  précédents n'ont pas couvert : Coinbase Exchange (profondeur illimitée, paire `-EUR`, 300 bougies
+  par requête), Kraken (721 points), CoinGecko (365 jours, `vs_currency=eur`), puis **DefiLlama**
+  (`providers/defillama.ts` : profondeur illimitée — BTC remonte à 2013 —, `/chart` paginé par
+  fenêtres de 500 points ancrées à midi UTC, `confidence` au niveau de la série). DefiLlama est le
+  seul fournisseur coté en **dollars** : sa conversion au taux BCE du jour est **injectée** depuis
+  `state/history.svelte.ts` (série `fx.rates.USD`, chargée quelle que soit la devise d'affichage) et
+  un jour sans taux voit son point omis plutôt que converti de travers. Décision n° 42.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, sauvegarde JSON et fusion.
   Persistance à deux étages (docs/DECISIONS.md n° 21) : `idb-state-store.ts` (IndexedDB, base
   `crch-state`, source principale, sans le plafond ~5 Mo de localStorage) et `local-storage.ts`
