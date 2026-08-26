@@ -1,5 +1,5 @@
 /**
- * Courbe de **valeur nette** consolidée (P38, décision n° 48).
+ * Courbe de **valeur nette** consolidée (P38, décision n° 51).
  *
  * La série est définie dès l'origine comme
  *

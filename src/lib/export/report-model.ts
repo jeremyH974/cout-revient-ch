@@ -16,7 +16,8 @@ import type { TwrResult } from '../domain/twr';
 import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import type { Insight } from '../domain/insights';
 import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
-import { EXEMPTION_THRESHOLD, type TaxLedger } from '../domain/tax-fr';
+import { MIN_SPREAD_SAMPLES, type SpreadEstimate } from '../domain/spread';
+import { EXEMPTION_THRESHOLD, type Dac8Year, type TaxLedger } from '../domain/tax-fr';
 import {
   MASK,
   fmtDate,
@@ -116,6 +117,8 @@ export interface ReportModel {
   risk: { title: string; details: ReportKpi[]; note: string } | null;
   /** Fiscalité française : estimation par millésime, méthode globale de l'article 150 VH bis. */
   tax: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
+  /** Coût réel des opérations : commissions payées et spread implicite estimé. */
+  spread: { title: string; details: ReportKpi[]; note: string } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
   subscription: { title: string; details: ReportKpi[]; note: string } | null;
   allocation: ReportTable;
@@ -150,6 +153,10 @@ export interface ReportModelOptions {
   risk?: RiskMetrics | null | undefined;
   /** Estimation fiscale française (décision n° 43), calculée par l'appelant. Toujours en euros. */
   tax?: TaxLedger | null | undefined;
+  /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
+  spread?: SpreadEstimate | null | undefined;
+  /** Récapitulatif DAC8 de l’année en cours (décision n° 50), calculé par l’appelant. */
+  dac8?: Dac8Year | null | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -637,11 +644,92 @@ function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): Report
 }
 
 /**
+ * Coût réel des opérations (décision n° 49) : la commission facturée, que l'export donne, PLUS le
+ * spread implicite, qu'il faut estimer. La note porte la précaution méthodologique — sans elle, un
+ * pourcentage sorti d'une comparaison à un cours quotidien passerait pour une mesure.
+ */
+function spreadSection(
+  spread: SpreadEstimate | null | undefined,
+  report: PortfolioReport,
+  f: Formatter,
+): ReportModel['spread'] {
+  if (!spread) return null;
+  const commissions = report.totals.feesEur;
+  const estimated = D(spread.estimatedCostEur);
+  // Un spread NÉGATIF veut dire que les prix relevés ont été plus favorables que la référence : ce
+  // n'est pas un gain à déduire des commissions, qui ont bien été payées. On ne retranche jamais.
+  const favourable = estimated.lt(ZERO);
+  const details: ReportKpi[] = [
+    {
+      label: 'Commissions payées',
+      value: f.money(commissions),
+      tone: 'neutral',
+      hint: 'montant facturé, lu dans l’export — ce n’est pas une estimation',
+    },
+    {
+      label: 'Spread implicite estimé',
+      value: spread.samples === 0 || favourable ? NONE : f.money(estimated),
+      tone: 'neutral',
+      hint:
+        spread.samples === 0
+          ? 'aucune opération comparable à un cours de référence'
+          : favourable
+            ? `aucun spread défavorable mesuré : les prix relevés ont été en moyenne plus favorables que le cours de référence (${f.pct(D(spread.medianDeviation ?? '0'), true)} sur ${plural(spread.samples, 'opération', 'opérations')})`
+            : `${f.pct(D(spread.medianDeviation ?? '0'), false)} de ${plural(spread.samples, 'opération comparée', 'opérations comparées')}, appliqué à ${f.money(D(spread.volumeEur))} de volume`,
+    },
+    {
+      label: 'Coût total estimé',
+      value: f.money(
+        spread.samples === 0 || favourable ? commissions : commissions.plus(estimated),
+      ),
+      tone: 'neutral',
+      hint:
+        spread.samples === 0 || favourable
+          ? 'commissions facturées seules — un spread favorable ne s’en retranche pas'
+          : 'commissions facturées + spread estimé',
+    },
+  ];
+  const top = spread.byAsset[0];
+  // Ne se dit « le plus coûteux » que s'il coûte : sinon la ligne contredit son propre libellé.
+  if (top && D(top.estimatedCostEur).gt(ZERO))
+    details.push({
+      label: 'Actif le plus coûteux',
+      value: top.asset.toUpperCase(),
+      tone: 'neutral',
+      hint: `${f.pct(D(top.medianDeviation), false)} sur ${plural(top.samples, 'opération', 'opérations')}, soit ${f.money(D(top.estimatedCostEur))} estimés`,
+    });
+
+  const skipped =
+    spread.skipped.noQuotePrice + spread.skipped.notEurQuoted + spread.skipped.noReference;
+  return {
+    title: 'Coût réel des opérations (estimation)',
+    details,
+    note:
+      'Le spread est l’écart entre le prix affiché par la plateforme et le cours de référence du ' +
+      'marché : un coût réel, absent de la grille tarifaire comme du relevé. Il est estimé ici en ' +
+      'comparant chaque opération au cours de CLÔTURE de sa journée, ce qui mêle au spread le ' +
+      'mouvement du marché pendant la journée — souvent plus grand que lui. C’est pourquoi aucun ' +
+      'chiffre par opération n’est affiché : seule la MÉDIANE est retenue, parce que le bruit ' +
+      'journalier s’annule à peu près et qu’un écart systématiquement défavorable, lui, subsiste. ' +
+      (spread.reliable
+        ? ''
+        : `Avec ${plural(spread.samples, 'opération comparée', 'opérations comparées')} seulement, l’estimation reste fragile : elle demande au moins ${MIN_SPREAD_SAMPLES} opérations pour valoir quelque chose. `) +
+      (skipped > 0
+        ? `${plural(skipped, 'opération n’a pas pu être comparée', 'opérations n’ont pas pu être comparées')} (cotation absente, cotation dans une autre devise, ou cours du jour manquant).`
+        : ''),
+  };
+}
+
+/**
  * Fiscalité française (décision n° 43) — **estimation**, et rien d'autre. Les montants restent en
  * EUROS même si l'app affiche en dollars : c'est une obligation française. Le mode discret masque
  * quand même les montants, ce sont des montants.
  */
-function taxSection(tax: TaxLedger | null | undefined, discreet: boolean): ReportModel['tax'] {
+function taxSection(
+  tax: TaxLedger | null | undefined,
+  discreet: boolean,
+  dac8: Dac8Year | null | undefined,
+): ReportModel['tax'] {
   if (!tax || tax.years.length === 0) return null;
   const eur = (value: DecimalString | Big, sign = false): string =>
     discreet ? MASK : fmtMoney(D(value), 'EUR', { sign });
@@ -679,6 +767,14 @@ function taxSection(tax: TaxLedger | null | undefined, discreet: boolean): Repor
     tone: 'neutral',
     hint: 'base de la prochaine cession — celui du PORTEFEUILLE, sans rapport avec le PRU par actif',
   });
+  // Réconciliation DAC8 : ce que la plateforme fera remonter, pour le comparer à ce qu'on voit.
+  if (dac8 && dac8.lines.length > 0)
+    details.push({
+      label: `${dac8.year} · cessions brutes déclarables (DAC8)`,
+      value: eur(dac8.totalProceedsEur),
+      tone: 'neutral',
+      hint: `${plural(dac8.lines.length, 'actif concerné', 'actifs concernés')} · ${eur(dac8.totalAcquisitionsEur)} d’acquisitions — à comparer à ce que la plateforme déclarera`,
+    });
 
   const warnings: string[] = [];
   if (tax.unknownGlobalValue > 0)
@@ -982,7 +1078,8 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     summary: { title: 'Synthèse', kpis, details },
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
-    tax: taxSection(opts.tax, opts.discreet),
+    tax: taxSection(opts.tax, opts.discreet, opts.dac8),
+    spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),
     positions: positionsTable(

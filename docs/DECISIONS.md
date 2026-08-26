@@ -797,8 +797,63 @@
     logos : `NO_ICON` motive chaque ticker sans logo, et `icons.test.ts` exige que chaque entrée de
     `TICKERS` soit tranchée dans un sens ou dans l'autre — un badge d'initiales cesse d'être
     l'indice ambigu d'un choix ou d'un oubli.
+48. **Serveur MCP local en lecture seule, écrit sans aucune dépendance** (26/08/2026). Le serveur
+    lit une SAUVEGARDE de l'app et rejoue le pipeline existant (assemblage du grand livre,
+    appariement des virements, `computePortfolio`) : il n'existe pas de « calcul du MCP » qui
+    pourrait diverger de l'écran. Quatre choix structurants. **(a) Lecture seule par
+    construction** : aucun chemin d'écriture, aucun ordre, tous les outils annotés `readOnlyHint`
+    et `destructiveHint: false` — un test échoue si un nom d'outil évoque une écriture. **(b) La
+    provenance accompagne CHAQUE réponse** (date de la sauvegarde, date des cours, mention « aucune
+    source en ligne ») : le risque propre à ce genre d'outil est qu'un chiffre juste hier soit
+    présenté comme actuel, et c'est le seul garde-fou qui tienne — un test a d'ailleurs attrapé un
+    outil dont la note propre écrasait celle de la provenance. **(c) Transport écrit à la main** :
+    la surface utile du protocole tient en quatre méthodes (`initialize`, `ping`, `tools/list`,
+    `tools/call`), et le projet paie assez cher sa vigilance sur la chaîne d'approvisionnement npm
+    (décisions et parades de la feuille de route) pour ne pas ajouter un arbre de dépendances au
+    profit d'un outil annexe — même arbitrage que l'anneau SVG plutôt qu'une bibliothèque de
+    graphiques. La négociation de version répond la version demandée si elle est connue, sinon la
+    nôtre, comme l'exige la spécification. **(d) Un build Vite malgré Node 24** : Node exécute
+    désormais TypeScript nativement et `erasableSyntaxOnly` était déjà satisfait, mais `src/lib`
+    importe sans extension de fichier, ce que le résolveur ESM refuse ; imposer des extensions à
+    toute l'app pour le confort d'un outil annexe coûterait plus cher qu'un `npm run mcp:build` qui
+    n'ajoute aucune dépendance. Le serveur se tait sur ce qu'il ne peut pas savoir : sans historique
+    de prix, ni repère, ni mesure de risque, ni estimation fiscale — les règles concernées ne
+    produisent rien plutôt qu'un chiffre partiel.
+49. **Le spread implicite s'estime en médiane, sur un agrégat, ou pas du tout** (26/08/2026).
+    Coinhouse n'affiche aucun spread et répond publiquement que son prix est « une moyenne entre le
+    prix d'achat et de vente » : l'écart au cours de référence est donc un coût réel, absent de la
+    grille comme du relevé. Le seul cours de référence dont l'app dispose sur tout l'historique est
+    QUOTIDIEN, alors qu'une opération a lieu à un instant précis — la comparaison opération par
+    opération est dominée par le mouvement de la journée, souvent plus grand que le spread cherché.
+    D'où trois règles. **(a) Aucun chiffre par opération n'est affiché** : le module agrège, parce
+    que le bruit intrajournalier est à peu près symétrique et s'annule en médiane, là où un écart
+    systématiquement défavorable subsiste. **(b) La médiane, pas la moyenne** : un test montre
+    qu'une seule journée aberrante suffit à emporter la moyenne au-delà de 10 % pendant que la
+    médiane reste sur le 1 % réel. **(c) Des seuils d'échantillon** : 20 opérations pour que
+    l'estimation globale se déclare fiable, 5 par actif pour figurer dans la ventilation — sans
+    quoi « l'actif le plus coûteux » se calcule sur une opération, ce que l'affichage a
+    effectivement produit avant correction. Deux garde-fous d'affichage, découverts en regardant
+    l'écran : un spread NÉGATIF (plateforme plus favorable que la référence) **ne se retranche
+    jamais des commissions**, qui ont bien été payées, et un actif ne se dit « le plus coûteux »
+    que s'il coûte. Les opérations cotées dans une autre devise que l'euro sont écartées et
+    comptées : les convertir ajouterait le bruit du change à celui de la journée, pour une mesure
+    qui vise justement quelques dixièmes de pour cent. Un cours REPORTÉ (jour sans cotation) est
+    écarté lui aussi.
+50. **Le 2086 est une AIDE AU REPORT, exportée en CSV, et la réconciliation DAC8 sert à comparer,
+    pas à déclarer** (26/08/2026). Le moteur fiscal (décision n° 43) produit déjà, par cession,
+    exactement les colonnes du formulaire : date, prix de cession, valeur globale du portefeuille,
+    prix total d'acquisition, fraction imputée, plus-value. Le rapport les exporte donc en CSV
+    plutôt que de les imprimer dans le PDF — une liste de cessions se travaille dans un tableur, pas
+    sur une page. **Une colonne « Estimation complète » dit, LIGNE PAR LIGNE, ce qui n'a pas pu être
+    chiffré** (valeur du portefeuille inconnue ce jour-là) : un fichier destiné à être recopié dans
+    une déclaration ne doit jamais laisser croire qu'une case vide vaut zéro. Le récapitulatif DAC8
+    (`dac8Summary`) agrège l'année par actif — cessions brutes, unités, acquisitions — dans la forme
+    que les plateformes feront remonter à partir des opérations 2026 : il sert à VÉRIFIER ce que
+    Coinhouse déclarera, jamais à déclarer soi-même. Les échanges en sursis n'y figurent pas, ce
+    qui est justement le point à contrôler. L'ensemble reste sous le même avertissement que la
+    décision n° 43 : estimation, ni déclaration ni conseil fiscal.
 
-48. **La valeur nette est `Σ contributions − Σ passifs` dès l'origine, et l'équité de trading y
+51. **La valeur nette est `Σ contributions − Σ passifs` dès l'origine, et l'équité de trading y
     entre RÉÉCHANTILLONNÉE au jour** (26/08/2026). Deux décisions en une, prises ensemble parce
     qu'elles se répondent.
 

@@ -30,3 +30,4 @@ docs/CH_-GrilleTarifaire*.pdf
 
 # Claude Code (réglages locaux)
 .claude/settings.local.json
+mcp/dist/

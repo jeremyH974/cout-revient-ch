@@ -3,6 +3,7 @@ import { D } from './money';
 import {
   EXEMPTION_THRESHOLD,
   computeFrenchTax,
+  dac8Summary,
   previewCession,
   rateFor,
   taxKindOf,
@@ -267,5 +268,44 @@ describe('previewCession — l’aperçu avant de vendre', () => {
   it('refuse de deviner sans valeur globale ni produit', () => {
     expect(previewCession({ ...args, globalValueEur: D('0') })).toBeNull();
     expect(previewCession({ ...args, proceedsEur: D('0') })).toBeNull();
+  });
+});
+
+describe('dac8Summary — contrôler ce que la plateforme déclarera', () => {
+  const events = [
+    buy('2026-01-01T10:00:00', 'btc', '10000'),
+    buy('2026-02-01T10:00:00', 'eth', '4000'),
+    sell('2026-05-01T10:00:00', 'btc', '5000'),
+    sell('2026-06-01T10:00:00', 'btc', '3000'),
+    // Sursis : jamais déclaré comme cession, ni comme acquisition en euros.
+    trade('2026-07-01T10:00:00', 'btc', 'usdc', '2000'),
+    // Une autre année : hors périmètre.
+    sell('2025-05-01T10:00:00', 'btc', '9999'),
+  ];
+
+  it('agrège par actif les cessions et les acquisitions de l’année', () => {
+    const summary = dac8Summary(events, 2026);
+    const btc = summary.lines.find((l) => l.asset === 'btc')!;
+    expect(btc.disposals).toBe(2);
+    expect(btc.grossProceedsEur).toBe('8000');
+    // Deux ventes d'une unité chacune dans les fixtures.
+    expect(btc.units).toBe('2');
+    expect(btc.acquisitions).toBe(1);
+    expect(btc.acquisitionsEur).toBe('10000');
+    const eth = summary.lines.find((l) => l.asset === 'eth')!;
+    expect(eth.disposals).toBe(0);
+    expect(eth.acquisitionsEur).toBe('4000');
+    expect(summary.totalProceedsEur).toBe('8000');
+    expect(summary.totalAcquisitionsEur).toBe('14000');
+  });
+
+  it('classe du plus gros produit de cession au plus petit', () => {
+    expect(dac8Summary(events, 2026).lines[0]!.asset).toBe('btc');
+  });
+
+  it('ignore les autres années et rend un récapitulatif vide sans opération', () => {
+    expect(dac8Summary(events, 2024).lines).toEqual([]);
+    expect(dac8Summary(events, 2024).totalProceedsEur).toBe('0');
+    expect(dac8Summary(events, 2025).lines[0]!.grossProceedsEur).toBe('9999');
   });
 });

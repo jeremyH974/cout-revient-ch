@@ -44,7 +44,7 @@
 > valeur nette consolidée (avec P28), le rapport 2086 et la réconciliation DAC8 (P13), le spread
 > implicite par opération (P7), et le serveur MCP local (proposition du 25/08).
 >
-> **P38 (courbe de valeur nette consolidée) est livré** le 26/08/2026 — décision n° 48. Au passage,
+> **P38 (courbe de valeur nette consolidée) est livré** le 26/08/2026 — décision n° 51. Au passage,
 > le motif du report était **faux** : l'historique d'équité de trading n'était pas « inexistant »,
 > il est récupéré à chaque synchronisation depuis le point d'entrée `portfolio` d'Hyperliquid,
 > persisté, et déjà tracé sur l'écran Trading. Le vrai obstacle était l'incompatibilité des deux

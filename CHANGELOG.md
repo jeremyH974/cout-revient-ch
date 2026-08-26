@@ -17,7 +17,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   point par jour** pour pouvoir s'additionner : la courbe de l'écran Trading, elle, reste non
   amincie et demeure la référence pour lire un épisode violent. Un jour dont un compte n'a pas pu
   être converti est signalé comme **incomplet** — le total y est trop bas, et non approché
-  (`docs/DECISIONS.md` n° 48).
+  (`docs/DECISIONS.md` n° 51).
 
 - **Section « Sources des données » dans les réglages (P8)** : les douze services que
   l'application interroge depuis votre navigateur, chacun avec son rôle et son lien. Trois d'entre
@@ -44,6 +44,44 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - Dependabot ne propose plus TypeScript 7 : `svelte-check`, qui **est** notre vérificateur de
   types, borne son pair à TypeScript 6 et `npm ci` échoue avant toute compilation. La majeure 6
   reste proposée ; l'exclusion tombe dès que `svelte-check` accepte la 7.
+
+## [2.12.0] - 2026-08-26
+
+### Added
+
+- **Cessions au format 2086 (P13)** : un bouton du rapport exporte vos cessions imposables en CSV,
+  dans l’ordre des colonnes du formulaire (date, prix de cession, valeur globale du portefeuille,
+  prix total d’acquisition, plus-value). Une colonne dit **ligne par ligne** ce qui n’a pas pu être
+  chiffré, pour qu’une case vide ne passe jamais pour un zéro. **Aide au report, pas une
+  déclaration.**
+- **Réconciliation DAC8** : le rapport récapitule vos cessions brutes et acquisitions de l’année
+  par actif, dans la forme que les plateformes feront remonter à l’administration à partir des
+  opérations 2026 — de quoi comparer avec ce que Coinhouse déclarera. Décision n° 50.
+
+## [2.11.0] - 2026-08-26
+
+### Added
+
+- **Coût réel des opérations (P7)** : le rapport estime désormais le **spread implicite** — cet
+  écart entre le prix affiché par Coinhouse et le cours du marché, absent de la grille tarifaire
+  comme de votre relevé. Il est présenté à côté des commissions facturées, avec un coût total.
+  Méthode assumée : la comparaison se fait sur des cours de clôture quotidiens, donc seule la
+  **médiane sur un grand nombre d’opérations** est retenue — jamais un chiffre par opération, qui
+  ne mesurerait que le mouvement du marché ce jour-là. Sous 20 opérations comparables,
+  l’estimation se déclare fragile ; un spread favorable ne vient jamais en déduction des
+  commissions payées. Décision n° 49.
+
+## [2.10.0] - 2026-08-26
+
+### Added
+
+- **Serveur MCP local** : Claude (Code ou Desktop) peut désormais LIRE votre portefeuille et
+  répondre à « quel est mon PRU sur BTC ? », « combien de frais cette année ? », « que donnerait la
+  vente de la moitié à 90 000 € ? ». Rien ne quitte votre machine : le serveur lit une sauvegarde
+  de l’app, calcule avec le même moteur et n’ouvre aucune connexion réseau. Sept outils, tous en
+  **lecture seule** (aucun ordre, aucune écriture), et chaque réponse porte la date de la
+  sauvegarde et celle des cours utilisés. Aucune dépendance ajoutée : le transport du protocole
+  est écrit à la main. Détail : docs/mcp.md, décision n° 48.
 
 ## [2.9.0] - 2026-08-26
 

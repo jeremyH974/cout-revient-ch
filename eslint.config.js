@@ -10,6 +10,8 @@ export default ts.config(
     ignores: [
       'dist/',
       'dev-dist/',
+      // Bundle du serveur MCP : code généré, jamais relu à la main.
+      'mcp/dist/',
       'coverage/',
       'node_modules/',
       'playwright-report/',
