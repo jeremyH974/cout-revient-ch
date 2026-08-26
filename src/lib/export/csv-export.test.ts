@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { cessionsToCsv } from './csv-export';
+import { computeFrenchTax } from '../domain/tax-fr';
 import { computePortfolio } from '../domain/engine';
 import { D } from '../domain/money';
-import { DEFAULT_ENGINE_SETTINGS, type TradeEvent } from '../domain/types';
+import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
 import { lotsToCsv, operationsToCsv, positionsToCsv, seriesToCsv } from './csv-export';
 
 const base = (id: string) => ({
@@ -153,5 +155,75 @@ describe('exports CSV', () => {
     expect(rows[0]).toMatch(/^Instant;/);
     expect(rows[1]).toBe('"2026-08-22T12:30:00.000Z";250;150;100;66,67;1;250;150');
     expect(rows[2]).toBe('"2026-08-22T12:45:00.000Z";150;150;0;0;1;;150');
+  });
+});
+
+describe('cessionsToCsv — colonnes du formulaire 2086', () => {
+  const events: LedgerEvent[] = [
+    {
+      id: 'e1',
+      at: '2026-01-01T10:00:00',
+      source: 'manual',
+      scope: 'coinhouse',
+      accountId: 'ch:main',
+      rowKeys: [],
+      warnings: [],
+      kind: 'trade',
+      out: { asset: 'eur', qty: '10000' },
+      in: { asset: 'btc', qty: '1' },
+      valueEur: '10000',
+      valueEurSource: 'manual',
+      fee: null,
+      quotePrice: null,
+    },
+    {
+      id: 'e2',
+      at: '2026-06-01T10:00:00',
+      source: 'manual',
+      scope: 'coinhouse',
+      accountId: 'ch:main',
+      rowKeys: [],
+      warnings: [],
+      kind: 'trade',
+      out: { asset: 'btc', qty: '0.5' },
+      in: { asset: 'eur', qty: '5000' },
+      valueEur: '5000',
+      valueEurSource: 'manual',
+      fee: null,
+      quotePrice: null,
+    },
+  ];
+
+  it('rend une ligne par cession, dans l’ordre des colonnes du formulaire', () => {
+    const ledger = computeFrenchTax({
+      events,
+      closingValueAt: (day) => (day === '2026-06-01' ? D('15000') : null),
+    });
+    const lines = cessionsToCsv(ledger).trimEnd().split('\r\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('Valeur globale du portefeuille');
+    expect(lines[0]).toContain("Prix total d'acquisition");
+    const cells = lines[1]!.split(';');
+    expect(cells[0]).toBe('"01/06/2026"');
+    expect(cells[1]).toBe('5000');
+    // Valeur globale reconstituée : clôture 15 000 + 5 000 encaissés.
+    expect(cells[2]).toBe('20000');
+    expect(cells[3]).toBe('10000');
+    expect(cells[5]).toBe('2500');
+    expect(cells[6]).toBe('"oui"');
+  });
+
+  it('dit ligne par ligne ce qui n’a pas pu être chiffré, au lieu d’inventer', () => {
+    const blind = computeFrenchTax({ events });
+    const cells = cessionsToCsv(blind).trimEnd().split('\r\n')[1]!.split(';');
+    expect(cells[2]).toBe('"inconnue"');
+    expect(cells[5]).toBe('"—"');
+    expect(cells[6]).toContain('non');
+  });
+
+  it('peut se limiter à un millésime', () => {
+    const ledger = computeFrenchTax({ events, closingValueAt: () => D('15000') });
+    expect(cessionsToCsv(ledger, 2025).trimEnd().split('\r\n')).toHaveLength(1);
+    expect(cessionsToCsv(ledger, 2026).trimEnd().split('\r\n')).toHaveLength(2);
   });
 });

@@ -3,6 +3,7 @@ import { nowIso, nowMs } from '$lib/clock';
 import { isFiat } from '$lib/domain/assets';
 import type { PositionReport } from '$lib/domain/engine';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
+import { estimateSpread, type SpreadEstimate } from '$lib/domain/spread';
 import { computeFrenchTax, type TaxLedger } from '$lib/domain/tax-fr';
 import type { AssetCode } from '$lib/domain/types';
 import { toEurAtDay } from '$lib/fx';
@@ -17,6 +18,7 @@ import {
   holdingStep,
   holdingsByDay,
   isEurPegged,
+  lastPointAtOrBefore,
   loadDailyHistory,
   loadIntraday,
   mergeLivePoint,
@@ -366,6 +368,21 @@ export class HistoryState {
       events: app.events,
       closingValueAt: (day) => closingByDay[day] ?? null,
       annotations,
+    });
+  }
+
+  /**
+   * Spread implicite (décision n° 49) : compare le prix affiché par Coinhouse au cours de
+   * référence du jour. Un point REPORTÉ (`filled` : jour sans cotation) est écarté — comparer une
+   * opération à un cours de la veille ajouterait un jour entier de mouvement au bruit mesuré.
+   */
+  spread(): SpreadEstimate {
+    return estimateSpread(app.events, (asset, day) => {
+      const points = this.histories[asset]?.points;
+      if (!points) return null;
+      const point = lastPointAtOrBefore(points, day);
+      if (!point || point.day !== day || point.filled === true) return null;
+      return D(point.priceEur);
     });
   }
 

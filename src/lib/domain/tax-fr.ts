@@ -21,7 +21,7 @@
  */
 import { isFiat } from './assets';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from './money';
-import type { EventId, LedgerEvent, NaiveDateTime } from './types';
+import type { AssetCode, EventId, LedgerEvent, NaiveDateTime } from './types';
 
 /**
  * Prélèvement forfaitaire unique par millésime de cession. La CSG patrimoine étant passée à
@@ -301,6 +301,77 @@ function summarizeYears(cessions: readonly TaxCession[]): TaxYear[] {
         unknownGlobalValue: unknown,
       };
     });
+}
+
+/**
+ * Récapitulatif façon DAC8 (décision n° 50) : ce qu'une plateforme déclarera à l'administration à
+ * partir des opérations 2026 (montants bruts, unités, nombre de transactions, par actif et par an).
+ * Sert à COMPARER ce que l'app voit à ce que Coinhouse déclarera — pas à déclarer soi-même.
+ */
+export interface Dac8AssetLine {
+  asset: AssetCode;
+  /** Nombre d'opérations imposables (cessions vers une monnaie ayant cours légal). */
+  disposals: number;
+  /** Σ des prix de cession bruts, en euros. */
+  grossProceedsEur: DecimalString;
+  /** Σ des quantités cédées. */
+  units: DecimalString;
+  /** Nombre d'acquisitions de l'année (les plateformes déclarent aussi les entrées). */
+  acquisitions: number;
+  acquisitionsEur: DecimalString;
+}
+
+export interface Dac8Year {
+  year: number;
+  lines: Dac8AssetLine[];
+  totalProceedsEur: DecimalString;
+  totalAcquisitionsEur: DecimalString;
+}
+
+/** Agrège les opérations d'une année par actif, dans la forme que DAC8 fait remonter. */
+export function dac8Summary(events: readonly LedgerEvent[], year: number): Dac8Year {
+  const byAsset = new Map<AssetCode, Dac8AssetLine>();
+  const line = (asset: AssetCode): Dac8AssetLine => {
+    const existing = byAsset.get(asset);
+    if (existing) return existing;
+    const created: Dac8AssetLine = {
+      asset,
+      disposals: 0,
+      grossProceedsEur: '0',
+      units: '0',
+      acquisitions: 0,
+      acquisitionsEur: '0',
+    };
+    byAsset.set(asset, created);
+    return created;
+  };
+
+  for (const event of events) {
+    if (event.kind !== 'trade' || yearOf(event.at) !== year) continue;
+    const kind = taxKindOf(event);
+    if (kind === 'cession') {
+      const entry = line(event.out.asset);
+      entry.disposals++;
+      entry.grossProceedsEur = toDecimalString(D(entry.grossProceedsEur).plus(event.valueEur));
+      entry.units = toDecimalString(D(entry.units).plus(event.out.qty));
+    } else if (kind === 'acquisition') {
+      const entry = line(event.in.asset);
+      entry.acquisitions++;
+      entry.acquisitionsEur = toDecimalString(D(entry.acquisitionsEur).plus(event.valueEur));
+    }
+  }
+
+  const lines = [...byAsset.values()].sort((a, b) =>
+    D(b.grossProceedsEur).cmp(D(a.grossProceedsEur)),
+  );
+  return {
+    year,
+    lines,
+    totalProceedsEur: toDecimalString(lines.reduce((acc, l) => acc.plus(l.grossProceedsEur), ZERO)),
+    totalAcquisitionsEur: toDecimalString(
+      lines.reduce((acc, l) => acc.plus(l.acquisitionsEur), ZERO),
+    ),
+  };
 }
 
 export interface CessionPreviewInput {

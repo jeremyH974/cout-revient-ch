@@ -417,6 +417,11 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     for (const warning of model.tax.warnings) paragraph(`• ${warning}`, 8.5, COLOR.muted);
     paragraph(model.tax.note, 8.5, COLOR.muted);
   }
+  if (model.spread) {
+    sectionTitle(model.spread.title);
+    detailsTable(model.spread.details);
+    paragraph(model.spread.note, 8.5, COLOR.muted);
+  }
   if (model.subscription) {
     sectionTitle(model.subscription.title);
     detailsTable(model.subscription.details);

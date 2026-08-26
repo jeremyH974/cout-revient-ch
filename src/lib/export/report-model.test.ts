@@ -460,3 +460,70 @@ describe('section « Fiscalité française (estimation) »', () => {
     expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
   });
 });
+
+describe('section « Coût réel des opérations »', () => {
+  const sample = (asset: string, quote: string, i: number) => ({
+    eventId: `e${i}`,
+    at: `2026-0${1 + (i % 9)}-1${i % 10}T10:00:00`,
+    asset,
+    side: 'buy' as const,
+    quoteEur: quote,
+    referenceEur: '100',
+    deviation: D(quote).minus('100').div('100').toString(),
+    valueEur: '1000',
+  });
+  const estimate = (deviation: string, samples = 30) => ({
+    samples,
+    skipped: { noQuotePrice: 0, notEurQuoted: 0, noReference: 0 },
+    medianDeviation: deviation,
+    meanDeviation: deviation,
+    volumeEur: '10000',
+    estimatedCostEur: D(deviation).times('10000').toString(),
+    reliable: samples >= 20,
+    byAsset: [
+      {
+        asset: 'btc',
+        samples,
+        medianDeviation: deviation,
+        volumeEur: '10000',
+        estimatedCostEur: D(deviation).times('10000').toString(),
+      },
+    ],
+    samplesDetail: [sample('btc', '101', 1)],
+  });
+
+  it('absente sans estimation fournie', () => {
+    expect(model.spread).toBeNull();
+  });
+
+  it('additionne commissions et spread quand le spread est défavorable', () => {
+    const m = buildReportModel(report, { ...opts, spread: estimate('0.01') });
+    const line = (name: string) => m.spread!.details.find((d) => d.label === name)!;
+    expect(nbsp(line('Spread implicite estimé').value)).toBe(nbsp(fmtMoney(D('100'), 'EUR')));
+    const commissions = report.totals.feesEur;
+    expect(nbsp(line('Coût total estimé').value)).toBe(
+      nbsp(fmtMoney(commissions.plus(D('100')), 'EUR')),
+    );
+    expect(m.spread!.details.some((d) => d.label === 'Actif le plus coûteux')).toBe(true);
+  });
+
+  it('ne retranche JAMAIS un spread favorable des commissions payées', () => {
+    const m = buildReportModel(report, { ...opts, spread: estimate('-0.01') });
+    const line = (name: string) => m.spread!.details.find((d) => d.label === name)!;
+    expect(line('Spread implicite estimé').value).toBe('—');
+    expect(line('Spread implicite estimé').hint).toContain('aucun spread défavorable');
+    // Les commissions ont bien été payées : le total ne descend pas en dessous.
+    expect(nbsp(line('Coût total estimé').value)).toBe(
+      nbsp(fmtMoney(report.totals.feesEur, 'EUR')),
+    );
+    // Et aucun actif ne se dit « le plus coûteux » sans coûter.
+    expect(m.spread!.details.some((d) => d.label === 'Actif le plus coûteux')).toBe(false);
+  });
+
+  it('avertit quand l’échantillon est trop petit pour conclure', () => {
+    const m = buildReportModel(report, { ...opts, spread: estimate('0.01', 3) });
+    expect(m.spread!.note).toContain('reste fragile');
+    // La méthode est expliquée dans tous les cas.
+    expect(m.spread!.note).toContain('MÉDIANE');
+  });
+});
