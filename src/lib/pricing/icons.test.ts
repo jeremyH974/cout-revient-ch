@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { KNOWN_ICONS, iconUrl } from './icons';
+import { KNOWN_ICONS, NO_ICON, iconUrl } from './icons';
 import { TICKERS } from './tickers';
 
 const ICONS_DIR = new URL('../../../public/icons/', import.meta.url);
@@ -41,5 +41,34 @@ describe('logos embarqués (public/icons)', () => {
     expect(iconUrl('btc')).toBe(`${import.meta.env.BASE_URL}icons/btc.svg`);
     expect(iconUrl('BTC')).toBe(iconUrl('btc'));
     expect(iconUrl('zzz')).toBeNull();
+  });
+});
+
+/**
+ * Les contrôles ci-dessus vérifient la cohérence entre `KNOWN_ICONS` et le disque. Restait un angle
+ * mort : un ticker de `TICKERS` sans logo ne déclenchait rien — il s'affichait en badge d'initiales,
+ * sans qu'on puisse dire si c'était un choix ou un oubli. `NO_ICON` tranche, et ces tests exigent
+ * que chaque ticker soit décidé dans un sens ou dans l'autre (P8, décision n° 47).
+ */
+describe('tickers sans logo : une absence décidée, jamais subie', () => {
+  it('tranche le cas de chaque ticker : logo embarqué, ou absence motivée', () => {
+    const undecided = Object.keys(TICKERS).filter((c) => !KNOWN_ICONS.has(c) && !NO_ICON.has(c));
+    expect(undecided).toEqual([]);
+  });
+
+  it('ne classe aucun ticker dans les deux tables à la fois', () => {
+    const both = [...NO_ICON.keys()].filter((c) => KNOWN_ICONS.has(c));
+    expect(both).toEqual([]);
+  });
+
+  it('motive chaque absence, pour qu’un oubli ne passe pas pour un choix', () => {
+    for (const [code, reason] of NO_ICON) {
+      expect(reason.length, code).toBeGreaterThan(20);
+    }
+  });
+
+  it('ne motive pas l’absence d’un ticker inconnu', () => {
+    const orphans = [...NO_ICON.keys()].filter((c) => !(c in TICKERS));
+    expect(orphans).toEqual([]);
   });
 });

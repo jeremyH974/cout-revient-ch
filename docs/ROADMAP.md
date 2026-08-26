@@ -38,7 +38,7 @@
 > [docs/tax-fr.md](tax-fr.md), décision n° 43. Le formulaire 2086 pré-rempli et la réconciliation
 > DAC8 restent le périmètre de P13.
 >
-> **P34, P35 et P32 sont livrés** le 26/08/2026 (2.7.0 à 2.9.0, décisions n° 44 à 45) : contexte de
+> **P34, P35 et P32 sont livrés** le 26/08/2026 (2.7.0 à 2.9.0, décisions n° 44 à 46) : contexte de
 > marché opt-in, expiration et conditions composées des alertes, mode « Plan mensuel » du
 > simulateur. **Les six briques de l’étude sont donc livrées.** Restent en réserve : la courbe de
 > valeur nette consolidée (avec P28), le rapport 2086 et la réconciliation DAC8 (P13), le spread
@@ -178,7 +178,7 @@ navigateur. ROI = (Valeur + Fiabilité + Satisfaction) ÷ sessions.
 | P3  | Mode démo en un clic                                                                                                                                                         |   4    |     1     |    5    |   0,5    | **20** |     0     |
 | P1  | Verrouillage de la chaîne d'approvisionnement                                                                                                                                |   2    |     5     |    1    |   0,5    | **16** |     0     |
 | P16 | Veille et mises à jour planifiées (par trimestre)                                                                                                                            |   1    |     4     |    1    |   0,5    |   12   | récurrent |
-| P8  | Logos manquants, historique EURCV/GMX, attribution CoinGecko                                                                                                                 |   1    |     1     |    3    |   0,5    |   10   |     1     |
+| P8  | **Attribution livrée (26/08/2026), logos à sourcer.** Logos manquants, historique EURCV/GMX, attribution des sources                                                         |   1    |     1     |    3    |   0,5    |   10   |     1     |
 | P11 | Répartition (donut), alerte de concentration, contribution par actif                                                                                                         |   2    |     1     |    3    |    1     |   8    |     2     |
 | P9  | Carte de partage en image + résumé texte pour Discord                                                                                                                        |   4    |     1     |    5    |   1,5    |  6,7   |     2     |
 | P4  | Tests de bout en bout + accessibilité + Lighthouse en CI                                                                                                                     |   2    |     5     |    2    |   1,5    |   6    |     0     |
@@ -288,11 +288,20 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
 - Réussite : sur une opération récente, l'écart affiché correspond (± 0,3 %) à ce que le membre a
   constaté ; le total annuel des frais est cohérent avec la grille.
 
-**P8 — Finitions (0,5 session)**
+**P8 — Finitions (0,5 session) — livré le 26/08/2026, sauf les huit logos**
 
-- Logos BONK, EURCV, FLOKI, HYPE, ONDO, SKY, USDS, WIF (kits de marque officiels, licence vérifiée),
-  historique long EURCV/GMX via Kraken/Coinbase, mention « Powered by CoinGecko » exigée par les CGU
-  [S68].
+- **Attribution : livrée**, et élargie. L'étude ne visait que « Powered by CoinGecko » [S68] ; le
+  code en interrogeait **douze** sources, dont une **deuxième obligation restée invisible** —
+  Etherscan exige un lien retour ou sa mention hors usage strictement personnel, ce qu'un site
+  public n'est pas. Table déclarative `src/lib/support/sources.ts`, croisée par un test avec les
+  fournisseurs réels ; décision n° 47.
+- **Historique long EURCV/GMX : sans objet.** GMX a son historique profond depuis la 2.5.1
+  (DefiLlama, décision n° 42) et EURCV vaut 1 € par ancrage. Ni Kraken ni Coinbase n'y sont pour
+  quoi que ce soit. Verrouillé par un test portant sur les 70 actifs curés.
+- **Logos : reste à faire.** BONK, FLOKI, ONDO et WIF sont dans `@web3icons/core` (MIT), déjà
+  source de 61 des 62 logos embarqués ; EURCV, HYPE, SKY et USDS n'y sont pas et demandent un kit
+  de marque officiel avec vérification de licence. Les huit sont inscrits dans `NO_ICON` avec leur
+  motif, et `icons.test.ts` interdit désormais qu'un ticker reste sans décision.
 
 ### Phase 2 — Satisfaction et partage Discord (≈ 5 sessions, mois 2–3)
 

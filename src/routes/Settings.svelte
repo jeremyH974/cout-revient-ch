@@ -10,6 +10,7 @@
   import AppBar from '../components/layout/AppBar.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
   import SelfChecks from '../components/settings/SelfChecks.svelte';
+  import SourcesSection from '../components/settings/SourcesSection.svelte';
   import SupportSection from '../components/settings/SupportSection.svelte';
   import {
     decryptBackup,
@@ -430,6 +431,8 @@
       intro="Un fichier refusé, un chiffre douteux, une idée ? Copiez le diagnostic (il ne contient ni montant ni quantité) et collez-le dans votre message."
     />
   </section>
+
+  <SourcesSection />
 
   <section class="card group danger">
     <h2>Zone dangereuse</h2>

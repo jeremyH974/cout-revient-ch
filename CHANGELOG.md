@@ -5,6 +5,34 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Section « Sources des données » dans les réglages (P8)** : les douze services que
+  l'application interroge depuis votre navigateur, chacun avec son rôle et son lien. Trois d'entre
+  eux imposent contractuellement une mention — CoinGecko, Etherscan et alternative.me — et elle est
+  désormais affichée. Le catalogue est **déclaratif** et croisé par un test avec les fournisseurs
+  réellement déclarés dans le code : brancher une source sans l'attribuer fait échouer la CI, tout
+  comme créditer un service qu'on n'interroge plus (`docs/DECISIONS.md` n° 47).
+
+### Fixed
+
+- **L'obligation d'attribution d'Etherscan était invisible** : ses conditions exigent un lien
+  retour ou la mention « Powered by Etherscan.io APIs » dès que l'usage n'est pas strictement
+  personnel — ce qui est le cas d'un site public. Elle se serait découverte à la réclamation.
+
+### Changed
+
+- **Les logos manquants ne sont plus ambigus** : un ticker sans logo est désormais soit embarqué,
+  soit inscrit avec son motif (licence à vérifier, ou logo à intégrer). Un test l'exige, et vérifie
+  aussi que la liste déclarée correspond aux fichiers réellement livrés — dans les deux sens.
+- **Historique long de EURCV et GMX** : les deux cas étaient déjà résolus (GMX par l'historique
+  profond de la 2.5.1, EURCV par son ancrage à 1 €) mais rien ne les verrouillait. Un test le fait
+  désormais pour les 70 actifs curés, pas seulement pour ces deux-là — une courbe qui redevient
+  courte ne lève aucune erreur, elle raccourcit.
+- Dependabot ne propose plus TypeScript 7 : `svelte-check`, qui **est** notre vérificateur de
+  types, borne son pair à TypeScript 6 et `npm ci` échoue avant toute compilation. La majeure 6
+  reste proposée ; l'exclusion tombe dès que `svelte-check` accepte la 7.
+
 ## [2.9.0] - 2026-08-26
 
 ### Added
