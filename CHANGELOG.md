@@ -5,6 +5,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.10.0] - 2026-08-26
+
+### Added
+
+- **Serveur MCP local** : Claude (Code ou Desktop) peut désormais LIRE votre portefeuille et
+  répondre à « quel est mon PRU sur BTC ? », « combien de frais cette année ? », « que donnerait la
+  vente de la moitié à 90 000 € ? ». Rien ne quitte votre machine : le serveur lit une sauvegarde
+  de l’app, calcule avec le même moteur et n’ouvre aucune connexion réseau. Sept outils, tous en
+  **lecture seule** (aucun ordre, aucune écriture), et chaque réponse porte la date de la
+  sauvegarde et celle des cours utilisés. Aucune dépendance ajoutée : le transport du protocole
+  est écrit à la main. Détail : docs/mcp.md, décision n° 47.
+
 ## [2.9.0] - 2026-08-26
 
 ### Added

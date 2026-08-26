@@ -34,7 +34,9 @@
     "playwright.config.ts",
     "playwright.monitor.config.ts",
     "svelte.config.js",
-    "eslint.config.js"
+    "eslint.config.js",
+    "mcp/**/*.ts",
+    "vite.mcp.config.ts"
   ],
   "exclude": ["node_modules", "dist", "dev-dist", "coverage"]
 }

@@ -774,3 +774,25 @@
     l'hypothèse de régularité perd son sens. **L'échelle de vente** évoquée par l'étude n'est pas
     reprise : le mode « Vendre », désormais doublé de l'aperçu fiscal (décision n° 42), répond déjà
     à la même question sans dupliquer une mécanique.
+47. **Serveur MCP local en lecture seule, écrit sans aucune dépendance** (26/08/2026). Le serveur
+    lit une SAUVEGARDE de l'app et rejoue le pipeline existant (assemblage du grand livre,
+    appariement des virements, `computePortfolio`) : il n'existe pas de « calcul du MCP » qui
+    pourrait diverger de l'écran. Quatre choix structurants. **(a) Lecture seule par
+    construction** : aucun chemin d'écriture, aucun ordre, tous les outils annotés `readOnlyHint`
+    et `destructiveHint: false` — un test échoue si un nom d'outil évoque une écriture. **(b) La
+    provenance accompagne CHAQUE réponse** (date de la sauvegarde, date des cours, mention « aucune
+    source en ligne ») : le risque propre à ce genre d'outil est qu'un chiffre juste hier soit
+    présenté comme actuel, et c'est le seul garde-fou qui tienne — un test a d'ailleurs attrapé un
+    outil dont la note propre écrasait celle de la provenance. **(c) Transport écrit à la main** :
+    la surface utile du protocole tient en quatre méthodes (`initialize`, `ping`, `tools/list`,
+    `tools/call`), et le projet paie assez cher sa vigilance sur la chaîne d'approvisionnement npm
+    (décisions et parades de la feuille de route) pour ne pas ajouter un arbre de dépendances au
+    profit d'un outil annexe — même arbitrage que l'anneau SVG plutôt qu'une bibliothèque de
+    graphiques. La négociation de version répond la version demandée si elle est connue, sinon la
+    nôtre, comme l'exige la spécification. **(d) Un build Vite malgré Node 24** : Node exécute
+    désormais TypeScript nativement et `erasableSyntaxOnly` était déjà satisfait, mais `src/lib`
+    importe sans extension de fichier, ce que le résolveur ESM refuse ; imposer des extensions à
+    toute l'app pour le confort d'un outil annexe coûterait plus cher qu'un `npm run mcp:build` qui
+    n'ajoute aucune dépendance. Le serveur se tait sur ce qu'il ne peut pas savoir : sans historique
+    de prix, ni repère, ni mesure de risque, ni estimation fiscale — les règles concernées ne
+    produisent rien plutôt qu'un chiffre partiel.

@@ -122,7 +122,7 @@ export default defineConfig({
     }),
   ],
   test: {
-    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts', 'mcp/**/*.test.ts'],
     environment: 'node',
     coverage: {
       provider: 'v8',
