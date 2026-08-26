@@ -219,7 +219,7 @@ l'upload `[T5]`. [VÉRIFIÉ] Nous n'hébergeons rien ; c'est l'espace de stockag
 
 À évaluer honnêtement : le CORS des serveurs WebDAV et S3 est souvent fermé, et Drive/Dropbox
 imposent un enregistrement d'application (OAuth PKCE, sans secret, mais avec un `client_id` qui
-nous désigne). Ce n'est donc pas gratuit — voir P38, délibérément classé en dernier.
+nous désigne). Ce n'est donc pas gratuit — voir P44, délibérément classé en dernier.
 
 ---
 
@@ -281,7 +281,7 @@ lecture seule, données publiques, aucun pouvoir sur des fonds. Le précédent c
 
 **Méthode recommandée, et non négociable :** ne rien promettre avant d'avoir **sondé le CORS
 réellement**, comme l'a fait la proposition v2. `scripts/api-contract.mjs` est déjà l'outil.
-Une demi-session de sondes tranche P35 ; l'intuition ne tranche rien.
+Une demi-session de sondes tranche P41 ; l'intuition ne tranche rien.
 
 Enfin : pour l'immobilier et l'assurance-vie, la valorisation manuelle est de toute façon la norme
 du marché `[F1]`. L'absence de fournisseur de prix n'est pas bloquante pour ces classes.
@@ -320,39 +320,39 @@ de 2–3 h ; ROI = (V + F + S) ÷ sessions.
 
 | #   | Proposition                                                                       | Valeur | Fiab. | Satisf. | Sessions |   ROI   | Lot |
 | --- | --------------------------------------------------------------------------------- | :----: | :---: | :-----: | :------: | :-----: | :-: |
-| P33 | **Titulaire sur les comptes** (`ownerId`), filtres par personne et vue foyer      |   4    |   3   |    3    |    1     | **10**  |  1  |
-| P39 | **Photo du patrimoine au 31/12** (valorisation annuelle figée, exportable)        |   3    |   3   |    2    |    1     |  **8**  |  2  |
-| P36 | **Allocation multi-classes + alerte de concentration** (généralise P11)           |   3    |   1   |    4    |    1     |  **8**  |  2  |
-| P31 | **Passif et valeur nette** (crédits, capital restant dû, actif net)               |   4    |   2   |    4    |   1,5    | **6,7** |  1  |
-| P32 | **Courbe de valeur nette dans le temps** (le seul écran que tous ont et pas nous) |   4    |   1   |    5    |   1,5    | **6,7** |  2  |
-| P37 | **Projection Monte Carlo** (scénarios pessimiste / médian / optimiste)            |   4    |   1   |    5    |    2     |  **5**  |  3  |
-| P30 | **Actif valorisé** : `ValuationEvent`, immobilier, AV, PER, PE, objets            |   5    |   3   |    5    |    3     | **4,3** |  1  |
-| P35 | **Actions et ETF** : classe fongible, ISIN, sondes de fournisseurs de prix        |   4    |   2   |    4    |   2,5    |  **4**  |  4  |
-| P40 | **Convertisseurs courtiers** (Degiro, Trade Republic, Boursorama, Saxo)           |   3    |   2   |    3    |    2     |  **4**  |  4  |
-| P38 | **Sauvegarde chiffrée vers un stockage possédé par l'utilisateur**                |   3    |   4   |    3    |    3     | **3,3** |  4  |
-| P34 | **Mode fiscal FR consolidé 150 VH bis** (remplace et élargit P13)                 |   5    |   4   |    4    |    5     | **2,6** |  3  |
+| P39 | **Titulaire sur les comptes** (`ownerId`), filtres par personne et vue foyer      |   4    |   3   |    3    |    1     | **10**  |  1  |
+| P45 | **Photo du patrimoine au 31/12** (valorisation annuelle figée, exportable)        |   3    |   3   |    2    |    1     |  **8**  |  2  |
+| P42 | **Allocation multi-classes + alerte de concentration** (généralise P11)           |   3    |   1   |    4    |    1     |  **8**  |  2  |
+| P37 | **Passif et valeur nette** (crédits, capital restant dû, actif net)               |   4    |   2   |    4    |   1,5    | **6,7** |  1  |
+| P38 | **Courbe de valeur nette dans le temps** (le seul écran que tous ont et pas nous) |   4    |   1   |    5    |   1,5    | **6,7** |  2  |
+| P43 | **Projection Monte Carlo** (scénarios pessimiste / médian / optimiste)            |   4    |   1   |    5    |    2     |  **5**  |  3  |
+| P36 | **Actif valorisé** : `ValuationEvent`, immobilier, AV, PER, PE, objets            |   5    |   3   |    5    |    3     | **4,3** |  1  |
+| P41 | **Actions et ETF** : classe fongible, ISIN, sondes de fournisseurs de prix        |   4    |   2   |    4    |   2,5    |  **4**  |  4  |
+| P46 | **Convertisseurs courtiers** (Degiro, Trade Republic, Boursorama, Saxo)           |   3    |   2   |    3    |    2     |  **4**  |  4  |
+| P44 | **Sauvegarde chiffrée vers un stockage possédé par l'utilisateur**                |   3    |   4   |    3    |    3     | **3,3** |  4  |
+| P40 | **Mode fiscal FR consolidé 150 VH bis** (remplace et élargit P13)                 |   5    |   4   |    4    |    5     | **2,6** |  3  |
 
 ### Ordre d'exécution recommandé
 
 Le ROI brut ne fait pas tout. L'ordre suit la thèse du § 2.3 — **la profondeur avant la largeur** —
 et les dépendances réelles.
 
-**Lot 1 — le modèle (5,5 sessions).** P33 → P30 → P31.
-Rien de spectaculaire à l'écran, mais tout le reste en dépend. P33 en premier parce qu'il coûte une
-session et qu'il conditionne la justesse de P34.
+**Lot 1 — le modèle (5,5 sessions).** P39 → P36 → P37.
+Rien de spectaculaire à l'écran, mais tout le reste en dépend. P39 en premier parce qu'il coûte une
+session et qu'il conditionne la justesse de P40.
 
-**Lot 2 — ce qui se voit (3,5 sessions).** P32 → P36 → P39.
+**Lot 2 — ce qui se voit (3,5 sessions).** P38 → P42 → P45.
 Le premier lot devient visible. C'est ici que l'app cesse d'être un calculateur crypto pour
-devenir un outil patrimonial. `src/lib/history/` fournit déjà l'essentiel de P32.
+devenir un outil patrimonial. `src/lib/history/` fournit déjà l'essentiel de P38.
 
-**Lot 3 — la profondeur, ce que les autres facturent (7 sessions).** P34 → P37.
-P34 est le débouché de tout le reste (§ 4.1) et porte un **risque juridique** : étiquette
+**Lot 3 — la profondeur, ce que les autres facturent (7 sessions).** P40 → P43.
+P40 est le débouché de tout le reste (§ 4.1) et porte un **risque juridique** : étiquette
 « estimation », relecture par un professionnel avant publication, et **vérification sur BOFiP des
-taux** (§ 9). P37 est du calcul pur, sans backend, et c'est le différenciant payant de Finary Plus.
+taux** (§ 9). P43 est du calcul pur, sans backend, et c'est le différenciant payant de Finary Plus.
 
-**Lot 4 — la largeur, si la demande existe (7,5 sessions).** P35 → P40 → P38.
-À ne lancer que sur demande réelle. P35 commence par **une demi-session de sondes CORS** qui décide
-s'il est faisable ; s'il ne l'est pas, la saisie manuelle de cours reste acceptable et P35 se réduit.
+**Lot 4 — la largeur, si la demande existe (7,5 sessions).** P41 → P46 → P44.
+À ne lancer que sur demande réelle. P41 commence par **une demi-session de sondes CORS** qui décide
+s'il est faisable ; s'il ne l'est pas, la saisie manuelle de cours reste acceptable et P41 se réduit.
 
 ---
 
@@ -397,7 +397,7 @@ deux points et le **nuance** sur un seul.
 2. **Périmètre du lot 1** : les trois formes d'actif d'un coup, ou l'actif valorisé seul en
    commençant par l'immobilier (la classe la plus demandée et la plus simple : une valorisation,
    un crédit) ?
-3. **Mode fiscal (P34)** : le publier ou non. S'il est publié, faire relire la méthode par un
+3. **Mode fiscal (P40)** : le publier ou non. S'il est publié, faire relire la méthode par un
    professionnel, et **faire vérifier sur BOFiP avant codage** les trois points que la recherche
    n'a pas tranchés :
    - le PFU 2026 à **31,4 %** (12,8 IR + 18,6 PS) `[X8]` est [PROBABLE], pas vérifié sur source
@@ -406,9 +406,9 @@ deux points et le **nuance** sur un seul.
      18,6 %) `[X9]` — [INCERTAIN] ;
    - la portée de la **réintégration des amortissements LMNP** (LF 2025, art. 84, cessions à
      compter du 15/02/2025) est encore débattue au Parlement `[X10]` — [PROBABLE].
-4. **Clé de données de marché** (P35) : acceptez-vous une clé facultative de fournisseur de cours,
-   par extension de la décision n° 32 ? Sinon, P35 se limite à la saisie manuelle de cours.
-5. **Synchronisation (P38)** : sujet à instruire, ou refus définitif à graver dans les décisions
+4. **Clé de données de marché** (P41) : acceptez-vous une clé facultative de fournisseur de cours,
+   par extension de la décision n° 32 ? Sinon, P41 se limite à la saisie manuelle de cours.
+5. **Synchronisation (P44)** : sujet à instruire, ou refus définitif à graver dans les décisions
    pour clore la question ?
 6. **Vérification à faire avant toute communication** : l'affirmation selon laquelle aucun moteur
    du marché n'implémente la méthode française du portefeuille global (§ 4.1) est douteuse pour
