@@ -17,7 +17,7 @@ import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import type { Insight } from '../domain/insights';
 import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
 import { MIN_SPREAD_SAMPLES, type SpreadEstimate } from '../domain/spread';
-import { EXEMPTION_THRESHOLD, type TaxLedger } from '../domain/tax-fr';
+import { EXEMPTION_THRESHOLD, type Dac8Year, type TaxLedger } from '../domain/tax-fr';
 import {
   MASK,
   fmtDate,
@@ -155,6 +155,8 @@ export interface ReportModelOptions {
   tax?: TaxLedger | null | undefined;
   /** Spread implicite estimé (décision n° 48), calculé par l'appelant sur l'historique de prix. */
   spread?: SpreadEstimate | null | undefined;
+  /** Récapitulatif DAC8 de l’année en cours (décision n° 49), calculé par l’appelant. */
+  dac8?: Dac8Year | null | undefined;
 }
 
 /** TWR du portefeuille et repère « mêmes apports sur un seul actif », calculés par l'appelant. */
@@ -723,7 +725,11 @@ function spreadSection(
  * EUROS même si l'app affiche en dollars : c'est une obligation française. Le mode discret masque
  * quand même les montants, ce sont des montants.
  */
-function taxSection(tax: TaxLedger | null | undefined, discreet: boolean): ReportModel['tax'] {
+function taxSection(
+  tax: TaxLedger | null | undefined,
+  discreet: boolean,
+  dac8: Dac8Year | null | undefined,
+): ReportModel['tax'] {
   if (!tax || tax.years.length === 0) return null;
   const eur = (value: DecimalString | Big, sign = false): string =>
     discreet ? MASK : fmtMoney(D(value), 'EUR', { sign });
@@ -761,6 +767,14 @@ function taxSection(tax: TaxLedger | null | undefined, discreet: boolean): Repor
     tone: 'neutral',
     hint: 'base de la prochaine cession — celui du PORTEFEUILLE, sans rapport avec le PRU par actif',
   });
+  // Réconciliation DAC8 : ce que la plateforme fera remonter, pour le comparer à ce qu'on voit.
+  if (dac8 && dac8.lines.length > 0)
+    details.push({
+      label: `${dac8.year} · cessions brutes déclarables (DAC8)`,
+      value: eur(dac8.totalProceedsEur),
+      tone: 'neutral',
+      hint: `${plural(dac8.lines.length, 'actif concerné', 'actifs concernés')} · ${eur(dac8.totalAcquisitionsEur)} d’acquisitions — à comparer à ce que la plateforme déclarera`,
+    });
 
   const warnings: string[] = [];
   if (tax.unknownGlobalValue > 0)
@@ -1064,7 +1078,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     summary: { title: 'Synthèse', kpis, details },
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
-    tax: taxSection(opts.tax, opts.discreet),
+    tax: taxSection(opts.tax, opts.discreet, opts.dac8),
     spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),

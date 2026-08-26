@@ -1,6 +1,6 @@
 {
   "name": "cout-revient-ch",
-  "version": "2.11.0",
+  "version": "2.12.0",
   "private": true,
   "type": "module",
   "description": "PRU et plus/moins-values par crypto à partir de l'export Coinhouse — 100 % dans votre navigateur",

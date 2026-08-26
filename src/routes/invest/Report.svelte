@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { nowIso } from '$lib/clock';
+  import { cessionsToCsv } from '$lib/export/csv-export';
+  import { downloadText } from '$lib/export/download';
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildInsights } from '$lib/domain/insights';
+  import { dac8Summary } from '$lib/domain/tax-fr';
   import { riskMetrics } from '$lib/domain/risk';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
@@ -35,10 +38,13 @@
       : null,
   );
 
-  /** Estimation fiscale française : toujours en euros, quelle que soit la devise d'affichage. */
+  /** Récapitulatif DAC8 de l’année en cours : à comparer à ce que la plateforme déclarera. */
+  const dac8 = $derived(dac8Summary(app.events, Number(generatedAt.slice(0, 4))));
+
   /** Spread implicite : exige l’historique de prix, comme le risque et la fiscalité. */
   const spread = $derived(history.status.loadedAt === null ? null : history.spread());
 
+  /** Estimation fiscale française : toujours en euros, quelle que soit la devise d'affichage. */
   const tax = $derived(history.status.loadedAt === null ? null : history.frenchTax());
 
   /**
@@ -69,6 +75,7 @@
       risk,
       tax,
       spread,
+      dac8,
       performance,
     }),
   );
@@ -94,6 +101,20 @@
     }
   }
 
+  /**
+   * Cessions au format des colonnes du 2086 (décision n° 49) : une AIDE AU REPORT, pas une
+   * déclaration — les lignes non chiffrables le disent, colonne par colonne.
+   */
+  function downloadCessions(): void {
+    if (!tax) return;
+    downloadText(
+      `cout-revient-ch-cessions-2086-${model.meta.dateStamp}.csv`,
+      cessionsToCsv(tax),
+      'text/csv;charset=utf-8',
+    );
+    toasts.push('Cessions exportées : à vérifier avant tout report.', 'success');
+  }
+
   async function print(): Promise<void> {
     generatedAt = nowIso();
     await tick();
@@ -107,6 +128,11 @@
   <button class="primary" type="button" onclick={() => void download()} disabled={busy}>
     {busy ? 'Génération…' : 'Télécharger le PDF'}
   </button>
+  {#if tax && tax.cessions.length > 0}
+    <button class="secondary" type="button" onclick={downloadCessions}>
+      Cessions au format 2086 (CSV)
+    </button>
+  {/if}
   <button class="secondary" type="button" onclick={() => void print()}>
     Imprimer / Enregistrer en PDF
   </button>

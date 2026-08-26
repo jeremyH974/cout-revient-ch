@@ -4,7 +4,8 @@
  */
 import type { HistoryEntry, PortfolioReport, PositionReport } from '../domain/engine';
 import { COINHOUSE_ACCOUNT_ID, MANUAL_ACCOUNT_ID, type AccountId } from '../domain/types';
-import type { Big } from '../domain/money';
+import { D, type Big } from '../domain/money';
+import type { TaxLedger } from '../domain/tax-fr';
 import { roundHalfUp } from '../format/fr';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
 import type { MetricPoint } from '../history/metrics';
@@ -234,5 +235,36 @@ export function seriesToCsv(points: readonly MetricPoint[], currency: Currency =
       num(pru, 10),
     ];
   });
+  return file(header, rows);
+}
+
+/**
+ * Cessions imposables au format du formulaire **2086** (décision n° 49) : une ligne par cession,
+ * dans l'ordre des colonnes du millésime 2026 (date, valeur globale du portefeuille, prix de
+ * cession, prix total d'acquisition, plus-value). **Aide au report, pas une déclaration** : les
+ * chiffres restent des estimations, à vérifier avec un professionnel.
+ */
+export function cessionsToCsv(ledger: TaxLedger, year?: number): string {
+  const cessions =
+    year === undefined ? ledger.cessions : ledger.cessions.filter((c) => c.year === year);
+  const header = [
+    'Date de la cession',
+    'Prix de cession (€)',
+    'Valeur globale du portefeuille (€)',
+    "Prix total d'acquisition (€)",
+    "Fraction du prix d'acquisition imputée (€)",
+    'Plus ou moins-value (€)',
+    'Estimation complète',
+  ];
+  const rows = cessions.map((c) => [
+    text(day(c.at)),
+    num(D(c.proceedsEur)),
+    c.globalValueEur === null ? text('inconnue') : num(D(c.globalValueEur)),
+    num(D(c.ptaBefore)),
+    c.acquisitionShareEur === null ? text('—') : num(D(c.acquisitionShareEur)),
+    c.gainEur === null ? text('—') : num(D(c.gainEur)),
+    // Une cession sans valeur globale ne peut pas être chiffrée : la colonne le dit, ligne par ligne.
+    text(c.gainEur === null ? 'non — valeur du portefeuille inconnue ce jour-là' : 'oui'),
+  ]);
   return file(header, rows);
 }

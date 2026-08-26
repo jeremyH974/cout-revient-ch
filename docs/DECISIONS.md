@@ -816,3 +816,16 @@
     comptées : les convertir ajouterait le bruit du change à celui de la journée, pour une mesure
     qui vise justement quelques dixièmes de pour cent. Un cours REPORTÉ (jour sans cotation) est
     écarté lui aussi.
+49. **Le 2086 est une AIDE AU REPORT, exportée en CSV, et la réconciliation DAC8 sert à comparer,
+    pas à déclarer** (26/08/2026). Le moteur fiscal (décision n° 43) produit déjà, par cession,
+    exactement les colonnes du formulaire : date, prix de cession, valeur globale du portefeuille,
+    prix total d'acquisition, fraction imputée, plus-value. Le rapport les exporte donc en CSV
+    plutôt que de les imprimer dans le PDF — une liste de cessions se travaille dans un tableur, pas
+    sur une page. **Une colonne « Estimation complète » dit, LIGNE PAR LIGNE, ce qui n'a pas pu être
+    chiffré** (valeur du portefeuille inconnue ce jour-là) : un fichier destiné à être recopié dans
+    une déclaration ne doit jamais laisser croire qu'une case vide vaut zéro. Le récapitulatif DAC8
+    (`dac8Summary`) agrège l'année par actif — cessions brutes, unités, acquisitions — dans la forme
+    que les plateformes feront remonter à partir des opérations 2026 : il sert à VÉRIFIER ce que
+    Coinhouse déclarera, jamais à déclarer soi-même. Les échanges en sursis n'y figurent pas, ce
+    qui est justement le point à contrôler. L'ensemble reste sous le même avertissement que la
+    décision n° 43 : estimation, ni déclaration ni conseil fiscal.

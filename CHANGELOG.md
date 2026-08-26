@@ -5,6 +5,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.12.0] - 2026-08-26
+
+### Added
+
+- **Cessions au format 2086 (P13)** : un bouton du rapport exporte vos cessions imposables en CSV,
+  dans l’ordre des colonnes du formulaire (date, prix de cession, valeur globale du portefeuille,
+  prix total d’acquisition, plus-value). Une colonne dit **ligne par ligne** ce qui n’a pas pu être
+  chiffré, pour qu’une case vide ne passe jamais pour un zéro. **Aide au report, pas une
+  déclaration.**
+- **Réconciliation DAC8** : le rapport récapitule vos cessions brutes et acquisitions de l’année
+  par actif, dans la forme que les plateformes feront remonter à l’administration à partir des
+  opérations 2026 — de quoi comparer avec ce que Coinhouse déclarera. Décision n° 49.
+
 ## [2.11.0] - 2026-08-26
 
 ### Added
