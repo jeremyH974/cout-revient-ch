@@ -53,6 +53,26 @@ export function toEurConverter(
   if (rate === null || !D(rate).gt('0')) return () => null;
   return (value) => toDecimalString(D(value).div(rate));
 }
+
+/**
+ * Même conversion, mais **jour par jour** : un `toEurConverter` mémoïsé par jour demandé, celui-ci
+ * retriant la série à chaque appel. Sert aux séries historiques cotées en dollars (fournisseur
+ * DefiLlama, docs/DECISIONS.md n° 42) ; `null` pour un jour sans taux, l'appelant écartant alors le
+ * point plutôt que de le convertir de travers.
+ */
+export function toEurAtDay(
+  series: RateSeries,
+): (day: string, value: DecimalString) => DecimalString | null {
+  const byDay = new Map<string, (value: DecimalString) => DecimalString | null>();
+  return (day, value) => {
+    let convert = byDay.get(day);
+    if (!convert) {
+      convert = toEurConverter(series, day);
+      byDay.set(day, convert);
+    }
+    return convert(value);
+  };
+}
 const mulOrNull = (value: DecimalString | null, rate: DecimalString): DecimalString | null =>
   value === null ? null : mul(value, rate);
 

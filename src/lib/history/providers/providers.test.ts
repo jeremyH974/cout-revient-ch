@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, dayToMs, eachDay } from '../days';
+import { D, toDecimalString } from '../../domain/money';
+import { addDays, dayToMs, daysBetween, eachDay } from '../days';
 import { RequestQueue } from '../queue';
 import type { FetchLike } from '../types';
 import { coinbaseExchangeHistoryProvider } from './coinbase';
 import { coingeckoHistoryProvider } from './coingecko';
+import { DEFILLAMA_MAX_SPAN, defillamaHistoryProvider, type UsdToEurAt } from './defillama';
 import { krakenHistoryProvider, krakenPairName } from './kraken';
 
 type Route = (url: string) => { status?: number; body?: unknown } | undefined;
@@ -288,5 +290,128 @@ describe('Coinbase Exchange candles', () => {
     const points = await live.fetchIntraday!('btc', 24, signal);
     expect(intraday.calls[1]).toContain('granularity=300');
     expect(points.map((p) => p.priceEur)).toEqual(['62000', '62500']);
+  });
+});
+
+describe('DefiLlama chart (historique profond)', () => {
+  const ENDPOINT = 'https://coins.llama.fi/chart/coingecko:bitcoin';
+  /** `start` est ancré à midi UTC : le point ne tombe jamais sur la frontière de minuit. */
+  const noon = (day: string): number => sec(day) + 43_200;
+  /** Taux BCE de test : 2 USD pour 1 EUR, donc 100 $ valent 50 €. */
+  const halve: UsdToEurAt = (_day, priceUsd) => toDecimalString(D(priceUsd).div('2'));
+  const provider = (fetch: FetchLike, usdToEurAt: UsdToEurAt = halve) =>
+    defillamaHistoryProvider({ fetch, queue: fastQueue(), usdToEurAt });
+
+  const point = (day: string, price: number) => ({ timestamp: noon(day), price });
+  const series = (prices: { timestamp: number; price: number }[], confidence = 0.99) => ({
+    coins: { 'coingecko:bitcoin': { symbol: 'BTC', confidence, prices } },
+  });
+  const serve =
+    (body: unknown): Route =>
+    (url) =>
+      url.startsWith(ENDPOINT) ? { body } : undefined;
+
+  it('annonce une profondeur illimitée', () => {
+    expect(defillamaHistoryProvider({ usdToEurAt: halve }).maxDays).toBeNull();
+  });
+
+  it('convertit chaque point au taux de son jour, ancré à midi UTC', async () => {
+    const { calls, fetch } = fakeFetch(
+      serve(series([point('2026-08-18', 100), point('2026-08-19', 120), point('2026-08-20', 90)])),
+    );
+    const points = await provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal);
+    expect(points).toEqual([
+      { day: '2026-08-18', priceEur: '50' },
+      { day: '2026-08-19', priceEur: '60' },
+      { day: '2026-08-20', priceEur: '45' },
+    ]);
+    expect(calls).toEqual([`${ENDPOINT}?start=${noon('2026-08-18')}&span=3&period=1d`]);
+  });
+
+  it('pagine en marche avant par fenêtres de 500 points au plus', async () => {
+    const from = '2023-01-01';
+    const to = '2026-08-22';
+    const { calls, fetch } = fakeFetch(serve(series([point('2023-01-02', 100)])));
+    await provider(fetch).fetchDaily('btc', from, to, signal);
+    const second = addDays(from, DEFILLAMA_MAX_SPAN);
+    const third = addDays(second, DEFILLAMA_MAX_SPAN);
+    expect(calls).toEqual([
+      `${ENDPOINT}?start=${noon(from)}&span=${DEFILLAMA_MAX_SPAN}&period=1d`,
+      `${ENDPOINT}?start=${noon(second)}&span=${DEFILLAMA_MAX_SPAN}&period=1d`,
+      `${ENDPOINT}?start=${noon(third)}&span=${daysBetween(third, to) + 1}&period=1d`,
+    ]);
+  });
+
+  it("s'arrête à la première fenêtre vide qui suit des données (actif délisté)", async () => {
+    const from = '2023-01-01';
+    const { calls, fetch } = fakeFetch((url) => {
+      if (!url.startsWith(ENDPOINT)) return undefined;
+      return url.includes(`start=${noon(from)}`)
+        ? { body: series([point('2023-01-02', 100)]) }
+        : { body: { coins: {} } };
+    });
+    await provider(fetch).fetchDaily('btc', from, '2026-08-22', signal);
+    expect(calls).toHaveLength(2); // la troisième fenêtre n'est jamais demandée
+    expect(calls[1]).toContain(`start=${noon(addDays(from, DEFILLAMA_MAX_SPAN))}`);
+  });
+
+  it('ignore un actif sans identifiant CoinGecko, sans aucun appel', async () => {
+    const { calls, fetch } = fakeFetch(() => undefined);
+    const p = provider(fetch);
+    await expect(p.supports!('zzz', signal)).resolves.toBe(false);
+    expect(await p.fetchDaily('zzz', '2026-08-18', '2026-08-20', signal)).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it('ne se déclare pas compatible sans convertisseur de change', async () => {
+    const { calls, fetch } = fakeFetch(() => undefined);
+    const p = defillamaHistoryProvider({ fetch, queue: fastQueue() });
+    await expect(p.supports!('btc', signal)).resolves.toBe(false);
+    expect(await p.fetchDaily('btc', '2026-08-18', '2026-08-20', signal)).toEqual([]);
+    expect(calls).toEqual([]);
+  });
+
+  it("renvoie [] quand l'API ne connaît pas l'actif (coins vide, HTTP 200)", async () => {
+    const { fetch } = fakeFetch(serve({ coins: {} }));
+    expect(await provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal)).toEqual([]);
+  });
+
+  // L'API sert aujourd'hui cette erreur en HTTP 400 (`readJson` la remonte alors) ; la garde de
+  // `seriesOf` couvre le cas où elle passerait un jour en 200, plutôt que de traiter un corps
+  // d'erreur comme une série vide.
+  it("lève si un corps d'erreur applicative arrivait en HTTP 200", async () => {
+    const message = 'Requested 5000 data points exceeds the maximum of 500.';
+    const { fetch } = fakeFetch(serve({ message }));
+    await expect(
+      provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal),
+    ).rejects.toThrow(message);
+  });
+
+  it('rejette une série dont la confiance est sous le seuil', async () => {
+    const { fetch } = fakeFetch(serve(series([point('2026-08-18', 100)], 0.4)));
+    expect(await provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal)).toEqual([]);
+  });
+
+  it("omet le point d'un jour sans taux plutôt que de le convertir de travers", async () => {
+    const { fetch } = fakeFetch(
+      serve(series([point('2026-08-18', 100), point('2026-08-19', 120)])),
+    );
+    const convert: UsdToEurAt = (day, usd) => (day === '2026-08-19' ? null : halve(day, usd));
+    const points = await provider(fetch, convert).fetchDaily(
+      'btc',
+      '2026-08-18',
+      '2026-08-20',
+      signal,
+    );
+    expect(points).toEqual([{ day: '2026-08-18', priceEur: '50' }]);
+  });
+
+  it('remonte un échec HTTP', async () => {
+    const { fetch } = fakeFetch((url) =>
+      url.startsWith(ENDPOINT) ? { status: 429, body: {} } : undefined,
+    );
+    await expect(
+      provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal),
+    ).rejects.toThrow('DefiLlama HTTP 429');
   });
 });

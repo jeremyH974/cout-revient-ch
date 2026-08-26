@@ -4,6 +4,7 @@ import { isFiat } from '$lib/domain/assets';
 import type { PositionReport } from '$lib/domain/engine';
 import { D, ZERO, toDecimalString, type Big } from '$lib/domain/money';
 import type { AssetCode } from '$lib/domain/types';
+import { toEurAtDay } from '$lib/fx';
 import {
   addDays,
   assetMetricPoints,
@@ -121,7 +122,11 @@ export class HistoryState {
     const overrides = Object.fromEntries(
       Object.entries(app.state.assetSettings).map(([a, s]) => [a, s.coingeckoId]),
     );
-    return defaultHistoryProviders(overrides);
+    // Conversion USD → EUR au taux BCE du jour, pour le fournisseur profond DefiLlama — seul de la
+    // couche à coter en dollars (décision n° 42). On lit `fx.rates.USD` directement : `app.fxLookup`
+    // suit la **devise d'affichage** et serait vide dès que l'utilisateur affiche en euros, alors
+    // que la série USD est chargée dans tous les cas (elle sert déjà aux prix spot en dollars).
+    return defaultHistoryProviders(overrides, toEurAtDay(app.state.fx.rates.USD ?? {}));
   }
 
   /** Erreurs du chargement quotidien suivies des erreurs intraday encore d'actualité. */
@@ -144,6 +149,9 @@ export class HistoryState {
     if (this.status.loading || (this.loadedKey === key && this.status.loadedAt)) return;
     this.loadedKey = key;
     this.status = { ...this.status, loading: true, done: 0, total: assets.length, errors: [] };
+    // Le fournisseur profond cote en dollars : sans la série de taux, tous ses points seraient
+    // écartés. L'appel est dédoublonné et mis en cache par `ensureRates`.
+    await app.ensureRates('USD');
     this.store ??= createHistoryStore();
     const result = await loadDailyHistory(assets, addDays(from, -1), today, {
       store: this.store,

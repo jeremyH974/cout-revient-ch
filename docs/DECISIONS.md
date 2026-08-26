@@ -683,3 +683,26 @@
     tableau annoncent le même repli. La répartition est triée par part décroissante et doublée d'un
     anneau SVG maison (`AllocationDonut`, aucune dépendance, décoratif pour un lecteur d'écran —
     le tableau reste la source lisible).
+42. **Historique profond DefiLlama, interrogé en dernier, conversion injectée** (26/08/2026).
+    Les séries quotidiennes butaient sur la profondeur des fournisseurs : 365 jours chez CoinGecko,
+    721 points chez Kraken ; seul Coinbase pagine tout l'historique, et uniquement pour les paires
+    qu'il cote en euros. Un portefeuille ouvert il y a plus d'un an, ou un actif de longue traîne,
+    voyait donc **le TWR, le repère et la fiche actif travailler sur un historique tronqué**.
+    `coins.llama.fi/chart` comble ce trou : profondeur réelle jusqu'à 2013 pour BTC, et les jetons
+    morts restent servis (LUNC renvoie ses points de mai 2022). Trois choix, dans cet ordre
+    d'importance. **(a) Il est appelé en dernier** : les trois autres cotent nativement en euros,
+    lui seul cote en dollars et impose une conversion — on préfère toujours un prix coté à un prix
+    converti, et le service ne fait remplir à chaque fournisseur que les bords encore vides, si
+    bien qu'il ne reçoit que ce que personne n'a couvert. **(b) La conversion est injectée, jamais
+    devinée** (`usdToEurAt`, série `fx.rates.USD` au taux BCE du jour, chargée indépendamment de la
+    devise d'affichage — `app.fxLookup`, lui, suit l'affichage et serait vide en euros) ; un jour
+    sans taux voit son point **omis**, le service marquant alors l'actif `partial`, plutôt que
+    converti à un taux approximatif. **(c) `start` est ancré à midi UTC**, si bien qu'un point
+    appartient sans ambiguïté à sa journée, sans la bascule de minuit que `closeDayOf` traite chez
+    CoinGecko ; ces points sont donc des cours de milieu de journée et non des clôtures, ce qui ne
+    mélange jamais deux natures dans une même journée puisque les bords remplis sont disjoints.
+    Contrat établi par sondes réelles du 26/08/2026, la documentation officielle
+    (`docs.llama.fi/coin-prices-api`) étant en 404 : CORS ouvert sur l'origine du projet, `span`
+    plafonné à 500 points (501 → HTTP 400), `start` et `end` mutuellement exclusifs, actif inconnu
+    → `{"coins":{}}` en HTTP 200. `scripts/api-contract.mjs` surveille la forme **et** le plafond,
+    parce qu'une baisse silencieuse de celui-ci ferait échouer toutes nos requêtes d'un coup.
