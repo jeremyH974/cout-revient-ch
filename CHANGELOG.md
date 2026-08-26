@@ -5,6 +5,19 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.11.0] - 2026-08-26
+
+### Added
+
+- **Coût réel des opérations (P7)** : le rapport estime désormais le **spread implicite** — cet
+  écart entre le prix affiché par Coinhouse et le cours du marché, absent de la grille tarifaire
+  comme de votre relevé. Il est présenté à côté des commissions facturées, avec un coût total.
+  Méthode assumée : la comparaison se fait sur des cours de clôture quotidiens, donc seule la
+  **médiane sur un grand nombre d’opérations** est retenue — jamais un chiffre par opération, qui
+  ne mesurerait que le mouvement du marché ce jour-là. Sous 20 opérations comparables,
+  l’estimation se déclare fragile ; un spread favorable ne vient jamais en déduction des
+  commissions payées. Décision n° 48.
+
 ## [2.10.0] - 2026-08-26
 
 ### Added

@@ -796,3 +796,23 @@
     n'ajoute aucune dépendance. Le serveur se tait sur ce qu'il ne peut pas savoir : sans historique
     de prix, ni repère, ni mesure de risque, ni estimation fiscale — les règles concernées ne
     produisent rien plutôt qu'un chiffre partiel.
+48. **Le spread implicite s'estime en médiane, sur un agrégat, ou pas du tout** (26/08/2026).
+    Coinhouse n'affiche aucun spread et répond publiquement que son prix est « une moyenne entre le
+    prix d'achat et de vente » : l'écart au cours de référence est donc un coût réel, absent de la
+    grille comme du relevé. Le seul cours de référence dont l'app dispose sur tout l'historique est
+    QUOTIDIEN, alors qu'une opération a lieu à un instant précis — la comparaison opération par
+    opération est dominée par le mouvement de la journée, souvent plus grand que le spread cherché.
+    D'où trois règles. **(a) Aucun chiffre par opération n'est affiché** : le module agrège, parce
+    que le bruit intrajournalier est à peu près symétrique et s'annule en médiane, là où un écart
+    systématiquement défavorable subsiste. **(b) La médiane, pas la moyenne** : un test montre
+    qu'une seule journée aberrante suffit à emporter la moyenne au-delà de 10 % pendant que la
+    médiane reste sur le 1 % réel. **(c) Des seuils d'échantillon** : 20 opérations pour que
+    l'estimation globale se déclare fiable, 5 par actif pour figurer dans la ventilation — sans
+    quoi « l'actif le plus coûteux » se calcule sur une opération, ce que l'affichage a
+    effectivement produit avant correction. Deux garde-fous d'affichage, découverts en regardant
+    l'écran : un spread NÉGATIF (plateforme plus favorable que la référence) **ne se retranche
+    jamais des commissions**, qui ont bien été payées, et un actif ne se dit « le plus coûteux »
+    que s'il coûte. Les opérations cotées dans une autre devise que l'euro sont écartées et
+    comptées : les convertir ajouterait le bruit du change à celui de la journée, pour une mesure
+    qui vise justement quelques dixièmes de pour cent. Un cours REPORTÉ (jour sans cotation) est
+    écarté lui aussi.

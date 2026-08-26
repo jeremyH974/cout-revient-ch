@@ -36,6 +36,9 @@
   );
 
   /** Estimation fiscale française : toujours en euros, quelle que soit la devise d'affichage. */
+  /** Spread implicite : exige l’historique de prix, comme le risque et la fiscalité. */
+  const spread = $derived(history.status.loadedAt === null ? null : history.spread());
+
   const tax = $derived(history.status.loadedAt === null ? null : history.frenchTax());
 
   /**
@@ -65,6 +68,7 @@
       insights,
       risk,
       tax,
+      spread,
       performance,
     }),
   );
@@ -202,6 +206,24 @@
         </ul>
       {/if}
       <p class="note">{model.tax.note}</p>
+    </section>
+  {/if}
+
+  {#if model.spread}
+    <section class="card">
+      <h2>{model.spread.title}</h2>
+      <table class="details">
+        <tbody>
+          {#each model.spread.details as d (d.label)}
+            <tr>
+              <th scope="row">{d.label}</th>
+              <td class="right num {d.tone}">{d.value}</td>
+              <td class="hint">{d.hint ?? ''}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      <p class="note">{model.spread.note}</p>
     </section>
   {/if}
 
