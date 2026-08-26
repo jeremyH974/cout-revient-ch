@@ -734,3 +734,20 @@
     (décision n° 38), et l'interface le dit à la création. Enfin, les deux champs ne sont **écrits
     dans la sauvegarde que s'ils portent une valeur** : une règle ordinaire garde exactement la
     forme qu'elle avait, ce que vérifient les tests d'aller-retour.
+45. **Une projection est un scénario CHOISI par l'utilisateur, jamais une prévision**
+    (26/08/2026). Le mode « Plan mensuel » du simulateur déroule des versements réguliers et en
+    tire les conséquences arithmétiques sur le PRU, la position, les frais et le latent — mais la
+    variation de prix supposée est saisie par l'utilisateur, pas produite par un modèle. C'est la
+    frontière entre « voici ce qui va se passer », qu'aucune app honnête ne peut dire, et « voici
+    ce qu'impliquerait cette hypothèse », qui aide vraiment à décider. Deux hypothèses de calcul
+    sont écrites sous le résultat : versements mensuels réguliers au même barème de frais, et
+    variation **répartie linéairement** — un chemin parmi une infinité, alors que le PRU obtenu
+    dépend du chemin et pas seulement du point d'arrivée. Le repère sourcé Vanguard (2023 :
+    investir en une fois bat l'étalement ≈ 68 % du temps à un an) est cité pour que l'étalement ne
+    passe pas pour une martingale. `requiredAnnualRate` répond de même à « qu'est-ce que cet
+    objectif suppose ? » et non à « vais-je l'atteindre » ; `monthlyToReach` ne raisonne qu'à
+    rendement NUL, le seul cas où la réponse ne dépend d'aucune hypothèse de marché. Une chute est
+    bornée à −100 % (un prix négatif n'existe pas) et l'horizon à 120 mois, au-delà desquels
+    l'hypothèse de régularité perd son sens. **L'échelle de vente** évoquée par l'étude n'est pas
+    reprise : le mode « Vendre », désormais doublé de l'aperçu fiscal (décision n° 42), répond déjà
+    à la même question sans dupliquer une mécanique.

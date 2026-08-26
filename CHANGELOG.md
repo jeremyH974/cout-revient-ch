@@ -5,6 +5,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.9.0] - 2026-08-26
+
+### Added
+
+- **Mode « Plan mensuel » du simulateur (P32)** : « si je verse X par mois pendant N mois », avec
+  une hypothèse de prix que VOUS choisissez (de −50 % à +100 %). L’app en tire le PRU projeté, la
+  quantité acquise, les frais et le latent. **Un scénario, pas une prévision** : la variation est
+  répartie linéairement, et le PRU obtenu dépend du chemin autant que du point d’arrivée — le repère
+  Vanguard (2023) est cité pour que l’étalement ne passe pas pour une martingale. Décision n° 45.
+
 ## [2.8.0] - 2026-08-26
 
 ### Added
