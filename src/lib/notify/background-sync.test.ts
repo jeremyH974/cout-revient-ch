@@ -92,3 +92,25 @@ describe('takePendingSwFires', () => {
     expect(await takePendingSwFires()).toEqual([]);
   });
 });
+
+describe('règles que le service worker ne doit PAS voir (décision n° 45)', () => {
+  const NOW = 1_800_000_000_000;
+
+  it('écarte les règles expirées et celles à condition composée', () => {
+    const rules = [
+      rule('al:ok'),
+      rule('al:expired', { expiresAt: new Date(NOW - 1).toISOString() }),
+      rule('al:gated', { gate: { kind: 'fear-greed', direction: 'below', value: 20 } }),
+    ];
+    const snapshot = buildAlertWatchSnapshot({ ...baseInput, rules, nowMs: NOW });
+    // Le service worker ne sait que comparer un prix à un seuil : il ne peut vérifier ni une date
+    // d'expiration au moment du réveil, ni le contexte de marché. Il ne les reçoit donc jamais.
+    expect(snapshot.rules.map((r) => r.id)).toEqual(['al:ok']);
+  });
+
+  it('garde une règle dont l’expiration est encore à venir', () => {
+    const later = rule('al:later', { expiresAt: new Date(NOW + 86_400_000).toISOString() });
+    const snapshot = buildAlertWatchSnapshot({ ...baseInput, rules: [later], nowMs: NOW });
+    expect(snapshot.rules).toHaveLength(1);
+  });
+});

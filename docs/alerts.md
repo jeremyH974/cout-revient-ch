@@ -176,3 +176,29 @@ TradingView / MCP :
 - CoinGecko — serveur MCP officiel : https://docs.coingecko.com/ai-integration/mcp-server
 - CCXT — serveur MCP officiel : https://github.com/ccxt/ccxt/tree/master/mcp
 - Serveurs MCP TradingView communautaires (état, risques) : https://github.com/atilaahmettaner/tradingview-mcp · https://github.com/tradesdontlie/tradingview-mcp · bibliothèque archivée : https://github.com/brian-the-dev/python-tradingview-ta
+
+## Expiration et conditions composées (2.8.0, décision n° 45)
+
+Une règle peut désormais **expirer** — sans limite, 1, 2, 3 ou 6 mois. C'est le défaut de
+TradingView (deux mois) et pour une bonne raison : une alerte oubliée finit toujours par se
+déclencher pour un motif qui n'a plus rien à voir avec l'intention de départ. Une règle expirée ne
+se déclenche plus mais **garde son état** : retirer l'expiration ne la ré-arme pas par surprise.
+
+Une règle peut aussi porter une **condition supplémentaire** sur l'indice Fear & Greed
+([contexte de marché](../docs/DECISIONS.md) n° 44, opt-in) : « prix sous mon PRU de 20 % **et**
+indice au plus 20 ». Les deux termes doivent être vrais en même temps. Une condition non satisfaite
+**bloque le déclenchement sans désarmer** la règle : le seuil reste franchi, l'alerte partira dès
+que le contexte suivra. Sans contexte disponible, la règle reste **dormante** et l'écran le dit —
+on ne déclenche pas une alerte dont la moitié des termes est invérifiable.
+
+Ces deux catégories de règles sont **évaluées app ouverte seulement** : le service worker ne sait
+comparer qu'un prix à un seuil, il ne peut vérifier ni une date à son réveil ni un indice externe.
+Elles sont donc exclues de son instantané, ce qui préserve l'équivalence prouvée entre son
+`decideFires` et le `evaluateAlerts` du moteur (décision n° 38). La feuille de création le dit.
+
+## Plan mensuel (2.9.0, décision n° 46)
+
+Le simulateur gagne un quatrième mode, **« Plan mensuel »** : « si je verse X par mois pendant N
+mois », sous une hypothèse de prix que vous choisissez. Il rend le PRU projeté, la quantité
+acquise, les frais et le latent. C'est un **scénario**, pas une prévision : la variation supposée
+est répartie linéairement, et le PRU obtenu dépend du chemin autant que du point d'arrivée.

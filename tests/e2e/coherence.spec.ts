@@ -534,3 +534,34 @@ test('le repli maximal dit la même chose dans le constat et dans le tableau', a
   const recovered = rowText.includes('pas encore retrouvé');
   expect(insightText.includes('n’a pas encore été retrouvé')).toBe(recovered);
 });
+
+/**
+ * Fiscalité (décision n° 43) : le constat « Fiscalité de l'année » et le tableau « Fiscalité
+ * française » sont deux rendus de la MÊME estimation. On compare l'écran à lui-même : rejouer la
+ * valeur globale du portefeuille au jour de chaque cession demande l'historique de prix, que seul
+ * le navigateur charge.
+ */
+test('l’estimation fiscale dit la même chose dans le constat et dans le tableau', async ({
+  page,
+}) => {
+  await openDataset(page);
+  await page.goto('#/report');
+  const section = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Fiscalité française (estimation)' }),
+  });
+  // La section n'apparaît qu'une fois l'historique de prix chargé : on lui laisse le temps.
+  await expect(section).toBeVisible({ timeout: 20_000 });
+  // Les deux hypothèses qui commandent le résultat doivent rester écrites.
+  await expect(section).toContainText('PORTEFEUILLE ENTIER');
+  await expect(section).toContainText('ni un conseil fiscal');
+
+  const insight = page.locator('.detail', { hasText: 'cession' }).filter({ hasText: 'En 20' });
+  if ((await insight.count()) === 0) return;
+  const text = plain(await insight.first().innerText());
+  const year = /En (\d{4})/.exec(text)![1]!;
+  const row = section.locator('tr', { hasText: `${year} · cessions imposables` });
+  await expect(row).toHaveCount(1);
+  // Le total des cessions de l'année est le même des deux côtés.
+  const rowAmount = /(\d[\d  ]*,\d{2}) €/.exec(plain(await row.innerText()))![1]!;
+  expect(text).toContain(rowAmount);
+});

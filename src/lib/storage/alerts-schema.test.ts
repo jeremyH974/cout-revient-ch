@@ -5,6 +5,7 @@ import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import {
   DEFAULT_ALERTS_SETTINGS,
   MAX_ALERT_EVENTS,
+  emptyAlertsState,
   emptyState,
   sanitizeState,
   withDefaults,
@@ -156,5 +157,59 @@ describe('mergeStates (alerts)', () => {
     expect(Object.keys(merged.alerts.rules).sort()).toEqual(['al:1', 'al:2']);
     expect(merged.alerts.events.map((e) => e.id)).toEqual(['al:e1', 'al:e2']);
     expect(merged.alerts.settings).toEqual(current.alerts.settings);
+  });
+});
+
+describe('expiration et condition composée (décision n° 45)', () => {
+  const withRule = (over: Record<string, unknown>) =>
+    sanitizeState({
+      ...emptyState(),
+      alerts: {
+        ...emptyAlertsState(),
+        rules: {
+          'al:1': {
+            id: 'al:1',
+            asset: 'btc',
+            direction: 'below',
+            threshold: { kind: 'pru-pct', percent: '10' },
+            repeat: 'recurring',
+            enabled: true,
+            note: '',
+            createdAt: '',
+            ...over,
+          },
+        },
+      },
+    }).state.alerts.rules['al:1'];
+
+  it('conserve une date d’expiration lisible, écarte une date illisible', () => {
+    expect(withRule({ expiresAt: '2027-01-01T00:00:00.000Z' })?.expiresAt).toBe(
+      '2027-01-01T00:00:00.000Z',
+    );
+    // Illisible = sans limite : jamais une règle rendue muette par une donnée abîmée.
+    expect(withRule({ expiresAt: 'bientôt' })?.expiresAt).toBeUndefined();
+    expect(withRule({ expiresAt: 42 })?.expiresAt).toBeUndefined();
+  });
+
+  it('n’accepte une condition composée que complète et dans l’échelle 0-100', () => {
+    expect(withRule({ gate: { kind: 'fear-greed', direction: 'below', value: 20 } })?.gate).toEqual(
+      {
+        kind: 'fear-greed',
+        direction: 'below',
+        value: 20,
+      },
+    );
+    // Au moindre doute, la condition disparaît — une règle sans condition se déclenche, elle ne
+    // reste pas bloquée par un fragment de données incompréhensible.
+    expect(
+      withRule({ gate: { kind: 'autre', direction: 'below', value: 20 } })?.gate,
+    ).toBeUndefined();
+    expect(
+      withRule({ gate: { kind: 'fear-greed', direction: 'sideways', value: 20 } })?.gate,
+    ).toBeUndefined();
+    expect(
+      withRule({ gate: { kind: 'fear-greed', direction: 'below', value: 140 } })?.gate,
+    ).toBeUndefined();
+    expect(withRule({ gate: 'peur' })?.gate).toBeUndefined();
   });
 });

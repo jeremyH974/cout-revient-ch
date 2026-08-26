@@ -338,6 +338,24 @@ await check(
       : ['le rejet « Missing/Invalid API Key » a changé de forme'],
 );
 
+await check(
+  'alternative.me Fear & Greed (contexte de marché, opt-in)',
+  'https://api.alternative.me/fng/?limit=1',
+  (json) => {
+    const first = Array.isArray(json?.data) ? json.data[0] : null;
+    const problems = [];
+    if (!first) return ['pas de tableau `data`'];
+    // L'app lit trois champs et rien d'autre : value, value_classification, timestamp (secondes).
+    if (!isNumericString(String(first.value))) problems.push('`value` non numérique');
+    else if (Number(first.value) < 0 || Number(first.value) > 100)
+      problems.push('`value` hors de l’échelle 0-100');
+    if (typeof first.value_classification !== 'string')
+      problems.push('`value_classification` absent');
+    if (!isNumericString(String(first.timestamp))) problems.push('`timestamp` non numérique');
+    return problems;
+  },
+);
+
 const failed = results.filter((r) => !r.ok);
 const lines = [
   `# Contrat des API tierces — ${new Date().toISOString()}`,

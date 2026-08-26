@@ -2,7 +2,8 @@
 import { nowIso, nowMs } from '$lib/clock';
 import { isFiat } from '$lib/domain/assets';
 import type { PositionReport } from '$lib/domain/engine';
-import { D, ZERO, toDecimalString, type Big } from '$lib/domain/money';
+import { D, ZERO, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
+import { computeFrenchTax, type TaxLedger } from '$lib/domain/tax-fr';
 import type { AssetCode } from '$lib/domain/types';
 import { toEurAtDay } from '$lib/fx';
 import {
@@ -339,6 +340,32 @@ export class HistoryState {
       internalTransferLegs: app.internalTransferLegs,
       benchmark: prices.length > 0 ? { asset: benchmarkAsset, prices } : null,
       partialAssets: this.status.partial.length + this.status.missing.length,
+    });
+  }
+
+  /**
+   * Estimation fiscale française (décision n° 43) : rejoue les cessions avec la méthode globale de
+   * l'article 150 VH bis. Toujours EN EUROS, quelle que soit la devise d'affichage — c'est une
+   * obligation française. Nécessite l'historique quotidien (`ensure()`) pour connaître la valeur
+   * globale du portefeuille au jour de chaque cession passée ; sans lui, le module le dit au lieu
+   * d'inventer une plus-value.
+   */
+  frenchTax(): TaxLedger {
+    // Un Record plutôt qu'une Map : la règle `prefer-svelte-reactivity` proscrit `new Map` ici.
+    const closingByDay: Record<string, Big> = {};
+    for (const point of this.metricPoints('portfolio')) {
+      const day = point.day.slice(0, 10);
+      const eur = app.eurFromDisplay(point.value, day);
+      if (eur !== null) closingByDay[day] = eur;
+    }
+    const annotations: Record<string, DecimalString | null> = {};
+    for (const [id, entry] of Object.entries(app.state.taxAnnotations))
+      annotations[id] = entry.portfolioValueEur;
+    return computeFrenchTax({
+      // `app.events` est le grand livre en euros ; `displayEvents` serait converti.
+      events: app.events,
+      closingValueAt: (day) => closingByDay[day] ?? null,
+      annotations,
     });
   }
 

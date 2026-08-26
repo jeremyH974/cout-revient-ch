@@ -1,10 +1,12 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { nowMs } from '$lib/clock';
   import {
     alertConditionMet,
     alertDistance,
     alertThresholdEur,
     type AlertDirection,
+    type AlertGate,
     type AlertRule,
     type AlertThresholdSpec,
   } from '$lib/domain/alerts';
@@ -38,6 +40,26 @@
   let priceCurrency = $state<Currency>('EUR');
   let feeKind = $state<'crypto-crypto' | 'sell-eur'>('crypto-crypto');
   let repeat = $state<'once' | 'recurring'>('recurring');
+  /** Expiration en jours ; 0 = sans limite. TradingView expire ses alertes à 2 mois par défaut. */
+  let expiryDays = $state('0');
+  type GateChoice = 'none' | 'fg-below' | 'fg-above';
+  let gateChoice = $state<GateChoice>('none');
+  let gateValue = $state('20');
+
+  /** Date d'expiration absolue déduite du choix relatif ; `null` = sans limite. */
+  function expiresAtIso(): string | null {
+    const days = Number(expiryDays);
+    if (!Number.isFinite(days) || days <= 0) return null;
+    return new Date(nowMs() + days * 86_400_000).toISOString();
+  }
+
+  /** Condition composée saisie ; `null` si aucune, ou si la valeur est hors de l'échelle. */
+  function gateOf(): AlertGate | null {
+    if (gateChoice === 'none') return null;
+    const value = Number(gateValue.trim());
+    if (!Number.isFinite(value) || value < 0 || value > 100) return null;
+    return { kind: 'fear-greed', direction: gateChoice === 'fg-below' ? 'below' : 'above', value };
+  }
   let note = $state('');
 
   const heldAssets = $derived(
@@ -72,6 +94,14 @@
     if (rule) {
       formAsset = rule.asset;
       repeat = rule.repeat;
+      expiryDays = '0';
+      gateChoice =
+        rule.gate?.kind === 'fear-greed'
+          ? rule.gate.direction === 'below'
+            ? 'fg-below'
+            : 'fg-above'
+          : 'none';
+      gateValue = rule.gate ? String(rule.gate.value) : '20';
       note = rule.note;
       const t = rule.threshold;
       if (t.kind === 'price' || t.kind === 'price-usd') {
@@ -101,6 +131,9 @@
     priceDirection = 'below';
     feeKind = 'crypto-crypto';
     repeat = 'recurring';
+    expiryDays = '0';
+    gateChoice = 'none';
+    gateValue = '20';
     note = '';
   }
 
@@ -139,6 +172,8 @@
       enabled: rule?.enabled ?? true,
       note,
       createdAt: rule?.createdAt ?? '',
+      expiresAt: expiresAtIso(),
+      gate: gateOf(),
     };
   });
 
@@ -322,6 +357,42 @@
         <option value="once">Une seule fois</option>
       </select>
     </label>
+
+    <label class="field">
+      <span>Expiration</span>
+      <select bind:value={expiryDays}>
+        <option value="0">Sans limite</option>
+        <option value="30">Dans 1 mois</option>
+        <option value="60">Dans 2 mois</option>
+        <option value="90">Dans 3 mois</option>
+        <option value="180">Dans 6 mois</option>
+      </select>
+    </label>
+    {#if expiryDays === '0'}
+      <p class="muted small">
+        Une alerte oubliée finit par se déclencher pour une raison qui n'a plus rien à voir avec
+        l'intention de départ : une date d'expiration évite ça.
+      </p>
+    {/if}
+
+    <label class="field">
+      <span>Condition supplémentaire</span>
+      <select bind:value={gateChoice}>
+        <option value="none">Aucune — le seuil de prix suffit</option>
+        <option value="fg-below">…et indice Fear &amp; Greed au plus…</option>
+        <option value="fg-above">…et indice Fear &amp; Greed au moins…</option>
+      </select>
+    </label>
+    {#if gateChoice !== 'none'}
+      <label class="field">
+        <span>Valeur de l'indice (0 à 100)</span>
+        <input type="text" inputmode="numeric" bind:value={gateValue} />
+      </label>
+      <p class="muted small">
+        Les deux conditions devront être vraies en même temps. Sans le contexte de marché activé
+        dans les réglages, cette alerte reste en veille — et elle ne sera pas vérifiée app fermée.
+      </p>
+    {/if}
 
     <label class="field">
       <span>Note (facultatif)</span>

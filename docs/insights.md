@@ -27,21 +27,22 @@ l'écrit noir sur blanc sous la section.
 
 ## Les règles livrées
 
-| Code                           | Ce qu'il constate                                                | Condition d'apparition                      |
-| ------------------------------ | ---------------------------------------------------------------- | ------------------------------------------- |
-| `unqualified`                  | Opérations que le moteur n'a pas su interpréter                  | au moins une                                |
-| `unpriced`                     | Actifs détenus sans cours connu                                  | au moins un                                 |
-| `subscription-net`             | Rentabilité réalisée de l'offre Coinhouse sur 12 mois            | une offre est détectée (décision n° 39)     |
-| `fees-12m`                     | Frais d'opérations payés sur 12 mois et leur part du volume      | frais ≥ 1 unité de la devise                |
-| `concentration`                | Poids du premier actif dans la valeur cotée                      | part ≥ 25 % (mise en avant au-delà de 50 %) |
-| `top3-share`                   | Poids cumulé des trois premiers actifs                           | ≥ 75 % et au moins 3 actifs valorisés       |
-| `max-drawdown`                 | Plus forte baisse encaissée, dates comprises ([risque](risk.md)) | historique de prix chargé (écran Rapport)   |
-| `xirr`                         | Rendement personnel annualisé, depuis la date du 1er flux        | le calcul converge (≥ 30 jours de recul)    |
-| `benchmark-gap`                | Écart avec « mêmes apports sur un seul actif »                   | historique de prix chargé (écran Rapport)   |
-| `realized`                     | Plus ou moins-values déjà encaissées                             | montant ≥ 1 unité de la devise              |
-| `contribution-top` / `-bottom` | Actifs qui pèsent le plus, en bien et en mal                     | au moins 2 positions valorisées             |
-| `capital-recovered`            | Positions dont les ventes ont rendu la mise de départ            | au moins une                                |
-| `stablecoin-share`             | Part des stablecoins (la trésorerie qui ne suit pas le marché)   | part ≥ 5 %                                  |
+| Code                           | Ce qu'il constate                                                       | Condition d'apparition                      |
+| ------------------------------ | ----------------------------------------------------------------------- | ------------------------------------------- |
+| `unqualified`                  | Opérations que le moteur n'a pas su interpréter                         | au moins une                                |
+| `unpriced`                     | Actifs détenus sans cours connu                                         | au moins un                                 |
+| `subscription-net`             | Rentabilité réalisée de l'offre Coinhouse sur 12 mois                   | une offre est détectée (décision n° 39)     |
+| `fees-12m`                     | Frais d'opérations payés sur 12 mois et leur part du volume             | frais ≥ 1 unité de la devise                |
+| `concentration`                | Poids du premier actif dans la valeur cotée                             | part ≥ 25 % (mise en avant au-delà de 50 %) |
+| `top3-share`                   | Poids cumulé des trois premiers actifs                                  | ≥ 75 % et au moins 3 actifs valorisés       |
+| `tax-year`                     | Cessions imposables et impôt estimé de l'année ([fiscalité](tax-fr.md)) | au moins une cession imposable cette année  |
+| `max-drawdown`                 | Plus forte baisse encaissée, dates comprises ([risque](risk.md))        | historique de prix chargé (écran Rapport)   |
+| `xirr`                         | Rendement personnel annualisé, depuis la date du 1er flux               | le calcul converge (≥ 30 jours de recul)    |
+| `benchmark-gap`                | Écart avec « mêmes apports sur un seul actif »                          | historique de prix chargé (écran Rapport)   |
+| `realized`                     | Plus ou moins-values déjà encaissées                                    | montant ≥ 1 unité de la devise              |
+| `contribution-top` / `-bottom` | Actifs qui pèsent le plus, en bien et en mal                            | au moins 2 positions valorisées             |
+| `capital-recovered`            | Positions dont les ventes ont rendu la mise de départ                   | au moins une                                |
+| `stablecoin-share`             | Part des stablecoins (la trésorerie qui ne suit pas le marché)          | part ≥ 5 %                                  |
 
 Seuils et rangs d'affichage sont déclarés une seule fois, en haut de
 [`src/lib/domain/insights.ts`](../src/lib/domain/insights.ts) (`MIN_NOTABLE`,
@@ -91,6 +92,7 @@ faux, autant le dire d'abord.
 ## Ce que ça ne fait pas
 
 Pas de prédiction de prix, pas de score « achetez / vendez », pas d'appel réseau : les constats se
-calculent sur les données déjà présentes dans le navigateur. P31 (risque et structure) est livré et
-documenté dans [`docs/risk.md`](risk.md) ; les briques suivantes de l'étude (P30 aperçu fiscal avant
-cession, P32 projections, P34 contexte de marché, P35 alertes composées) restent des propositions.
+calculent sur les données déjà présentes dans le navigateur. P31 (risque et structure) et P30
+(aperçu fiscal avant cession) sont livrés et documentés dans [`docs/risk.md`](risk.md) et
+[`docs/tax-fr.md`](tax-fr.md) ; les briques suivantes de l'étude (P32 projections, P34 contexte de
+marché, P35 alertes composées) restent des propositions.

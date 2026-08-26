@@ -11,6 +11,7 @@ import {
   type AlertRuleState,
 } from '$lib/domain/alerts';
 import { fmtPrice } from '$lib/format/fr';
+import { loadFearGreed, type FearGreedPoint } from '$lib/pricing/fear-greed';
 import {
   buildAlertWatchSnapshot,
   syncAlertWatchTask,
@@ -477,6 +478,43 @@ export class AppState {
     if (this.currency === 'EUR') return big;
     const rate = this.fxLookup.rate(day ?? nowIso().slice(0, 10));
     return rate === null ? null : big.times(rate);
+  }
+
+  /**
+   * Contexte de marché (décision n° 44) : indice Fear & Greed du jour, `null` tant qu'il n'a pas
+   * été demandé. Chargé UNIQUEMENT si le réglage opt-in est coché — jamais au démarrage.
+   */
+  marketContext = $state<FearGreedPoint | null>(null);
+  marketContextLoading = $state(false);
+
+  /** Recharge l'indice si l'opt-in est actif ; sans opt-in, efface ce qui traînerait en mémoire. */
+  async refreshMarketContext(): Promise<void> {
+    if (!this.state.ui.marketContext) {
+      this.marketContext = null;
+      return;
+    }
+    if (this.marketContextLoading) return;
+    this.marketContextLoading = true;
+    try {
+      this.marketContext = await loadFearGreed();
+    } finally {
+      this.marketContextLoading = false;
+    }
+  }
+
+  /**
+   * Retour à l'euro depuis la devise d'affichage, au taux du jour indiqué. Réciproque exacte de
+   * `displayFromEur` : les calculs qui doivent rester en euros quoi qu'affiche l'app (la fiscalité
+   * française, par exemple) repassent par ici.
+   */
+  eurFromDisplay(value: Big | DecimalString | null, day?: string): Big | null {
+    if (value === null) return null;
+    const big = D(value);
+    if (this.currency === 'EUR') return big;
+    const rate = this.fxLookup.rate(day ?? nowIso().slice(0, 10));
+    if (rate === null) return null;
+    const perEur = D(rate);
+    return perEur.eq(D('0')) ? null : big.div(perEur);
   }
 
   /** Grand livre dans la devise d'affichage : chaque mouvement au taux BCE de son jour. */
@@ -1593,6 +1631,8 @@ export class AppState {
       pricesEur: this.alertPricesEur(),
       positions: this.alertPositions,
       usdPerEur: this.usdPerEurToday,
+      // Contexte de marché : `null` si l'opt-in est décoché — les règles qui en dépendent dorment.
+      fearGreed: this.marketContext?.value ?? null,
       nowMs: nowMs(),
     });
     if (fired.length > 0) {

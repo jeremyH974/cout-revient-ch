@@ -40,6 +40,13 @@ function insight(code: InsightCode, over: Partial<Insight> = {}): Insight {
       to: { kind: 'day', value: '2025-04-08' },
       recovered: { kind: 'day', value: '2025-10-02' },
     },
+    'tax-year': {
+      year: { kind: 'year', value: 2026 },
+      proceeds: { kind: 'money', value: '12000' },
+      net: { kind: 'money', value: '3000' },
+      tax: { kind: 'money', value: '942' },
+      count: { kind: 'count', value: 4 },
+    },
     xirr: { rate: { kind: 'ratio', value: '0.184' }, since: { kind: 'day', value: '2024-03-12' } },
     'benchmark-gap': {
       amount: { kind: 'money', value: '-1234' },
@@ -83,6 +90,7 @@ const ALL_CODES: InsightCode[] = [
   'concentration',
   'top3-share',
   'max-drawdown',
+  'tax-year',
   'xirr',
   'benchmark-gap',
   'realized',

@@ -42,7 +42,26 @@ export interface AlertRule {
   note: string;
   /** ISO 8601. */
   createdAt: string;
+  /**
+   * Expiration explicite (ISO 8601) ou `null` pour « sans limite » (décision n° 45). Passée cette
+   * date, la règle ne se déclenche plus : une alerte oubliée finit toujours par se déclencher pour
+   * une raison qui n'a plus rien à voir avec l'intention de départ.
+   */
+  expiresAt?: string | null;
+  /**
+   * Condition SUPPLÉMENTAIRE à satisfaire en plus du seuil de prix. Sans contexte de marché
+   * disponible, une règle qui en porte une reste dormante — jamais déclenchée « au hasard ».
+   */
+  gate?: AlertGate | null;
 }
+
+/** Condition composée : le seuil de prix ET cette condition doivent être vrais (décision n° 45). */
+export type AlertGate = {
+  kind: 'fear-greed';
+  direction: AlertDirection;
+  /** Borne de l'indice, 0 à 100. */
+  value: number;
+};
 
 /** État d'exécution d'une règle, persisté à part : supprimer/recréer une règle repart à neuf. */
 export interface AlertRuleState {
@@ -90,6 +109,11 @@ export interface AlertsEvaluationInput {
   positions: Readonly<Record<AssetCode, AlertPositionInput>>;
   /** Taux BCE EUR→USD du jour (seuils `price-usd`) ; absent → ces règles restent dormantes. */
   usdPerEur?: DecimalString | null;
+  /**
+   * Indice Fear & Greed du jour (contexte de marché opt-in, décision n° 44) ; absent → les règles
+   * qui portent une condition composée dessus restent dormantes.
+   */
+  fearGreed?: number | null;
   /** Epoch ms de l'évaluation (horloge injectée par l'appelant). */
   nowMs: number;
 }
@@ -183,6 +207,24 @@ function rearmReached(direction: AlertDirection, price: Big, threshold: Big): bo
  * - désarmée + prix revenu au-delà de la marge de ré-armement → ré-armée (récurrentes seulement ;
  *   une règle `once` déjà déclenchée attend un ré-armement manuel).
  */
+/** Vrai si la règle a passé sa date d'expiration (une règle sans date n'expire jamais). */
+export function isAlertExpired(rule: AlertRule, nowMs: number): boolean {
+  if (!rule.expiresAt) return false;
+  const at = Date.parse(rule.expiresAt);
+  return Number.isFinite(at) && nowMs >= at;
+}
+
+/**
+ * Condition composée satisfaite ? Sans condition, toujours vrai. Avec une condition mais SANS
+ * contexte disponible, toujours faux : on ne déclenche pas une alerte dont on ne peut pas vérifier
+ * la moitié des termes.
+ */
+export function gateSatisfied(gate: AlertGate | null, fearGreed: number | null): boolean {
+  if (gate === null) return true;
+  if (fearGreed === null || !Number.isFinite(fearGreed)) return false;
+  return gate.direction === 'below' ? fearGreed <= gate.value : fearGreed >= gate.value;
+}
+
 export function evaluateAlerts(input: AlertsEvaluationInput): AlertsEvaluation {
   const states: Record<string, AlertRuleState> = {};
   const fired: AlertFire[] = [];
@@ -190,6 +232,9 @@ export function evaluateAlerts(input: AlertsEvaluationInput): AlertsEvaluation {
     const previous = input.states[rule.id];
     if (previous) states[rule.id] = previous;
     if (!rule.enabled) continue;
+    // Une règle expirée ne se déclenche plus, mais son état est conservé tel quel : réactiver son
+    // expiration doit la retrouver telle qu'elle était, pas la ré-armer par surprise.
+    if (isAlertExpired(rule, input.nowMs)) continue;
     const priceRaw = input.pricesEur[rule.asset];
     if (priceRaw === undefined) continue;
     const position = input.positions[rule.asset] ?? null;
@@ -207,6 +252,9 @@ export function evaluateAlerts(input: AlertsEvaluationInput): AlertsEvaluation {
         state.lastTriggeredAtMs === null ||
         input.nowMs - state.lastTriggeredAtMs >= MIN_TRIGGER_GAP_MS;
       if (!gapOk) continue;
+      // La condition composée bloque le déclenchement SANS désarmer : le seuil reste franchi, la
+      // règle se déclenchera dès que le contexte la satisfera aussi.
+      if (!gateSatisfied(rule.gate ?? null, input.fearGreed ?? null)) continue;
       states[rule.id] = {
         armed: false,
         lastTriggeredAtMs: input.nowMs,

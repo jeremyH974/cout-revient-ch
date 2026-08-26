@@ -1,7 +1,10 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import { COINHOUSE_FEES, ZERO_FEE, breakEvenSellPrice, type FeeRate } from '$lib/domain/fees';
-  import { parseDecimal, type Big } from '$lib/domain/money';
+  import { nowIso } from '$lib/clock';
+  import { D, parseDecimal, type Big } from '$lib/domain/money';
+  import { previewCession } from '$lib/domain/tax-fr';
+  import { projectDca } from '$lib/domain/project';
   import {
     qtyToRecoverStake,
     simulateBuy,
@@ -11,8 +14,9 @@
   import { MASK, fmtMasked, fmtMoney, fmtPct, fmtPrice, fmtQty, roundHalfUp } from '$lib/format/fr';
   import Sheet from '../shared/Sheet.svelte';
   import { app } from '../../state/app.svelte';
+  import { history } from '../../state/history.svelte';
 
-  type SimulateMode = 'buy' | 'sell' | 'target';
+  type SimulateMode = 'buy' | 'sell' | 'target' | 'plan';
 
   let {
     open = $bindable(false),
@@ -31,12 +35,70 @@
   let price = $state('');
   let sellQty = $state('');
   let targetPru = $state('');
+  /** Plan de versements mensuels (P32) : hypothèse choisie par l'utilisateur, jamais une prévision. */
+  let monthly = $state('');
+  let planMonths = $state('12');
+  let planScenario = $state('0');
   type BuyFeeChoice = 'buy-sepa' | 'buy-card' | 'none' | 'custom';
   type SellFeeChoice = 'crypto-crypto' | 'sell-eur' | 'none' | 'custom';
   let buyFeeChoice = $state<BuyFeeChoice>('buy-sepa');
   let sellFeeChoice = $state<SellFeeChoice>('crypto-crypto');
   let customPct = $state('0');
   let customFixed = $state('0');
+
+  /**
+   * Estimation fiscale (décision n° 43) : repliée par défaut, elle ne charge l'historique des prix
+   * qu'à l'ouverture — la feuille reste instantanée pour qui ne s'en sert pas.
+   */
+  let taxOpen = $state(false);
+  let taxLoading = $state(false);
+  $effect(() => {
+    if (!taxOpen || history.status.loadedAt !== null || taxLoading) return;
+    taxLoading = true;
+    void history.ensure().finally(() => {
+      taxLoading = false;
+    });
+  });
+
+  const taxLedger = $derived(
+    taxOpen && history.status.loadedAt !== null ? history.frenchTax() : null,
+  );
+
+  /** Aperçu de la vente en cours, en EUROS (la fiscalité française ne connaît que l'euro). */
+  const taxPreview = $derived.by(() => {
+    if (taxLedger === null || sellResult === null) return null;
+    // Le simulateur calcule DÉJÀ en euros (`priceEurBig`, `positionEur`) : rien à convertir ici.
+    // Le rapport, lui, est dans la devise d'affichage — la valeur globale doit repasser en euros.
+    const proceeds = sellResult.netProceedsEur;
+    const globalValue = app.eurFromDisplay(app.report.totals.value);
+    if (globalValue === null) return null;
+    const year = Number(nowIso().slice(0, 4));
+    const current = taxLedger.years.find((y) => y.year === year);
+    const preview = previewCession({
+      ptaBefore: D(taxLedger.ptaAfter),
+      proceedsEur: proceeds,
+      globalValueEur: globalValue,
+      year,
+      yearProceedsEur: current ? D(current.proceedsEur) : undefined,
+      yearNetEur: current ? D(current.netEur) : undefined,
+    });
+    if (preview === null) return null;
+    return {
+      year,
+      proceeds,
+      gain: D(preview.gainEur),
+      share: D(preview.acquisitionShareEur),
+      delta: D(preview.taxDeltaEur),
+      yearNet: D(preview.yearNetEur),
+      exempt: preview.exempt,
+      rateLabel: preview.rateLabel,
+      unknown: taxLedger.unknownGlobalValue,
+    };
+  });
+
+  /** Montant en euros : la fiscalité s'exprime en euros même si l'app affiche en dollars. */
+  const moneyEur = (value: Big, sign = false): string =>
+    discreet ? fmtMasked('EUR') : fmtMoney(value, 'EUR', { sign });
 
   const position = $derived(app.positionEur(asset));
   const discreet = $derived(app.state.ui.discreet);
@@ -85,6 +147,9 @@
       spend = '';
       sellQty = '';
       targetPru = '';
+      monthly = '';
+      planMonths = '12';
+      planScenario = '0';
     });
   });
 
@@ -128,6 +193,24 @@
     const qtyBig = parseInput(sellQty);
     if (!simPosition || qtyBig === null || priceEurBig === null || sellFee === null) return null;
     return simulateSell(simPosition, qtyBig, priceEurBig, sellFee);
+  });
+
+  /**
+   * Plan de versements mensuels : le moteur applique la variation de prix CHOISIE, répartie
+   * linéairement. Les frais d'achat retenus sont ceux du barème sélectionné en mode « Acheter ».
+   */
+  const planResult = $derived.by(() => {
+    const monthlyEur = toEur(parseInput(monthly));
+    const months = Number(planMonths);
+    if (!simPosition || monthlyEur === null || priceEurBig === null || buyFee === null) return null;
+    return projectDca({
+      position: simPosition,
+      monthlyEur,
+      months,
+      priceEur: priceEurBig,
+      fee: buyFee,
+      priceChange: D(planScenario).div('100'),
+    });
   });
 
   /** Prix d'équilibre frais inclus (objectif 0 %) au barème de sortie choisi. */
@@ -178,6 +261,7 @@
     { id: 'buy', label: 'Acheter' },
     { id: 'sell', label: 'Vendre' },
     { id: 'target', label: 'Objectif de PRU' },
+    { id: 'plan', label: 'Plan mensuel' },
   ];
 </script>
 
@@ -392,13 +476,81 @@
             </p>
           {/if}
         </div>
+        {#if sellFeeChoice === 'sell-eur'}
+          <details class="tax" bind:open={taxOpen}>
+            <summary>Estimation fiscale française (avant de vendre)</summary>
+            {#if taxLoading}
+              <p class="muted">Chargement de l’historique des prix…</p>
+            {:else if taxPreview}
+              <p>
+                Plus-value imposable estimée :
+                <strong class={taxPreview.gain.lt('0') ? 'loss' : 'gain'}
+                  >{moneyEur(taxPreview.gain, true)}</strong
+                >
+                <span class="muted"
+                  >— prix de cession {moneyEur(taxPreview.proceeds)} moins {moneyEur(
+                    taxPreview.share,
+                  )} de prix d’acquisition imputé.</span
+                >
+              </p>
+              <p>
+                {#if taxPreview.delta.gt('0')}
+                  Impôt supplémentaire dû à cette vente :
+                  <strong>{moneyEur(taxPreview.delta)}</strong>
+                  <span class="muted"
+                    >— prélèvement forfaitaire unique {taxPreview.rateLabel}, sur {moneyEur(
+                      taxPreview.yearNet,
+                      true,
+                    )} de résultat net {taxPreview.year}.</span
+                  >
+                {:else if taxPreview.delta.lt('0')}
+                  Cette vente <strong>réduirait</strong> l’impôt de l’année de
+                  <strong>{moneyEur(taxPreview.delta.abs())}</strong>
+                  <span class="muted"
+                    >— sa moins-value s’impute sur vos plus-values {taxPreview.year}.</span
+                  >
+                {:else if taxPreview.exempt}
+                  Aucun impôt estimé
+                  <span class="muted"
+                    >— vos cessions {taxPreview.year} restent sous le seuil de 305 €, donc exonérées.</span
+                  >
+                {:else}
+                  Aucun impôt estimé
+                  <span class="muted"
+                    >— l’année {taxPreview.year} resterait nette perdante ({moneyEur(
+                      taxPreview.yearNet,
+                      true,
+                    )}) : rien à payer, et cette perte ne se reporte pas sur les années suivantes.</span
+                  >
+                {/if}
+              </p>
+              {#if taxPreview.unknown > 0}
+                <p class="muted">
+                  {taxPreview.unknown} cession passée n’a pas pu être chiffrée (historique de prix trop
+                  court) : le prix d’acquisition restant, donc cette estimation, sont approximatifs.
+                </p>
+              {/if}
+            {:else}
+              <p class="muted">
+                Saisissez une quantité et un prix pour voir la plus-value imposable estimée et
+                l’impôt correspondant.
+              </p>
+            {/if}
+            <p class="muted">
+              Méthode globale de l’article 150 VH bis : la plus-value se calcule sur le PORTEFEUILLE
+              entier, pas sur cet actif — elle n’a rien à voir avec le PRU affiché plus haut. Le
+              calcul suppose que cette app contient tous vos actifs numériques. Estimation, ni
+              déclaration ni conseil fiscal.
+            </p>
+          </details>
+        {/if}
         <p class="notice">
           Convertir vers un stablecoin (USDC, EURCV) coûte 0,79 % et reste un échange crypto↔crypto
           (sursis fiscal de l’art. 150 VH bis) ; vendre en euros coûte 1,29 % et constitue une
           cession imposable. Information indicative, ni conseil fiscal ni conseil en investissement.
         </p>
       </form>
-    {:else}
+    {:else if mode === 'target'}
       <form class="grid" onsubmit={(e) => e.preventDefault()}>
         <label class="field">
           <span>PRU visé ({curWord})</span>
@@ -434,6 +586,81 @@
             </p>
           {/if}
         </div>
+      </form>
+    {:else}
+      <form class="grid" onsubmit={(e) => e.preventDefault()}>
+        <label class="field">
+          <span>Versement mensuel ({curWord})</span>
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={monthly} placeholder="ex. 200" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
+        </label>
+        <label class="field">
+          <span>Pendant</span>
+          <select bind:value={planMonths}>
+            <option value="6">6 mois</option>
+            <option value="12">12 mois</option>
+            <option value="24">2 ans</option>
+            <option value="36">3 ans</option>
+            <option value="60">5 ans</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Hypothèse de prix sur la période</span>
+          <select bind:value={planScenario}>
+            <option value="-50">Baisse de moitié (−50 %)</option>
+            <option value="-20">Baisse de 20 %</option>
+            <option value="0">Prix inchangé</option>
+            <option value="50">Hausse de 50 %</option>
+            <option value="100">Doublement (+100 %)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Prix de départ ({curWord})</span>
+          <span class="affix">
+            <input type="text" inputmode="decimal" bind:value={price} placeholder="ex. 35000" />
+            <span class="unit" aria-hidden="true">{curSymbol}</span>
+          </span>
+        </label>
+        <div class="result" aria-live="polite">
+          {#if planResult}
+            <p>
+              {money(planResult.investedEur)} versés, dont
+              <strong>{money(planResult.feesEur)}</strong> de frais →
+              <strong>{qty(planResult.qtyAcquired)}</strong>
+              {asset.toUpperCase()} de plus.
+            </p>
+            <p>
+              PRU projeté : <strong>{showPrice(planResult.pruAfter)}</strong>
+              <span class="muted"
+                >(aujourd’hui {showPrice(position.pru)}) · prix d’arrivée supposé {showPrice(
+                  planResult.finalPriceEur,
+                )}</span
+              >
+            </p>
+            <p>
+              Position : {qty(planResult.qtyAfter)}
+              {asset.toUpperCase()} pour {money(planResult.costAfter)} investis, valeur
+              {money(planResult.valueAfter)} —
+              <strong class={planResult.unrealizedAfter.lt('0') ? 'loss' : 'gain'}
+                >{moneySigned(planResult.unrealizedAfter)}</strong
+              >
+            </p>
+          {:else}
+            <p class="muted">
+              Saisissez un versement mensuel et un prix de départ pour voir ce que ce plan ferait de
+              votre PRU, de votre position et de vos frais.
+            </p>
+          {/if}
+        </div>
+        <p class="notice">
+          <strong>Un scénario, pas une prévision.</strong> La variation choisie est répartie linéairement
+          sur la période : le marché ne monte ni ne descend en ligne droite, et le PRU obtenu dépend du
+          chemin, pas seulement du point d’arrivée. À titre de repère, l’étude Vanguard de 2023 constate
+          qu’investir en une fois bat l’étalement environ 68 % du temps à un an — l’étalement reste un
+          outil de tempérament, pas de rendement.
+        </p>
       </form>
     {/if}
   {/if}

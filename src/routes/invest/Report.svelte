@@ -35,6 +35,9 @@
       : null,
   );
 
+  /** Estimation fiscale française : toujours en euros, quelle que soit la devise d'affichage. */
+  const tax = $derived(history.status.loadedAt === null ? null : history.frenchTax());
+
   /**
    * Constats du rapport : ceux de l'accueil, ENRICHIS du repère « mêmes apports en BTC » et des
    * mesures de risque — l'écran d'accueil ne charge pas l'historique de prix, celui-ci si.
@@ -46,6 +49,8 @@
       xirr: app.portfolioXirr,
       benchmark: performance?.benchmark ?? null,
       risk,
+      tax,
+      taxYear: Number(generatedAt.slice(0, 4)),
     }),
   );
 
@@ -59,6 +64,7 @@
       subscription: app.subscriptionAnalysis,
       insights,
       risk,
+      tax,
       performance,
     }),
   );
@@ -171,6 +177,31 @@
         </tbody>
       </table>
       <p class="note">{model.risk.note}</p>
+    </section>
+  {/if}
+
+  {#if model.tax}
+    <section class="card">
+      <h2>{model.tax.title}</h2>
+      <table class="details">
+        <tbody>
+          {#each model.tax.details as d (d.label)}
+            <tr>
+              <th scope="row">{d.label}</th>
+              <td class="right num {d.tone}">{d.value}</td>
+              <td class="hint">{d.hint ?? ''}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if model.tax.warnings.length > 0}
+        <ul class="warnings">
+          {#each model.tax.warnings as warning (warning)}
+            <li>{warning}</li>
+          {/each}
+        </ul>
+      {/if}
+      <p class="note">{model.tax.note}</p>
     </section>
   {/if}
 
@@ -379,6 +410,14 @@
   .hint {
     font-size: var(--fs-xs);
     color: var(--fg-muted);
+  }
+  .warnings {
+    margin: var(--space-2) 0 0;
+    padding-left: 1.2em;
+    font-size: var(--fs-sm);
+    color: var(--warn);
+    display: grid;
+    gap: var(--space-1);
   }
   .note {
     font-size: var(--fs-xs);

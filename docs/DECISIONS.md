@@ -706,3 +706,71 @@
     plafonné à 500 points (501 → HTTP 400), `start` et `end` mutuellement exclusifs, actif inconnu
     → `{"coins":{}}` en HTTP 200. `scripts/api-contract.mjs` surveille la forme **et** le plafond,
     parce qu'une baisse silencieuse de celui-ci ferait échouer toutes nos requêtes d'un coup.
+43. **L'estimation fiscale française rejoue les cessions avec la méthode GLOBALE, et n'est jamais
+    présentée comme un calcul** (26/08/2026). L'article 150 VH bis impose une formule qui ne
+    ressemble à rien de ce que fait le reste de l'app : la plus-value se calcule sur le prix total
+    d'acquisition du PORTEFEUILLE (pas sur le PRU d'un actif — décision n° 10) et sur la valeur
+    globale du portefeuille au jour de la cession. `src/lib/domain/tax-fr.ts` rejoue donc le grand
+    livre dans l'ordre en maintenant ce PTA résiduel. Seules les sorties vers une monnaie ayant
+    cours légal sont des cessions ; tout échange entre actifs numériques — stablecoins compris, y
+    compris un stablecoin euro — est en sursis et ne touche à rien. La valeur globale d'un jour
+    passé est reconstituée comme « valeur de clôture + produits encaissés ce jour-là » (une clôture
+    est postérieure à la vente, l'actif vendu n'y figure plus) ; le champ `taxAnnotations`, réservé
+    depuis la v1, permet de la corriger à la main. Quand elle manque, le module **ne consomme pas
+    le PTA et laisse la plus-value à `null`** : mieux vaut un PTA trop élevé qu'une plus-value
+    inventée, et l'écran le dit. Seuil de 305 € sur la SOMME DES PRIX DE CESSION (pas un
+    abattement), taux par millésime (30 % jusqu'aux cessions 2024, 31,4 % ensuite — table à une
+    ligne par changement), moins-values imputables sur la seule année, jamais reportées. L'aperçu
+    avant vente affiche l'EFFET de la vente sur l'impôt de l'année (supplément, réduction si elle
+    dégage une moins-value, exonération, année perdante), pas un montant hors contexte. Deux
+    hypothèses sont écrites partout où le résultat s'affiche : ce portefeuille est supposé être le
+    portefeuille entier du contribuable, et la valeur globale est reconstituée. Montants toujours
+    en euros, même quand l'app affiche en dollars. **Rien de tout cela ne remplace un
+    professionnel**, et le rapport l'écrit.
+44. **Le contexte de marché est un opt-in réseau distinct, et il ne devient jamais un signal**
+    (26/08/2026). L'indice Fear & Greed d'alternative.me est la SEULE donnée de l'app qui ne vienne
+    ni des opérations de l'utilisateur ni des cours de ses actifs : il a donc sa propre case à
+    cocher (`ui.marketContext`, décochée par défaut), séparée de la source de prix, et rien n'est
+    chargé tant qu'elle n'est pas cochée. Trois garde-fous : l'**attribution** à la source est une
+    condition d'utilisation, donc affichée avec la valeur ; la bande publiée par la source fait
+    autorité (on ne reclasse la valeur nous-mêmes que si le libellé devient inconnu — il a déjà
+    changé) ; et l'indice est présenté comme l'humeur du marché entier, explicitement pas comme un
+    signal sur le portefeuille. Toute réponse hors contrat (valeur non numérique, hors de
+    l'échelle 0-100, horodatage absent) rend `null` : mieux vaut ne rien afficher qu'un contexte
+    faux. La requête ne transporte aucune donnée de l'utilisateur — elle est identique pour tout le
+    monde. Le stub E2E la sert en local (aucun test ne sort sur Internet) et le monitor vérifie le
+    contrat des trois champs lus.
+45. **Une alerte peut expirer et porter une seconde condition, mais le service worker ne voit ni
+    l'une ni l'autre** (26/08/2026). Deux manques relevés par l'étude face à TradingView :
+    l'**expiration** (leur défaut est de deux mois — une alerte oubliée finit toujours par se
+    déclencher pour une raison étrangère à l'intention de départ) et les **conditions composées**.
+    L'app ajoute donc `expiresAt` (absolu, `null` = sans limite, choisi parmi des durées relatives)
+    et `gate`, une condition supplémentaire sur le contexte de marché (décision n° 43) : les deux
+    termes doivent être vrais ensemble. Trois règles de comportement : une règle expirée ne se
+    déclenche plus **mais garde son état** (retirer l'expiration ne doit pas la ré-armer par
+    surprise) ; une condition non satisfaite **bloque sans désarmer** (le seuil reste franchi, la
+    règle partira dès que le contexte suivra) ; et sans contexte disponible, une règle conditionnée
+    reste **dormante** — on ne déclenche pas une alerte dont la moitié des termes est invérifiable.
+    Conséquence structurante : ces règles sont **exclues de l'instantané du service worker**, qui
+    ne sait comparer qu'un prix à un seuil et ne peut vérifier ni une date au réveil ni un indice
+    externe. C'est ce qui préserve l'équivalence prouvée entre `decideFires` et `evaluateAlerts`
+    (décision n° 38), et l'interface le dit à la création. Enfin, les deux champs ne sont **écrits
+    dans la sauvegarde que s'ils portent une valeur** : une règle ordinaire garde exactement la
+    forme qu'elle avait, ce que vérifient les tests d'aller-retour.
+46. **Une projection est un scénario CHOISI par l'utilisateur, jamais une prévision**
+    (26/08/2026). Le mode « Plan mensuel » du simulateur déroule des versements réguliers et en
+    tire les conséquences arithmétiques sur le PRU, la position, les frais et le latent — mais la
+    variation de prix supposée est saisie par l'utilisateur, pas produite par un modèle. C'est la
+    frontière entre « voici ce qui va se passer », qu'aucune app honnête ne peut dire, et « voici
+    ce qu'impliquerait cette hypothèse », qui aide vraiment à décider. Deux hypothèses de calcul
+    sont écrites sous le résultat : versements mensuels réguliers au même barème de frais, et
+    variation **répartie linéairement** — un chemin parmi une infinité, alors que le PRU obtenu
+    dépend du chemin et pas seulement du point d'arrivée. Le repère sourcé Vanguard (2023 :
+    investir en une fois bat l'étalement ≈ 68 % du temps à un an) est cité pour que l'étalement ne
+    passe pas pour une martingale. `requiredAnnualRate` répond de même à « qu'est-ce que cet
+    objectif suppose ? » et non à « vais-je l'atteindre » ; `monthlyToReach` ne raisonne qu'à
+    rendement NUL, le seul cas où la réponse ne dépend d'aucune hypothèse de marché. Une chute est
+    bornée à −100 % (un prix négatif n'existe pas) et l'horizon à 120 mois, au-delà desquels
+    l'hypothèse de régularité perd son sens. **L'échelle de vente** évoquée par l'étude n'est pas
+    reprise : le mode « Vendre », désormais doublé de l'aperçu fiscal (décision n° 42), répond déjà
+    à la même question sans dupliquer une mécanique.

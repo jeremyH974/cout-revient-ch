@@ -396,6 +396,21 @@
         onchange={(e) => app.setUi({ hideClosed: e.currentTarget.checked })}
       /> Masquer les positions clôturées</label
     >
+    <label class="check"
+      ><input
+        type="checkbox"
+        checked={app.state.ui.marketContext}
+        onchange={(e) => {
+          app.setUi({ marketContext: e.currentTarget.checked });
+          if (e.currentTarget.checked) void app.refreshMarketContext();
+        }}
+      /> Contexte de marché (indice Fear &amp; Greed)</label
+    >
+    <p class="muted small">
+      Ajoute un appel à <strong>alternative.me</strong> pour afficher l'indice de sentiment du marché
+      sur la Vue d'ensemble. Aucune de vos données n'est envoyée : la requête ne contient rien d'autre
+      que la demande de l'indice du jour, identique pour tout le monde.
+    </p>
   </section>
 
   <EngineSettings />

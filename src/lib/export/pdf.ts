@@ -411,6 +411,12 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     detailsTable(model.risk.details);
     paragraph(model.risk.note, 8.5, COLOR.muted);
   }
+  if (model.tax) {
+    sectionTitle(model.tax.title);
+    detailsTable(model.tax.details);
+    for (const warning of model.tax.warnings) paragraph(`• ${warning}`, 8.5, COLOR.muted);
+    paragraph(model.tax.note, 8.5, COLOR.muted);
+  }
   if (model.subscription) {
     sectionTitle(model.subscription.title);
     detailsTable(model.subscription.details);
