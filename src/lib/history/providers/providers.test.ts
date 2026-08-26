@@ -6,6 +6,7 @@ import type { FetchLike } from '../types';
 import { coinbaseExchangeHistoryProvider } from './coinbase';
 import { coingeckoHistoryProvider } from './coingecko';
 import { DEFILLAMA_MAX_SPAN, defillamaHistoryProvider, type UsdToEurAt } from './defillama';
+import { defaultHistoryProviders } from './index';
 import { krakenHistoryProvider, krakenPairName } from './kraken';
 
 type Route = (url: string) => { status?: number; body?: unknown } | undefined;
@@ -413,5 +414,17 @@ describe('DefiLlama chart (historique profond)', () => {
     await expect(
       provider(fetch).fetchDaily('btc', '2026-08-18', '2026-08-20', signal),
     ).rejects.toThrow('DefiLlama HTTP 429');
+  });
+});
+
+describe('defaultHistoryProviders', () => {
+  it('range DefiLlama en dernier : un prix coté en euros prime sur un prix converti (décision n° 42)', () => {
+    const names = defaultHistoryProviders({}, () => '1').map((p) => p.name);
+    expect(names).toEqual(['Coinbase', 'Kraken', 'CoinGecko', 'DefiLlama']);
+  });
+
+  it('omet DefiLlama faute de convertisseur : il ne sait coter qu’en dollars', () => {
+    const names = defaultHistoryProviders({}).map((p) => p.name);
+    expect(names).toEqual(['Coinbase', 'Kraken', 'CoinGecko']);
   });
 });
