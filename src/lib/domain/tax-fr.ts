@@ -304,7 +304,7 @@ function summarizeYears(cessions: readonly TaxCession[]): TaxYear[] {
 }
 
 /**
- * Récapitulatif façon DAC8 (décision n° 49) : ce qu'une plateforme déclarera à l'administration à
+ * Récapitulatif façon DAC8 (décision n° 50) : ce qu'une plateforme déclarera à l'administration à
  * partir des opérations 2026 (montants bruts, unités, nombre de transactions, par actif et par an).
  * Sert à COMPARER ce que l'app voit à ce que Coinhouse déclarera — pas à déclarer soi-même.
  */

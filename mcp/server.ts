@@ -1,5 +1,5 @@
 /**
- * Serveur MCP local, en LECTURE SEULE, sur le portefeuille (décision n° 47).
+ * Serveur MCP local, en LECTURE SEULE, sur le portefeuille (décision n° 48).
  *
  * Transport stdio du protocole Model Context Protocol : JSON-RPC 2.0, un message par ligne, rien
  * d'autre que des messages sur `stdout`, les journaux sur `stderr` (exigences de la spécification

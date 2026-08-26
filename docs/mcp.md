@@ -1,6 +1,6 @@
 # Serveur MCP local — interroger son portefeuille en langage naturel
 
-> Livré le 26/08/2026 — décision de conception : [`docs/DECISIONS.md`](DECISIONS.md) n° 47.
+> Livré le 26/08/2026 — décision de conception : [`docs/DECISIONS.md`](DECISIONS.md) n° 48.
 > Chiffré dans [`proposals/2026-08-push-et-mcp.md`](proposals/2026-08-push-et-mcp.md) (option B).
 
 ## Ce que ça fait

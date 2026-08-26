@@ -16,7 +16,9 @@ import { D, ZERO, type Big } from '../../domain/money';
 import { OnchainError, type OnchainMovement, type OnchainSyncResult } from './normalize';
 import type { AddressScheme, DerivationChain } from './xpub';
 
-const HOSTS = ['https://mempool.space/api', 'https://blockstream.info/api'] as const;
+/** Exporté pour que le catalogue des sources (`src/lib/support/sources.ts`) puisse être croisé. */
+export const BTC_HOSTS = ['https://mempool.space/api', 'https://blockstream.info/api'] as const;
+const HOSTS = BTC_HOSTS;
 const PAGE_SIZE = 25;
 const SATS = D('100000000');
 /** Norme BIP44 : 20 adresses consécutives inutilisées ferment la chaîne. */

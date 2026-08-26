@@ -1,5 +1,5 @@
 /**
- * Chargement de l'état pour le serveur MCP local (décision n° 47).
+ * Chargement de l'état pour le serveur MCP local (décision n° 48).
  *
  * Le serveur ne parle à rien : il LIT un fichier de sauvegarde JSON produit par l'app (export
  * manuel ou sauvegarde automatique dans un dossier) et rejoue le MÊME pipeline que l'écran —

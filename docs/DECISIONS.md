@@ -772,9 +772,32 @@
     rendement NUL, le seul cas où la réponse ne dépend d'aucune hypothèse de marché. Une chute est
     bornée à −100 % (un prix négatif n'existe pas) et l'horizon à 120 mois, au-delà desquels
     l'hypothèse de régularité perd son sens. **L'échelle de vente** évoquée par l'étude n'est pas
-    reprise : le mode « Vendre », désormais doublé de l'aperçu fiscal (décision n° 42), répond déjà
+    reprise : le mode « Vendre », désormais doublé de l'aperçu fiscal (décision n° 43), répond déjà
     à la même question sans dupliquer une mécanique.
-47. **Serveur MCP local en lecture seule, écrit sans aucune dépendance** (26/08/2026). Le serveur
+
+47. **Le catalogue des sources est déclaratif, et l'attribution est vérifiée par un test — pas par
+    une relecture** (26/08/2026). L'app interroge **douze** sources, dont **trois** imposent
+    contractuellement une mention : CoinGecko (« Powered by CoinGecko », police lisible d'au moins
+    10 pt, affichage proéminent — API ToS § 4.3, en vigueur au 05/09/2025), Etherscan (lien retour
+    ou « Powered by Etherscan.io APIs », l'exemption « usage strictement personnel » ne s'appliquant
+    pas à un site public) et alternative.me (déjà traitée, décision n° 44). Écrire ces mentions à la
+    main dans un composant les aurait périmées au premier fournisseur ajouté, et l'oubli d'une
+    attribution est **silencieux** : il se découvre à la réclamation. `src/lib/support/sources.ts`
+    porte donc la table, et `sources.test.ts` la croise avec les noms que le code produit
+    réellement — `defaultPriceProviders`, `defaultHistoryProviders`, `frankfurterProvider`,
+    `FLAVOR_LABELS`, `BTC_HOSTS`, `FEAR_GREED_ATTRIBUTION`. **Brancher une treizième source sans
+    l'inscrire casse la CI**, et créditer quelqu'un qu'on n'interroge plus la casse aussi.
+    Trois devoirs sont distingués et jamais confondus : `required` (condition d'utilisation, mention
+    reproduite mot pour mot avec sa référence datée), `courtesy` (citation demandée sans être
+    exigée — DefiLlama), `unverified` (conditions non lues ou muettes : la source est **créditée**
+    mais l'app ne prétend pas connaître une obligation qu'elle n'a pas constatée — écrire `required`
+    par prudence reviendrait à afficher une contrainte inventée). Conséquence de rendu :
+    l'attribution ne peut pas utiliser `--fs-xs` (12 px), **sous le plancher de 10 pt = 13,33 px**
+    imposé par CoinGecko ; elle est rendue en `--fs-sm` (14 px). Le même principe s'applique aux
+    logos : `NO_ICON` motive chaque ticker sans logo, et `icons.test.ts` exige que chaque entrée de
+    `TICKERS` soit tranchée dans un sens ou dans l'autre — un badge d'initiales cesse d'être
+    l'indice ambigu d'un choix ou d'un oubli.
+48. **Serveur MCP local en lecture seule, écrit sans aucune dépendance** (26/08/2026). Le serveur
     lit une SAUVEGARDE de l'app et rejoue le pipeline existant (assemblage du grand livre,
     appariement des virements, `computePortfolio`) : il n'existe pas de « calcul du MCP » qui
     pourrait diverger de l'écran. Quatre choix structurants. **(a) Lecture seule par
@@ -796,7 +819,7 @@
     n'ajoute aucune dépendance. Le serveur se tait sur ce qu'il ne peut pas savoir : sans historique
     de prix, ni repère, ni mesure de risque, ni estimation fiscale — les règles concernées ne
     produisent rien plutôt qu'un chiffre partiel.
-48. **Le spread implicite s'estime en médiane, sur un agrégat, ou pas du tout** (26/08/2026).
+49. **Le spread implicite s'estime en médiane, sur un agrégat, ou pas du tout** (26/08/2026).
     Coinhouse n'affiche aucun spread et répond publiquement que son prix est « une moyenne entre le
     prix d'achat et de vente » : l'écart au cours de référence est donc un coût réel, absent de la
     grille comme du relevé. Le seul cours de référence dont l'app dispose sur tout l'historique est
@@ -816,7 +839,7 @@
     comptées : les convertir ajouterait le bruit du change à celui de la journée, pour une mesure
     qui vise justement quelques dixièmes de pour cent. Un cours REPORTÉ (jour sans cotation) est
     écarté lui aussi.
-49. **Le 2086 est une AIDE AU REPORT, exportée en CSV, et la réconciliation DAC8 sert à comparer,
+50. **Le 2086 est une AIDE AU REPORT, exportée en CSV, et la réconciliation DAC8 sert à comparer,
     pas à déclarer** (26/08/2026). Le moteur fiscal (décision n° 43) produit déjà, par cession,
     exactement les colonnes du formulaire : date, prix de cession, valeur globale du portefeuille,
     prix total d'acquisition, fraction imputée, plus-value. Le rapport les exporte donc en CSV

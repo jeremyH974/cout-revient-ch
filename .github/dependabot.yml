@@ -12,6 +12,13 @@ updates:
     cooldown:
       default-days: 7
       semver-major-days: 14
+    ignore:
+      # TypeScript 7 est injouable tant que svelte-check ne l'accepte pas : son pair est borné à
+      # `^5.0.0 || ^6.0.0` (4.7.6, dernière version au 26/08/2026), et `npm ci` échoue en ERESOLVE
+      # avant toute compilation — or svelte-check EST notre `npm run typecheck`. Voir la PR #1.
+      # À retirer dès que svelte-check publie un pair `^7.0.0` ; la majeure 6 reste, elle, proposée.
+      - dependency-name: typescript
+        versions: ['>=7']
     groups:
       minor-and-patch:
         update-types:

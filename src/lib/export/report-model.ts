@@ -153,9 +153,9 @@ export interface ReportModelOptions {
   risk?: RiskMetrics | null | undefined;
   /** Estimation fiscale française (décision n° 43), calculée par l'appelant. Toujours en euros. */
   tax?: TaxLedger | null | undefined;
-  /** Spread implicite estimé (décision n° 48), calculé par l'appelant sur l'historique de prix. */
+  /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
   spread?: SpreadEstimate | null | undefined;
-  /** Récapitulatif DAC8 de l’année en cours (décision n° 49), calculé par l’appelant. */
+  /** Récapitulatif DAC8 de l’année en cours (décision n° 50), calculé par l’appelant. */
   dac8?: Dac8Year | null | undefined;
 }
 
@@ -644,7 +644,7 @@ function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): Report
 }
 
 /**
- * Coût réel des opérations (décision n° 48) : la commission facturée, que l'export donne, PLUS le
+ * Coût réel des opérations (décision n° 49) : la commission facturée, que l'export donne, PLUS le
  * spread implicite, qu'il faut estimer. La note porte la précaution méthodologique — sans elle, un
  * pourcentage sorti d'une comparaison à un cours quotidien passerait pour une mesure.
  */

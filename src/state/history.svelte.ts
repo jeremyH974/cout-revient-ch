@@ -372,7 +372,7 @@ export class HistoryState {
   }
 
   /**
-   * Spread implicite (décision n° 48) : compare le prix affiché par Coinhouse au cours de
+   * Spread implicite (décision n° 49) : compare le prix affiché par Coinhouse au cours de
    * référence du jour. Un point REPORTÉ (`filled` : jour sans cotation) est écarté — comparer une
    * opération à un cours de la veille ajouterait un jour entier de mouvement au bruit mesuré.
    */

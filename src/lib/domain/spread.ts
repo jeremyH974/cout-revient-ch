@@ -1,5 +1,5 @@
 /**
- * Spread implicite (décision n° 48) — ce que la plateforme prend EN PLUS de sa commission.
+ * Spread implicite (décision n° 49) — ce que la plateforme prend EN PLUS de sa commission.
  *
  * Coinhouse n'affiche pas de spread : il annonce un prix, et répond publiquement que ce prix est
  * « une moyenne entre le prix d'achat et de vente ». L'écart entre ce prix et le cours de

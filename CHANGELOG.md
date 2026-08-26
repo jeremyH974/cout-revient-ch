@@ -5,6 +5,34 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Section « Sources des données » dans les réglages (P8)** : les douze services que
+  l'application interroge depuis votre navigateur, chacun avec son rôle et son lien. Trois d'entre
+  eux imposent contractuellement une mention — CoinGecko, Etherscan et alternative.me — et elle est
+  désormais affichée. Le catalogue est **déclaratif** et croisé par un test avec les fournisseurs
+  réellement déclarés dans le code : brancher une source sans l'attribuer fait échouer la CI, tout
+  comme créditer un service qu'on n'interroge plus (`docs/DECISIONS.md` n° 47).
+
+### Fixed
+
+- **L'obligation d'attribution d'Etherscan était invisible** : ses conditions exigent un lien
+  retour ou la mention « Powered by Etherscan.io APIs » dès que l'usage n'est pas strictement
+  personnel — ce qui est le cas d'un site public. Elle se serait découverte à la réclamation.
+
+### Changed
+
+- **Les logos manquants ne sont plus ambigus** : un ticker sans logo est désormais soit embarqué,
+  soit inscrit avec son motif (licence à vérifier, ou logo à intégrer). Un test l'exige, et vérifie
+  aussi que la liste déclarée correspond aux fichiers réellement livrés — dans les deux sens.
+- **Historique long de EURCV et GMX** : les deux cas étaient déjà résolus (GMX par l'historique
+  profond de la 2.5.1, EURCV par son ancrage à 1 €) mais rien ne les verrouillait. Un test le fait
+  désormais pour les 70 actifs curés, pas seulement pour ces deux-là — une courbe qui redevient
+  courte ne lève aucune erreur, elle raccourcit.
+- Dependabot ne propose plus TypeScript 7 : `svelte-check`, qui **est** notre vérificateur de
+  types, borne son pair à TypeScript 6 et `npm ci` échoue avant toute compilation. La majeure 6
+  reste proposée ; l'exclusion tombe dès que `svelte-check` accepte la 7.
+
 ## [2.12.0] - 2026-08-26
 
 ### Added
@@ -16,7 +44,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   déclaration.**
 - **Réconciliation DAC8** : le rapport récapitule vos cessions brutes et acquisitions de l’année
   par actif, dans la forme que les plateformes feront remonter à l’administration à partir des
-  opérations 2026 — de quoi comparer avec ce que Coinhouse déclarera. Décision n° 49.
+  opérations 2026 — de quoi comparer avec ce que Coinhouse déclarera. Décision n° 50.
 
 ## [2.11.0] - 2026-08-26
 
@@ -29,7 +57,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   **médiane sur un grand nombre d’opérations** est retenue — jamais un chiffre par opération, qui
   ne mesurerait que le mouvement du marché ce jour-là. Sous 20 opérations comparables,
   l’estimation se déclare fragile ; un spread favorable ne vient jamais en déduction des
-  commissions payées. Décision n° 48.
+  commissions payées. Décision n° 49.
 
 ## [2.10.0] - 2026-08-26
 
@@ -41,7 +69,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   de l’app, calcule avec le même moteur et n’ouvre aucune connexion réseau. Sept outils, tous en
   **lecture seule** (aucun ordre, aucune écriture), et chaque réponse porte la date de la
   sauvegarde et celle des cours utilisés. Aucune dépendance ajoutée : le transport du protocole
-  est écrit à la main. Détail : docs/mcp.md, décision n° 47.
+  est écrit à la main. Détail : docs/mcp.md, décision n° 48.
 
 ## [2.9.0] - 2026-08-26
 

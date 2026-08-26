@@ -102,7 +102,7 @@
   }
 
   /**
-   * Cessions au format des colonnes du 2086 (décision n° 49) : une AIDE AU REPORT, pas une
+   * Cessions au format des colonnes du 2086 (décision n° 50) : une AIDE AU REPORT, pas une
    * déclaration — les lignes non chiffrables le disent, colonne par colonne.
    */
   function downloadCessions(): void {

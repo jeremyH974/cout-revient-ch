@@ -1,5 +1,5 @@
 /**
- * Outils du serveur MCP local (décision n° 47) — **lecture seule**, et rien d'autre.
+ * Outils du serveur MCP local (décision n° 48) — **lecture seule**, et rien d'autre.
  *
  * Aucun outil n'écrit, ne supprime, ni ne passe d'ordre : le serveur lit une sauvegarde et répond.
  * Chaque réponse porte sa **provenance** (date de la sauvegarde, date des cours) parce qu'un

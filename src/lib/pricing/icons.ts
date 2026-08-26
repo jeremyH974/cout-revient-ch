@@ -70,6 +70,27 @@ export const KNOWN_ICONS: ReadonlySet<string> = new Set([
   'yfi',
 ]);
 
+/**
+ * Tickers connus **sans** logo embarqué, avec le motif. Sans cette table, un ticker ajouté sans
+ * logo se découvre par hasard, sous la forme d'un badge d'initiales, et rien ne dit si c'est un
+ * choix ou un oubli. `icons.test.ts` exige que chaque entrée de `TICKERS` soit ici ou dans
+ * `KNOWN_ICONS`, jamais dans aucune des deux ni dans les deux.
+ *
+ * Un logo n'est embarqué que si sa licence permet la redistribution, vérifiée fichier par fichier
+ * dans `public/icons/LICENSE.md`. Dans le doute, `CoinBadge` retombe sur les initiales : afficher
+ * une marque sans en avoir le droit coûte plus cher qu'un badge sobre.
+ */
+export const NO_ICON: ReadonlyMap<string, string> = new Map([
+  ['bonk', 'disponible sous MIT dans @web3icons/core — à intégrer'],
+  ['floki', 'disponible sous MIT dans @web3icons/core — à intégrer'],
+  ['ondo', 'disponible sous MIT dans @web3icons/core — à intégrer'],
+  ['wif', 'disponible sous MIT dans @web3icons/core — à intégrer'],
+  ['eurcv', 'absent de @web3icons/core — kit de marque officiel à obtenir, licence à vérifier'],
+  ['hype', 'absent de @web3icons/core — kit de marque officiel à obtenir, licence à vérifier'],
+  ['sky', 'absent de @web3icons/core — kit de marque officiel à obtenir, licence à vérifier'],
+  ['usds', 'absent de @web3icons/core — kit de marque officiel à obtenir, licence à vérifier'],
+]);
+
 /** URL (même origine, sous `BASE_URL`) du logo d'un actif, ou `null` s'il n'en existe pas. */
 export function iconUrl(asset: AssetCode): string | null {
   const code = asset.toLowerCase();

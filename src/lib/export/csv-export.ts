@@ -239,7 +239,7 @@ export function seriesToCsv(points: readonly MetricPoint[], currency: Currency =
 }
 
 /**
- * Cessions imposables au format du formulaire **2086** (décision n° 49) : une ligne par cession,
+ * Cessions imposables au format du formulaire **2086** (décision n° 50) : une ligne par cession,
  * dans l'ordre des colonnes du millésime 2026 (date, valeur globale du portefeuille, prix de
  * cession, prix total d'acquisition, plus-value). **Aide au report, pas une déclaration** : les
  * chiffres restent des estimations, à vérifier avec un professionnel.
