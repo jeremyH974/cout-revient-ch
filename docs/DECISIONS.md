@@ -852,3 +852,34 @@
     Coinhouse déclarera, jamais à déclarer soi-même. Les échanges en sursis n'y figurent pas, ce
     qui est justement le point à contrôler. L'ensemble reste sous le même avertissement que la
     décision n° 43 : estimation, ni déclaration ni conseil fiscal.
+
+51. **La valeur nette est `Σ contributions − Σ passifs` dès l'origine, et l'équité de trading y
+    entre RÉÉCHANTILLONNÉE au jour** (26/08/2026). Deux décisions en une, prises ensemble parce
+    qu'elles se répondent.
+
+    **La forme.** La courbe est définie comme une somme de **contributions** génériques moins une
+    somme de **passifs**, où un actif crypto valorisé par son cours n'est qu'un cas particulier. Le
+    terme de passif est aujourd'hui constant à zéro. C'est délibérément une dépense d'avance :
+    P36 (immobilier, assurance-vie, PER, objets), P41 (actions et ETF) et P37 (crédits) s'y
+    branchent en ajoutant un producteur ou en remplissant le terme de passif, sans réécrire la
+    courbe. Écrite « Σ avoirs crypto », elle aurait exigé une refonte à chacune des trois.
+
+    **Le rééchantillonnage.** La feuille de route reportait cette brique au motif d'un « historique
+    de l'équité de trading inexistant » : il existe, il est récupéré à chaque synchronisation
+    (`sync.ts`, point d'entrée `portfolio`), persisté, et déjà tracé sur l'écran Trading. Le vrai
+    obstacle est que les deux séries sont de **natures incompatibles** — l'une calculée du grand
+    livre au pas quotidien, l'autre servie par la plateforme à des horodatages irréguliers,
+    sous-échantillonnée (une quarantaine de points pour six mois), commençant à l'ouverture du
+    compte, et **impossible à consolider entre deux comptes** faute d'instants alignés. Les
+    additionner point à point serait faux. L'équité est donc ramenée au pas quotidien par report du
+    dernier point connu, comme `valueSeries` reporte le dernier cours connu.
+
+    **Conséquence assumée : la courbe consolidée ne se superpose pas à celle de l'écran Trading**,
+    qui reste volontairement non amincie parce qu'un point par jour écraserait les épisodes
+    violents. Deux objets, deux questions. Le dernier point, lui, reprend l'instantané (`live`),
+    sans quoi il divergerait du total du bandeau — deux montants plausibles au même écran.
+
+    **Trois états d'un point, jamais confondus** : normal ; `estimated`, porté au coût faute de
+    cotation — approché mais comparable, donc **compté** ; `unavailable`, non valorisable — le total
+    est alors **incomplet, donc trop bas**, et cela se signale au lieu de se fondre dans la courbe.
+    Confondre les deux derniers reviendrait à présenter un chiffre faux comme un chiffre approché.

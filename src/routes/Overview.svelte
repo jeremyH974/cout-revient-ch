@@ -11,6 +11,7 @@
   import { router } from '$lib/router.svelte';
   import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks } from '$lib/support/self-check';
+  import NetWorthCard from '../components/charts/NetWorthCard.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import Info from '../components/shared/Info.svelte';
   import InsightList from '../components/shared/InsightList.svelte';
@@ -250,6 +251,8 @@
 {/if}
 
 {#if insights.length > 0}
+  <NetWorthCard />
+
   <section class="card insights" aria-labelledby="insights-title">
     <div class="tools">
       <h2 id="insights-title">Constats</h2>
