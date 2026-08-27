@@ -19,10 +19,11 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "baseUrl": ".",
+    // Chemins relatifs au tsconfig, SANS `baseUrl` : TypeScript 6 le déprécie et TypeScript 7
+    // cessera de l'honorer. La forme `./src/lib` fait exactement la même chose sans l'ancrage.
     "paths": {
-      "$lib": ["src/lib"],
-      "$lib/*": ["src/lib/*"]
+      "$lib": ["./src/lib"],
+      "$lib/*": ["./src/lib/*"]
     }
   },
   "include": [
