@@ -5,7 +5,8 @@
  * détails ne contiennent que des compteurs et des tickers (compatibles avec le mode discret).
  */
 import type { PortfolioReport, PositionReport, PriceQuoteInput } from '../domain/engine/report';
-import { ZERO, type Big } from '../domain/money';
+import type { NetWorthReconciliation } from '../history/net-worth';
+import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode } from '../domain/types';
 
 export type CheckLevel = 'ok' | 'warn' | 'fail' | 'info';
@@ -38,6 +39,11 @@ export interface SelfCheckInput {
   trading?: TradingCheckInput[];
   /** Virements internes (décision n° 25) : paires appariées et candidats restés orphelins. */
   transfers?: { pairs: number; unpairedWithdrawals: number; unpairedDeposits: number };
+  /**
+   * Réconciliation du patrimoine (décision n° 53) : `apports nets + résultat = patrimoine`, avec
+   * le détail par espace. `null` tant que l'historique des prix n'est pas chargé.
+   */
+  reconciliation?: NetWorthReconciliation | null;
   /** ISO 8601. */
   now: string;
 }
@@ -56,6 +62,12 @@ export interface TradingCheckInput {
 const TRADING_TOLERANCE = '0.01';
 
 const TOLERANCE = '0.000001';
+/**
+ * Tolérance de la réconciliation du patrimoine : un centime. La série quotidienne et le rapport
+ * atteignent le cours du jour par deux chemins différents ; exiger l'égalité stricte ferait
+ * clignoter un voyant rouge pour un arrondi, ce qui apprendrait à l'ignorer.
+ */
+const RECONCILIATION_TOLERANCE = D('0.01');
 const DAY_MS = 86_400_000;
 const HOUR_MS = 3_600_000;
 
@@ -420,6 +432,69 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
             detail: `${plural(orphans, 'mouvement sans contrepartie appariée', 'mouvements sans contrepartie appariée')} (${transfers.unpairedWithdrawals} retrait(s), ${transfers.unpairedDeposits} dépôt(s)) : appariez-les depuis Comptes ou renseignez leur valeur${transfers.pairs > 0 ? ` ; ${plural(transfers.pairs, 'virement apparié', 'virements appariés')}` : ''}.`,
           },
     );
+  }
+
+  // Réconciliation du patrimoine : le tableau de bord annonce « apports nets + résultat =
+  // patrimoine » et le déplie espace par espace. Deux choses doivent tenir, et elles sont
+  // vérifiées ici plutôt que promises dans une documentation.
+  const recon = input.reconciliation;
+  if (recon && report) {
+    // 1. La somme des parts refait le tout. Vrai par construction — donc un écart signale une
+    //    régression du calcul, jamais une donnée bancale : c'est un échec, pas un avertissement.
+    const sumValue = recon.lines.reduce((acc, l) => acc.plus(l.value), ZERO);
+    const sumContributed = recon.lines.reduce((acc, l) => acc.plus(l.contributed), ZERO);
+    const partsGap = sumValue
+      .minus(recon.net)
+      .abs()
+      .plus(sumContributed.minus(recon.contributed).abs());
+    checks.push(
+      partsGap.lte(TOLERANCE)
+        ? {
+            id: 'net-worth-parts',
+            label: 'Patrimoine · détail',
+            level: 'ok',
+            detail: `${plural(recon.lines.length, 'espace recoupé', 'espaces recoupés')} : le détail par espace refait le total.`,
+          }
+        : {
+            id: 'net-worth-parts',
+            label: 'Patrimoine · détail',
+            level: 'fail',
+            detail: 'Le détail par espace ne refait pas le total affiché.',
+            action:
+              'Signalez-le avec le diagnostic : c’est une erreur de calcul, pas de vos données.',
+          },
+    );
+
+    // 2. Le résultat de l'espace Investissement doit valoir « réalisé + latent » du moteur. C'est
+    //    le contrôle qui tient toute la carte : il relie les apports nets — une notion de flux —
+    //    aux plus-values calculées lot par lot, par un tout autre chemin. Tolérance au centime :
+    //    la série quotidienne et le rapport lisent le cours du jour par deux voies distinctes.
+    const invest = recon.lines.find((l) => l.id === 'invest');
+    const engineResult =
+      report.totals.unrealized === null
+        ? null
+        : report.totals.unrealized.plus(report.totals.realized);
+    if (invest && !invest.unavailable && engineResult !== null) {
+      const gap = invest.gain.minus(engineResult).abs();
+      checks.push(
+        gap.lte(RECONCILIATION_TOLERANCE)
+          ? {
+              id: 'net-worth-invest',
+              label: 'Patrimoine · investissement',
+              level: 'ok',
+              detail:
+                'Le résultat déduit des apports égale « réalisé + latent » calculé lot par lot.',
+            }
+          : {
+              id: 'net-worth-invest',
+              label: 'Patrimoine · investissement',
+              level: 'warn',
+              detail:
+                'Le résultat déduit des apports s’écarte de « réalisé + latent ». Des mouvements sans valeur en euros (retraits, dépôts, virements non appariés) manquent aux apports.',
+              action: 'Renseignez leur valeur depuis Comptes, ou appariez les virements internes.',
+            },
+      );
+    }
   }
   return checks;
 }

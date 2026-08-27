@@ -1,35 +1,12 @@
 <script lang="ts">
-  import { nowIso } from '$lib/clock';
-  import { isIOS, isStandalone } from '$lib/support/environment';
-  import { runSelfChecks, summarize, type CheckLevel } from '$lib/support/self-check';
-  import { app } from '../../state/app.svelte';
+  import { summarize, type CheckLevel } from '$lib/support/self-check';
+  import { checks as selfChecks } from '../../state/checks.svelte';
 
   let { compact = false }: { compact?: boolean } = $props();
 
-  const checks = $derived(
-    runSelfChecks({
-      report: app.hasData ? app.report : null,
-      quotes: app.quotes,
-      prices: {
-        source: app.state.ui.priceSource,
-        online: app.priceStatus.online,
-        lastRefreshAt: app.priceStatus.lastRefreshAt,
-      },
-      storage: {
-        lastBackupAt: app.state.ui.lastBackupAt,
-        persisted: null,
-        saveError: app.saveError,
-      },
-      platform: { ios: isIOS(), standalone: isStandalone() },
-      trading: app.tradingChecks,
-      transfers: {
-        pairs: app.transferPairing.pairs.length,
-        unpairedWithdrawals: app.transferPairing.unpairedWithdrawals.length,
-        unpairedDeposits: app.transferPairing.unpairedDeposits.length,
-      },
-      now: nowIso(),
-    }),
-  );
+  // Une seule liste pour toute l'app (voir `state/checks.svelte.ts`) : les réglages et le tableau
+  // de bord ne peuvent plus contrôler deux choses différentes.
+  const checks = $derived(selfChecks.all);
   const summary = $derived(summarize(checks));
   const ICON: Record<CheckLevel, string> = { ok: '✓', warn: '!', fail: '✕', info: 'i' };
   const WORD: Record<CheckLevel, string> = {

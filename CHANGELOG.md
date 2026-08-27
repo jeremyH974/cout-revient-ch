@@ -5,6 +5,40 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **Les « apports nets » n'en étaient pas.** La courbe de patrimoine traçait en référence le **coût
+  des positions détenues**, et l'espace Trading n'y contribuait rien. L'écart annoncé comme « votre
+  gain » valait en réalité `latent d'investissement + équité de trading entière` — un résultat
+  additionné à un solde. Conséquence visible : une vente à perte faisait **baisser** la courbe de
+  référence, et la moins-value réalisée disparaissait du tableau. Les apports sont désormais les
+  **flux entrés dans le périmètre moins ceux qui en sont sortis**, cumulés jour par jour, des deux
+  côtés ; un virement entre les deux espaces s'annule de lui-même. Côté Trading, tous les mouvements
+  de trésorerie comptent — pas seulement les dépôts et retraits : ne compter que ceux-là
+  transformait un virement perps → spot en une perte de plusieurs centaines d'euros
+  (`docs/DECISIONS.md` n° 54).
+- **Deux nouvelles auto-vérifications** tiennent cette définition : « le détail par espace refait le
+  total », et « le résultat déduit des apports égale _réalisé + latent_ calculé lot par lot » — deux
+  chemins de calcul entièrement distincts qui doivent tomber sur le même nombre.
+- **Les contrôles automatiques étaient montés deux fois**, dans les réglages et sur la Vue
+  d'ensemble, avec des entrées qui avaient déjà divergé. Une seule liste désormais.
+
+### Changed
+
+- **La Vue d'ensemble devient un tableau de bord d'aide à la décision.** Un chiffre domine —
+  **le patrimoine** —, une **période choisie en haut gouverne tout l'écran** (variation, courbe,
+  répartition), et une carte **« D'où vient ce chiffre »** pose l'addition `apports nets + résultat
+= patrimoine`, **dépliable espace par espace** (repliée par défaut). Les doublons sont supprimés :
+  la valeur d'investissement était affichée à trois endroits, l'équité de trading à deux. La couleur
+  est réservée aux **variations** — un niveau reste neutre — et une variation ne s'écrit plus jamais
+  par la seule couleur : triangle, signe et équivalent parlé l'accompagnent. Trois règles reprises
+  de l'**ISO 24896:2026** (_Notation for business reporting_, publiée cette année) et de sa formule
+  SUCCESS (`docs/DECISIONS.md` n° 55).
+- **« Patrimoine » remplace « Valeur nette »** dans l'interface : le même écran affichait « Valeur
+  nette » et « Valeur » à quelques centimètres l'une de l'autre.
+- **Les montants d'une réconciliation s'additionnent à l'écran** : l'écart est calculé sur les
+  montants _arrondis_, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+
 ### Added
 
 - **Carte de partage (P9)** : un bouton « Partager » sur la Vue d'ensemble produit une image

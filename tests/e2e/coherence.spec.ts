@@ -437,32 +437,85 @@ test('Trading : la somme du calendrier = le réalisé net du tableau de bord', a
 });
 
 /**
- * Vue d'ensemble : elle COMPOSE les deux espaces, elle ne recalcule rien. Personne ne le vérifiait —
- * elle pouvait dériver de l'un ou de l'autre sans qu'aucun test ne bronche.
+ * Tableau de bord (décision n° 52) : il COMPOSE les deux espaces, il ne recalcule rien. Personne
+ * ne le vérifiait — il pouvait dériver de l'un ou de l'autre sans qu'aucun test ne bronche.
+ *
+ * Ce test contrôle les trois niveaux de la carte « D'où vient ce chiffre » :
+ *
+ * 1. **Elle s'additionne à l'écran** : les montants LUS, pas les montants calculés. Un pont dont
+ *    les nombres affichés ne se recoupent pas prouve le contraire de ce qu'il affirme.
+ * 2. **La somme des espaces refait le tout**, ligne par ligne et colonne par colonne.
+ * 3. **Chaque espace dit la même chose sur son propre écran** — et pour l'Investissement, le
+ *    résultat déduit des apports doit égaler « réalisé + latent » calculé lot par lot, ce qui
+ *    relie deux chemins de calcul entièrement distincts.
  */
-test('Vue d’ensemble : valeur nette = valeur d’investissement + équité de trading', async ({
-  page,
-}) => {
-  test.skip(Boolean(REAL_CSV), 'Vue d’ensemble : jeu de démonstration seulement');
+test('le tableau de bord se recoupe avec lui-même et avec les deux espaces', async ({ page }) => {
+  test.skip(Boolean(REAL_CSV), 'tableau de bord : jeu de démonstration seulement');
   await openDemo(page);
 
   await page.goto('#/');
-  const trio = page.locator('section.hero .trio');
-  await expect(trio).toBeVisible();
-  const big = trio.locator('.big');
-  const netWorth = toNumber(await big.nth(0).innerText());
-  const investCard = toNumber(await big.nth(1).innerText());
-  const tradingCard = toNumber(await big.nth(2).innerText());
-  // La carte se recoupe d'abord avec elle-même…
-  expect(Math.abs(netWorth - (investCard + tradingCard))).toBeLessThanOrEqual(tol(2));
+  const hero = toNumber(await page.getByTestId('net-worth-hero').innerText());
 
-  // … puis avec chacun des deux espaces, lus sur leur propre écran.
+  const recon = page.locator('section.recon');
+  await expect(recon).toBeVisible();
+  // `:not(.rel)` écarte le pourcentage qui accompagne le résultat : on ne veut ici que les montants.
+  const bridge = (await recon.locator('.bridge .num:not(.rel)').allInnerTexts()).map(toNumber);
+  expect(bridge).toHaveLength(3);
+  const [contributed, gain, net] = bridge as [number, number, number];
+  // 1. Apports + résultat = patrimoine, sur les montants tels qu'ils s'affichent (exact au centime).
+  expect(contributed + gain).toBeCloseTo(net, 2);
+  expect(net).toBeCloseTo(hero, 2);
+
+  // 2. Le détail par espace : replié par défaut, puis chaque colonne refait son total.
+  const details = recon.locator('details');
+  expect(await details.getAttribute('open')).toBeNull();
+  await details.locator('summary').click();
+  const rows = recon.locator('tbody tr');
+  await expect(rows).toHaveCount(2);
+  const cells = async (row: Locator): Promise<number[]> => nums(row);
+  const [investRow, tradingRow] = await Promise.all([cells(rows.nth(0)), cells(rows.nth(1))]);
+  const foot = await nums(recon.locator('tfoot tr'));
+  for (const column of [0, 1, 2]) {
+    expect(investRow[column]! + tradingRow[column]!).toBeCloseTo(foot[column]!, 2);
+  }
+  // Et chaque ligne se recoupe elle-même : valeur − apports = résultat.
+  for (const row of [investRow, tradingRow, foot]) {
+    expect(row[1]! - row[0]!).toBeCloseTo(row[2]!, 2);
+  }
+
+  // 3. Chaque espace, lu sur son propre écran.
   await page.goto('#/invest');
-  expect(Math.abs(investCard - (await readSummary(page)).value)).toBeLessThanOrEqual(tol(1));
+  const summary = await readSummary(page);
+  expect(Math.abs(investRow[1]! - summary.value)).toBeLessThanOrEqual(tol(1));
+  // Le contrôle qui tient toute la carte : deux chemins de calcul, un seul résultat.
+  expect(Math.abs(investRow[2]! - (summary.realized + summary.latent))).toBeLessThanOrEqual(tol(3));
 
   await page.goto('#/trading');
-  const equity = toNumber(await page.locator('section.summary .trio .big').nth(1).innerText());
-  expect(Math.abs(tradingCard - equity)).toBeLessThanOrEqual(tol(1));
+  const tradingTrio = (await page.locator('section.summary .trio .big').allInnerTexts()).map(
+    toNumber,
+  );
+  const [deposits, equity, pnl] = tradingTrio as [number, number, number];
+  expect(Math.abs(tradingRow[0]! - deposits)).toBeLessThanOrEqual(tol(1));
+  expect(Math.abs(tradingRow[1]! - equity)).toBeLessThanOrEqual(tol(1));
+  expect(Math.abs(tradingRow[2]! - pnl)).toBeLessThanOrEqual(tol(2));
+});
+
+/**
+ * La variation affichée en tête d'écran est la somme des variations par espace : sans quoi le
+ * chiffre du haut et les lignes du dessous racontent deux périodes différentes.
+ */
+test('la variation de période se répartit exactement entre les espaces', async ({ page }) => {
+  test.skip(Boolean(REAL_CSV), 'tableau de bord : jeu de démonstration seulement');
+  await openDemo(page);
+  await page.goto('#/');
+
+  const total = toNumber(await page.locator('section.hero .variance .num').first().innerText());
+  const perSpace = await page.locator('section.spaces .rows .moved .num').allInnerTexts();
+  // Une variation par espace (le « (+x %) » n'existe pas sur ces lignes).
+  expect(perSpace.length).toBe(2);
+  // Trois montants arrondis au centime chacun : l'égalité est exacte dans le moteur
+  // (`net-worth.test.ts`), au centime près à l'écran.
+  expect(Math.abs(sum(perSpace.map(toNumber)) - total)).toBeLessThanOrEqual(tol(3));
 });
 
 /**
@@ -581,12 +634,12 @@ test('l’estimation fiscale dit la même chose dans le constat et dans le table
  * écrans ; c'est `net-worth.test.ts` qui prouve le mécanisme du remplacement, et lui échoue bien
  * quand on l'ôte. Le dire évite de croire cette couverture plus large qu'elle n'est.
  */
-test('la courbe de valeur nette finit sur le total de la Vue d’ensemble', async ({ page }) => {
+test('la courbe de patrimoine finit sur le total de la Vue d’ensemble', async ({ page }) => {
   await openDataset(page);
   await page.goto('#/');
   await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
 
-  const hero = page.locator('.trio > div').filter({ hasText: 'Valeur nette' }).locator('.big');
+  const hero = page.getByTestId('net-worth-hero');
   await expect(hero).toBeVisible();
   const curve = page.getByTestId('net-worth-latest-value');
   await expect(curve).toBeVisible();

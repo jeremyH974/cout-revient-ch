@@ -926,3 +926,60 @@
     **Le résumé texte est l'équivalent accessible de l'image, pas une commodité** : il porte les
     mêmes nombres dans le même ordre, et sert d'`alt` — un `alt` qui dirait « image de partage » ne
     servirait à personne.
+
+54. **Les apports nets sont des flux externes, jamais l'assiette de coût des positions**
+    (27/08/2026). La courbe de patrimoine livrée avec P38 traçait en référence le **coût des
+    positions détenues** et l'appelait « apports nets », le trading n'y contribuant rien. Les deux
+    grandeurs se ressemblent tant qu'on n'a rien vendu, puis divergent définitivement : une vente à
+    perte fait **baisser** l'assiette de coût, si bien que la moins-value réalisée disparaît du
+    tableau. L'écart entre les deux courbes ne valait donc pas le gain annoncé mais
+    `latent d'investissement + équité de trading entière` — un résultat additionné à un solde,
+    exactement ce que la décision n° 28 interdit. Mesuré sur le jeu de démonstration :
+    `21 339,47 − 18 137,39 = 3 202,08`, à comparer à `−1 969,63 + 5 171,70 = 3 202,07`.
+    **La définition retenue** : pour chaque producteur de valeur, ses apports sont ses flux
+    **entrants et sortants du périmètre**, cumulés jour par jour (`cumulativeContributions`). Côté
+    Investissement, ce sont les flux qui servent déjà à la performance hors apports (Dietz modifié)
+    — aucune seconde source. Côté Trading, c'est **`netFlows`, tous mouvements de trésorerie
+    confondus** et non les seuls dépôts et retraits : la contribution suit l'équité du compte perps,
+    dont un virement vers le spot sort tout autant qu'un retrait vers l'extérieur. Ne compter que
+    les dépôts et retraits transformait un virement perps → spot en une perte de plusieurs centaines
+    d'euros. Un virement entre les deux espaces s'annule de lui-même : il sort d'un côté et entre de
+    l'autre.
+    **Le paramètre `contributedAt` de `valueSeriesContribution` n'a pas de valeur par défaut** :
+    c'est le seul moyen d'empêcher qu'on y reglisse `point.cost` par commodité.
+    **Deux auto-vérifications tiennent la définition**, parce qu'une propriété qu'aucun test ne
+    contrôle finit toujours par se perdre : « le détail par espace refait le total » (exact, donc un
+    écart signale une régression, pas une donnée bancale) et « le résultat déduit des apports égale
+    _réalisé + latent_ calculé lot par lot » — deux chemins de calcul entièrement distincts qui
+    doivent tomber sur le même nombre. Sur la démonstration, l'Investissement donne `−2 860,60 €`
+    des deux côtés, et le Trading `+115,57 €` conformément à son propre écran.
+
+55. **Le tableau de bord : un chiffre, une variance, une réconciliation — et la couleur réservée
+    aux variances** (27/08/2026). La Vue d'ensemble empilait huit cartes de poids visuel identique,
+    répétait la valeur d'investissement à trois endroits et l'équité de trading à deux, et ne
+    montrait que des **niveaux** : aucune variation, donc aucune réponse à « qu'est-ce qui a
+    changé ? ». Trois règles la gouvernent désormais, tirées de l'ISO 24896:2026 (_Notation for
+    business reporting_, publiée cette année et reprenant la formule SUCCESS de l'IBCS) :
+    **un seul chiffre domine** et **une seule période gouverne l'écran** — celle du bandeau pilote
+    la variation, la courbe et la répartition, car deux fenêtres de temps sur un même écran sont
+    deux réponses à la même question ; **aucun chiffre n'est écrit deux fois**, chaque répétition
+    étant une occasion de diverger sans rien ajouter ; **la couleur ne sert qu'aux variances**
+    (composant `Delta`, unique) et jamais aux niveaux — un écran où tout est coloré ne hiérarchise
+    plus rien.
+    **La carte « D'où vient ce chiffre »** pose `apports nets + résultat = patrimoine` et se déplie
+    espace par espace. Elle existe parce que les chiffres du portefeuille se contredisent en
+    apparence — un patrimoine supérieur aux apports, un ROI négatif, un P&L négatif — et qu'un
+    tableau de bord d'aide à la décision doit les **réconcilier**, pas les juxtaposer.
+    **Ses trois lignes s'additionnent à l'écran** : `displayGap` soustrait les montants _arrondis_,
+    sinon `21 362,675 − 24 621,894` s'affiche `−3 259,22` sous deux montants qui donnent
+    `−3 259,21`. Un centime, invisible dans le calcul, mais parfaitement visible dans une colonne —
+    et il détruit la seule chose que cette carte doit produire. L'exactitude reste au moteur ; ce
+    qui est arrondi ici ne sert qu'à être lu.
+    **Le détail par espace est replié par défaut** : il répond à une question qu'on ne se pose pas
+    à chaque visite.
+    **« Patrimoine » remplace « Valeur nette »** dans l'interface : le même écran affichait
+    « Valeur nette » et « Valeur » à quelques centimètres l'une de l'autre.
+    **Les contrôles automatiques étaient montés deux fois** — une fois dans les réglages, une fois
+    ici — avec des entrées qui avaient déjà divergé. `state/checks.svelte.ts` les monte une seule
+    fois : deux listes de contrôles qui ne contrôlent pas la même chose, c'est un contrôle de moins,
+    et le seul écran où le voyant manquant se serait vu est justement celui qui ne le calculait pas.

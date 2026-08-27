@@ -152,7 +152,7 @@ export function shareCardModel(input: ShareCardInput): ShareCard {
   // tronquée en hauteur perd le montant avant de perdre la performance.
   if (input.amounts) {
     rows.push({
-      label: 'Valeur nette',
+      label: 'Patrimoine',
       value: fmtMoney(input.amounts.netWorth, input.currency),
       tone: 'neutral',
     });

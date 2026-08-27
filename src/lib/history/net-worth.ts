@@ -37,7 +37,13 @@
  */
 import { Big, D, ZERO } from '../domain/money';
 import type { DecimalString } from '../domain/types';
-import type { ValuePoint } from './series';
+import { addDays } from './days';
+import {
+  periodPerformance,
+  type FlowPoint,
+  type PeriodPerformance,
+  type ValuePoint,
+} from './series';
 import type { DayString } from './types';
 
 /** Valeur d'une contribution un jour donné. */
@@ -74,6 +80,22 @@ export interface Liability {
   amountAt(day: DayString): Big;
 }
 
+/**
+ * Part d'un producteur dans le total d'un jour. Portée par la série et non recalculée à
+ * l'affichage : le détail « d'où vient ce chiffre » doit être le MÊME calcul que le total, sinon
+ * la somme des parts finit par ne plus faire le tout.
+ */
+export interface NetWorthPart {
+  id: string;
+  label: string;
+  value: Big;
+  contributed: Big;
+  /** `true` : porté au coût faute de cotation. */
+  estimated: boolean;
+  /** `true` : non valorisable — la part vaut zéro et le total est incomplet. */
+  unavailable: boolean;
+}
+
 export interface NetWorthPoint {
   day: DayString;
   /** Σ contributions valorisées. */
@@ -88,6 +110,8 @@ export interface NetWorthPoint {
   estimated: readonly string[];
   /** Contributions non valorisables : `net` est INCOMPLET ce jour-là, pas approché. */
   unavailable: readonly string[];
+  /** Détail par producteur : `Σ parts.value = gross` et `Σ parts.contributed = contributed`. */
+  parts: readonly NetWorthPart[];
 }
 
 export interface NetWorthSeriesInput {
@@ -107,17 +131,34 @@ export function netWorthSeries({
     let contributed = ZERO;
     const estimated: string[] = [];
     const unavailable: string[] = [];
+    const parts: NetWorthPart[] = [];
 
     for (const contribution of contributions) {
       if (contribution.firstDay !== null && day < contribution.firstDay) continue;
       const at = contribution.valueAt(day);
       if (at === null) {
         unavailable.push(contribution.id);
+        parts.push({
+          id: contribution.id,
+          label: contribution.label,
+          value: ZERO,
+          contributed: ZERO,
+          estimated: false,
+          unavailable: true,
+        });
         continue;
       }
       gross = gross.plus(at.value);
       contributed = contributed.plus(at.contributed);
       if (at.estimated) estimated.push(contribution.id);
+      parts.push({
+        id: contribution.id,
+        label: contribution.label,
+        value: at.value,
+        contributed: at.contributed,
+        estimated: at.estimated,
+        unavailable: false,
+      });
     }
 
     let owed = ZERO;
@@ -131,6 +172,7 @@ export function netWorthSeries({
       contributed,
       estimated,
       unavailable,
+      parts,
     };
   });
 }
@@ -155,13 +197,40 @@ function lastAtOrBefore<T extends { day: DayString }>(
 }
 
 /**
+ * Apports nets **cumulés** au jour le jour, à partir de flux datés (versé positif, retiré négatif).
+ *
+ * C'est la seule définition admissible de la courbe de référence : un apport est de l'argent qui
+ * **entre dans le périmètre**, jamais l'assiette de coût des positions détenues. Les deux se
+ * ressemblent tant qu'on n'a rien vendu, puis divergent définitivement — une vente à perte fait
+ * baisser l'assiette de coût alors qu'elle n'a rien rendu à personne. Confondre les deux affiche
+ * un « gain » qui vaut en réalité le latent, et fait disparaître le réalisé du tableau.
+ *
+ * Somme courante calculée une fois, puis recherche dichotomique : appelée une fois par jour de la
+ * série et par contributeur, une somme refaite à chaque appel serait quadratique.
+ */
+export function cumulativeContributions(flows: readonly FlowPoint[]): (day: DayString) => Big {
+  const sorted = [...flows].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
+  let running = ZERO;
+  const cumulative = sorted.map((flow) => {
+    running = running.plus(flow.amountEur);
+    return { day: flow.day, total: running };
+  });
+  return (day) => lastAtOrBefore(cumulative, day)?.total ?? ZERO;
+}
+
+/**
  * Contribution des avoirs valorisés au cours du jour, à partir d'une série déjà calculée par
  * `valueSeries`. `missing` non vide signifie « porté au coût » : c'est exactement `estimated`.
+ *
+ * `contributedAt` est **obligatoire** et vient des flux externes de l'espace : le paramètre n'a
+ * pas de valeur par défaut précisément pour qu'on ne puisse pas y glisser `point.cost` par
+ * commodité — voir `cumulativeContributions`.
  */
 export function valueSeriesContribution(
   id: string,
   label: string,
   points: readonly ValuePoint[],
+  contributedAt: (day: DayString) => Big,
 ): Contribution {
   const byDay = new Map<DayString, ValuePoint>(points.map((p) => [p.day, p]));
   const sorted = [...points].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
@@ -172,7 +241,11 @@ export function valueSeriesContribution(
     valueAt(day) {
       const point = byDay.get(day) ?? lastAtOrBefore(sorted, day);
       if (point === null) return null;
-      return { value: point.value, contributed: point.cost, estimated: point.missing.length > 0 };
+      return {
+        value: point.value,
+        contributed: contributedAt(day),
+        estimated: point.missing.length > 0,
+      };
     },
   };
 }
@@ -257,4 +330,158 @@ export function latestNetWorth(points: readonly NetWorthPoint[]): NetWorthPoint 
 /** Vrai si au moins un jour de la fenêtre est incomplet — à signaler, jamais à taire. */
 export function hasUnavailable(points: readonly NetWorthPoint[]): boolean {
   return points.some((p) => p.unavailable.length > 0);
+}
+
+/** Une ligne de la réconciliation : ce qu'un producteur a reçu, ce qu'il vaut, l'écart. */
+export interface ReconciliationLine extends NetWorthPart {
+  /** `value − contributed` : le résultat total du producteur, réalisé et latent confondus. */
+  gain: Big;
+}
+
+/**
+ * Réconciliation d'un jour : `apports nets + gain = patrimoine`, avec le détail par producteur.
+ *
+ * L'identité est vraie **par construction** (le gain est défini comme l'écart), et c'est
+ * précisément ce qui la rend utile : elle transforme trois chiffres qui semblaient se contredire —
+ * un patrimoine en hausse, un ROI négatif, un P&L négatif — en une seule addition vérifiable.
+ * Ce que l'auto-vérification contrôle, c'est que la somme des parts refait le tout.
+ */
+export interface NetWorthReconciliation {
+  day: DayString;
+  net: Big;
+  contributed: Big;
+  gain: Big;
+  lines: readonly ReconciliationLine[];
+  /** Une part au moins n'a pas pu être valorisée : le total est incomplet, pas approché. */
+  incomplete: boolean;
+}
+
+export function reconcileNetWorth(point: NetWorthPoint | null): NetWorthReconciliation | null {
+  if (point === null) return null;
+  return {
+    day: point.day,
+    net: point.net,
+    contributed: point.contributed,
+    gain: point.net.minus(point.contributed),
+    lines: point.parts.map((part) => ({ ...part, gain: part.value.minus(part.contributed) })),
+    incomplete: point.unavailable.length > 0,
+  };
+}
+
+/**
+ * Variation du patrimoine sur une fenêtre, **apports neutralisés**.
+ *
+ * Sans cette distinction, un tableau de bord ment par construction : un virement de 1 000 € et un
+ * gain de 1 000 € y font le même chiffre. La décomposition retenue est celle que tout le reste de
+ * l'app emploie déjà — Dietz modifié, `periodPerformance` — et non une seconde arithmétique
+ * parallèle : les flux sont simplement lus dans la marche de la courbe d'apports.
+ *
+ * `fromInception` insère un point nul la veille du premier jour : sans lui, la fenêtre « Tout »
+ * prendrait le premier jour déjà investi comme état de départ et perdrait les apports de ce
+ * jour-là. Avec lui, `gain` vaut exactement `valeur nette − apports nets cumulés`, c'est-à-dire
+ * le résultat total du périmètre depuis l'origine.
+ */
+export interface NetWorthChange extends PeriodPerformance {
+  /** Apports nets cumulés au premier et au dernier jour de la fenêtre. */
+  startContributed: Big;
+  endContributed: Big;
+  /** Un jour au moins de la fenêtre est incomplet : la variation est indicative, pas exacte. */
+  incomplete: boolean;
+}
+
+export function netWorthChange(
+  points: readonly NetWorthPoint[],
+  options: { fromInception?: boolean } = {},
+): NetWorthChange | null {
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) return null;
+
+  const origin: NetWorthPoint[] =
+    options.fromInception === true
+      ? [
+          {
+            day: addDays(first.day, -1),
+            gross: ZERO,
+            liabilities: ZERO,
+            net: ZERO,
+            contributed: ZERO,
+            estimated: [],
+            unavailable: [],
+            parts: [],
+          },
+        ]
+      : [];
+  const window = [...origin, ...points];
+
+  const values: ValuePoint[] = window.map((p) => ({
+    day: p.day,
+    value: p.net,
+    cost: p.contributed,
+    missing: [],
+  }));
+  // Les flux sont la marche de la courbe d'apports : aucune source parallèle, donc rien qui puisse
+  // diverger de la courbe affichée. Un jour sans mouvement ne produit pas de flux.
+  const flows: FlowPoint[] = [];
+  for (let i = 1; i < window.length; i++) {
+    const amount = window[i]!.contributed.minus(window[i - 1]!.contributed);
+    if (!amount.eq(ZERO)) flows.push({ day: window[i]!.day, amountEur: amount });
+  }
+
+  const performance = periodPerformance(values, flows);
+  if (performance === null) return null;
+  return {
+    ...performance,
+    startContributed: window[0]!.contributed,
+    endContributed: last.contributed,
+    incomplete: hasUnavailable(points),
+  };
+}
+
+/** Variation d'un producteur sur la fenêtre : ce qu'il a reçu, ce qu'il a gagné. */
+export interface PartChange {
+  id: string;
+  label: string;
+  startValue: Big;
+  endValue: Big;
+  /** Apports nets reçus PENDANT la fenêtre — pour l'espace Trading, le capital qu'on lui a confié. */
+  contributions: Big;
+  /** `endValue − startValue − contributions` : ce que l'espace a réellement produit. */
+  gain: Big;
+  unavailable: boolean;
+}
+
+/**
+ * Même décomposition que `netWorthChange`, espace par espace.
+ *
+ * Elle répond à la question que le total ne sait pas trancher : un espace dont la valeur monte
+ * a-t-il gagné, ou seulement reçu du capital de l'autre ? Un virement d'un espace vers l'autre
+ * déplace les deux valeurs sans rien produire, et seule cette ligne le montre.
+ */
+export function netWorthPartChanges(
+  points: readonly NetWorthPoint[],
+  options: { fromInception?: boolean } = {},
+): PartChange[] {
+  const first = points[0];
+  const last = points[points.length - 1];
+  if (!first || !last) return [];
+  const before = options.fromInception === true ? new Map<string, NetWorthPart>() : partsOf(first);
+  return last.parts.map((part): PartChange => {
+    const start = before.get(part.id);
+    const startValue = start?.value ?? ZERO;
+    const contributions = part.contributed.minus(start?.contributed ?? ZERO);
+    return {
+      id: part.id,
+      label: part.label,
+      startValue,
+      endValue: part.value,
+      contributions,
+      gain: part.value.minus(startValue).minus(contributions),
+      unavailable: part.unavailable,
+    };
+  });
+}
+
+function partsOf(point: NetWorthPoint): Map<string, NetWorthPart> {
+  return new Map(point.parts.map((part) => [part.id, part]));
 }

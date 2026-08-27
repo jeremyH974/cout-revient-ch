@@ -2,69 +2,25 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { fmtDate, fmtMoney } from '$lib/format/fr';
-  import { rateLookup } from '$lib/fx/convert';
   import { periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
-  import { msToParisDay } from '$lib/import/time';
-  import {
-    hasUnavailable,
-    latestNetWorth,
-    netWorthSeries,
-    tradingEquityContribution,
-    valueSeriesContribution,
-    type Contribution,
-    type NetWorthPoint,
-  } from '$lib/history/net-worth';
+  import { hasUnavailable, latestNetWorth, type NetWorthPoint } from '$lib/history/net-worth';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
   import Info from '../shared/Info.svelte';
   import EvolutionChart, { type ChartPoint } from './EvolutionChart.svelte';
-  import PeriodToggle from './PeriodToggle.svelte';
 
-  let period = $state<Period>('1m');
+  /**
+   * La période vient du tableau de bord et n'est plus choisie ici : un seul contexte de temps
+   * pour tout l'écran, sinon le chiffre du bandeau et la courbe parlent de deux fenêtres
+   * différentes sans que rien ne le signale (règle « unify » de l'ISO 24896:2026).
+   */
+  let { period }: { period: Period } = $props();
   onMount(() => void history.ensure());
 
   const today = $derived(todayOf(nowMs()));
-  const investPoints = $derived(history.dailySeries('portfolio'));
-
-  /**
-   * Les producteurs de valeur. Les avoirs d'investissement viennent du grand livre au pas
-   * quotidien ; chaque compte de trading vient de la plateforme, rééchantillonné au jour. Demain,
-   * P36 (actif valorisé) et P41 (actions, ETF) ajouteront un producteur ici, et rien d'autre ne
-   * bougera — c'est la raison d'être de cette forme.
-   */
-  const contributions = $derived.by((): Contribution[] => {
-    const list: Contribution[] = [
-      valueSeriesContribution('invest', 'Investissement', investPoints),
-    ];
-    const usd = rateLookup(app.state.fx.rates.USD ?? {});
-    for (const account of app.hlAccounts) {
-      const data = app.state.hyperliquid.accounts[account.id];
-      const series = data?.portfolio?.['allTime'];
-      if (!series || series.accountValueHistory.length === 0) continue;
-      const equity = data?.snapshot?.perps.accountValue ?? null;
-      list.push(
-        tradingEquityContribution({
-          id: account.id,
-          label: account.label,
-          history: series.accountValueHistory,
-          dayOfMs: msToParisDay,
-          // Même unité que le côté Investissement, que `pricesFor` a déjà converti dans la devise
-          // d'affichage : en dollars il ne faut PAS diviser. Même règle qu'à `Trading.svelte:105`.
-          usdPerDisplay: (day) => (app.currency === 'USD' ? '1' : usd.rate(day)),
-          // L'instantané est plus frais que la dernière clôture servie par `portfolio` : sans ce
-          // remplacement, le dernier point divergerait du total affiché dans le bandeau.
-          live: equity === null ? null : { day: today, usd: equity },
-        }),
-      );
-    }
-    return list;
-  });
-
-  const series = $derived<NetWorthPoint[]>(
-    investPoints.length === 0
-      ? []
-      : netWorthSeries({ contributions, days: investPoints.map((p) => p.day) }),
-  );
+  // La série est calculée une fois dans l'état d'historique : le bandeau, la réconciliation et
+  // cette courbe lisent le MÊME objet, donc aucun des trois ne peut diverger des deux autres.
+  const series = $derived<NetWorthPoint[]>(history.netWorth);
   const window = $derived(periodWindow(period, today));
   const visible = $derived(
     sliceSeries(series, { from: window.from ?? series[0]?.day ?? today, to: window.to }),
@@ -86,38 +42,38 @@
 
   const latest = $derived(latestNetWorth(visible));
   const incomplete = $derived(hasUnavailable(visible));
-  const tradingCount = $derived(contributions.length - 1);
+  const tradingCount = $derived(history.netWorthContributions.length - 1);
 </script>
 
 <section class="card group" aria-labelledby="net-worth-title">
   <header>
-    <h2 id="net-worth-title">Évolution de la valeur nette</h2>
-    <Info title="Évolution de la valeur nette"
+    <h2 id="net-worth-title">Évolution du patrimoine</h2>
+    <Info title="Évolution du patrimoine"
       >Ce que vous possédez, jour après jour, investissement et trading réunis. La courbe claire est
-      le total de vos apports : l'écart entre les deux est votre gain. Un virement déplace les deux
-      courbes ensemble et ne ressemble donc jamais à une performance.</Info
+      le total de vos apports — l'argent entré dans le périmètre, jamais le coût de vos positions :
+      l'écart entre les deux est votre résultat. Un virement déplace les deux courbes ensemble et ne
+      ressemble donc jamais à une performance.</Info
     >
   </header>
 
   {#if points.length === 0}
-    <p class="empty">Importez un export ou synchronisez un compte pour voir votre valeur nette.</p>
+    <p class="empty">Importez un export ou synchronisez un compte pour voir votre patrimoine.</p>
   {:else}
-    <PeriodToggle bind:value={period} />
     <EvolutionChart
       {points}
       currency={app.currency}
       discreet={app.state.ui.discreet}
       colorMode="vsSecondary"
-      labels={{ primary: 'Valeur nette', secondary: 'Apports nets' }}
+      labels={{ primary: 'Patrimoine', secondary: 'Apports nets' }}
     />
     {#if latest}
       <!--
         Équivalent textuel du graphique : un tracé SVG seul n'est lisible par personne au lecteur
         d'écran. C'est aussi l'ancrage du contrôle de cohérence — ce montant doit égaler, au
-        centime, la « Valeur nette » du bandeau ci-dessus.
+        centime, le « Patrimoine » du bandeau ci-dessus.
       -->
       <p class="summary" data-testid="net-worth-latest">
-        Au {fmtDate(latest.day)}, valeur nette
+        Au {fmtDate(latest.day)}, patrimoine
         <strong data-testid="net-worth-latest-value">{fmtMoney(latest.net, app.currency)}</strong>,
         pour <strong>{fmtMoney(latest.contributed, app.currency)}</strong> d'apports nets.
       </p>
@@ -154,6 +110,7 @@
   }
   h2 {
     margin: 0;
+    font-size: var(--fs-md);
   }
   .summary {
     margin: 0;

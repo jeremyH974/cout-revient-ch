@@ -50,22 +50,20 @@ test.describe('navigation principale', () => {
 });
 
 test.describe('Vue d’ensemble', () => {
-  test('titre, valeur nette et cartes vers les deux espaces', async ({ page }) => {
+  test('titre, patrimoine et liens vers les deux espaces', async ({ page }) => {
     await openDemo(page);
     await page.goto('#/');
     await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
-    await expect(
-      page.getByRole('main').getByText('Valeur nette', { exact: true }).first(),
-    ).toBeVisible();
+    const hero = page.locator('section.hero');
+    await expect(hero.getByRole('heading', { level: 2, name: 'Patrimoine' })).toBeVisible();
+    await expect(page.getByTestId('net-worth-hero')).toBeVisible();
 
-    const investCard = page.locator('a.card.space.invest');
-    const tradingCard = page.locator('a.card.space.trading');
-    await expect(
-      investCard.getByRole('heading', { level: 2, name: 'Investissement' }),
-    ).toBeVisible();
-    await expect(tradingCard.getByRole('heading', { level: 2, name: 'Trading' })).toBeVisible();
-    await expect(investCard).toHaveAttribute('href', '#/invest');
-    await expect(tradingCard).toHaveAttribute('href', '#/trading');
+    // Une ligne par espace dans la répartition, chacune renvoyant à son écran.
+    const rows = page.locator('section.spaces .rows > li');
+    await expect(rows.nth(0).getByRole('link')).toHaveAttribute('href', '#/invest');
+    await expect(rows.nth(0)).toContainText('Investissement');
+    await expect(rows.nth(1).getByRole('link')).toHaveAttribute('href', '#/trading');
+    await expect(rows.nth(1)).toContainText('Trading');
   });
 });
 
