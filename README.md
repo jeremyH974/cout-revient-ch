@@ -154,6 +154,8 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   [docs/DECISIONS.md](docs/DECISIONS.md).
 - `docs/coinhouse-export.md` : format et sémantique de l'export (colonne « Contre-valeur (EUR) »
   de la jambe crypto exprimée en USDC quand on paie en USDC, etc.).
+- [docs/tableau-de-bord.md](docs/tableau-de-bord.md) : ce que dit la Vue d'ensemble, la définition
+  des **apports nets** (des flux, jamais l'assiette de coût) et les contrôles qui la garantissent.
 - Tests : `npm test`. Le fichier `tests/fixtures/coinhouse/export-demo.csv` est un jeu de données
   entièrement synthétique, produit par `npm run fixture` (aucune donnée réelle, même transformée).
   Un export réel placé à la racine du projet (ignoré par git) est testé en plus, localement.

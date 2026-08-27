@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../domain/money';
 import {
+  displayGap,
   fmtDateTime,
   fmtEur,
   fmtMasked,
@@ -84,6 +85,33 @@ describe('zéro affiché : ni signe ni couleur', () => {
     expect(roundsToZero(D('0.005'))).toBe(false);
     expect(roundsToZero(D('0.0004'), 3)).toBe(true);
     expect(roundsToZero(null)).toBe(true);
+  });
+});
+
+describe('un écart affiché s’additionne avec les montants affichés', () => {
+  it('soustrait les valeurs ARRONDIES, pas la valeur exacte de l’écart', () => {
+    // Cas réel de la carte de réconciliation : l'écart exact vaut −3 259,219, qui s'afficherait
+    // −3 259,22 à côté de deux montants dont la différence lue vaut −3 259,21.
+    const net = D('21362.675');
+    const contributed = D('24621.894');
+    expect(nbsp(fmtEur(net))).toBe('21 362,68 €');
+    expect(nbsp(fmtEur(contributed))).toBe('24 621,89 €');
+    // L'écart exact s'afficherait « −3 259,22 € » sous deux montants qui donnent −3 259,21 €.
+    expect(nbsp(fmtEur(net.minus(contributed)))).toBe('−3 259,22 €');
+    expect(nbsp(fmtEur(displayGap(net, contributed)))).toBe('−3 259,21 €');
+  });
+
+  it('la colonne se recoupe : montant affiché − montant affiché = écart affiché', () => {
+    const a = D('100.005');
+    const b = D('0.004');
+    expect(nbsp(fmtEur(a))).toBe('100,01 €');
+    expect(nbsp(fmtEur(b))).toBe('0,00 €');
+    expect(nbsp(fmtEur(displayGap(a, b)))).toBe('100,01 €');
+  });
+
+  it('propage l’inconnu plutôt que de compter un montant absent pour zéro', () => {
+    expect(displayGap(null, D('1'))).toBeNull();
+    expect(displayGap(D('1'), null)).toBeNull();
   });
 });
 

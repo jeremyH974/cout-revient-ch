@@ -32,6 +32,12 @@
   --fs-md: 16px;
   --fs-lg: 20px;
   --fs-xl: 28px;
+  /*
+   * Chiffre dominant d'un tableau de bord : il ne doit pas être « un titre de plus » mais se
+   * détacher de tout le reste, sur un téléphone comme sur un écran large. Fluide entre 34 et
+   * 52 px — au-delà, un montant à six chiffres déborde sur les petits écrans.
+   */
+  --fs-display: clamp(2.125rem, 1.55rem + 2.6vw, 3.25rem);
 
   --space-1: 4px;
   --space-2: 8px;

@@ -51,6 +51,24 @@ export function roundsToZero(value: Big | null, dp = 2): boolean {
   return value === null || roundHalfUp(value, dp).eq('0');
 }
 
+/**
+ * Écart entre deux montants, **tel qu'il doit s'afficher** : chaque terme est arrondi à la
+ * précision affichée avant la soustraction.
+ *
+ * Sans cela, une carte de réconciliation ne s'additionne pas à l'écran. `21 362,675 − 24 621,894`
+ * vaut `−3 259,219`, qui s'affiche `−3 259,22` alors que les deux montants affichés,
+ * `21 362,68` et `24 621,89`, donnent `−3 259,21`. L'écart est d'un centime et il est invisible
+ * dans le calcul — mais parfaitement visible dans une colonne, où il détruit la seule chose que
+ * cette carte doit produire : la confiance dans le fait que les nombres se recoupent.
+ *
+ * L'exactitude reste ailleurs : le moteur garde l'écart exact, et c'est lui que contrôlent les
+ * auto-vérifications. Ce qui est arrondi ici ne sert qu'à être lu.
+ */
+export function displayGap(a: Big | null, b: Big | null, dp = 2): Big | null {
+  if (a === null || b === null) return null;
+  return roundHalfUp(a, dp).minus(roundHalfUp(b, dp));
+}
+
 /** Préfixe le texte (valeur absolue, déjà arrondie) du signe de `rounded` ; « + » sur demande. */
 function signed(text: string, rounded: Big, showPlus: boolean): string {
   if (rounded.lt('0')) return `${MINUS}${text}`;

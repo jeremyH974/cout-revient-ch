@@ -2,18 +2,33 @@ import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../domain/money';
 import {
+  cumulativeContributions,
   hasUnavailable,
   latestNetWorth,
+  netWorthChange,
+  netWorthPartChanges,
   netWorthSeries,
+  reconcileNetWorth,
   tradingEquityContribution,
   valueSeriesContribution,
   type Contribution,
   type Liability,
 } from './net-worth';
-import type { ValuePoint } from './series';
+import type { FlowPoint, ValuePoint } from './series';
 import type { DayString } from './types';
 
 const days = (...list: string[]): DayString[] => list as DayString[];
+
+/** Flux datés (versé positif, retiré négatif) → apports nets cumulés, comme l'app les fournit. */
+const contributedFrom = (
+  ...flows: [string, string][]
+): ((day: DayString) => ReturnType<typeof D>) =>
+  cumulativeContributions(
+    flows.map(([day, amount]): FlowPoint => ({ day: day as DayString, amountEur: D(amount) })),
+  );
+
+/** Apports constamment nuls : pour les cas où seule la valeur est examinée. */
+const noContribution = (): ReturnType<typeof D> => ZERO;
 
 /** Jour civil d'un instant, en UTC : suffisant et déterministe pour les tests. */
 const dayOfMs = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -75,9 +90,12 @@ describe('approché ou incomplet : la distinction qui sépare un chiffre juste d
   it('marque « estimated » une contribution portée à son coût, et la COMPTE quand même', () => {
     const points = netWorthSeries({
       contributions: [
-        valueSeriesContribution('invest', 'Investissement', [
-          vp('2026-08-01', '700', '700', ['zzz']),
-        ]),
+        valueSeriesContribution(
+          'invest',
+          'Investissement',
+          [vp('2026-08-01', '700', '700', ['zzz'])],
+          noContribution,
+        ),
       ],
       days: days('2026-08-01'),
     });
@@ -263,28 +281,39 @@ describe('équité de trading rééchantillonnée au jour', () => {
 });
 
 describe('propriétés', () => {
-  it('un apport déplace la courbe d’apports EXACTEMENT de son montant', () => {
+  it('un apport déplace la courbe d’apports EXACTEMENT de son montant, et le gain ne bouge pas', () => {
     fc.assert(
       fc.property(fc.integer({ min: 1, max: 1_000_000 }), (cents) => {
         const deposit = D(String(cents)).div(D('100'));
         const before = netWorthSeries({
-          contributions: [valueSeriesContribution('i', 'I', [vp('2026-08-01', '1000', '900')])],
+          contributions: [
+            valueSeriesContribution(
+              'i',
+              'I',
+              [vp('2026-08-01', '1000', '900')],
+              contributedFrom(['2026-08-01', '900']),
+            ),
+          ],
           days: days('2026-08-01'),
         });
         const after = netWorthSeries({
           contributions: [
-            valueSeriesContribution('i', 'I', [
-              vp(
-                '2026-08-01',
-                D('1000').plus(deposit).toString(),
-                D('900').plus(deposit).toString(),
-              ),
-            ]),
+            valueSeriesContribution(
+              'i',
+              'I',
+              [vp('2026-08-01', D('1000').plus(deposit).toString(), '900')],
+              contributedFrom(['2026-08-01', '900'], ['2026-08-01', deposit.toString()]),
+            ),
           ],
           days: days('2026-08-01'),
         });
-        const delta = after[0]!.contributed.minus(before[0]!.contributed);
-        return delta.eq(deposit) && after[0]!.net.minus(before[0]!.net).eq(deposit);
+        const movedContributions = after[0]!.contributed.minus(before[0]!.contributed);
+        const movedNet = after[0]!.net.minus(before[0]!.net);
+        // Un virement bouge les deux courbes ensemble : le gain (l'écart) reste identique. C'est
+        // toute la raison d'être de la courbe de référence.
+        const gainBefore = before[0]!.net.minus(before[0]!.contributed);
+        const gainAfter = after[0]!.net.minus(after[0]!.contributed);
+        return movedContributions.eq(deposit) && movedNet.eq(deposit) && gainAfter.eq(gainBefore);
       }),
       { numRuns: 60 },
     );
@@ -309,14 +338,237 @@ describe('propriétés', () => {
   it('latestNetWorth rend le dernier point : c’est lui que la Vue d’ensemble doit égaler', () => {
     const points = netWorthSeries({
       contributions: [
-        valueSeriesContribution('i', 'I', [
-          vp('2026-08-01', '10', '10'),
-          vp('2026-08-02', '20', '10'),
-        ]),
+        valueSeriesContribution(
+          'i',
+          'I',
+          [vp('2026-08-01', '10', '10'), vp('2026-08-02', '20', '10')],
+          contributedFrom(['2026-08-01', '10']),
+        ),
       ],
       days: days('2026-08-01', '2026-08-02'),
     });
     expect(latestNetWorth(points)?.day).toBe('2026-08-02');
     expect(latestNetWorth(points)?.net.toString()).toBe('20');
+  });
+});
+
+describe('apports nets : de l’argent qui entre, jamais l’assiette de coût', () => {
+  it('cumule les flux dans l’ordre et reporte le dernier cumul aux jours sans mouvement', () => {
+    const at = contributedFrom(['2026-08-01', '1000'], ['2026-08-10', '-400']);
+    expect(at('2026-07-31' as DayString).toString()).toBe('0');
+    expect(at('2026-08-01' as DayString).toString()).toBe('1000');
+    expect(at('2026-08-05' as DayString).toString()).toBe('1000');
+    expect(at('2026-08-10' as DayString).toString()).toBe('600');
+    expect(at('2026-12-31' as DayString).toString()).toBe('600');
+  });
+
+  it('additionne plusieurs flux d’un même jour', () => {
+    const at = contributedFrom(['2026-08-01', '100'], ['2026-08-01', '50']);
+    expect(at('2026-08-01' as DayString).toString()).toBe('150');
+  });
+
+  it('ne confond PAS les apports avec l’assiette de coût après une vente à perte', () => {
+    // Le piège que ce module existe pour éviter : 1 000 € versés, revendus 600 € et rachetés.
+    // L'assiette de coût retombe à 600 € et ferait apparaître un gain nul ; les apports, eux,
+    // restent à 1 000 € et laissent voir la moins-value de 400 €.
+    const points = netWorthSeries({
+      contributions: [
+        valueSeriesContribution(
+          'i',
+          'I',
+          [vp('2026-08-01', '1000', '1000'), vp('2026-08-02', '600', '600')],
+          contributedFrom(['2026-08-01', '1000']),
+        ),
+      ],
+      days: days('2026-08-01', '2026-08-02'),
+    });
+    expect(points[1]?.contributed.toString()).toBe('1000');
+    expect(points[1]?.net.minus(points[1]!.contributed).toString()).toBe('-400');
+  });
+});
+
+describe('variation de période, apports neutralisés', () => {
+  const series = (...rows: [string, string, string][]) =>
+    netWorthSeries({
+      contributions: [
+        {
+          id: 'x',
+          label: 'X',
+          firstDay: null,
+          valueAt: (day) => {
+            const row = rows.find(([d]) => d === day);
+            return row === undefined
+              ? null
+              : { value: D(row[1]), contributed: D(row[2]), estimated: false };
+          },
+        },
+      ],
+      days: days(...rows.map(([d]) => d)),
+    });
+
+  it('sépare ce qui a été versé de ce qui a été gagné', () => {
+    // 1 000 € au départ, 500 € versés le 15, 1 700 € à l'arrivée : 200 € de gain, pas 700.
+    const change = netWorthChange(
+      series(
+        ['2026-08-01', '1000', '1000'],
+        ['2026-08-15', '1500', '1500'],
+        ['2026-08-31', '1700', '1500'],
+      ),
+    );
+    expect(change?.netFlows.toString()).toBe('500');
+    expect(change?.gain.toString()).toBe('200');
+    expect(change?.startValue.toString()).toBe('1000');
+    expect(change?.endValue.toString()).toBe('1700');
+  });
+
+  it('un dépôt seul ne produit AUCUN gain — le piège du solde de compte', () => {
+    const change = netWorthChange(
+      series(['2026-08-01', '1000', '1000'], ['2026-08-31', '2000', '2000']),
+    );
+    expect(change?.gain.toString()).toBe('0');
+    expect(change?.pct?.toString()).toBe('0');
+  });
+
+  it('depuis l’origine, le gain vaut exactement « valeur nette − apports nets »', () => {
+    const points = series(
+      ['2026-08-01', '1000', '1000'],
+      ['2026-08-15', '1500', '1500'],
+      ['2026-08-31', '1700', '1500'],
+    );
+    const change = netWorthChange(points, { fromInception: true })!;
+    const last = latestNetWorth(points)!;
+    expect(change.startValue.toString()).toBe('0');
+    expect(change.gain.toString()).toBe(last.net.minus(last.contributed).toString());
+    expect(change.endContributed.toString()).toBe('1500');
+  });
+
+  it('signale une fenêtre incomplète plutôt que de rendre une variation trop basse en silence', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('ok', '100'),
+        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+      ],
+      days: days('2026-08-01', '2026-08-02'),
+    });
+    expect(netWorthChange(points)?.incomplete).toBe(true);
+  });
+
+  it('rend null sur une série vide au lieu d’inventer une variation', () => {
+    expect(netWorthChange([])).toBeNull();
+  });
+});
+
+describe('réconciliation : apports + gain = patrimoine, et la somme des parts refait le tout', () => {
+  const twoSpaces = () =>
+    netWorthSeries({
+      contributions: [
+        valueSeriesContribution(
+          'invest',
+          'Investissement',
+          [vp('2026-08-31', '16167.76', '18137.39')],
+          contributedFrom(['2026-08-01', '23000'], ['2026-08-15', '-5570.31']),
+        ),
+        flat('hl', '5171.70', '5570.31'),
+      ],
+      days: days('2026-08-31'),
+    });
+
+  it('décompose le gain producteur par producteur', () => {
+    const r = reconcileNetWorth(latestNetWorth(twoSpaces()))!;
+    expect(r.net.toString()).toBe('21339.46');
+    expect(r.contributed.toString()).toBe('23000');
+    expect(r.gain.toString()).toBe('-1660.54');
+    expect(r.lines.map((l) => [l.id, l.gain.toString()])).toEqual([
+      // 23 000 versés, 5 570,31 partis au trading : 17 429,69 apportés à l'investissement pour
+      // 16 167,76 de valeur. Le capital envoyé au trading n'est pas un retrait du patrimoine —
+      // il réapparaît en apport de l'autre côté, et les deux lignes se recoupent au centime.
+      ['invest', '-1261.93'],
+      ['hl', '-398.61'],
+    ]);
+  });
+
+  it('la somme des parts égale le total — l’identité que l’auto-vérification contrôle', () => {
+    const r = reconcileNetWorth(latestNetWorth(twoSpaces()))!;
+    const sumValue = r.lines.reduce((acc, l) => acc.plus(l.value), ZERO);
+    const sumContributed = r.lines.reduce((acc, l) => acc.plus(l.contributed), ZERO);
+    const sumGain = r.lines.reduce((acc, l) => acc.plus(l.gain), ZERO);
+    expect(sumValue.toString()).toBe(r.net.toString());
+    expect(sumContributed.toString()).toBe(r.contributed.toString());
+    expect(sumGain.toString()).toBe(r.gain.toString());
+  });
+
+  it('garde une ligne pour une part non valorisable, à zéro, et déclare le total incomplet', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('ok', '100', '80'),
+        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+      ],
+      days: days('2026-08-01'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    expect(r.incomplete).toBe(true);
+    expect(r.lines.map((l) => [l.id, l.unavailable])).toEqual([
+      ['ok', false],
+      ['ko', true],
+    ]);
+  });
+
+  it('rend null sans point plutôt qu’une réconciliation vide', () => {
+    expect(reconcileNetWorth(null)).toBeNull();
+  });
+});
+
+describe('variation par espace : recevoir du capital n’est pas en produire', () => {
+  /** Investissement qui envoie 500 au trading ; le trading les reçoit et en perd 50. */
+  const points = () =>
+    netWorthSeries({
+      contributions: [
+        {
+          id: 'invest',
+          label: 'Investissement',
+          firstDay: null,
+          valueAt: (day) =>
+            day === '2026-08-01'
+              ? { value: D('1000'), contributed: D('1000'), estimated: false }
+              : { value: D('500'), contributed: D('500'), estimated: false },
+        },
+        {
+          id: 'hl',
+          label: 'Trading',
+          firstDay: null,
+          valueAt: (day) =>
+            day === '2026-08-01'
+              ? { value: ZERO, contributed: ZERO, estimated: false }
+              : { value: D('450'), contributed: D('500'), estimated: false },
+        },
+      ],
+      days: days('2026-08-01', '2026-08-31'),
+    });
+
+  it('impute le capital reçu aux apports, jamais au gain', () => {
+    const changes = netWorthPartChanges(points());
+    expect(changes.map((c) => [c.id, c.contributions.toString(), c.gain.toString()])).toEqual([
+      // L'investissement a « retiré » 500 : sa valeur baisse d'autant, il n'a rien perdu.
+      ['invest', '-500', '0'],
+      // Le trading a reçu 500 et en rend 450 : sa valeur monte de 450 et il a perdu 50.
+      ['hl', '500', '-50'],
+    ]);
+  });
+
+  it('la somme des gains par espace égale le gain total', () => {
+    const list = points();
+    const total = netWorthChange(list)!;
+    const sum = netWorthPartChanges(list).reduce((acc, c) => acc.plus(c.gain), ZERO);
+    expect(sum.toString()).toBe(total.gain.toString());
+  });
+
+  it('depuis l’origine, chaque espace part de zéro', () => {
+    const changes = netWorthPartChanges(points(), { fromInception: true });
+    expect(changes.map((c) => c.startValue.toString())).toEqual(['0', '0']);
+    expect(changes.map((c) => c.gain.toString())).toEqual(['0', '-50']);
+  });
+
+  it('rend une liste vide sur une série vide', () => {
+    expect(netWorthPartChanges([])).toEqual([]);
   });
 });

@@ -35,7 +35,17 @@ import {
 } from '$lib/history';
 import { intradayValueSeries, type IntradayValuePoint } from '$lib/history/intraday-series';
 import type { MetricPoint } from '$lib/history/metrics';
+import {
+  cumulativeContributions,
+  netWorthSeries,
+  tradingEquityContribution,
+  valueSeriesContribution,
+  type Contribution,
+  type NetWorthPoint,
+} from '$lib/history/net-worth';
 import { computePerformance, toBenchmarkPrices } from '$lib/history/performance';
+import { rateLookup } from '$lib/fx/convert';
+import { msToParisDay } from '$lib/import/time';
 import type { ReportPerformance } from '$lib/export/report-model';
 import { app } from './app.svelte';
 
@@ -301,6 +311,92 @@ export class HistoryState {
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([day, amountEur]) => ({ day, amountEur }));
   }
+
+  /**
+   * Les producteurs de valeur du patrimoine (P38). Les avoirs d'investissement viennent du grand
+   * livre au pas quotidien ; chaque compte de trading vient de la plateforme, rééchantillonné au
+   * jour. Demain, P36 (actif valorisé) et P41 (actions, ETF) ajouteront un producteur ici, et rien
+   * d'autre ne bougera — c'est la raison d'être de cette forme.
+   *
+   * Les **apports** de chaque producteur sont ses flux externes cumulés, jamais son assiette de
+   * coût (décision n° 55). Les virements internes s'annulent d'eux-mêmes : un retrait d'USDC de
+   * l'espace Investissement vers la plateforme de trading sort d'un côté et rentre de l'autre.
+   */
+  netWorthContributions = $derived.by((): Contribution[] => {
+    const investPoints = this.dailySeries('portfolio');
+    const list: Contribution[] = [
+      valueSeriesContribution(
+        'invest',
+        'Investissement',
+        investPoints,
+        cumulativeContributions(this.flows('portfolio')),
+      ),
+    ];
+    const usd = rateLookup(app.state.fx.rates.USD ?? {});
+    // Même unité que le côté Investissement, que `pricesFor` a déjà converti dans la devise
+    // d'affichage : en dollars il ne faut PAS diviser. Même règle qu'à `Trading.svelte:105`.
+    const usdPerDisplay = (day: string): DecimalString | null =>
+      app.currency === 'USD' ? '1' : usd.rate(day);
+    const today = todayOf(nowMs());
+    for (const account of app.hlAccounts) {
+      const data = app.state.hyperliquid.accounts[account.id];
+      const series = data?.portfolio?.['allTime'];
+      if (!series || series.accountValueHistory.length === 0) continue;
+      const equity = data?.snapshot?.perps.accountValue ?? null;
+      const cash = app.hlNormalized[account.id]?.trading.cashFlows ?? [];
+      /*
+       * TOUS les mouvements de trésorerie, et pas seulement les dépôts et retraits : la
+       * contribution suit l'**équité du compte perps**, or un virement vers le spot ou vers un
+       * coffre en sort tout autant qu'un retrait vers l'extérieur. C'est exactement le `netFlows`
+       * sur lequel `computeTradingAccount` bâtit sa propre réconciliation, et c'est ce qui rend
+       * l'égalité vérifiable : `équité − apports = réalisé − frais + funding + latent`.
+       *
+       * Ne retenir que dépôts et retraits comptait un virement perps → spot comme une perte de
+       * plusieurs centaines d'euros. Les avoirs spot ne sont pas dans la courbe (sauf option
+       * « traiter le spot comme de l'investissement », qui les fait entrer par le grand livre) :
+       * les sortir des apports en même temps que de la valeur est la seule lecture cohérente.
+       */
+      const flows: FlowPoint[] = cash.map((c) => ({
+        day: dayOfNaive(c.at),
+        amountEur: D(c.amount),
+      }));
+      const cumulativeUsd = cumulativeContributions(flows);
+      list.push(
+        tradingEquityContribution({
+          id: account.id,
+          // Préfixé par l'espace : sans lui, une ligne « Investissement » côtoie une ligne portant
+          // un nom de compte, et le lecteur compare deux niveaux différents sans le savoir.
+          label: `Trading · ${account.label}`,
+          history: series.accountValueHistory,
+          dayOfMs: msToParisDay,
+          usdPerDisplay,
+          contributedAt: (day) => {
+            const rate = usdPerDisplay(day);
+            const divisor = rate === null ? null : D(rate);
+            return divisor === null || !divisor.gt(ZERO) ? ZERO : cumulativeUsd(day).div(divisor);
+          },
+          // L'instantané est plus frais que la dernière clôture servie par `portfolio` : sans ce
+          // remplacement, le dernier point divergerait du total affiché dans le bandeau.
+          live: equity === null ? null : { day: today, usd: equity },
+        }),
+      );
+    }
+    return list;
+  });
+
+  /**
+   * Courbe de valeur nette consolidée. Définie ICI et non dans le graphique : le bandeau de la Vue
+   * d'ensemble, la carte d'évolution et la réconciliation doivent lire la MÊME série, sinon deux
+   * chiffres qui devraient être le même finissent par diverger.
+   */
+  netWorth = $derived.by((): NetWorthPoint[] => {
+    const investPoints = this.dailySeries('portfolio');
+    if (investPoints.length === 0) return [];
+    return netWorthSeries({
+      contributions: this.netWorthContributions,
+      days: investPoints.map((p) => p.day),
+    });
+  });
 
   /** Points de métrique quotidiens : valeur, coût, et pour un actif quantité + prix de marché. */
   metricPoints(scope: Scope): MetricPoint[] {
