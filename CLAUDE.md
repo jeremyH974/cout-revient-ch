@@ -11,6 +11,17 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm test` / `npm run test:watch` / `npm run test:coverage`
 - `npm run build` / `npm run preview`
 - `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
+- `node scripts/generate-tickers.mjs [top]` — régénère `src/lib/pricing/tickers.generated.ts` (top N
+  CoinGecko, 500 par défaut). **`src/lib/pricing/tickers.ts` est la table CURÉE et reste prioritaire** :
+  `TICKERS = { ...GENERATED, ...CURATED }`. Un symbole partagé par deux projets ne reçoit **aucun**
+  identifiant — un prix faux est pire qu'un prix absent ; l'utilisateur le désigne alors depuis la
+  fiche actif (`AssetSettings.coingeckoId`).
+- `node scripts/generate-icons.mjs` — écrit les logos manquants de `public/icons/` et réécrit
+  `KNOWN_ICONS`. Exige `npm install --no-save @web3icons/core@4.0.55` avant, puis `npm uninstall`
+  après : le paquet pèse 49 Mo et **n'est pas une dépendance**. Le script **n'écrase jamais** un
+  fichier existant (sept portent des retouches à la main, voir `public/icons/LICENSE.md`).
+  Ces logos sont **exclus du précache** du service worker (`globIgnores`) et servis par un cache
+  d'exécution : sans cela, chaque installation téléchargerait des mégaoctets de logos inutilisés.
 - `npm run e2e` — build puis tests Playwright (`tests/e2e/*.spec.ts`, Chromium desktop + mobile,
   WebKit sur les parcours visuels) ; `npm run e2e:ui` pour l'explorateur ; `npm run lhci` — build
   puis Lighthouse CI (seuils dans `lighthouserc.json`). Les deux tournent en CI avant tout déploiement.
