@@ -4,6 +4,7 @@
  * Un ticker absent d'ici n'a pas de prix automatique (saisie manuelle ou id dans les réglages).
  */
 import type { AssetCode } from '../domain/types';
+import { GENERATED_TICKERS } from './tickers.generated';
 
 export interface TickerInfo {
   name: string;
@@ -17,7 +18,12 @@ const T = (
   coinbase: string | null = null,
 ): TickerInfo => ({ name, coingeckoId, coinbase });
 
-export const TICKERS: Record<AssetCode, TickerInfo> = {
+/**
+ * Table **curée**, écrite et relue à la main. Elle porte des décisions qu'aucune génération ne doit
+ * écraser : `eurcv` sans identifiant parce qu'il est ancré à l'euro, `wif` → `dogwifcoin` là où le
+ * symbole ne suffit pas, et les symboles Coinbase et Kraken que CoinGecko ne connaît pas.
+ */
+export const CURATED_TICKERS: Record<AssetCode, TickerInfo> = {
   aave: T('Aave', 'aave', 'AAVE'),
   ada: T('Cardano', 'cardano', 'ADA'),
   algo: T('Algorand', 'algorand', 'ALGO'),
@@ -88,6 +94,21 @@ export const TICKERS: Record<AssetCode, TickerInfo> = {
   xrp: T('XRP', 'ripple', 'XRP'),
   xtz: T('Tezos', 'tezos', 'XTZ'),
   yfi: T('yearn.finance', 'yearn-finance', 'YFI'),
+};
+
+/**
+ * Table effective : la couverture générée d'abord, la table curée **par-dessus**. L'ordre compte —
+ * une entrée curée gagne toujours, y compris quand la génération propose autre chose pour le même
+ * symbole. `tickers.test.ts` le vérifie, sans quoi une régénération effacerait silencieusement une
+ * décision prise à la main.
+ *
+ * Un ticker absent des deux n'a pas de prix automatique : l'utilisateur peut forcer son identifiant
+ * CoinGecko depuis la fiche actif. C'est délibéré — un symbole ambigu ne reçoit AUCUN identifiant,
+ * parce qu'un prix faux est pire qu'un prix absent.
+ */
+export const TICKERS: Record<AssetCode, TickerInfo> = {
+  ...GENERATED_TICKERS,
+  ...CURATED_TICKERS,
 };
 
 /** Stablecoins euro : 1 € par construction quand aucun fournisseur ne cote. */

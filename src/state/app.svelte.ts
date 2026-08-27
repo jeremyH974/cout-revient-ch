@@ -1389,6 +1389,21 @@ export class AppState {
     this.runAlertEvaluation();
   }
 
+  /**
+   * Force l'identifiant CoinGecko d'un actif. C'est le rattrapage de la couverture automatique :
+   * un symbole **ambigu** ne reçoit délibérément aucun identifiant — deux projets peuvent partager
+   * un ticker, et un mauvais identifiant donne un prix faux, donc un PRU faux — et c'est
+   * l'utilisateur qui tranche. Le champ existait dans le modèle depuis longtemps sans qu'aucun
+   * écran ne permette de le saisir.
+   */
+  setCoingeckoId(asset: AssetCode, id: string | null): void {
+    const current = this.assetSettings(asset);
+    this.state.assetSettings = {
+      ...this.state.assetSettings,
+      [asset]: { ...current, coingeckoId: id },
+    };
+  }
+
   setCurrency(currency: Currency): void {
     this.setUi({ displayCurrency: currency });
     void this.ensureRates();

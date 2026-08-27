@@ -7,6 +7,31 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Bien plus de cryptos reconnues** : la table des prix passe de **70 à 479 actifs** (top 500
+  CoinGecko, généré et daté), et les logos de **62 à 211**. Chacun détient des cryptos
+  différentes — l'application en reconnaît désormais l'essentiel du marché.
+- **Champ « Identifiant CoinGecko » sur la fiche actif** : quand un actif n'est pas reconnu, ou
+  quand deux projets partagent son symbole, vous pouvez désigner vous-même le bon. Le réglage
+  existait dans les données depuis longtemps sans qu'aucun écran ne permette de le saisir.
+
+### Changed
+
+- **Les logos ne sont plus téléchargés en bloc à l'installation.** Ils passent par un cache
+  d'exécution : vous ne récupérez que ceux de vos propres actifs, une fois. Sans ce changement,
+  élargir la couverture aurait imposé plusieurs mégaoctets à chaque installation. Hors ligne, un
+  actif dont le logo n'a jamais été affiché montre ses initiales.
+- **Un symbole ambigu ne reçoit aucun prix automatique** : quand deux projets partagent un ticker,
+  l'application n'en choisit aucun plutôt que de risquer un prix faux — donc un PRU faux. Sept cas
+  sur cinq cents, tous rattrapables par le champ ci-dessus (`docs/DECISIONS.md` n° 54).
+
+### Fixed
+
+- **Les huit logos manquants demandent tous un kit de marque officiel** : vérification faite dans
+  le paquet installé, aucun n'y figure. Une note antérieure en annonçait quatre comme disponibles
+  sous licence libre — elle envoyait chercher des fichiers inexistants.
+
+### Added
+
 - **Carte de partage (P9)** : un bouton « Partager » sur la Vue d'ensemble produit une image
   1200 × 630 — le format d'aperçu de Discord — portant votre performance **hors apports**, le
   repère « mêmes apports en BTC », votre rendement annualisé et vos trois premières lignes **en

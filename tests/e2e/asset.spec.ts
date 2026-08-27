@@ -55,3 +55,37 @@ test('téléchargement CSV de l’historique d’un actif', async ({ page, brows
     /^cout-revient-ch-btc-operations-\d{4}-\d{2}-\d{2}\.csv$/,
   );
 });
+
+/**
+ * Couverture des actifs (décision n° 54). La table refuse délibérément de cartographier un symbole
+ * ambigu — deux projets pour un ticker — parce qu'un prix faux est pire qu'un prix absent. Ce refus
+ * n'est tenable que si l'utilisateur peut trancher lui-même : ce champ est le rattrapage, et il
+ * n'existait pas malgré un réglage présent dans les données depuis longtemps.
+ */
+test('la fiche actif permet de désigner soi-même l’identifiant CoinGecko', async ({ page }) => {
+  await openDemo(page);
+  await page.goto('#/asset/btc');
+
+  await page.getByRole('button', { name: 'identifiant CoinGecko', exact: true }).click();
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  const field = sheet.getByLabel('Identifiant CoinGecko');
+  await expect(field).toHaveValue('');
+
+  await field.fill('dogwifcoin');
+  await sheet.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(sheet).toBeHidden();
+
+  // Le libellé du bouton change : le réglage a bien été retenu.
+  await expect(
+    page.getByRole('button', { name: 'modifier l’identifiant CoinGecko' }),
+  ).toBeVisible();
+
+  // Et il se retire, sans quoi une erreur de saisie serait définitive.
+  await page.getByRole('button', { name: 'modifier l’identifiant CoinGecko' }).click();
+  await sheet.getByLabel('Identifiant CoinGecko').fill('');
+  await sheet.getByRole('button', { name: 'Enregistrer' }).click();
+  await expect(
+    page.getByRole('button', { name: 'identifiant CoinGecko', exact: true }),
+  ).toBeVisible();
+});
