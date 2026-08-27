@@ -52,6 +52,12 @@
 > plateforme — résolue par un rééchantillonnage au jour. La série est écrite `Σ contributions −
 Σ passifs` dès l'origine pour que **P36, P37 et P41 s'y branchent sans réécriture**.
 
+> **P9 (carte de partage) est livré** le 27/08/2026 — décision n° 53. Deux découvertes au passage :
+> la CSP du site publié refuse `blob:` dans `img-src`, si bien qu'un aperçu en `blob:` reste vide
+> **sans erreur** — et comme cette CSP n'est injectée qu'au build, le développement ne montre rien ;
+> et l'absence de montant est désormais une **propriété testée**, pas une intention. La feuille de
+> route est close pour P8, P38, P7 (livré par la PR #16) et P9.
+
 ## 1. État des lieux (mesuré le 23/08/2026)
 
 **Forces**

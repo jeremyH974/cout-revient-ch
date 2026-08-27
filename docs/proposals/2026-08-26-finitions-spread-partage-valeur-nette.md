@@ -227,7 +227,30 @@ les marqueurs d'achat/vente, les lignes de niveau, trois modes de couleur, le mo
 - **Cas limite à couvrir explicitement** : deux comptes de trading aux horodatages disjoints. C'est
   précisément ce que la plateforme ne sait pas consolider, et donc ce que ce module doit prouver.
 
-# P7 — Coût réel et spread implicite par opération
+# P7 — Coût réel et spread implicite par opération — **RÉTRACTÉ**
+
+> **Ce plan est caduc, et sur un point il était faux.** La PR #16 a livré la mesure du spread le
+> 26/08/2026 (décision n° 49) : elle compare le **prix déclaré par la plateforme**, celui de la
+> colonne `Prix du marché` transportée par `TradeEvent.quotePrice`, à une **référence quotidienne
+> indépendante**, en médiane et sur agrégat. C'est l'étage 2 ci-dessous.
+>
+> **L'étage 1 — comparer ce prix déclaré au prix effectivement obtenu — ne mesure rien.** L'import
+> rapproche déjà les deux jambes dans `feeReconciliationWarning`
+> (`src/lib/import/coinhouse/trade.ts:72`) : `|quantité contrepartie| ∓ (frais − remise)` contre
+> `|contre-valeur de la jambe actif|`, avec avertissement au-delà de 0,05 unité ou 0,5 %. Mesuré sur
+> la fixture, 100 paires : **27 % d'identité exacte, pire écart relatif 0,004228 %** — du bruit
+> d'arrondi. Les deux nombres sont le même par construction de l'export.
+>
+> Le raisonnement qui manquait : **on ne détecte pas une marge en comparant le prix affiché par un
+> vendeur à ce qu'il a facturé à ce prix affiché.** La marge est _à l'intérieur_ du `Prix du
+marché` ; seule une référence indépendante peut la voir. C'est exactement ce que fait #16.
+>
+> **Ce qui resterait légitime** : non pas une nouvelle mesure, mais une **référence plus fine** pour
+> celle de #16 — des chandelles à la minute, à la demande, opération par opération, qui
+> supprimeraient le bruit intrajournalier à la source et donc le besoin de médiane et de seuils.
+> Non prioritaire.
+>
+> La section ci-dessous est conservée telle qu'elle a été écrite, pour que l'erreur reste lisible.
 
 La brique que personne ne fournit pour Coinhouse. C'est aussi celle où il est le plus facile
 d'afficher un chiffre faux avec assurance.
@@ -318,48 +341,125 @@ pas — frontière information/conseil déjà tenue par le moteur de constats (d
 
 # P9 — Carte de partage
 
-## P9.1 — Le modèle (moteur pur, testable sans navigateur)
+Dernière brique du plan. P7 est désormais couvert par la PR #16 ; P9 est le seul levier d'adoption
+qui reste non tiré.
 
-Une fonction `shareCardModel(...)` rendant une structure pure : période, performance en
-**pourcentage**, trois premiers actifs par **poids relatif**, nombre de lignes, rendement personnel,
-repère. Aucun rendu, aucun DOM — donc entièrement testable.
+## P9.0 — Ce qui existe déjà et qu'il ne faut PAS réécrire
 
-**Vie privée par défaut, et par construction** : des pourcentages, jamais de montants. Les montants
-n'apparaissent que sur bascule explicite, non mémorisée. Jamais de quantité, jamais d'adresse,
-jamais de date d'opération. **Un test vérifie qu'aucun montant ne peut sortir du modèle en mode par
-défaut**, quelles que soient les données d'entrée (propriété fast-check) : c'est ce qui rend la
-promesse tenable, pas la relecture.
+Trois briques sont en place, vérifiées dans le dépôt le 26/08/2026 :
 
-Le résumé anonymisé de P27 (`TradeStats.svelte:45`) est **généralisé** dans ce module plutôt que
-dupliqué.
+- **`canShareFiles()` et `shareTextFile()`** (`src/lib/export/download.ts`) : la détection Web Share
+  avec fichiers et le repli téléchargement existent, écrits pour la sauvegarde JSON. `shareTextFile`
+  prend une **chaîne** ; il faut le généraliser au `Blob`, car un PNG est binaire. Un `AbortError`
+  y est déjà traité comme une annulation et non comme une panne.
+- **Le résumé anonymisé de P27** (`TradeStats.svelte:44-70`) : ratios, R et compteurs, jamais un
+  montant ni une adresse. Il est aujourd'hui **enfermé dans un composant d'écran** ; P9 le remonte
+  dans un module pur et le réutilise au lieu de le dupliquer.
+- **L'image Open Graph du site est déjà en 1200 × 630** (`index.html:25-27`). La carte adopte la
+  même dimension : c'est le format d'aperçu attendu par Discord, et cela évite deux géométries
+  concurrentes dans le même dépôt.
 
-## P9.2 — Le rendu image
+## P9.1 — Le modèle : une promesse tenue par une propriété, pas par une relecture
 
-- **Canvas 2D à 1200 × 630**, exporté par `canvas.toBlob('image/png')`. C'est le format d'aperçu
-  attendu par Discord ; le rendu est déterministe et ne dépend d'aucune police distante (CSP, et
-  l'app doit fonctionner hors ligne).
-- **Pas de SVG converti en image** : `foreignObject` teinte le canvas sur plusieurs navigateurs et
-  les polices ne suivent pas. Du `fillText` explicite, mesurable et testable.
-- Thème **sombre par défaut** (Discord l'est majoritairement), bascule claire disponible.
-- La géométrie est une **fonction pure** (positions, tailles) testée séparément du dessin ; le
-  rendu lui-même est verrouillé par une capture Playwright en E2E.
+`shareCardModel(...)` rend une structure **pure** : période, performance en **pourcentage**, trois
+premiers actifs par **poids relatif**, nombre de lignes, rendement personnel, repère. Aucun rendu,
+aucun DOM, donc entièrement testable sans navigateur.
 
-## P9.3 — La distribution
+**Vie privée par défaut, et par construction.** Des pourcentages, jamais de montants. Les montants
+n'apparaissent que sur bascule explicite, **non mémorisée** — un réglage qui se souvient finit par
+publier ce qu'on ne voulait publier qu'une fois. Jamais de quantité, jamais d'adresse, jamais de
+date d'opération.
 
-- `navigator.share({ files })` derrière `navigator.canShare({ files })` — partage natif sur mobile.
-- Repli : téléchargement du PNG (`src/lib/export/download.ts` existe).
-- « Copier l'image » via `ClipboardItem` là où c'est supporté, « Copier un résumé texte » partout.
-- **Accessibilité** : une image seule est illisible pour un lecteur d'écran. Le résumé texte **est**
-  l'équivalent accessible, pas une commodité ; la carte porte un `alt` réel qui décrit les chiffres.
-  axe (WCAG 2.2 AA) doit rester vert — une violation est un échec de CI, on corrige le balisage.
+**Ce qui rend la promesse vérifiable** : une propriété fast-check tire des portefeuilles aléatoires
+et vérifie qu'**aucun nombre du modèle en mode par défaut ne peut être un montant** — quelles que
+soient les données d'entrée. C'est ce qui distingue une promesse d'une intention : une relecture
+attentive ne prouve rien sur les données qu'elle n'a pas vues.
 
-## P9.4 — Emplacement et réussite
+**Fichiers** — `src/lib/export/share-card.ts` (nouveau, pur), son test colocalisé ;
+`TradeStats.svelte` allégé de son résumé, qui migre dans ce module.
 
-Bouton « Partager » sur la Vue d'ensemble et dans le rapport. **Réussite** : poster sa carte depuis
-un téléphone en trois gestes, et **aucun montant n'y figure par défaut** — vérifié par le test de
-propriété, pas par une relecture visuelle.
+## P9.2 — Le rendu : canvas, et pourquoi pas SVG
+
+**Canvas 2D à 1200 × 630**, exporté par `canvas.toBlob('image/png')`.
+
+**Pourquoi pas un SVG converti en image** : `foreignObject` teinte le canvas sur plusieurs moteurs
+(la conversion échoue alors silencieusement), et les polices ne suivent pas la sérialisation. Du
+`fillText` explicite est mesurable, déterministe, et ne dépend d'aucune police distante — ce qui
+compte doublement ici, entre la CSP du site et le fonctionnement hors ligne.
+
+**Thème sombre par défaut**, bascule claire disponible : Discord est majoritairement sombre, une
+carte claire y brûle les yeux et se repère comme une pièce rapportée.
+
+**Testabilité du rendu.** La **géométrie est une fonction pure** (positions, tailles, retours à la
+ligne) testée séparément du dessin ; le dessin lui-même est verrouillé par une capture Playwright.
+Tester des pixels de canvas en unitaire serait fragile pour ce que ça prouve.
+
+## P9.3 — La distribution, du plus intégré au plus universel
+
+1. `navigator.share({ files })` derrière `navigator.canShare({ files })` — partage natif. C'est le
+   seul chemin en trois gestes depuis un téléphone, et le seul qui atteigne l'application Discord
+   installée. `canShare` est appelable **sans geste utilisateur**, donc le bouton sait avant d'être
+   cliqué s'il doit proposer « Partager » ou « Télécharger ».
+2. **« Copier l'image »** via `ClipboardItem` là où c'est supporté : sur ordinateur, coller dans
+   Discord bat télécharger puis glisser.
+3. **Téléchargement du PNG** partout ailleurs (Firefox notamment, qui n'a pas le niveau 2).
+4. **« Copier un résumé texte »** partout, sans exception.
+
+**Accessibilité — le point qui décide de la conception, pas une finition.** Une image seule est
+illisible pour un lecteur d'écran, et un `alt` de dix mots ne remplace pas des chiffres. Le résumé
+texte **est** l'équivalent accessible de la carte, pas une commodité : il porte les mêmes nombres,
+dans le même ordre. La carte affichée à l'écran reçoit un `alt` qui les énonce. axe (WCAG 2.2 AA)
+doit rester vert sur les 26 parcours — une violation est un échec de CI, on corrige le balisage.
+
+## P9.4 — Prêt pour le futur
+
+- **Le modèle ne connaît pas le canvas.** Une carte carrée pour un autre réseau, ou une variante
+  claire pour l'impression, se branche en ajoutant une géométrie ; le modèle et la distribution ne
+  bougent pas.
+- **La distribution ne connaît pas la carte.** `shareBlobFile(filename, blob, type)` généralise
+  `shareTextFile` et servira à tout fichier binaire ultérieur — un PDF, un export d'image de
+  rapport.
+- **Le résumé texte est le même objet que celui de P27** : une évolution des statistiques se
+  répercute d'elle-même dans la carte.
+
+## P9.5 — Vérification
+
+- Propriété : aucun montant ne peut sortir du modèle en mode par défaut, sur des portefeuilles
+  tirés au hasard.
+- La géométrie place tout le texte **dans** le cadre, y compris avec un libellé d'actif long et un
+  pourcentage à quatre chiffres (le débordement silencieux est le défaut classique d'une carte
+  générée).
+- E2E : le bouton produit un blob PNG non vide de 1200 × 630 ; le repli téléchargement s'active
+  quand `canShare` répond faux (stubé).
+- axe vert sur les 26 parcours, résumé texte présent et concordant avec l'image.
+- Aucun appel réseau : le rendu est local, comme tout le reste de l'application.
 
 ---
+
+# Décision n° 52 — les alertes de sécurité de `@lhci/cli`
+
+À écrire dans la même PR, une quinzaine de lignes, pour qu'aucune session ne réenquête.
+
+**Ce qu'elle doit contenir** : les quatre alertes viennent d'un seul paquet, `@lhci/cli@0.15.1`, qui
+est **la dernière version publiée** (`latest` et `next`) — aucune montée de version ne les corrige,
+et `extract-zip` n'a **aucun correctif publié** (`first_patched_version: null`).
+`npm audit --omit=dev` rend **zéro** : rien n'atteint le bundle servi.
+
+**Trois des quatre sont inatteignables**, constaté en lisant le code et non supposé : `tmp` n'est
+appelé que par `lhci open` — commande jamais lancée, `package.json` et `ci.yml` n'invoquant que
+`autorun` — et avec un `postfix` **littéral** ; `uuid.v4()` est appelé **sans `buf`**, or l'avis ne
+mord que « when buf is provided » ; `extract-zip` n'est atteint que depuis le **téléchargement** d'un
+navigateur par `@puppeteer/browsers`, or seul `puppeteer-core` est installé et il n'en télécharge
+jamais.
+
+**Ce qu'on ne fait pas, et pourquoi.** Pas d'`overrides` npm : `uuid` 8 → 11 et `tmp` 0.0.33 → 0.2.6
+traversent des ruptures d'API que `@lhci/cli` n'a jamais testées, et `extract-zip` n'a aucune cible
+vers laquelle pointer — on casserait Lighthouse CI pour corriger du code qui ne s'exécute pas. Pas
+de bascule vers l'action GitHub `lighthouse-ci-action` non plus : elle embarque la même chaîne, hors
+du `package-lock.json`. L'alerte disparaîtrait, le code resterait — moins de visibilité pour le même
+risque.
+
+**Le déclencheur** : prendre la prochaine `@lhci/cli` au-dessus de 0.15.1 dès sa publication.
 
 # Ce que ce plan n'inclut pas
 
@@ -371,15 +471,14 @@ propriété, pas par une relecture visuelle.
 
 # Décisions à consigner
 
-Quatre entrées dans `docs/DECISIONS.md`, numérotées à partir de **n° 47** — les n° 43 à 46 sont
-prises par la PR #13, à fusionner avant de commencer.
+État au 26/08/2026, après les fusions des PR #13, #15 et #16 :
 
-1. Le catalogue de sources est déclaratif et vérifié par un test ; ajouter un fournisseur sans
-   l'attribuer échoue en CI.
-2. La valeur nette est `Σ contributions − Σ passifs` dès l'origine ; le trading entre par son
-   equity, jamais par son notionnel.
-3. Le spread est mesuré contre le prix déclaré par l'export, et le prix déclaré est lui-même
-   contrôlé contre une source indépendante ; sans donnée intrajournalière, on affiche un intervalle
-   et on ne revendique pas de spread.
-4. La carte de partage ne peut pas émettre de montant en mode par défaut, et cette impossibilité est
-   prouvée par une propriété, pas par une relecture.
+1. **n° 47 — livrée** (PR #15). Le catalogue de sources est déclaratif et vérifié par un test ;
+   ajouter un fournisseur sans l'attribuer échoue en CI.
+2. **n° 49 — livrée par la PR #16**, et non par ce plan. Le spread s'estime en médiane, sur agrégat,
+   contre une référence indépendante — voir la rétractation en tête de la section P7.
+3. **n° 51 — livrée** (PR #18). La valeur nette est `Σ contributions − Σ passifs` dès l'origine ;
+   le trading entre par son equity rééchantillonnée au jour, jamais par son notionnel.
+4. **n° 52 — à écrire.** Les alertes `@lhci/cli` : ce qu'on ne fait pas, pourquoi, et le déclencheur.
+5. **n° 53 — à écrire avec P9.** La carte de partage ne peut pas émettre de montant en mode par
+   défaut, et cette impossibilité est prouvée par une propriété, pas par une relecture.

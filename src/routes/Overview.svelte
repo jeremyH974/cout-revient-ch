@@ -12,6 +12,7 @@
   import { isIOS, isStandalone } from '$lib/support/environment';
   import { runSelfChecks } from '$lib/support/self-check';
   import NetWorthCard from '../components/charts/NetWorthCard.svelte';
+  import ShareSheet from '../components/shared/ShareSheet.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import Info from '../components/shared/Info.svelte';
   import InsightList from '../components/shared/InsightList.svelte';
@@ -23,6 +24,7 @@
 
   const t = $derived(app.report.totals);
   const openCount = $derived(app.report.positions.length + app.report.stablecoins.length);
+  let sharing = $state(false);
   const trading = $derived(app.tradingReport);
   /** Équité de trading dans la devise d'affichage ; `null` tant qu'aucun taux USD n'est connu. */
   const tradingEquity = $derived(app.hasTrading ? app.usdcToDisplay(trading.equity) : null);
@@ -120,6 +122,9 @@
         disabled={app.priceStatus.loading || app.state.ui.priceSource === 'off'}
       >
         Actualiser
+      </button>
+      <button class="tool" type="button" onclick={() => (sharing = true)} disabled={!app.hasData}>
+        Partager
       </button>
     </div>
   </div>
@@ -252,6 +257,8 @@
 
 {#if insights.length > 0}
   <NetWorthCard />
+
+  <ShareSheet bind:open={sharing} {netWorth} total={t.total} />
 
   <section class="card insights" aria-labelledby="insights-title">
     <div class="tools">

@@ -7,6 +7,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Carte de partage (P9)** : un bouton « Partager » sur la Vue d'ensemble produit une image
+  1200 × 630 — le format d'aperçu de Discord — portant votre performance **hors apports**, le
+  repère « mêmes apports en BTC », votre rendement annualisé et vos trois premières lignes **en
+  pourcentage**. Partage natif sur mobile, copie de l'image sur ordinateur, téléchargement partout,
+  et un résumé texte toujours proposé.
+  **Aucun montant par défaut**, et la bascule qui les affiche **n'est pas mémorisée** : rouvrir la
+  feuille repart des pourcentages seuls. Ce n'est pas une intention mais une propriété vérifiée par
+  les tests. Le résumé texte est l'équivalent accessible de l'image et lui sert d'`alt` : il porte
+  les mêmes chiffres, dans le même ordre (`docs/DECISIONS.md` n° 53).
+
+### Fixed
+
+- **Analyse des alertes de sécurité Dependabot** : les quatre alertes ouvertes viennent toutes de
+  `@lhci/cli`, l'outil de mesure Lighthouse, jamais du code servi aux utilisateurs
+  (`npm audit --omit=dev` rend zéro). Aucune n'a de correctif disponible, et trois sur quatre sont
+  inatteignables dans cet usage. Le raisonnement est consigné pour ne pas être refait
+  (`docs/DECISIONS.md` n° 52).
+
+### Added
+
 - **Courbe « Évolution de la valeur nette » sur la Vue d'ensemble (P38)** : ce que vous possédez
   jour après jour, **investissement et trading réunis**, avec vos apports nets en second plan —
   l'écart entre les deux courbes est votre gain. Un virement déplace les deux ensemble et ne

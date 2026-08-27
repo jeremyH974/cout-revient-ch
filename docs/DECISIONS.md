@@ -883,3 +883,46 @@
     cotation — approché mais comparable, donc **compté** ; `unavailable`, non valorisable — le total
     est alors **incomplet, donc trop bas**, et cela se signale au lieu de se fondre dans la courbe.
     Confondre les deux derniers reviendrait à présenter un chiffre faux comme un chiffre approché.
+
+52. **Les alertes de sécurité de `@lhci/cli` ne se corrigent pas : elles se documentent** (27/08/2026).
+    Les quatre alertes ouvertes viennent d'un **seul** paquet, `@lhci/cli@0.15.1`, qui est la
+    dernière version publiée (`latest` et `next`) : aucune montée de version ne les corrige, et
+    `extract-zip` n'a **aucun correctif publié** (`first_patched_version: null` dans l'avis GitHub).
+    `npm audit --omit=dev` rend **zéro** : rien de tout cela n'atteint le bundle servi aux
+    utilisateurs. Trois des quatre sont par ailleurs **inatteignables**, constaté en lisant le code
+    et non supposé : `tmp` n'est appelé que par `lhci open` — commande jamais lancée, `package.json`
+    et `ci.yml` n'invoquant que `autorun` — et avec un `postfix` littéral ; `uuid.v4()` est appelé
+    **sans `buf`**, or l'avis ne mord que « when buf is provided » ; `extract-zip` n'est atteint que
+    depuis le **téléchargement** d'un navigateur par `@puppeteer/browsers`, or seul `puppeteer-core`
+    est installé et il n'en télécharge jamais.
+    **Ce qu'on ne fait pas.** Pas d'`overrides` npm : `uuid` 8 → 11 et `tmp` 0.0.33 → 0.2.6
+    traversent des ruptures d'API que `@lhci/cli` n'a jamais testées, et `extract-zip` n'a aucune
+    cible vers laquelle pointer — on casserait Lighthouse CI pour corriger du code qui ne s'exécute
+    pas. Pas de bascule vers l'action `lighthouse-ci-action` non plus : elle embarque la même chaîne,
+    simplement hors du `package-lock.json`. L'alerte disparaîtrait, le code resterait — moins de
+    visibilité pour le même risque. **Le déclencheur** : prendre la prochaine `@lhci/cli` au-dessus
+    de 0.15.1 dès sa publication.
+
+53. **La carte de partage ne peut pas émettre de montant par défaut, et une propriété le prouve**
+    (27/08/2026). Une carte destinée à un salon public ne doit rien dire de la taille du
+    portefeuille : elle porte des pourcentages, le nombre de lignes et les trois premières
+    positions **en part relative**. Les montants n'existent que si l'utilisateur les demande, et
+    **cette bascule n'est pas mémorisée** — un réglage qui se souvient finit par publier ce qu'on ne
+    voulait publier qu'une fois. La garantie n'est pas confiée à une relecture : `share-card.test.ts`
+    tire des montants au hasard et vérifie qu'activer les montants **n'ajoute que les lignes de
+    montants**, titre, sous-titre, pied et résumé restant rigoureusement identiques. Aucune grandeur
+    affichée par défaut n'est donc dérivée d'un montant.
+    **Canvas plutôt que SVG converti** : `foreignObject` teinte le canvas sur plusieurs moteurs et
+    les polices ne survivent pas à la sérialisation — les deux échouent **sans erreur**. La
+    géométrie est une fonction pure, testée séparément du dessin, ce qui permet de prouver sans
+    navigateur qu'aucun texte ne sort du cadre ni ne chevauche un autre, y compris sur les libellés
+    longs. **Le débordement d'une carte générée ne se voit qu'une fois l'image postée.**
+    **L'aperçu est servi en `data:` et non en `blob:`** : la CSP du site publié dit
+    `img-src 'self' data:`, si bien qu'un `blob:` produit une image vide **sans la moindre erreur**.
+    Le piège est double, car cette CSP n'est injectée qu'au build : en développement l'aperçu
+    s'affiche parfaitement. Constaté en exécutant le build, pas en le supposant. Le `Blob` reste
+    utilisé pour le partage natif, le presse-papiers et le téléchargement, qui ne passent pas par
+    `img-src`.
+    **Le résumé texte est l'équivalent accessible de l'image, pas une commodité** : il porte les
+    mêmes nombres dans le même ordre, et sert d'`alt` — un `alt` qui dirait « image de partage » ne
+    servirait à personne.
