@@ -113,8 +113,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `json-io.ts`, jamais remplacé en bloc.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
-- `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR).
+- `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
+  `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
+  arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
+- `src/state/history.svelte.ts` — historique des prix et **séries** : `dailySeries`, `flows` (les
+  apports, au sens des flux externes) et la courbe consolidée `netWorth`, définie **ici** et non
+  dans un composant pour que le bandeau, la réconciliation et le graphique lisent le même objet.
+- `src/state/checks.svelte.ts` — les auto-vérifications, montées **une seule fois** : les réglages et
+  le tableau de bord affichaient auparavant deux listes qui avaient déjà divergé.
+- `src/components/shared/Delta.svelte` — **toute** variance de l'interface passe par lui : couleur,
+  triangle, signe et équivalent parlé. Un niveau reste neutre (docs/DECISIONS.md n° 56).
 - `src/routes`, `src/components` — présentation uniquement. Navigation en quatre espaces
   (`src/lib/spaces.ts`, registre `SPACES`), chacun avec son libellé, sa couleur d'accent et sa cible
   de retour de barre d'application : `routes/Overview.svelte` (Vue d'ensemble, `#/`, aussi le

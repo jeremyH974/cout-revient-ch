@@ -58,6 +58,20 @@
 > et l'absence de montant est désormais une **propriété testée**, pas une intention. La feuille de
 > route est close pour P8, P38, P7 (livré par la PR #16) et P9.
 
+> **La Vue d'ensemble est devenue un tableau de bord d'aide à la décision** le 27/08/2026 —
+> décisions n° 55 et 56, PR #21, documentée dans [`tableau-de-bord.md`](tableau-de-bord.md).
+> Elle a d'abord corrigé un défaut de P38 : la courbe de référence traçait le **coût des positions
+> détenues** et l'appelait « apports nets », le trading n'y contribuant rien. L'écart annoncé comme
+> le gain valait `latent + équité de trading entière`, et une vente à perte faisait **baisser** la
+> référence — la moins-value réalisée disparaissait du tableau. Les apports sont désormais des
+> **flux externes cumulés**, des deux côtés, et deux auto-vérifications le prouvent, dont celle qui
+> compare le résultat déduit des apports à « réalisé + latent » calculé lot par lot.
+> Le reste suit l'**ISO 24896:2026** : un chiffre domine, une seule période gouverne l'écran, aucun
+> chiffre n'est écrit deux fois, la couleur est réservée aux variances.
+> **Reste ouvert** : les avoirs spot d'un compte de trading ne sont toujours pas comptés dans le
+> patrimoine sauf option « traiter le spot comme de l'investissement » — cohérent (ils sortent des
+> apports en même temps que de la valeur) mais incomplet.
+
 ## 1. État des lieux (mesuré le 23/08/2026)
 
 **Forces**
