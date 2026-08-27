@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * **Une variance, une forme** (décision n° 52). Partout où l'app montre un écart — variation de
+   * **Une variance, une forme** (décision n° 56). Partout où l'app montre un écart — variation de
    * période, gain depuis l'origine, part gagnée ou perdue par un espace — elle passe par ce
    * composant et par lui seul.
    *

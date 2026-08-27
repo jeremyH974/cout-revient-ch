@@ -112,8 +112,30 @@ export default defineConfig({
       workbox: {
         // Seuls les assets de l'app sont mis en cache ; jamais les données ni les API de prix.
         globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        /**
+         * Les logos de cryptos sont EXCLUS du précache. La table des prix couvre désormais des
+         * centaines d'actifs : tout précacher imposerait plusieurs mégaoctets à chaque
+         * installation, pour des logos que personne ne détient tous. Ils passent en cache
+         * d'exécution ci-dessous — un utilisateur télécharge les logos de SES actifs, une fois.
+         * Contrepartie assumée : hors ligne, un actif jamais affiché montre ses initiales, ce que
+         * `CoinBadge` sait déjà faire.
+         */
+        globIgnores: ['**/icons/*.svg'],
         navigateFallback: `${BASE}index.html`,
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            // Même origine, donc rien de nouveau ne sort de l'appareil : c'est un cache, pas une
+            // requête tierce. `CacheFirst` parce qu'un logo ne change jamais pour un ticker donné.
+            urlPattern: ({ url }: { url: URL }) =>
+              url.origin === self.location.origin && url.pathname.includes('/icons/'),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'crypto-icons',
+              expiration: { maxEntries: 600, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
         // Clic sur une notification d'alerte (sw-notifications.js) + vérification opportuniste
         // des alertes app fermée : noyau pur (sw-alerts-core.js, testé via node:vm) puis
         // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte.

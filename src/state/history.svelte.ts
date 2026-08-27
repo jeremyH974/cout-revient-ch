@@ -319,7 +319,7 @@ export class HistoryState {
    * d'autre ne bougera — c'est la raison d'être de cette forme.
    *
    * Les **apports** de chaque producteur sont ses flux externes cumulés, jamais son assiette de
-   * coût (décision n° 53). Les virements internes s'annulent d'eux-mêmes : un retrait d'USDC de
+   * coût (décision n° 55). Les virements internes s'annulent d'eux-mêmes : un retrait d'USDC de
    * l'espace Investissement vers la plateforme de trading sort d'un côté et rentre de l'autre.
    */
   netWorthContributions = $derived.by((): Contribution[] => {

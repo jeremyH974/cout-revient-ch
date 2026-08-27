@@ -312,10 +312,12 @@ staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import)
 - **Historique long EURCV/GMX : sans objet.** GMX a son historique profond depuis la 2.5.1
   (DefiLlama, décision n° 42) et EURCV vaut 1 € par ancrage. Ni Kraken ni Coinbase n'y sont pour
   quoi que ce soit. Verrouillé par un test portant sur les 70 actifs curés.
-- **Logos : reste à faire.** BONK, FLOKI, ONDO et WIF sont dans `@web3icons/core` (MIT), déjà
-  source de 61 des 62 logos embarqués ; EURCV, HYPE, SKY et USDS n'y sont pas et demandent un kit
-  de marque officiel avec vérification de licence. Les huit sont inscrits dans `NO_ICON` avec leur
-  motif, et `icons.test.ts` interdit désormais qu'un ticker reste sans décision.
+- **Logos : très largement élargis le 27/08/2026** — 62 → 211 fichiers, générés depuis
+  `@web3icons/core` (MIT) par `scripts/generate-icons.mjs`, et sortis du précache du service worker
+  pour ne pas imposer des mégaoctets à l'installation. **Les huit d'origine restent à faire** :
+  vérification dans le paquet installé, aucun des huit n'y figure sous aucun nom — une note
+  antérieure affirmait à tort que quatre y étaient. Tous demandent un kit de marque officiel avec
+  licence vérifiée.
 
 ### Phase 2 — Satisfaction et partage Discord (≈ 5 sessions, mois 2–3)
 

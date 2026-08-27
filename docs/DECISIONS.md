@@ -927,7 +927,46 @@
     mêmes nombres dans le même ordre, et sert d'`alt` — un `alt` qui dirait « image de partage » ne
     servirait à personne.
 
-54. **Les apports nets sont des flux externes, jamais l'assiette de coût des positions**
+54. **Couverture large des actifs : un symbole ambigu ne reçoit AUCUN identifiant, et les logos
+    sortent du précache** (27/08/2026). Chacun détient des cryptos différentes, et une table de 70
+    entrées écrite à la main ne suivra jamais le marché. Deux contraintes de nature opposée
+    commandent les deux moitiés de la réponse.
+
+    **Côté prix, le risque est la justesse.** Un même symbole peut désigner deux projets, et un
+    mauvais identifiant ne donne pas « pas de prix » : il donne un **prix faux**, donc un PRU faux,
+    sans que rien à l'écran ne le signale. Mesuré sur le top 500 CoinGecko le 27/08/2026 : 493
+    symboles distincts, **7 collisions (1,4 %)**. La règle intuitive « le mieux classé gagne » est
+    fausse — pour `safe`, elle donnerait _safecoin_ (#260) alors que le jeton que tout le monde
+    appelle SAFE est _safe_ (#336). **Un symbole en conflit n'est donc pas cartographié du tout** :
+    l'actif reste sans cotation automatique, et l'utilisateur tranche. Sept exceptions sur cinq
+    cents, c'est dérisoire face au risque supprimé. `tickers.generated.ts` est écrit par
+    `scripts/generate-tickers.mjs` et porte sa date : une table de marché vieillit, et sans date
+    personne ne sait de quand elle parle. La table **curée** reste prioritaire — elle porte des
+    décisions humaines (`eurcv` ancré à l'euro, `wif` → `dogwifcoin`) qu'une régénération
+    effacerait en silence ; un test le vérifie. Coût mesuré : **+8,25 Ko comprimés** pour 409
+    actifs de plus.
+
+    **Côté logos, le risque est le poids.** Le service worker précachait **tous** les SVG : à 1 362
+    octets pièce, quelques centaines de logos imposeraient des mégaoctets à **chaque installation**,
+    pour des actifs que personne ne détient tous. Les icônes sortent donc de `globPatterns` et
+    passent en **cache d'exécution** : chacun télécharge les logos de ses propres actifs, une fois.
+    Vérifié en navigateur sur le build : précache 24 entrées et **0 icône**, cache `crypto-icons`
+    exactement 11 icônes pour 11 actifs détenus. Contrepartie assumée : hors ligne, un actif jamais
+    affiché montre ses initiales — ce que `CoinBadge` fait déjà. Rien ne change côté vie privée :
+    même origine, même CSP, aucun tiers.
+
+    **La troisième brique rend les deux premières honnêtes.** `AssetSettings.coingeckoId` existait
+    dans le modèle et était câblé jusqu'aux fournisseurs, mais **aucun écran ne permettait de le
+    saisir** — une plomberie sans robinet. La fiche actif reçoit le champ. C'est parce que
+    l'utilisateur a le dernier mot que la couverture automatique peut se permettre de **refuser** un
+    cas douteux plutôt que de deviner.
+
+    **Le paquet source n'est pas une dépendance.** `@web3icons/core` (MIT) pèse 49 Mo et ne sert
+    qu'à la génération ; l'installer durablement le ferait réinstaller à chaque exécution de CI pour
+    rien. Il est installé le temps du script, puis retiré — la convention que `public/icons/LICENSE.md`
+    énonçait déjà.
+
+55. **Les apports nets sont des flux externes, jamais l'assiette de coût des positions**
     (27/08/2026). La courbe de patrimoine livrée avec P38 traçait en référence le **coût des
     positions détenues** et l'appelait « apports nets », le trading n'y contribuant rien. Les deux
     grandeurs se ressemblent tant qu'on n'a rien vendu, puis divergent définitivement : une vente à
@@ -954,7 +993,7 @@
     doivent tomber sur le même nombre. Sur la démonstration, l'Investissement donne `−2 860,60 €`
     des deux côtés, et le Trading `+115,57 €` conformément à son propre écran.
 
-55. **Le tableau de bord : un chiffre, une variance, une réconciliation — et la couleur réservée
+56. **Le tableau de bord : un chiffre, une variance, une réconciliation — et la couleur réservée
     aux variances** (27/08/2026). La Vue d'ensemble empilait huit cartes de poids visuel identique,
     répétait la valeur d'investissement à trois endroits et l'équité de trading à deux, et ne
     montrait que des **niveaux** : aucune variation, donc aucune réponse à « qu'est-ce qui a

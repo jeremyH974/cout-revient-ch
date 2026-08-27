@@ -1,7 +1,7 @@
 # Le tableau de bord — lire son patrimoine sans se tromper
 
-> Refonte du 27/08/2026. Décisions de conception : [`DECISIONS.md`](DECISIONS.md) n° 54 (les
-> apports) et n° 55 (la composition de l'écran).
+> Refonte du 27/08/2026. Décisions de conception : [`DECISIONS.md`](DECISIONS.md) n° 55 (les
+> apports) et n° 56 (la composition de l'écran).
 
 ## La question à laquelle l'écran répond
 

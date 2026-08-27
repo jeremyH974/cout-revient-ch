@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Tableau de bord (décision n° 52). Il **compose** les rapports des espaces, ne recalcule rien,
+   * Tableau de bord (décision n° 56). Il **compose** les rapports des espaces, ne recalcule rien,
    * et n'additionne que des soldes — jamais des résultats de nature différente.
    *
    * Trois règles de composition, dans cet ordre, tirées de l'ISO 24896:2026 (notation pour le

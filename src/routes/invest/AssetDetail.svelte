@@ -26,6 +26,8 @@
   let tab = $state<'lots' | 'history' | 'calc'>('history');
   let priceSheet = $state(false);
   let manualPrice = $state('');
+  let idSheet = $state(false);
+  let coingeckoId = $state('');
   let alertSheet = $state(false);
   let simulateSheet = $state(false);
   const assetAlertCount = $derived(app.alertRules.filter((r) => r.asset === asset).length);
@@ -38,6 +40,25 @@
       ...app.report.blocked,
     ].find((p) => p.asset === asset) ?? null,
   );
+
+  /** Identifiant CoinGecko : `bitcoin`, `dogwifcoin`… minuscules, chiffres et tirets. */
+  const CG_ID = /^[a-z0-9][a-z0-9-]{1,63}$/;
+
+  function saveCoingeckoId(): void {
+    const value = coingeckoId.trim().toLowerCase();
+    if (value === '') {
+      app.setCoingeckoId(asset, null);
+      toasts.push('Identifiant supprimé : retour à la table intégrée.');
+    } else if (CG_ID.test(value)) {
+      app.setCoingeckoId(asset, value);
+      toasts.push('Identifiant enregistré. Actualisez les prix.', 'success');
+    } else {
+      toasts.push('Identifiant invalide.', 'error');
+      return;
+    }
+    idSheet = false;
+    void app.refreshPrices(true);
+  }
 
   function saveManualPrice(): void {
     const value = manualPrice.trim().replace(',', '.');
@@ -87,6 +108,17 @@
               >{app.assetSettings(asset).manualPriceEur
                 ? 'modifier le prix manuel'
                 : 'saisir un prix'}</button
+            >
+            <button
+              class="link"
+              type="button"
+              onclick={() => {
+                coingeckoId = app.assetSettings(asset).coingeckoId ?? '';
+                idSheet = true;
+              }}
+              >{app.assetSettings(asset).coingeckoId
+                ? 'modifier l’identifiant CoinGecko'
+                : 'identifiant CoinGecko'}</button
             >
           {/if}
         </p>
@@ -198,6 +230,37 @@
         placeholder="Prix en euros, ex. 65000"
         bind:value={manualPrice}
         aria-label="Prix en euros"
+      />
+      <button class="primary" type="submit">Enregistrer</button>
+    </form>
+  </Sheet>
+
+  <Sheet bind:open={idSheet} title="Identifiant CoinGecko pour {asset.toUpperCase()}">
+    <p>
+      L'application connaît plusieurs centaines d'actifs, mais pas tous — et quand deux projets
+      partagent un même symbole, elle n'en choisit <strong>aucun</strong> : un prix faux serait pire
+      qu'un prix absent. Vous pouvez trancher vous-même en collant l'identifiant de la page
+      CoinGecko de l'actif (dans l'adresse :
+      <code>coingecko.com/fr/pièces/<em>identifiant</em></code>).
+    </p>
+    <p class="muted small">
+      Laissez vide pour revenir à la table intégrée. L'identifiant sert aussi à l'historique de
+      prix.
+    </p>
+    <form
+      onsubmit={(e) => {
+        e.preventDefault();
+        saveCoingeckoId();
+      }}
+    >
+      <input
+        type="text"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+        placeholder="ex. dogwifcoin"
+        bind:value={coingeckoId}
+        aria-label="Identifiant CoinGecko"
       />
       <button class="primary" type="submit">Enregistrer</button>
     </form>

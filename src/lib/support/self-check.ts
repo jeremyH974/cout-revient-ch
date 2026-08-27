@@ -40,7 +40,7 @@ export interface SelfCheckInput {
   /** Virements internes (décision n° 25) : paires appariées et candidats restés orphelins. */
   transfers?: { pairs: number; unpairedWithdrawals: number; unpairedDeposits: number };
   /**
-   * Réconciliation du patrimoine (décision n° 53) : `apports nets + résultat = patrimoine`, avec
+   * Réconciliation du patrimoine (décision n° 55) : `apports nets + résultat = patrimoine`, avec
    * le détail par espace. `null` tant que l'historique des prix n'est pas chargé.
    */
   reconciliation?: NetWorthReconciliation | null;

@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { KNOWN_ICONS, NO_ICON, iconUrl } from './icons';
-import { TICKERS } from './tickers';
+import { CURATED_TICKERS, TICKERS } from './tickers';
 
 const ICONS_DIR = new URL('../../../public/icons/', import.meta.url);
 const files = readdirSync(ICONS_DIR)
@@ -46,13 +46,20 @@ describe('logos embarqués (public/icons)', () => {
 
 /**
  * Les contrôles ci-dessus vérifient la cohérence entre `KNOWN_ICONS` et le disque. Restait un angle
- * mort : un ticker de `TICKERS` sans logo ne déclenchait rien — il s'affichait en badge d'initiales,
- * sans qu'on puisse dire si c'était un choix ou un oubli. `NO_ICON` tranche, et ces tests exigent
- * que chaque ticker soit décidé dans un sens ou dans l'autre (P8, décision n° 47).
+ * mort : un ticker sans logo ne déclenchait rien — il s'affichait en badge d'initiales, sans qu'on
+ * puisse dire si c'était un choix ou un oubli. `NO_ICON` tranche (P8, décision n° 47).
+ *
+ * **Portée : la table CURÉE seulement.** L'invariant « une absence décidée » a un sens quand un
+ * humain a arbitré ; il n'en a aucun pour les centaines d'entrées générées depuis la capitalisation
+ * de marché, dont beaucoup n'ont simplement pas de logo disponible. Les énumérer dans `NO_ICON`
+ * remplirait la table de bruit sans contenu décisionnel, et diluerait justement les quelques cas
+ * qui méritent un motif. Elles retombent sur les initiales, ce qui est le comportement voulu.
  */
 describe('tickers sans logo : une absence décidée, jamais subie', () => {
-  it('tranche le cas de chaque ticker : logo embarqué, ou absence motivée', () => {
-    const undecided = Object.keys(TICKERS).filter((c) => !KNOWN_ICONS.has(c) && !NO_ICON.has(c));
+  it('tranche le cas de chaque ticker curé : logo embarqué, ou absence motivée', () => {
+    const undecided = Object.keys(CURATED_TICKERS).filter(
+      (c) => !KNOWN_ICONS.has(c) && !NO_ICON.has(c),
+    );
     expect(undecided).toEqual([]);
   });
 
@@ -70,5 +77,10 @@ describe('tickers sans logo : une absence décidée, jamais subie', () => {
   it('ne motive pas l’absence d’un ticker inconnu', () => {
     const orphans = [...NO_ICON.keys()].filter((c) => !(c in TICKERS));
     expect(orphans).toEqual([]);
+  });
+
+  it('ne motive à la main que des tickers curés : le reste est du ressort du générateur', () => {
+    const generes = [...NO_ICON.keys()].filter((c) => !(c in CURATED_TICKERS));
+    expect(generes).toEqual([]);
   });
 });

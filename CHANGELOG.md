@@ -16,7 +16,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   côtés ; un virement entre les deux espaces s'annule de lui-même. Côté Trading, tous les mouvements
   de trésorerie comptent — pas seulement les dépôts et retraits : ne compter que ceux-là
   transformait un virement perps → spot en une perte de plusieurs centaines d'euros
-  (`docs/DECISIONS.md` n° 54).
+  (`docs/DECISIONS.md` n° 55).
 - **Deux nouvelles auto-vérifications** tiennent cette définition : « le détail par espace refait le
   total », et « le résultat déduit des apports égale _réalisé + latent_ calculé lot par lot » — deux
   chemins de calcul entièrement distincts qui doivent tomber sur le même nombre.
@@ -33,11 +33,36 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   est réservée aux **variations** — un niveau reste neutre — et une variation ne s'écrit plus jamais
   par la seule couleur : triangle, signe et équivalent parlé l'accompagnent. Trois règles reprises
   de l'**ISO 24896:2026** (_Notation for business reporting_, publiée cette année) et de sa formule
-  SUCCESS (`docs/DECISIONS.md` n° 55).
+  SUCCESS (`docs/DECISIONS.md` n° 56).
 - **« Patrimoine » remplace « Valeur nette »** dans l'interface : le même écran affichait « Valeur
   nette » et « Valeur » à quelques centimètres l'une de l'autre.
 - **Les montants d'une réconciliation s'additionnent à l'écran** : l'écart est calculé sur les
   montants _arrondis_, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+
+### Added
+
+- **Bien plus de cryptos reconnues** : la table des prix passe de **70 à 479 actifs** (top 500
+  CoinGecko, généré et daté), et les logos de **62 à 211**. Chacun détient des cryptos
+  différentes — l'application en reconnaît désormais l'essentiel du marché.
+- **Champ « Identifiant CoinGecko » sur la fiche actif** : quand un actif n'est pas reconnu, ou
+  quand deux projets partagent son symbole, vous pouvez désigner vous-même le bon. Le réglage
+  existait dans les données depuis longtemps sans qu'aucun écran ne permette de le saisir.
+
+### Changed
+
+- **Les logos ne sont plus téléchargés en bloc à l'installation.** Ils passent par un cache
+  d'exécution : vous ne récupérez que ceux de vos propres actifs, une fois. Sans ce changement,
+  élargir la couverture aurait imposé plusieurs mégaoctets à chaque installation. Hors ligne, un
+  actif dont le logo n'a jamais été affiché montre ses initiales.
+- **Un symbole ambigu ne reçoit aucun prix automatique** : quand deux projets partagent un ticker,
+  l'application n'en choisit aucun plutôt que de risquer un prix faux — donc un PRU faux. Sept cas
+  sur cinq cents, tous rattrapables par le champ ci-dessus (`docs/DECISIONS.md` n° 54).
+
+### Fixed
+
+- **Les huit logos manquants demandent tous un kit de marque officiel** : vérification faite dans
+  le paquet installé, aucun n'y figure. Une note antérieure en annonçait quatre comme disponibles
+  sous licence libre — elle envoyait chercher des fichiers inexistants.
 
 ### Added
 
