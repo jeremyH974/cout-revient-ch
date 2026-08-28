@@ -1048,3 +1048,45 @@
     l'oubli est silencieux, il faut le rendre bruyant à l'endroit où il se commet**, pas espérer
     le détecter en aval. Limite assumée : le croisement lit des littéraux, donc une origine
     assemblée dynamiquement lui échappe — d'où la règle de n'écrire que des URL littérales.
+
+58. **Le calendrier macro est compilé dans l'application, pas récupéré au vol — et le BLS est
+    recopié à la main parce qu'il refuse les robots** (28/08/2026). Le calendrier des publications
+    américaines (Fed, BLS, BEA) est un **fichier TypeScript engendré et committé**
+    (`src/lib/calendar/events.generated.ts`), importé comme `tickers.generated.ts` l'est déjà.
+    Conséquences : **aucune requête à l'exécution**, donc aucune origine à autoriser dans la CSP,
+    aucun opt-in réseau, aucun tiers qui apprenne quels événements vous consultez, et un écran qui
+    fonctionne **hors ligne par construction** plutôt que par précache. La fraîcheur J+1 est sans
+    effet sur des dates annoncées douze à dix-huit mois à l'avance.
+    **Les conditions d'accès ont choisi les sources.** Le réseau de diffusion de `www.bls.gov`
+    répond 403 à tout client non-navigateur — y compris sur le flux `bls.ics` que le BLS publie
+    pourtant _pour_ les agendas, et depuis deux réseaux distincts. Se faire passer pour un
+    navigateur contournerait un contrôle d'accès délibéré : CPI, emploi, PPI et JOLTS sont donc
+    **recopiés à la main** dans `bls-schedule.ts`, une fois par an, depuis un vrai navigateur. Ce
+    n'est pas une dette, c'est le prix affiché d'une source qui ne veut pas être automatisée. La
+    Fed et le BEA, eux, sont relus chaque semaine.
+    **Trois garde-fous** rendent l'arrangement tenable. Le générateur **refuse d'écrire** un
+    calendrier appauvri — source muette, effondrement du nombre d'événements, ou couverture BLS
+    à moins de trois mois devant nous : _un calendrier vide est pire qu'un calendrier périmé, il
+    affirme qu'il ne se passera rien_. Le cron hebdomadaire lance `npm run check` **avant** de
+    committer, car un push du robot ne déclenche aucun workflow et rien ne validerait le résultat
+    après coup ; il appelle ensuite `ci.yml` explicitement, seule à porter le déploiement. Et sa
+    sortie est **déterministe** : tri et identifiants stables, fichier non réécrit quand seul
+    l'horodatage change — un diff hebdomadaire bruyant ne serait jamais relu.
+    **Un événement macro est un instant, pas une date naïve.** La règle « jamais de conversion de
+    fuseau » vise les dates Coinhouse, dépourvues de fuseau, dont toute conversion inventerait de
+    l'information. « 8 h 30 à New York » est l'inverse : un instant réel, dont la position en UTC
+    dépend de l'heure d'été américaine. La conversion se fait **une fois, à la génération**, par le
+    fuseau IANA plutôt que par une règle écrite à la main — la règle américaine a déjà changé en
+    2007 et sa suppression revient régulièrement au Congrès. Elle est vérifiée par un **oracle
+    indépendant** : le BEA publie ses dates déjà en UTC quand le BLS et la Fed les publient en
+    heure locale, ce qui fournit des couples (heure de New York, instant UTC) certifiés par une
+    agence fédérale, couvrant les deux régimes d'heure.
+    **Deux choix de présentation sont annoncés comme tels.** Le rang « majeure » est **éditorial**
+    — aucune volatilité n'a été mesurée pour l'établir — et l'écran le dit. Et le calendrier ne se
+    déclare complet que jusqu'au **plus court** des horizons de ses sources : afficher la dernière
+    réunion connue de la Fed, fin 2027, laisserait croire qu'il connaît les CPI de 2027, qui ne
+    sont pas publiés.
+    Restent dehors, faute de source propre : les _minutes_ du FOMC (la Fed n'en annonce la date
+    qu'après la réunion ; la déduire de sa règle serait une prévision présentée comme un fait), le
+    consensus de marché (propriétaire partout), et les valeurs de l'ISM, du Conference Board et de
+    l'Université du Michigan — dont la **date** est un fait libre mais la **valeur** sous copyright.

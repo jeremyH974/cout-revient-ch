@@ -11,4 +11,7 @@ package-lock.json
 tests/fixtures/**/*.csv
 *.csv
 tests/fixtures/**/*.json
+# Pages officielles capturées telles quelles : les reformater changerait ce que l'analyseur lit,
+# et le HTML de la Fed contient d'ailleurs un guillemet en trop que Prettier refuse d'analyser.
+tests/fixtures/**/*.html
 .claude

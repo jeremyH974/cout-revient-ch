@@ -169,6 +169,28 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     use: 'link',
     why: 'Origine réelle des taux de change relayés par Frankfurter, citée dans la table des sources.',
   },
+
+  /*
+   * Calendrier macroéconomique : ces trois origines ne sont **jamais** contactées par l'app. Le
+   * calendrier est compilé dans le bundle par `scripts/generate-calendar.ts`, qui les interroge
+   * depuis la CI. Ce qui en reste dans le code livré, ce sont les liens « publication officielle »
+   * que l'utilisateur peut suivre.
+   */
+  {
+    origin: 'https://www.federalreserve.gov',
+    use: 'link',
+    why: 'Calendrier officiel des réunions du FOMC, lié depuis chaque décision affichée.',
+  },
+  {
+    origin: 'https://www.bls.gov',
+    use: 'link',
+    why: 'Calendriers officiels du Bureau of Labor Statistics (CPI, emploi, PPI, JOLTS).',
+  },
+  {
+    origin: 'https://www.bea.gov',
+    use: 'link',
+    why: 'Pages officielles du Bureau of Economic Analysis (inflation PCE, PIB).',
+  },
 ];
 
 /** Origines autorisées par `connect-src`, dans l'ordre de la table. */

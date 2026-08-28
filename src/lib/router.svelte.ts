@@ -15,6 +15,7 @@ export type Route =
   | { name: 'tradeStats' }
   | { name: 'fills' }
   | { name: 'more' }
+  | { name: 'market' }
   | { name: 'accounts' }
   | { name: 'settings' }
   | { name: 'privacy' }
@@ -87,6 +88,8 @@ export function parseHash(hash: string): Route {
       return parseTrading(second, third);
     case 'more':
       return { name: 'more' };
+    case 'market':
+      return { name: 'market' };
     case 'accounts':
       return { name: 'accounts' };
     case 'welcome':

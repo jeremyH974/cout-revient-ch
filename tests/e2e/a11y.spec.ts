@@ -30,6 +30,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/trading',
     '#/trading/add',
     '#/more',
+    '#/market',
     '#/news',
     '#/invest/alerts',
   ]) {

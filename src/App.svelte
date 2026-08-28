@@ -5,6 +5,7 @@
   import Toasts from './components/layout/Toasts.svelte';
   import Accounts from './routes/Accounts.svelte';
   import Help from './routes/Help.svelte';
+  import Market from './routes/Market.svelte';
   import More from './routes/More.svelte';
   import News from './routes/News.svelte';
   import Overview from './routes/Overview.svelte';
@@ -129,6 +130,8 @@
         <Trading />
       {:else if route.name === 'more'}
         <More />
+      {:else if route.name === 'market'}
+        <Market />
       {:else if route.name === 'accounts'}
         <Accounts />
       {:else if route.name === 'asset'}

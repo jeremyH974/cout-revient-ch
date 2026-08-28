@@ -16,6 +16,14 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   `TICKERS = { ...GENERATED, ...CURATED }`. Un symbole partagé par deux projets ne reçoit **aucun**
   identifiant — un prix faux est pire qu'un prix absent ; l'utilisateur le désigne alors depuis la
   fiche actif (`AssetSettings.coingeckoId`).
+- `npm run calendar` — régénère `src/lib/calendar/events.generated.ts` (calendrier macro américain)
+  depuis la Fed et le BEA. **Le BLS n'est pas relu** : son CDN refuse les clients non-navigateurs,
+  y compris sur son propre flux `.ics` ; sa table est tenue à la main dans
+  `src/lib/calendar/bls-schedule.ts`, et une barrière du générateur réclame sa relecture avant
+  qu'elle ne s'épuise. Le script **refuse d'écrire** un calendrier appauvri, et ne réécrit rien si
+  seuls les horodatages changent. Le cron hebdomadaire (`.github/workflows/calendar.yml`) valide
+  par `npm run check` **avant** de committer, puis appelle `ci.yml` — un push du robot ne
+  déclenche aucun workflow, et c'est la CI qui publie sur Pages.
 - `node scripts/generate-icons.mjs` — écrit les logos manquants de `public/icons/` et réécrit
   `KNOWN_ICONS`. Exige `npm install --no-save @web3icons/core@4.0.55` avant, puis `npm uninstall`
   après : le paquet pèse 49 Mo et **n'est pas une dépendance**. Le script **n'écrase jamais** un

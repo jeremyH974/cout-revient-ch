@@ -4,6 +4,11 @@ on:
   push:
     branches: [main, v2]
   pull_request:
+  # Déclenchement manuel, et surtout appelé par « Calendrier macro » : un push effectué avec le
+  # `GITHUB_TOKEN` ne déclenche aucun workflow (GitHub l'interdit pour éviter les boucles), or
+  # c'est ce run qui porte la publication sur Pages. Sans cela, le calendrier régénéré resterait
+  # dans le dépôt sans jamais atteindre le site.
+  workflow_dispatch:
 
 # Actions épinglées par empreinte de commit (Dependabot met à jour l'empreinte et le commentaire).
 permissions:
@@ -83,7 +88,9 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: [check, e2e]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
