@@ -1022,3 +1022,29 @@
     ici — avec des entrées qui avaient déjà divergé. `state/checks.svelte.ts` les monte une seule
     fois : deux listes de contrôles qui ne contrôlent pas la même chose, c'est un contrôle de moins,
     et le seul écran où le voyant manquant se serait vu est justement celui qui ne le calculait pas.
+
+57. **Toute origine externe est déclarée dans une table, et un test la croise avec la CSP**
+    (28/08/2026). L'indice Fear & Greed (décision n° 44) était **inopérant sur le site publié
+    depuis sa livraison** : `api.alternative.me` ne figurait pas dans le `connect-src`, écrit à la
+    main dans `vite.config.ts`. La panne était invisible par construction — la CSP n'est injectée
+    **qu'au build** (GitHub Pages ne permet pas d'en-tête HTTP), donc le développement marchait ;
+    `loadFearGreed` avale toute erreur et rend `null`, par une décision volontaire qui rendait le
+    contexte facultatif ; et `gateSatisfied` refuse de déclencher une alerte dont il ne peut pas
+    vérifier la moitié des termes. Résultat : **toute alerte conditionnée au sentiment de marché
+    restait silencieuse**, sans message, sans journal, sans voyant rouge.
+    Aucun garde-fou existant ne pouvait le voir : les tests unitaires tournent dans Node,
+    `scripts/api-contract.mjs` aussi — et il _surveillait_ pourtant cette API, en la déclarant
+    verte pendant que le navigateur la bloquait. Une surveillance qui n'exerce pas la contrainte
+    réelle ne surveille rien.
+    Désormais `src/lib/support/csp.ts` porte **la liste des origines et la politique qui en
+    découle**, et `csp.test.ts` la croise avec les origines littérales du code livré (`src/**` hors
+    tests, plus les scripts du service worker) : **contacter une origine sans l'inscrire casse la
+    CI**, et une entrée que le code n'écrit plus la casse aussi. Trois usages, distingués parce
+    qu'ils ne donnent pas les mêmes droits : `connect` (l'app contacte), `link` (l'origine n'est
+    que citée — l'autoriser élargirait la surface sans rien permettre) et `reserved` (autorisée
+    sans appel, avec sa justification écrite ; seul `api.frankfurter.app` en relève, pour qu'une
+    redirection depuis `.dev` ne rejoue pas la même panne muette).
+    Même principe que la table des sources (décision n° 47), pour la même raison : **quand
+    l'oubli est silencieux, il faut le rendre bruyant à l'endroit où il se commet**, pas espérer
+    le détecter en aval. Limite assumée : le croisement lit des littéraux, donc une origine
+    assemblée dynamiquement lui échappe — d'où la règle de n'écrire que des URL littérales.

@@ -19,6 +19,10 @@
     "noUnusedParameters": true,
     "skipLibCheck": true,
     "noEmit": true,
+    // Autorise `./chemin/fichier.ts` à l'import. Utilisé par le seul `vite.config.ts`, dont le
+    // chargeur natif — futur défaut de Vite — exige l'extension. Rien d'autre n'en a besoin :
+    // le reste du code garde ses imports sans extension.
+    "allowImportingTsExtensions": true,
     // Chemins relatifs au tsconfig, SANS `baseUrl` : TypeScript 6 le déprécie et TypeScript 7
     // cessera de l'honorer. La forme `./src/lib` fait exactement la même chose sans l'ancrage.
     "paths": {

@@ -3,6 +3,8 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { defineConfig, type Plugin } from 'vitest/config';
 import pkg from './package.json' with { type: 'json' };
+// Extension explicite : le chargeur de configuration natif de Vite, futur défaut, l'exige.
+import { buildCsp } from './src/lib/support/csp.ts';
 
 /** Chemin de publication sur GitHub Pages (dépôt « cout-revient-ch »). */
 const BASE = '/cout-revient-ch/';
@@ -10,21 +12,12 @@ const BASE = '/cout-revient-ch/';
 /**
  * Content-Security-Policy injectée en <meta> au build uniquement (GitHub Pages ne permet pas
  * d'en-têtes HTTP). En dev, Vite a besoin du websocket HMR et de styles inline : pas de CSP.
- * `style-src 'unsafe-inline'` est nécessaire aux attributs style="" ; aucun script inline.
+ *
+ * La liste des origines autorisées vit dans `src/lib/support/csp.ts`, où `csp.test.ts` la croise
+ * avec les origines réellement écrites dans le code : une origine contactée sans être déclarée
+ * casse la CI, au lieu d'échouer en silence chez l'utilisateur.
  */
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "font-src 'self'",
-  "connect-src 'self' https://api.coingecko.com https://api.coinbase.com https://api.exchange.coinbase.com https://api.kraken.com https://api.hyperliquid.xyz https://coins.llama.fi wss://api.hyperliquid.xyz https://mempool.space https://blockstream.info https://api.etherscan.io https://api.blockscout.com https://api.routescan.io https://eth.blockscout.com https://arbitrum.blockscout.com https://base.blockscout.com https://api.frankfurter.dev https://api.frankfurter.app",
-  "manifest-src 'self'",
-  "worker-src 'self'",
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'none'",
-].join('; ');
+const CSP = buildCsp();
 
 function cspMetaOnBuild(): Plugin {
   return {

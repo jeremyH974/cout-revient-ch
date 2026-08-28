@@ -7,6 +7,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **L'indice Fear & Greed ne fonctionnait pas sur le site publié**, et personne ne pouvait le voir.
+  L'adresse de la source manquait à la politique de sécurité du site, laquelle n'est posée qu'à la
+  publication : en développement tout marchait. La valeur restait donc vide, et comme une alerte ne
+  se déclenche jamais tant qu'une de ses conditions est invérifiable, **toute alerte conditionnée
+  au sentiment de marché restait muette** — sans message ni voyant. La surveillance automatique
+  interrogeait pourtant bien cette source, mais depuis un serveur, où la politique ne s'applique
+  pas : elle affichait vert pendant que le navigateur bloquait.
+- **Un garde-fou empêche désormais que cela se reproduise** : les adresses extérieures que
+  l'application connaît sont réunies dans une table unique, d'où la politique de sécurité est
+  engendrée, et un test refuse toute adresse contactée sans y être inscrite — comme il refuse déjà
+  une source utilisée sans être créditée (`docs/DECISIONS.md` n° 57).
 - **Les « apports nets » n'en étaient pas.** La courbe de patrimoine traçait en référence le **coût
   des positions détenues**, et l'espace Trading n'y contribuait rien. L'écart annoncé comme « votre
   gain » valait en réalité `latent d'investissement + équité de trading entière` — un résultat
