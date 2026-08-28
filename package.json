@@ -29,6 +29,7 @@
     "e2e:ui": "playwright test --ui",
     "lhci": "vite build && lhci autorun",
     "monitor": "playwright test --config playwright.monitor.config.ts && node scripts/api-contract.mjs",
+    "calendar": "node scripts/generate-calendar.ts",
     "fixture": "node scripts/generate-fixture.ts",
     "fixture:hl": "node scripts/generate-hl-fixture.ts",
     "mcp:build": "vite build --config vite.mcp.config.ts"

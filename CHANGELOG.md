@@ -5,6 +5,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Un écran « Contexte de marché »**, dans le menu « Plus » : le calendrier des publications
+  américaines qui font bouger les marchés — décisions de la Fed, inflation CPI et PCE, emploi,
+  PIB, prix à la production, postes vacants. Les heures sont converties dans votre fuseau, en
+  tenant compte du décalage entre les changements d'heure américain et européen : la réunion de la
+  Fed du 28 octobre s'affiche bien à 19 h, et non 20 h comme celle de septembre.
+- **Il fonctionne hors ligne et ne demande rien au réseau** : les dates sont embarquées dans
+  l'application, donc aucun service extérieur n'apprend ce que vous consultez. Elles sont
+  rafraîchies une fois par semaine, à la publication du site.
+- **L'écran dit ce qu'il ignore.** Il annonce jusqu'à quelle date il est complet — au-delà, seules
+  les réunions de la Fed sont connues, les autres organismes n'ayant pas publié leurs dates. Il
+  précise que le rang « majeure » est un choix de rédaction et non une mesure. Et il n'affiche ni
+  prévision de marché ni valeur publiée : ces chiffres appartiennent à des fournisseurs
+  commerciaux, seules les dates sont des faits publics (`docs/DECISIONS.md` n° 58,
+  `docs/calendrier-macro.md`).
+
 ### Fixed
 
 - **L'indice Fear & Greed ne fonctionnait pas sur le site publié**, et personne ne pouvait le voir.

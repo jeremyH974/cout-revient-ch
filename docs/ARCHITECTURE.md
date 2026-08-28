@@ -111,8 +111,18 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
   (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
   `json-io.ts`, jamais remplacé en bloc.
+- `src/lib/calendar` — calendrier macroéconomique américain, **compilé dans le bundle et jamais
+  récupéré au vol** : `events.generated.ts` est engendré et committé par
+  `scripts/generate-calendar.ts` (Fed et BEA relus par le cron hebdomadaire ; BLS recopié à la main
+  dans `bls-schedule.ts`, son CDN refusant les clients non-navigateurs). D'où : aucune origine à
+  autoriser dans la CSP, aucun opt-in réseau, et un écran qui marche hors ligne par construction.
+  `types.ts` pose qu'un événement macro est un **instant** — converti depuis l'heure de New York
+  une seule fois, à la génération — contrairement aux dates Coinhouse, naïves et jamais converties.
+  `index.ts` ne fait que sélectionner et regrouper par jour local. Détail : docs/calendrier-macro.md,
+  docs/DECISIONS.md n° 58.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
-  jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`).
+  jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`), et la
+  table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57).
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
