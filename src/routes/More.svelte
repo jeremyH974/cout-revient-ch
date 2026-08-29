@@ -27,6 +27,12 @@
       detail: 'Coinhouse, saisies manuelles, autres plateformes',
     },
     {
+      route: { name: 'reconciliation' },
+      label: 'Réconciliation',
+      detail: 'Écarts, trous et doublons, en liste d’actions',
+      needsData: true,
+    },
+    {
       route: { name: 'market' },
       label: 'Contexte de marché',
       detail: 'Calendrier des publications américaines, hors ligne',

@@ -10,6 +10,7 @@
   import News from './routes/News.svelte';
   import Overview from './routes/Overview.svelte';
   import Privacy from './routes/Privacy.svelte';
+  import Reconciliation from './routes/Reconciliation.svelte';
   import Settings from './routes/Settings.svelte';
   import Trading from './routes/Trading.svelte';
   import Watch from './routes/Watch.svelte';
@@ -137,6 +138,8 @@
         <Watch />
       {:else if route.name === 'accounts'}
         <Accounts />
+      {:else if route.name === 'reconciliation'}
+        <Reconciliation />
       {:else if route.name === 'asset'}
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}

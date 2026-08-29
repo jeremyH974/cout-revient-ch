@@ -79,6 +79,7 @@ import {
   type RowKey,
 } from '$lib/domain/types';
 import { pairTransfers, type TransferOverride, type TransferPairing } from '$lib/domain/transfers';
+import type { DuplicateReview } from '$lib/domain/reconciliation';
 import { balanceRecords } from '$lib/import/coinhouse/balances';
 import { importCoinhouseCsv } from '$lib/import/coinhouse/index';
 import { normalizeCoinhouseRows } from '$lib/import/coinhouse/normalize';
@@ -1355,6 +1356,18 @@ export class AppState {
     if (value === null) delete next[withdrawalId];
     else next[withdrawalId] = value;
     this.state.transferOverrides = next;
+  }
+
+  /**
+   * Tranche un doublon candidat (P68) : confirmé ou écarté, il n'est plus reproposé — `null` le
+   * remet en attente. `pairKey` vient de `duplicatePairKey(a, b)` (`$lib/domain/reconciliation`) :
+   * jamais de suppression de données, seulement la décision de l'utilisateur.
+   */
+  setDuplicateReview(pairKey: string, review: DuplicateReview | null): void {
+    const next = { ...this.state.duplicateOverrides };
+    if (review === null) delete next[pairKey];
+    else next[pairKey] = review;
+    this.state.duplicateOverrides = next;
   }
 
   /** Lignes pivot rattachées à un compte. */

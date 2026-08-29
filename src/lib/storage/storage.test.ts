@@ -396,6 +396,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
     };
     s.qualifications['ch:r1:0'] = { kind: 'reward', fairValueEur: null };
     s.transferOverrides['ch:r1:0'] = 'none';
+    s.duplicateOverrides['e1~e2'] = 'confirmed';
     s.taxAnnotations['ch:r1:0'] = { portfolioValueEur: '1000' };
     s.assetSettings['btc'] = {
       manualPriceEur: '50000',
@@ -511,6 +512,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       'manualEvents',
       'qualifications',
       'transferOverrides',
+      'duplicateOverrides',
       'taxAnnotations',
       'assetSettings',
       'accounts',
