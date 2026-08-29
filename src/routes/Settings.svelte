@@ -4,7 +4,9 @@
   import { lotsToCsv, operationsToCsv, positionsToCsv } from '$lib/export/csv-export';
   import { canShareFiles, downloadText, shareTextFile } from '$lib/export/download';
   import { eventsToKoinlyCsv } from '$lib/export/koinly-csv';
+  import { koinlyPortabilityPreview } from '$lib/export/koinly-preview';
   import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
+  import { fmtPortabilityGap } from '$lib/format/koinly-preview';
   import { FLAVOR_LABELS, KEYED_FLAVORS } from '$lib/import/onchain/etherscan';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
@@ -34,6 +36,9 @@
   const manualPrices = $derived(
     Object.entries(app.state.assetSettings).filter(([, s]) => s.manualPriceEur),
   );
+  /** Décompte de ce que l'export portable ne saura pas porter, chiffré sur les données réelles
+   *  (docs/backup-format.md § Export portable) — jamais un texte générique. */
+  const portabilityGaps = $derived(koinlyPortabilityPreview(app.events));
 
   /** Chiffrement optionnel de la sauvegarde (la phrase secrète n'est jamais enregistrée). */
   let encrypt = $state(false);
@@ -221,6 +226,35 @@
         ></select
       >
     </div>
+    <p class="muted small">
+      <strong>Sauvegarde JSON</strong> — tout, pour revenir ici. Comptes, réglages, alertes, journal.
+      Le fichier qui vous fait retrouver exactement où vous en étiez, dans cette app.
+    </p>
+    <p class="muted small">
+      <strong>Export portable (Koinly / Waltio)</strong> — l'essentiel de votre historique, pour un autre
+      outil. Achats, ventes, récompenses, frais. Pas les comptes ni les réglages. Format documenté, vérifié
+      par un test à chaque version : ce que vous exportez aujourd'hui se relit demain, ici ou ailleurs.
+    </p>
+    {#if portabilityGaps.length > 0}
+      <ul class="gap-list small">
+        {#each portabilityGaps as gap (gap.code)}
+          <li>{fmtPortabilityGap(gap)}</li>
+        {/each}
+      </ul>
+    {/if}
+    <div class="row">
+      <button
+        class="secondary"
+        type="button"
+        disabled={!app.hasData}
+        onclick={() => {
+          const out = eventsToKoinlyCsv(app.events);
+          downloadText(`cout-revient-ch-koinly-${stamp()}.csv`, out.csv, 'text/csv;charset=utf-8');
+          if (out.skipped > 0)
+            toasts.push(`${out.skipped} ligne(s) à qualifier laissée(s) de côté.`, 'info');
+        }}>Format Koinly / Waltio (CSV)</button
+      >
+    </div>
     <div class="row">
       <button
         class="secondary"
@@ -254,17 +288,6 @@
             lotsToCsv(app.report, app.currency),
             'text/csv;charset=utf-8',
           )}>Lots ouverts (CSV)</button
-      >
-      <button
-        class="secondary"
-        type="button"
-        disabled={!app.hasData}
-        onclick={() => {
-          const out = eventsToKoinlyCsv(app.events);
-          downloadText(`cout-revient-ch-koinly-${stamp()}.csv`, out.csv, 'text/csv;charset=utf-8');
-          if (out.skipped > 0)
-            toasts.push(`${out.skipped} ligne(s) à qualifier laissée(s) de côté.`, 'info');
-        }}>Format Koinly / Waltio (CSV)</button
       >
     </div>
     <div class="row">
@@ -601,5 +624,12 @@
   }
   .line {
     margin: 0;
+  }
+  .gap-list {
+    margin: 0;
+    padding-left: var(--space-4);
+    display: grid;
+    gap: 4px;
+    color: var(--fg-muted);
   }
 </style>
