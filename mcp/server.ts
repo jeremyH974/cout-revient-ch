@@ -8,9 +8,15 @@
  * sur la chaîne d'approvisionnement npm pour ne pas y ajouter un arbre entier — c'est le même
  * arbitrage que l'anneau SVG écrit à la main plutôt qu'une bibliothèque de graphiques.
  *
- * Usage : `node mcp/dist/server.js <chemin-de-la-sauvegarde.json>`
- * (ou variable d'environnement `CRCH_BACKUP`).
+ * Usage : `node mcp/dist/server.js [chemin-de-la-sauvegarde.json]` — l'argument est optionnel.
+ * Sans lui, le serveur cherche dans l'ordre : la variable d'environnement `CRCH_BACKUP`, puis
+ * l'emplacement où l'app dépose sa sauvegarde par défaut (dossier *Téléchargements*, nom de
+ * fichier fixe). C'est ce dernier niveau qui rend `claude mcp add … -- node server.js` installable
+ * sans qu'un chemin soit tapé dans le cas courant.
  */
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+import { BACKUP_FILE_NAME } from '../src/lib/storage/backup-folder';
 import { BackupError, loadView, type McpView } from './state';
 import { TOOL_DEFINITIONS, ToolError, findTool } from './tools';
 
@@ -158,16 +164,27 @@ export function serve(input: NodeJS.ReadableStream, handlers: Handlers): void {
   });
 }
 
-/** Point d'entrée : chemin de la sauvegarde en argument ou dans `CRCH_BACKUP`. */
+/** `undefined` pour une valeur absente OU vide : un `CRCH_BACKUP=""` oublié ne doit pas gagner. */
+const nonEmpty = (value: string | undefined): string | undefined =>
+  value && value.trim() !== '' ? value : undefined;
+
+/** Dernier recours : c'est là que le navigateur dépose les téléchargements, sur chaque OS. */
+function defaultBackupPath(): string {
+  return join(homedir(), 'Downloads', BACKUP_FILE_NAME);
+}
+
+/**
+ * Chemin de la sauvegarde, du plus explicite au plus deviné : variable d'environnement, argument
+ * de ligne de commande, puis l'emplacement par défaut. Ne vérifie pas l'existence du fichier —
+ * `loadView` s'en charge et produit le message d'erreur.
+ */
+function resolveBackupPath(argv: readonly string[]): string {
+  return nonEmpty(process.env['CRCH_BACKUP']) ?? nonEmpty(argv[2]) ?? defaultBackupPath();
+}
+
+/** Point d'entrée : voir `resolveBackupPath` pour l'ordre de recherche. */
 async function main(): Promise<void> {
-  const path = process.argv[2] ?? process.env['CRCH_BACKUP'];
-  if (!path) {
-    process.stderr.write(
-      'Chemin de la sauvegarde attendu : node mcp/dist/server.js <sauvegarde.json>\n',
-    );
-    process.exitCode = 1;
-    return;
-  }
+  const path = resolveBackupPath(process.argv);
   // Vérification au démarrage : mieux vaut échouer tout de suite que sur le premier appel d'outil.
   try {
     const view = await loadView(path);
@@ -175,7 +192,14 @@ async function main(): Promise<void> {
       `Coût de revient CH — sauvegarde du ${view.exportedAt ?? 'date inconnue'} chargée (${view.events.length} événements).\n`,
     );
   } catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    const reason = error instanceof Error ? error.message : String(error);
+    // Le chemin essayé et le rappel de la source : que la sauvegarde ait été devinée ou fournie,
+    // c'est le SEUL diagnostic dont dispose quelqu'un qui vient de coller une commande.
+    process.stderr.write(
+      `${reason}\n` +
+        `Chemin essayé : ${path}\n` +
+        `Une sauvegarde s’obtient depuis l’app : Réglages → Télécharger une sauvegarde.\n`,
+    );
     process.exitCode = 1;
     return;
   }
