@@ -29,9 +29,11 @@ import {
   roundsToZero,
 } from '../format/fr';
 import { TIER_LABELS, renderInsights, type RenderedInsight } from '../format/insights';
+import { watchSummaryLine } from '../format/watch';
 import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
+import { WATCH_ENTRIES, type WatchEntry } from '../watch/entries';
 
 export const APP_NAME = 'Coût de revient CH';
 export const REPORT_TITLE = 'Rapport de portefeuille';
@@ -117,6 +119,12 @@ export interface ReportModel {
   risk: { title: string; details: ReportKpi[]; note: string } | null;
   /** Fiscalité française : estimation par millésime, méthode globale de l'article 150 VH bis. */
   tax: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
+  /**
+   * Veille réglementaire (P67) : ce qui a changé, ou pourrait changer, dans le droit ou la
+   * doctrine — jamais un calcul. Table manuelle (`../watch/entries.ts`), indépendante du
+   * portefeuille : présente dès qu'au moins une ligne n'est pas `in-force`.
+   */
+  watch: { title: string; note: string; items: string[] } | null;
   /** Coût réel des opérations : commissions payées et spread implicite estimé. */
   spread: { title: string; details: ReportKpi[]; note: string } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
@@ -811,6 +819,30 @@ function taxSection(
 }
 
 /**
+ * Veille réglementaire (P67) : un bloc court, juste après la fiscalité — là où le rapport porte
+ * déjà des avertissements. Seules les lignes qui ne sont PAS `in-force` sont reprises : une loi en
+ * vigueur n'est pas un avertissement, un texte retiré, en discussion ou de doctrine non stabilisée
+ * l'est. Fonction pure sur `entries` (jamais un import caché) pour rester testable sans dépendre de
+ * la table réelle ; `watchSection` l'applique à `WATCH_ENTRIES`, seul appelant en production.
+ */
+export function watchReportBlock(entries: readonly WatchEntry[]): ReportModel['watch'] {
+  const items = entries.filter((e) => e.status !== 'in-force').map(watchSummaryLine);
+  if (items.length === 0) return null;
+  return {
+    title: 'Veille réglementaire',
+    note:
+      'Ce que le droit et la doctrine fiscale française disent, ou ne disent pas encore, à la ' +
+      'date de ce rapport : un fait, jamais un conseil. Faites vérifier votre situation par un ' +
+      'professionnel avant toute décision.',
+    items,
+  };
+}
+
+function watchSection(): ReportModel['watch'] {
+  return watchReportBlock(WATCH_ENTRIES);
+}
+
+/**
  * Constats : le rapport ne les recalcule pas, il rend en français ceux que l'appelant a produits
  * (mêmes phrases qu'à l'écran d'accueil, mêmes réglages de devise et de mode discret).
  */
@@ -1079,6 +1111,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
     tax: taxSection(opts.tax, opts.discreet, opts.dac8),
+    watch: watchSection(),
     spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),

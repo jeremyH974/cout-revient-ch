@@ -32,6 +32,11 @@
       detail: 'Calendrier des publications américaines, hors ligne',
     },
     {
+      route: { name: 'watch' },
+      label: 'Veille réglementaire',
+      detail: 'Fiscalité française des crypto-actifs : ce qui a changé, ou pourrait changer',
+    },
+    {
       route: { name: 'settings' },
       label: 'Réglages',
       detail: 'Prix, devise, sauvegarde, auto-vérifications',

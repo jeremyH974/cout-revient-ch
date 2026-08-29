@@ -44,7 +44,7 @@ export const SPACES: readonly Space[] = [
     label: 'Plus',
     home: { name: 'more' },
     backLabel: 'Retour au menu',
-    routes: ['more', 'market', 'accounts', 'settings', 'help', 'news', 'privacy'],
+    routes: ['more', 'market', 'watch', 'accounts', 'settings', 'help', 'news', 'privacy'],
   },
 ];
 

@@ -8,8 +8,10 @@ import { xirrEur } from '../domain/xirr';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
 import { renderInsights } from '../format/insights';
+import type { WatchEntry } from '../watch/entries';
 import {
   buildReportModel,
+  watchReportBlock,
   type ReportKpi,
   type ReportModel,
   type ReportTable,
@@ -458,6 +460,57 @@ describe('section « Fiscalité française (estimation) »', () => {
     const blind = computeFrenchTax({ events: taxEvents });
     const m = buildReportModel(report, { ...opts, tax: blind });
     expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
+  });
+});
+
+describe('section « Veille réglementaire »', () => {
+  const watchEntry = (over: Partial<WatchEntry> = {}): WatchEntry => ({
+    id: 'fixture',
+    title: 'Entrée de test',
+    status: 'in-force',
+    statusDate: '2026-01-01',
+    effect: 'Effet de test.',
+    source: { label: 'Source de test', url: null, official: false, checkedOn: '2026-01-01' },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-01-01',
+    topics: ['cession'],
+    ...over,
+  });
+
+  it('absente quand toutes les entrées sont in-force', () => {
+    expect(watchReportBlock([watchEntry(), watchEntry({ id: 'autre' })])).toBeNull();
+  });
+
+  it('absente quand la liste est vide', () => {
+    expect(watchReportBlock([])).toBeNull();
+  });
+
+  it('présente dès qu’au moins une entrée n’est pas in-force, avec une ligne par entrée concernée', () => {
+    const block = watchReportBlock([
+      watchEntry({ id: 'a', status: 'in-force' }),
+      watchEntry({ id: 'b', status: 'dropped', title: 'Retirée' }),
+      watchEntry({ id: 'c', status: 'in-discussion', title: 'En discussion' }),
+    ]);
+    expect(block).not.toBeNull();
+    expect(block!.title).toBe('Veille réglementaire');
+    expect(block!.items).toHaveLength(2);
+    expect(block!.items.join(' ')).toContain('Retirée');
+    expect(block!.items.join(' ')).toContain('En discussion');
+    expect(block!.note).toContain('jamais un conseil');
+  });
+
+  it('signale les sources non officielles dans la ligne elle-même', () => {
+    const block = watchReportBlock([
+      watchEntry({ status: 'dropped', certainty: 'secondary-only' }),
+    ]);
+    expect(block!.items[0]).toContain('(source non officielle)');
+  });
+
+  it('reflète la vraie table dans un rapport construit normalement', () => {
+    // La table de veille réelle porte au moins une entrée qui n'est pas in-force (P67) : le bloc
+    // doit donc apparaître dans un rapport ordinaire, sans configuration particulière.
+    expect(model.watch).not.toBeNull();
+    expect(model.watch!.items.length).toBeGreaterThan(0);
   });
 });
 

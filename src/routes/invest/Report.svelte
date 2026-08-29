@@ -235,6 +235,18 @@
     </section>
   {/if}
 
+  {#if model.watch}
+    <section class="card">
+      <h2>{model.watch.title}</h2>
+      <ul class="warnings">
+        {#each model.watch.items as item (item)}
+          <li>{item}</li>
+        {/each}
+      </ul>
+      <p class="note">{model.watch.note}</p>
+    </section>
+  {/if}
+
   {#if model.spread}
     <section class="card">
       <h2>{model.spread.title}</h2>
