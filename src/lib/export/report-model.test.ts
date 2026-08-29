@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { computeDeclarations } from '../domain/declarations-fr';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import { buildInsights } from '../domain/insights';
 import { riskMetrics } from '../domain/risk';
 import { computeFrenchTax } from '../domain/tax-fr';
 import { xirrEur } from '../domain/xirr';
-import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
+import {
+  DEFAULT_ENGINE_SETTINGS,
+  type Account,
+  type LedgerEvent,
+  type TradeEvent,
+} from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
 import { renderInsights } from '../format/insights';
 import {
@@ -458,6 +464,68 @@ describe('section « Fiscalité française (estimation) »', () => {
     const blind = computeFrenchTax({ events: taxEvents });
     const m = buildReportModel(report, { ...opts, tax: blind });
     expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
+  });
+});
+
+describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () => {
+  const acc = (id: string, kind: Account['kind'], country?: string): Account => ({
+    id,
+    kind,
+    label: id,
+    space: 'invest',
+    createdAt: '2026-01-01T00:00:00Z',
+    ...(country === undefined ? {} : { country }),
+  });
+
+  it('absente sans déclarations fournies', () => {
+    expect(model.declarations).toBeNull();
+  });
+
+  it('absente quand aucun compte n’est concerné (tout est hors périmètre France)', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('ch:main', 'coinhouse'), acc('csv:fr', 'csv', 'FR')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations).toBeNull();
+  });
+
+  it('liste les comptes concernés et avertit du risque de sanction', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('ch:main', 'coinhouse'), acc('csv:nl', 'csv', 'NL')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations?.title).toBe('Comptes à déclarer (formulaire 3916-bis)');
+    expect(m.declarations?.details).toHaveLength(1);
+    expect(m.declarations?.details[0]?.label).toBe('csv:nl');
+    expect(m.declarations?.details[0]?.hint).toContain('Pays-Bas');
+    const warnings = m.declarations?.warnings.join(' ') ?? '';
+    expect(warnings).toContain('750 € par compte omis');
+    expect(warnings).toContain('50 000 €');
+    expect(warnings).toContain('NFT');
+    // Aucun compte incertain ici : pas d'avertissement « clé détenue seul ».
+    expect(warnings).not.toContain('détenez seul la clé');
+    expect(m.declarations?.note).toContain('ni déclaration, ni conseil fiscal');
+    expect(m.declarations?.note).toContain('1649 bis C');
+    // Le régime de sanction sans seuil ne doit jamais s'afficher comme « 1 500 € sans condition ».
+    expect(m.declarations?.note).toContain('1 500 €');
+    expect(m.declarations?.note).toContain('50 000 €');
+    // Aucun délai de prescription : non vérifié en source primaire (voir l'étude P66).
+    expect(m.declarations?.note).not.toMatch(/\b10 ans\b/);
+  });
+
+  it('avertit spécifiquement pour un compte auto-hébergé incertain, jamais promu', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('oc:btc', 'onchain')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations?.details[0]?.value).toBe('Incertain (clé détenue seul)');
+    expect(m.declarations?.warnings.join(' ')).toContain('détenez seul la clé');
   });
 });
 
