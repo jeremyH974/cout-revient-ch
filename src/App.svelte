@@ -12,6 +12,7 @@
   import Privacy from './routes/Privacy.svelte';
   import Settings from './routes/Settings.svelte';
   import Trading from './routes/Trading.svelte';
+  import Watch from './routes/Watch.svelte';
   import TradeAdd from './routes/trading/TradeAdd.svelte';
   import TradeStats from './routes/trading/TradeStats.svelte';
   import Fills from './routes/trading/Fills.svelte';
@@ -132,6 +133,8 @@
         <More />
       {:else if route.name === 'market'}
         <Market />
+      {:else if route.name === 'watch'}
+        <Watch />
       {:else if route.name === 'accounts'}
         <Accounts />
       {:else if route.name === 'asset'}

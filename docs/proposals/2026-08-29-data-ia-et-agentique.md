@@ -22,8 +22,8 @@ D'où la règle qui commande tout ce qui suit, et qui prolonge la décision n° 
 produits par des règles pures et CODÉES ; le français est un rendu ») :
 
 > **L'IA n'entre jamais dans le calcul. Elle entre dans la compréhension, la qualification et la
-> distribution.** Trois usages, trois garde-fous : elle *rend* du JSON déjà calculé, elle *propose*
-> un appariement qu'un vérificateur déterministe valide, elle *transporte* une réponse dont chaque
+> distribution.** Trois usages, trois garde-fous : elle _rend_ du JSON déjà calculé, elle _propose_
+> un appariement qu'un vérificateur déterministe valide, elle _transporte_ une réponse dont chaque
 > nombre vient du moteur.
 
 Corollaire architectural — et c'est le point stratégique de l'étude : **la structure actuelle du
@@ -38,17 +38,17 @@ opaques, calcul vendu au forfait) : ils ne peuvent pas copier ce socle sans se r
 
 ### 1.1 Concurrents directs — le mot « IA » couvre surtout des moteurs de règles
 
-| Acteur | Livré | Annoncé |
-| --- | --- | --- |
-| **CoinTracker** | Recherche en langage naturel ; **serveur MCP en accès anticipé** (Claude/ChatGPT lisent holdings, performance, lots fiscaux) | Ouverture publique du MCP « bientôt » |
-| **CryptoTaxCalculator** | Règles + IA sur l'« intention » d'une transaction (bridge, LP, staking, levier) ; [MetaMask Tax Hub](https://metamask.io/news/metamask-tax-hub-crypto-tax-calculator) (mars 2025) | Verrouillage d'exercices passés — statut incertain |
-| **Blockpit** | Auto-classification par catégorie et pays, import auto du staking, **simulation de stratégies fiscales** ([blog, janv. 2025](https://blockpit.io/blog/product-update-01-2025)) | — |
-| **Awaken Tax** | Étiqueter une transaction en catégorise automatiquement des dizaines de similaires ([CoinGecko Learn, 2025](https://www.coingecko.com/learn/awaken-tax-case-study)) | Réconciliation hybride règles + LLM **« en construction »** |
-| **TokenTax** | Recoupement avec les explorateurs pour reconstituer un coût d'acquisition perdu ; renfort **humain** sur dossiers complexes | — |
-| **Koinly** | Détection de transferts internes / coût manquant / anomalies — **allégation de tiers, non retrouvée sur koinly.io** | — |
-| **Waltio** (FR) | Rien en IA : automatisation d'import (700+ sources), 2086 et 3916-bis | IA « envisagée » — **conditionnel, non confirmé par Waltio** |
-| **Divly** | Rien en IA : différenciation par **revue humaine experte** (dès 499 €) et formulaires locaux officiels | — |
-| **CoinTracking, Coinpanda, Kryptos, ZenLedger** | Aucune IA documentée au-delà du slogan | — |
+| Acteur                                          | Livré                                                                                                                                                                             | Annoncé                                                      |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| **CoinTracker**                                 | Recherche en langage naturel ; **serveur MCP en accès anticipé** (Claude/ChatGPT lisent holdings, performance, lots fiscaux)                                                      | Ouverture publique du MCP « bientôt »                        |
+| **CryptoTaxCalculator**                         | Règles + IA sur l'« intention » d'une transaction (bridge, LP, staking, levier) ; [MetaMask Tax Hub](https://metamask.io/news/metamask-tax-hub-crypto-tax-calculator) (mars 2025) | Verrouillage d'exercices passés — statut incertain           |
+| **Blockpit**                                    | Auto-classification par catégorie et pays, import auto du staking, **simulation de stratégies fiscales** ([blog, janv. 2025](https://blockpit.io/blog/product-update-01-2025))    | —                                                            |
+| **Awaken Tax**                                  | Étiqueter une transaction en catégorise automatiquement des dizaines de similaires ([CoinGecko Learn, 2025](https://www.coingecko.com/learn/awaken-tax-case-study))               | Réconciliation hybride règles + LLM **« en construction »**  |
+| **TokenTax**                                    | Recoupement avec les explorateurs pour reconstituer un coût d'acquisition perdu ; renfort **humain** sur dossiers complexes                                                       | —                                                            |
+| **Koinly**                                      | Détection de transferts internes / coût manquant / anomalies — **allégation de tiers, non retrouvée sur koinly.io**                                                               | —                                                            |
+| **Waltio** (FR)                                 | Rien en IA : automatisation d'import (700+ sources), 2086 et 3916-bis                                                                                                             | IA « envisagée » — **conditionnel, non confirmé par Waltio** |
+| **Divly**                                       | Rien en IA : différenciation par **revue humaine experte** (dès 499 €) et formulaires locaux officiels                                                                            | —                                                            |
+| **CoinTracking, Coinpanda, Kryptos, ZenLedger** | Aucune IA documentée au-delà du slogan                                                                                                                                            | —                                                            |
 
 Le tax-loss harvesting reste partout une **visualisation de moins-values latentes avec seuils**,
 jamais une exécution. Prix repères : Koinly 49–199 $/an facturés **par exercice fiscal**,
@@ -60,7 +60,7 @@ CoinTracker dès 199 $/an, CoinTracking 49–899 $/an.
   sensibles volontairement exclues en v1, et l'équipe l'écrit noir sur blanc : l'assistant ne peut
   rien modifier ni supprimer
   ([community.finary.com, 22/08/2026](https://community.finary.com/t/beta-le-mcp-finary-est-disponible-construisons-le-ensemble/39216)).
-- **Kubera** connecte les données à *votre* ChatGPT/Claude/Gemini plutôt que d'héberger un modèle,
+- **Kubera** connecte les données à _votre_ ChatGPT/Claude/Gemini plutôt que d'héberger un modèle,
   et importe relevés PDF/CSV/captures par IA.
 - **CoinStats** a livré un « AI Agent » de recherche crypto profonde
   ([ambcrypto, avril 2026](https://ambcrypto.com/coinstats-ai-agent-outperforms-gemini-claude-and-chatgpt-in-open-source-crypto-deep-research-benchmark/)) ;
@@ -76,32 +76,32 @@ CoinTracker dès 199 $/an, CoinTracking 49–899 $/an.
 
 ### 1.3 Douleurs terrain — la confiance d'abord, la fiscalité ensuite
 
-| Douleur | Ce qu'en disent les sources |
-| --- | --- |
-| **Soldes et PRU faux** | Koinly : 270 litecoins affichés pour 20 détenus ; historique décalé sur cinq ans ([Trustpilot, 08/2026](https://www.trustpilot.com/review/koinly.io)) |
-| **Coût d'acquisition perdu** | CoinTracker perd le coût quand un virement entre wallets est classé « envoi » plutôt que « transfert interne » ([support CoinTracker](https://support.cointracker.io/hc/en-us/articles/12028451053713-Troubleshoot-missing-price-history-errors)) |
-| **Support absent quand le calcul casse** | Chat « live » répondant sous 24 h ; erreurs bloquantes non résolues chez CoinTracking |
-| **Abonnement au volume** | Jusqu'à 179 €/an chez Koinly ; un concurrent bâtit tout son marketing contre le « piège de l'abonnement » |
-| **Export Coinhouse fragile** | Le support Coinhouse documente lui-même qu'ouvrir ou renommer le CSV peut le rendre illisible ; Waltio demande de **décaler manuellement d'une minute** les horodatages identiques ([support Coinhouse](https://support.coinhouse.com/hc/fr/articles/4410163290386-Comment-exporter-l-historique-de-ses-transactions), [aide Waltio](https://help.waltio.com/en/articles/5177093-coinhouse-file)) |
-| **3916-bis** | Tout compte crypto à l'étranger se déclare **sans seuil**, même vide ou clos : **1 500 €/compte/an**, 10 000 € en juridiction non coopérative, prescription 10 ans ([socic.fr](https://www.socic.fr/ressources-comptabilite/articles/impots-2026-cochez-la-rubrique-comptes-a-letranger-crypto-formulaires-3916-3916-bis-pour-eviter-un-controle-fiscal)) |
-| **DAC8** | Collecte obligatoire des PSCA **depuis le 01/01/2026**, premier échange automatique au plus tard le **30/09/2027** sur les opérations 2026 ; tout écart avec la déclaration devient un signal de contrôle ([bensaid-avocats.fr](https://www.bensaid-avocats.fr/dac8-et-carf-2026-fiscalite-crypto-reporting-et-fin-du-secret-fiscal/)) |
-| **Staking et airdrops** | Doctrine non stabilisée : airdrop conditionné = BNC immédiat, airdrop aléatoire = à la cession |
-| **« Patrimoine improductif »** | Amendement adopté en première lecture à l'Assemblée (163 c. 150) lors du PLF 2026 — impôt possible sur la **détention** ([amendement CF1520](https://www.assemblee-nationale.fr/dyn/17/amendements/1906A/CION_FIN/CF1520.pdf)). Sénat non tranché |
+| Douleur                                  | Ce qu'en disent les sources                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Soldes et PRU faux**                   | Koinly : 270 litecoins affichés pour 20 détenus ; historique décalé sur cinq ans ([Trustpilot, 08/2026](https://www.trustpilot.com/review/koinly.io))                                                                                                                                                                                                                                             |
+| **Coût d'acquisition perdu**             | CoinTracker perd le coût quand un virement entre wallets est classé « envoi » plutôt que « transfert interne » ([support CoinTracker](https://support.cointracker.io/hc/en-us/articles/12028451053713-Troubleshoot-missing-price-history-errors))                                                                                                                                                 |
+| **Support absent quand le calcul casse** | Chat « live » répondant sous 24 h ; erreurs bloquantes non résolues chez CoinTracking                                                                                                                                                                                                                                                                                                             |
+| **Abonnement au volume**                 | Jusqu'à 179 €/an chez Koinly ; un concurrent bâtit tout son marketing contre le « piège de l'abonnement »                                                                                                                                                                                                                                                                                         |
+| **Export Coinhouse fragile**             | Le support Coinhouse documente lui-même qu'ouvrir ou renommer le CSV peut le rendre illisible ; Waltio demande de **décaler manuellement d'une minute** les horodatages identiques ([support Coinhouse](https://support.coinhouse.com/hc/fr/articles/4410163290386-Comment-exporter-l-historique-de-ses-transactions), [aide Waltio](https://help.waltio.com/en/articles/5177093-coinhouse-file)) |
+| **3916-bis**                             | Tout compte crypto à l'étranger se déclare **sans seuil**, même vide ou clos : **1 500 €/compte/an**, 10 000 € en juridiction non coopérative, prescription 10 ans ([socic.fr](https://www.socic.fr/ressources-comptabilite/articles/impots-2026-cochez-la-rubrique-comptes-a-letranger-crypto-formulaires-3916-3916-bis-pour-eviter-un-controle-fiscal))                                         |
+| **DAC8**                                 | Collecte obligatoire des PSCA **depuis le 01/01/2026**, premier échange automatique au plus tard le **30/09/2027** sur les opérations 2026 ; tout écart avec la déclaration devient un signal de contrôle ([bensaid-avocats.fr](https://www.bensaid-avocats.fr/dac8-et-carf-2026-fiscalite-crypto-reporting-et-fin-du-secret-fiscal/))                                                            |
+| **Staking et airdrops**                  | Doctrine non stabilisée : airdrop conditionné = BNC immédiat, airdrop aléatoire = à la cession                                                                                                                                                                                                                                                                                                    |
+| **« Patrimoine improductif »**           | Amendement adopté en première lecture à l'Assemblée (163 c. 150) lors du PLF 2026 — impôt possible sur la **détention** ([amendement CF1520](https://www.assemblee-nationale.fr/dyn/17/amendements/1906A/CION_FIN/CF1520.pdf)). Sénat non tranché                                                                                                                                                 |
 
 ### 1.4 État de l'art technique — ce qui est réellement utilisable aujourd'hui
 
-| Techno | Maturité au 29/08/2026 | Verdict pour ce projet |
-| --- | --- | --- |
-| **BYOK, appel navigateur direct** | L'API Anthropic accepte le CORS navigateur depuis le **23/08/2024** (`anthropic-dangerous-direct-browser-access`) | **Prêt.** Seule voie compatible « zéro backend » |
-| **LLM narrateur + moteur déterministe** | Formalisé par Anthropic (*Building Effective Agents*, dépôt `anthropics/financial-services` : « l'IA rédige, l'humain valide ») | **Prêt.** C'est le pattern à suivre |
-| **transformers.js v4** | Sortie le **09/02/2026**, runtime WebGPU réécrit, ~200 architectures | **Prêt pour tâches ciblées** (classification, similarité), pas pour du conversationnel |
-| **Chrome Prompt API (Gemini Nano)** | Stable depuis Chrome 138, mais **desktop seulement**, ≥ 22 Go de disque libre, > 4 Go VRAM, ni Android ni iOS, ni Firefox ni Safari | **Amélioration progressive uniquement.** Jamais une dépendance |
-| **WebLLM / MLC** | Techniquement prêt, ~80 % de la perf native | Téléchargement de centaines de Mo : consentement explicite obligatoire |
-| **WebNN** | Candidate Recommendation W3C le **22/01/2026**, origin trial Chrome seul, production visée 2027 | **À ignorer** |
-| **MCP Apps** (UI pilotée par le serveur) | Standard publié le **26/01/2026**, supporté ChatGPT, Claude, VS Code, Goose | Prêt — mais suppose un serveur MCP, donc la voie locale |
-| **MCP distant / connecteur hébergé** | Suppose un processus serveur | **Impossible sans trahir la promesse.** Le MCP local est la bonne réponse |
-| **DuckDB-WASM multi-thread** | Exige COOP/COEP, que **GitHub Pages ne permet pas** | Inutile ici : `Big` en mémoire suffit à ce volume |
-| **AI Act, article 50** | Obligations de transparence **applicables depuis le 02/08/2026** ; marquage lisible par machine, délai de grâce jusqu'à déc. 2026 pour l'existant | Tout texte généré devra être **étiqueté visiblement** |
+| Techno                                   | Maturité au 29/08/2026                                                                                                                            | Verdict pour ce projet                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **BYOK, appel navigateur direct**        | L'API Anthropic accepte le CORS navigateur depuis le **23/08/2024** (`anthropic-dangerous-direct-browser-access`)                                 | **Prêt.** Seule voie compatible « zéro backend »                                       |
+| **LLM narrateur + moteur déterministe**  | Formalisé par Anthropic (_Building Effective Agents_, dépôt `anthropics/financial-services` : « l'IA rédige, l'humain valide »)                   | **Prêt.** C'est le pattern à suivre                                                    |
+| **transformers.js v4**                   | Sortie le **09/02/2026**, runtime WebGPU réécrit, ~200 architectures                                                                              | **Prêt pour tâches ciblées** (classification, similarité), pas pour du conversationnel |
+| **Chrome Prompt API (Gemini Nano)**      | Stable depuis Chrome 138, mais **desktop seulement**, ≥ 22 Go de disque libre, > 4 Go VRAM, ni Android ni iOS, ni Firefox ni Safari               | **Amélioration progressive uniquement.** Jamais une dépendance                         |
+| **WebLLM / MLC**                         | Techniquement prêt, ~80 % de la perf native                                                                                                       | Téléchargement de centaines de Mo : consentement explicite obligatoire                 |
+| **WebNN**                                | Candidate Recommendation W3C le **22/01/2026**, origin trial Chrome seul, production visée 2027                                                   | **À ignorer**                                                                          |
+| **MCP Apps** (UI pilotée par le serveur) | Standard publié le **26/01/2026**, supporté ChatGPT, Claude, VS Code, Goose                                                                       | Prêt — mais suppose un serveur MCP, donc la voie locale                                |
+| **MCP distant / connecteur hébergé**     | Suppose un processus serveur                                                                                                                      | **Impossible sans trahir la promesse.** Le MCP local est la bonne réponse              |
+| **DuckDB-WASM multi-thread**             | Exige COOP/COEP, que **GitHub Pages ne permet pas**                                                                                               | Inutile ici : `Big` en mémoire suffit à ce volume                                      |
+| **AI Act, article 50**                   | Obligations de transparence **applicables depuis le 02/08/2026** ; marquage lisible par machine, délai de grâce jusqu'à déc. 2026 pour l'existant | Tout texte généré devra être **étiqueté visiblement**                                  |
 
 ---
 
@@ -118,21 +118,21 @@ CoinTracker dès 199 $/an, CoinTracking 49–899 $/an.
    **introuvable chez tous les acteurs du périmètre**.
 5. **Combiner réconciliation intelligente et conformité fiscale locale.** Les Anglo-Saxons ont l'IA
    sans le 2086 ; les Français ont le 2086 sans l'IA. **Personne n'a les deux.**
-6. **L'agentique sans compte.** Finary et CoinTracker exposent un MCP — mais adossé à *leur* nuage
-   et à *leur* compte. Un MCP local, sans compte, sans réseau, n'existe que dans ce projet.
+6. **L'agentique sans compte.** Finary et CoinTracker exposent un MCP — mais adossé à _leur_ nuage
+   et à _leur_ compte. Un MCP local, sans compte, sans réseau, n'existe que dans ce projet.
 7. **Les angles fiscaux orphelins** : 3916-bis, régime propre des récompenses, option barème
    progressif, veille sur les textes en cours.
 8. **Le local-first n'a pas d'IA du tout.** Rotki, Ghostfolio, Portfolio Performance : néant. Le
-   créneau « local-first *et* IA » est vide.
+   créneau « local-first _et_ IA » est vide.
 
 ## 3. Les moats — ce qui reste défendable après copie
 
-| Moat | Pourquoi c'est défendable |
-| --- | --- |
-| **M1 — L'exactitude prouvable** | Un banc d'essai public et synthétique, que n'importe qui rejoue, y compris un concurrent. Celui qui le publie devient la référence citée. Un éditeur qui *vend* le calcul ne peut pas être l'arbitre neutre : **la gratuité et l'absence de compte sont ici un avantage structurel, pas un renoncement** |
-| **M2 — L'agentique locale sans compte** | Finary et CoinTracker exposent leur nuage ; ce projet expose une machine. Le jour où un client MCP grand public s'installe partout, « mes chiffres sans jamais les envoyer » devient un argument que le modèle économique des concurrents leur interdit |
-| **M3 — La conformité française fine et datée** | 150 VH bis, 2086, DAC8, 3916-bis, millésimes de taux, chaque hypothèse écrite et testée. Coûteux à constituer, facile à maintenir une fois là, invisible pour qui n'a pas déjà le moteur |
-| **M4 — La traçabilité d'un chiffre** | Chaque montant renvoie aux lignes brutes qui l'ont produit, avec la source et la date du prix. C'est l'antidote exact à la douleur n° 1 — et le socle qui rend toute citation d'IA vérifiable |
+| Moat                                           | Pourquoi c'est défendable                                                                                                                                                                                                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M1 — L'exactitude prouvable**                | Un banc d'essai public et synthétique, que n'importe qui rejoue, y compris un concurrent. Celui qui le publie devient la référence citée. Un éditeur qui _vend_ le calcul ne peut pas être l'arbitre neutre : **la gratuité et l'absence de compte sont ici un avantage structurel, pas un renoncement** |
+| **M2 — L'agentique locale sans compte**        | Finary et CoinTracker exposent leur nuage ; ce projet expose une machine. Le jour où un client MCP grand public s'installe partout, « mes chiffres sans jamais les envoyer » devient un argument que le modèle économique des concurrents leur interdit                                                  |
+| **M3 — La conformité française fine et datée** | 150 VH bis, 2086, DAC8, 3916-bis, millésimes de taux, chaque hypothèse écrite et testée. Coûteux à constituer, facile à maintenir une fois là, invisible pour qui n'a pas déjà le moteur                                                                                                                 |
+| **M4 — La traçabilité d'un chiffre**           | Chaque montant renvoie aux lignes brutes qui l'ont produit, avec la source et la date du prix. C'est l'antidote exact à la douleur n° 1 — et le socle qui rend toute citation d'IA vérifiable                                                                                                            |
 
 **Les synergies déjà en place** (c'est ce qui rend le plan bon marché) : les constats émettent déjà
 du **JSON typé** → le narrateur IA est un simple rendu de plus (n° 40). Le MCP a déjà un **registre
@@ -148,22 +148,22 @@ une proposition d'appariement faite par un modèle.
 Même barème que la feuille de route : Valeur, Fiabilité, Satisfaction sur 5 ; effort en sessions
 (≈ 2–3 h, tests et vérification navigateur compris) ; ROI = (V + F + S) ÷ sessions.
 
-| #        | Proposition                                                                 | V   | F   | S   | Sess. | ROI      | Gap / moat |
-| -------- | --------------------------------------------------------------------------- | :-: | :-: | :-: | :---: | :------: | ---------- |
-| **P66**  | **3916-bis déduit des comptes déjà saisis**                                 |  4  |  4  |  4  |   1   | **12,0** | Gap 7 · M3 |
-| **P63a** | **Le MCP livrable sans build** (binaire de release + une ligne de commande) |  3  |  2  |  5  |   1   | **10,0** | Gap 6 · M2 |
-| **P67**  | **Veille réglementaire compilée** (millésimes + textes en cours)            |  3  |  3  |  3  |   1   | **9,0**  | Gap 7 · M3 |
-| **P61**  | **« Pourquoi ce chiffre ? » — traçabilité jusqu'aux lignes brutes**         |  5  |  5  |  4  |   2   | **7,0**  | Gap 3 · M4 |
-| **P72**  | **Anti-verrouillage : format de sauvegarde documenté et versionné**         |  2  |  3  |  2  |   1   | **7,0**  | Douleur 4  |
-| **P68**  | **Réconciliation : écarts, trous et doublons, en liste d'actions**          |  4  |  5  |  3  |   2   | **6,0**  | Gap 1 · M4 |
-| **P62**  | **Second avis sur un export concurrent** (Koinly/CoinTracker/Waltio)        |  5  |  4  |  5  |  2,5  | **5,6**  | Gap 1 · M1 |
-| **P70**  | **Harnais d'évaluation des fonctions IA + garde-fous testés**               |  2  |  5  |  1  |  1,5  | **5,3**  | Prérequis  |
-| **P65**  | **« Votre année crypto » — rapport narratif étiqueté IA, en BYOK**          |  3  |  2  |  5  |   2   | **5,0**  | Gap 4      |
+| #        | Proposition                                                                    |  V  |  F  |  S  | Sess. |   ROI    | Gap / moat |
+| -------- | ------------------------------------------------------------------------------ | :-: | :-: | :-: | :---: | :------: | ---------- |
+| **P66**  | **3916-bis déduit des comptes déjà saisis**                                    |  4  |  4  |  4  |   1   | **12,0** | Gap 7 · M3 |
+| **P63a** | **Le MCP livrable sans build** (binaire de release + une ligne de commande)    |  3  |  2  |  5  |   1   | **10,0** | Gap 6 · M2 |
+| **P67**  | **Veille réglementaire compilée** (millésimes + textes en cours)               |  3  |  3  |  3  |   1   | **9,0**  | Gap 7 · M3 |
+| **P61**  | **« Pourquoi ce chiffre ? » — traçabilité jusqu'aux lignes brutes**            |  5  |  5  |  4  |   2   | **7,0**  | Gap 3 · M4 |
+| **P72**  | **Anti-verrouillage : format de sauvegarde documenté et versionné**            |  2  |  3  |  2  |   1   | **7,0**  | Douleur 4  |
+| **P68**  | **Réconciliation : écarts, trous et doublons, en liste d'actions**             |  4  |  5  |  3  |   2   | **6,0**  | Gap 1 · M4 |
+| **P62**  | **Second avis sur un export concurrent** (Koinly/CoinTracker/Waltio)           |  5  |  4  |  5  |  2,5  | **5,6**  | Gap 1 · M1 |
+| **P70**  | **Harnais d'évaluation des fonctions IA + garde-fous testés**                  |  2  |  5  |  1  |  1,5  | **5,3**  | Prérequis  |
+| **P65**  | **« Votre année crypto » — rapport narratif étiqueté IA, en BYOK**             |  3  |  2  |  5  |   2   | **5,0**  | Gap 4      |
 | **P64**  | **Qualification assistée des lignes inconnues** (IA locale, jamais un montant) |  5  |  4  |  4  |   3   | **4,3**  | Gap 2 · M4 |
-| **P63b** | **MCP v2 : parité fonctionnelle + MCP Apps + compétence de domaine**        |  4  |  3  |  5  |   3   | **4,0**  | Gap 6 · M2 |
-| **P73**  | **Banc d'essai public d'exactitude** (jeu synthétique, MIT, rejouable)      |  3  |  4  |  2  |  2,5  | **3,6**  | Gap 1 · M1 |
-| **P69**  | **Assistant intégré** (BYOK, outils = les fonctions du moteur)              |  3  |  2  |  4  |   3   | **3,0**  | Gap 8      |
-| **P71**  | **Version anglaise**                                                        |  2  |  1  |  2  |   2   | **2,5**  | Portée     |
+| **P63b** | **MCP v2 : parité fonctionnelle + MCP Apps + compétence de domaine**           |  4  |  3  |  5  |   3   | **4,0**  | Gap 6 · M2 |
+| **P73**  | **Banc d'essai public d'exactitude** (jeu synthétique, MIT, rejouable)         |  3  |  4  |  2  |  2,5  | **3,6**  | Gap 1 · M1 |
+| **P69**  | **Assistant intégré** (BYOK, outils = les fonctions du moteur)                 |  3  |  2  |  4  |   3   | **3,0**  | Gap 8      |
+| **P71**  | **Version anglaise**                                                           |  2  |  1  |  2  |   2   | **2,5**  | Portée     |
 
 Total : ≈ 25,5 sessions.
 
@@ -177,7 +177,7 @@ seule à la douleur n° 1, et elle devient la cible de citation obligatoire de t
 ultérieure. À faire avant toute fonction IA.
 
 **P62 — Le second avis.** L'app importe déjà le format pivot Koinly/Waltio (décision n° 24). Il
-manque l'écran qui *compare* : voici ce que votre outil payant annonce, voici ce que ce moteur
+manque l'écran qui _compare_ : voici ce que votre outil payant annonce, voici ce que ce moteur
 recalcule, voici les lignes où ça diverge et pourquoi. Un utilisateur qui paie 179 €/an et voit
 270 litecoins au lieu de 20 a un besoin brûlant et aucune réponse. Positionnement : **l'auditeur
 indépendant**, rôle qu'aucun vendeur de calcul ne peut tenir.
@@ -192,7 +192,7 @@ livre une **compétence de domaine** qui enseigne au client la distinction PRU /
 elle, l'assistant confondra les deux et inventera une méthode.
 
 **P64 — La qualification assistée, et son garde-fou.** Le modèle ne voit **jamais un montant** : il
-reçoit des *en-têtes de colonnes* et des *libellés de types d'opération* inconnus, et propose un
+reçoit des _en-têtes de colonnes_ et des _libellés de types d'opération_ inconnus, et propose un
 appariement vers le schéma pivot. Cette proposition est ensuite **vérifiable par construction** :
 on rejoue le moteur, et l'écart de solde, l'invariant comptable et le compteur de lignes non
 qualifiées disent s'il est bon. Score de confiance affiché, jamais appliqué sans confirmation sous
@@ -257,7 +257,7 @@ P73 le rend incontestable.
 ## 7. Ce que vous devez décider
 
 1. **La question stratégique : le BYOK est-il acceptable ?** P65 et P69 supposent qu'un utilisateur
-   *choisisse* d'envoyer ses **chiffres agrégés** (jamais ses lignes) à sa propre clé API. C'est une
+   _choisisse_ d'envoyer ses **chiffres agrégés** (jamais ses lignes) à sa propre clé API. C'est une
    nuance réelle de la promesse « rien ne quitte le navigateur ». Trois options : le refuser (et
    renoncer à P65/P69), l'accepter avec un consentement par usage et un **aperçu exact de ce qui
    part**, ou le limiter au strict local (`transformers.js`, Prompt API) — auquel cas P65 devient
