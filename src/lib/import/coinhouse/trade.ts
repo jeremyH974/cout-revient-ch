@@ -144,6 +144,10 @@ export function buildTradeEvent(id: string, rows: RawCoinhouseRow[]): LedgerEven
     valueEurSource: 'counter-leg',
     fee,
     quotePrice: assetLeg.marketPrice ? { asset: counter.asset, price: assetLeg.marketPrice } : null,
+    // La jambe RETENUE, pas seulement la règle : sans cette clé, « d'où vient ce montant ? » n'a
+    // pas de réponse vérifiable et le piège de la jambe crypto libellée « EUR » reste invisible.
+    counterRowKey: counter.key,
+    assetRowKey: assetLeg.key,
   };
   return trade;
 }

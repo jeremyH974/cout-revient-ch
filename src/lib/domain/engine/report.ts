@@ -7,6 +7,7 @@ import type {
   EventId,
   NaiveDateTime,
   QuotePrice,
+  RowKey,
   UnqualifiedEvent,
 } from '../types';
 
@@ -61,9 +62,26 @@ export type HistoryKind =
   | 'migration-out'
   | 'opening-balance';
 
+/**
+ * Part d'un lot consommée par une cession. Le CUMP proratise tous les lots ouverts ; sans cette
+ * trace, l'information est calculée puis jetée et « pourquoi ce réalisé ? » reste sans réponse.
+ * `Σ cost` d'une cession **est** son coût de cession.
+ */
+export interface LotConsumption {
+  lotId: string;
+  /** Événement qui a ouvert le lot (l'achat d'origine). */
+  eventId: EventId;
+  openedAt: NaiveDateTime;
+  origin: LotOrigin;
+  qty: Big;
+  cost: Big;
+}
+
 /** Une ligne de l'historique d'un actif, avec le PRU après l'opération. */
 export interface HistoryEntry {
   eventId: EventId;
+  /** Lignes brutes de l'événement : le pont vers le fichier importé (`RowKey`). */
+  rowKeys: readonly RowKey[];
   /** Compte d'origine du mouvement (provenance dans les exports). */
   accountId: AccountId;
   at: NaiveDateTime;
@@ -79,6 +97,8 @@ export interface HistoryEntry {
   rebateEur: Big;
   /** Plus-value réalisée sur cette cession (null pour une acquisition). */
   realized: Big | null;
+  /** Lots consommés au prorata par cette cession (vide pour une acquisition). */
+  lotsConsumed: readonly LotConsumption[];
   pruAfter: Big | null;
   qtyAfter: Big;
   warnings: string[];

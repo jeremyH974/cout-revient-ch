@@ -160,6 +160,15 @@ export interface TradeEvent extends EventBase {
   valueEurSource: ValueEurSource;
   fee: TradeFee | null;
   quotePrice: QuotePrice | null;
+  /**
+   * Ligne brute dont la `Contre-valeur (EUR)` a fourni `valueEur` — la « jambe contrepartie » de la
+   * règle d'or (docs/DECISIONS.md n° 4). Enregistrée pour que la règle soit **auditable** :
+   * la traçabilité (`engine/trace.ts`) montre la ligne retenue au lieu de la faire croire sur
+   * parole. Absente pour les événements construits sans lignes brutes (saisies, API).
+   */
+  counterRowKey?: RowKey | null;
+  /** Ligne brute de la jambe actif (prix d'exécution affiché), pendant de `counterRowKey`. */
+  assetRowKey?: RowKey | null;
 }
 
 export interface MigrationEvent extends EventBase {
