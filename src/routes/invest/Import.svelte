@@ -241,6 +241,21 @@
     </section>
   {/if}
 
+  <!-- Second avis (P62) : un export qui porte des CHIFFRES DÉJÀ CALCULÉS (une annexe 2086) ne
+       s'importe pas — il se compare. La distinction est faite ici, à l'endroit exact où un
+       utilisateur essaierait sinon de l'importer et obtiendrait « format non reconnu ». -->
+  <section class="card block">
+    <h2>Vous avez un fichier de chiffres déjà calculés ?</h2>
+    <p class="small">
+      Une annexe 2086 ou un rapport de plus-values d’un autre outil ne s’importe pas : ses chiffres
+      sont le résultat d’un calcul, pas des opérations. Le « second avis » les compare aux nôtres et
+      dit d’où vient chaque différence.
+    </p>
+    <div class="actions">
+      <a class="secondary" href={router.href({ name: 'secondOpinion' })}>Ouvrir le second avis</a>
+    </div>
+  </section>
+
   {#if failure}
     <section class="card block error">
       <h2>{failure.error}</h2>
