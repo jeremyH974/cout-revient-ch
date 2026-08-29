@@ -98,6 +98,9 @@ export type OnchainChain = 'btc' | 'eth' | 'arbitrum' | 'base';
 /** Espace d'appartenance d'un compte (proposition v2, § 6.0). */
 export type AccountSpace = 'invest' | 'trading';
 
+/** ISO 3166-1 alpha-2 (`'FR'`, `'NL'`…) : juridiction où l'ORGANISME est établi. */
+export type CountryCode = string;
+
 /**
  * Compte de première classe : tout événement en porte un. Le PRU existe par compte (vue « par
  * plateforme ») et consolidé (grand livre entier) ; le contrôle de solde Coinhouse reste piloté par
@@ -108,6 +111,13 @@ export interface Account {
   kind: AccountKind;
   label: string;
   space: AccountSpace;
+  /**
+   * Juridiction de l'ORGANISME qui tient ce compte (ni celle de l'utilisateur, ni celle d'une
+   * chaîne suivie) — décision fiscale 3916-bis (P66) : `'FR'` exclut du périmètre, un autre code
+   * l'y inclut, `null`/absent reste `unknown` tant que l'utilisateur ne l'a pas renseigné. Jamais
+   * deviné à partir du réseau on-chain ou de l'adresse.
+   */
+  country?: CountryCode | null;
   /** Trading seulement : router les achats spot « à garder » vers l'espace Investissement. */
   spotAsInvestment?: boolean;
   /** Adresse publique (Hyperliquid, on-chain) ; jamais une clé. */
@@ -160,6 +170,15 @@ export interface TradeEvent extends EventBase {
   valueEurSource: ValueEurSource;
   fee: TradeFee | null;
   quotePrice: QuotePrice | null;
+  /**
+   * Ligne brute dont la `Contre-valeur (EUR)` a fourni `valueEur` — la « jambe contrepartie » de la
+   * règle d'or (docs/DECISIONS.md n° 4). Enregistrée pour que la règle soit **auditable** :
+   * la traçabilité (`engine/trace.ts`) montre la ligne retenue au lieu de la faire croire sur
+   * parole. Absente pour les événements construits sans lignes brutes (saisies, API).
+   */
+  counterRowKey?: RowKey | null;
+  /** Ligne brute de la jambe actif (prix d'exécution affiché), pendant de `counterRowKey`. */
+  assetRowKey?: RowKey | null;
 }
 
 export interface MigrationEvent extends EventBase {

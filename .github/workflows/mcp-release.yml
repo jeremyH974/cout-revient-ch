@@ -1,0 +1,86 @@
+name: Publication du serveur MCP
+
+# Construit mcp/dist/server.js et l'attache à une release GitHub (P63a). Actif au nom FIXE
+# (`server.js`, jamais versionné) pour que /releases/latest/download/server.js reste un lien
+# permanent — c'est ce qui rend `claude mcp add … -- node server.js` installable en une commande,
+# sans passer par un gestionnaire de paquets.
+#
+# Aucun paquet n'est publié sur npm, aucune dépendance n'est ajoutée : la chaîne
+# d'approvisionnement verrouillée (docs/DECISIONS.md n° 13, après le ver « Shai-Hulud ») commande
+# ce choix — voir docs/mcp.md pour les voies écartées.
+#
+# Déclenché par la publication d'une release ET manuellement (workflow_dispatch), ce dernier pour
+# rejouer la publication sur une release existante (ex. : premier essai en échec, ou pour attacher
+# l'actif à une release plus ancienne).
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: >-
+          Étiquette de la release à laquelle attacher server.js. Laisser vide lors d'un
+          déclenchement automatique (release publiée) : l'étiquette de cette release est utilisée.
+        required: false
+        type: string
+
+# Actions épinglées par empreinte de commit (Dependabot met à jour l'empreinte et le commentaire,
+# comme dans ci.yml — même entrée `github-actions` de dependabot.yml, elle couvre tout le dossier).
+permissions:
+  contents: read
+
+concurrency:
+  group: mcp-release-${{ inputs.tag || github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Construire, vérifier et publier server.js
+    runs-on: ubuntu-latest
+    # Élevé UNIQUEMENT sur ce job (le workflow reste `contents: read` par défaut) : upload d'actif
+    # de release (contents: write) et attestation de provenance (id-token + attestations write).
+    # GITHUB_TOKEN par défaut — aucun jeton personnel.
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+      - run: npm run mcp:build
+
+      # Porte bloquante : la poignée de main JSON-RPC RÉELLE sur stdio (un vrai `node`, un vrai
+      # processus), pas un appel de fonction en mémoire — c'est CE fichier, mcp/dist/server.js,
+      # qui est sur le point d'être publié tel quel.
+      - name: Épreuve de bout en bout (porte bloquante)
+        run: npx vitest run mcp/server.test.ts
+
+      # Le fichier de sommes ne doit contenir QUE le nom `server.js`, pas `mcp/dist/server.js` :
+      # une fois les deux actifs téléchargés côte à côte, `sha256sum -c` doit s'y retrouver sans
+      # que l'utilisateur ait à recréer l'arborescence du dépôt.
+      - name: Empreinte SHA-256
+        working-directory: mcp/dist
+        run: sha256sum server.js > SHA256SUMS.txt
+
+      # Attestation de provenance Sigstore (gratuite sur dépôt public) : relie server.js à ce run,
+      # ce commit et ce workflow, vérifiable via `gh attestation verify`. Indépendante des actifs
+      # de la release — publiée dans le magasin d'attestations du dépôt.
+      - name: Attestation de provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: mcp/dist/server.js
+
+      - name: Publier sur la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "${{ inputs.tag || github.event.release.tag_name }}" \
+            mcp/dist/server.js mcp/dist/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" --clobber

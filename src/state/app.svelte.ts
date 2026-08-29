@@ -36,12 +36,18 @@ import {
  * Les routes ne calculent rien : elles lisent `app.report`.
  */
 import {
+  coinhouseTraceRow,
   computePortfolio,
   computePortfolioByAccount,
+  pivotTraceRow,
+  traceMetric,
   type PortfolioReport,
   type PositionReport,
   type PriceQuoteInput,
+  type Trace,
+  type TraceTarget,
 } from '$lib/domain/engine';
+import { computeDeclarations, type DeclarationReport } from '$lib/domain/declarations-fr';
 import { buildInsights, type Insight } from '$lib/domain/insights';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
@@ -64,6 +70,7 @@ import {
   type Account,
   type AccountId,
   type AssetCode,
+  type CountryCode,
   type EventId,
   type LedgerEvent,
   type ManualEvent,
@@ -100,7 +107,7 @@ import {
 import { pivotLedgerEvents } from '$lib/import/pivot/events';
 import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index';
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
-import { importAnyCsv } from '$lib/import/platforms/index';
+import { importAnyCsv, PLATFORM_CONVERTERS } from '$lib/import/platforms/index';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
 import { parseMids } from '$lib/pricing/live';
 import { createLiveSocket, type LiveSocket, type LiveStatus } from '$lib/live/socket';
@@ -573,6 +580,20 @@ export class AppState {
       : [],
   );
 
+  /**
+   * Comptes à déclarer au formulaire 3916-bis (P66) : classement déterministe, sans historique de
+   * prix (contrairement à la fiscalité 150 VH bis) — disponible partout, pas seulement au Rapport.
+   * Année = l'année civile en cours ; seul `status` compte pour l'écran Comptes, qui n'est pas
+   * scopé à un millésime (`usedInYear`/`possiblyClosedInYear` le sont, pour le Rapport).
+   */
+  declarations = $derived.by((): DeclarationReport =>
+    computeDeclarations({
+      accounts: this.accounts,
+      events: this.events,
+      year: Number(nowIso().slice(0, 4)),
+    }),
+  );
+
   hasData = $derived(
     Object.keys(this.state.rawRows).length > 0 ||
       Object.keys(this.state.pivotRows).length > 0 ||
@@ -901,6 +922,24 @@ export class AppState {
       ...this.state.accounts,
       [id]: value ? { ...rest, spotAsInvestment: true } : rest,
     };
+  }
+
+  /**
+   * Pays de l'organisme (P66, 3916-bis) : renseigné par l'utilisateur depuis l'écran Comptes, pour
+   * un compte au statut `unknown` (les comptes implicites Coinhouse/Saisies manuelles n'existent
+   * pas dans `state.accounts` et ne sont donc jamais éditables ici). `null` efface le champ — le
+   * compte redevient `unknown`, jamais un pays deviné.
+   */
+  setAccountCountry(id: AccountId, country: CountryCode | null): void {
+    const existing = this.state.accounts[id];
+    if (!existing) return;
+    if (country === null) {
+      const { country: _country, ...rest } = existing;
+      void _country;
+      this.state.accounts = { ...this.state.accounts, [id]: rest };
+      return;
+    }
+    this.state.accounts = { ...this.state.accounts, [id]: { ...existing, country } };
   }
 
   private client(): HlClient {
@@ -1251,6 +1290,18 @@ export class AppState {
           accountId,
         },
       ];
+      // Pays par défaut de l'organisme (P66), déclaré sur le CONVERTISSEUR (jamais une table à
+      // resynchroniser) : posé UNE SEULE FOIS, seulement si le compte n'a encore aucun pays — un
+      // réimport ultérieur, ou un choix déjà fait par l'utilisateur, ne sont jamais écrasés.
+      const account = this.state.accounts[accountId];
+      const defaultCountry = PLATFORM_CONVERTERS.find(
+        (c) => c.id === result.report.format,
+      )?.country;
+      if (account && !account.country && defaultCountry)
+        this.state.accounts = {
+          ...this.state.accounts,
+          [accountId]: { ...account, country: defaultCountry },
+        };
       // Les montants USD/stables du fichier ont besoin des taux BCE de leurs jours.
       void this.ensureRates('USD');
       void requestPersistentStorage();
@@ -1327,6 +1378,42 @@ export class AppState {
     if (q) next[eventId] = q;
     else delete next[eventId];
     this.state.qualifications = next;
+  }
+
+  /**
+   * Rapport **en euros**, quelle que soit la devise d'affichage : socle de la traçabilité (P61).
+   * Une trace convertie ajouterait un arrondi par niveau et cesserait de boucler ; c'est le même
+   * choix que les montants fiscaux (docs/DECISIONS.md n° 43). En euros, c'est le rapport affiché.
+   */
+  eurReport = $derived.by((): PortfolioReport =>
+    this.currency === 'EUR'
+      ? this.report
+      : computePortfolio({
+          events: this.events,
+          prices: this.quotes,
+          settings: this.state.engineSettings,
+          balances: balanceRecords(Object.values(this.state.rawRows)),
+        }),
+  );
+
+  /**
+   * « Pourquoi ce chiffre ? » — la chaîne complète d'un montant affiché, jusqu'aux lignes brutes.
+   * L'accesseur de lignes couvre les DEUX magasins (export Coinhouse et format pivot) : sans cela,
+   * la moitié des utilisateurs ne verraient que des trous.
+   */
+  trace(target: TraceTarget): Trace {
+    return traceMetric({
+      report: this.eurReport,
+      target,
+      settings: this.state.engineSettings,
+      events: this.events,
+      row: (key) => {
+        const raw = this.state.rawRows[key];
+        if (raw) return coinhouseTraceRow(raw);
+        const pivot = this.state.pivotRows[key];
+        return pivot ? pivotTraceRow(pivot) : null;
+      },
+    });
   }
 
   /** Numéros de ligne (fichier importé) des lignes brutes d'un événement, triés. */

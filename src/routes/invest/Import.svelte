@@ -9,6 +9,7 @@
     PLATFORM_CONVERTERS,
   } from '$lib/import/platforms/index';
   import { downloadText } from '$lib/export/download';
+  import { countryName } from '$lib/format/declarations-fr';
   import { fmtDate } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
@@ -111,10 +112,12 @@
     if (!pending) return;
     busy = true;
     try {
-      const accountId =
-        targetAccount === 'new'
-          ? app.addPivotAccount(newLabel || pending.fileName).id
-          : targetAccount;
+      // Un compte tout juste créé ne peut PAS déjà porter de pays : si l'import lui en pose un par
+      // défaut (P66, plateforme sourcée), c'est forcément CETTE opération qui vient de le faire.
+      const isNewAccount = targetAccount === 'new';
+      const accountId = isNewAccount
+        ? app.addPivotAccount(newLabel || pending.fileName).id
+        : targetAccount;
       const result =
         pending.kind === 'ghostfolio'
           ? app.importGhostfolio(pending.text, pending.fileName, accountId)
@@ -123,6 +126,12 @@
         pivotReport = result.report;
         pending = null;
         toasts.push(`${result.report.newRows} nouvelle(s) ligne(s) importée(s).`, 'success');
+        const country = isNewAccount ? app.state.accounts[accountId]?.country : null;
+        if (country)
+          toasts.push(
+            `Pays de l’organisme déduit : ${countryName(country)} (à corriger dans Comptes si besoin).`,
+            'info',
+          );
         void app.refreshPrices();
       } else {
         failure = { error: result.error, details: result.details, header: result.header };

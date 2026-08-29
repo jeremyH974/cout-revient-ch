@@ -1,15 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import { computeDeclarations } from '../domain/declarations-fr';
 import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from '../domain/engine';
 import { D, ZERO, type Big } from '../domain/money';
 import { buildInsights } from '../domain/insights';
 import { riskMetrics } from '../domain/risk';
 import { computeFrenchTax } from '../domain/tax-fr';
 import { xirrEur } from '../domain/xirr';
-import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
+import {
+  DEFAULT_ENGINE_SETTINGS,
+  type Account,
+  type LedgerEvent,
+  type TradeEvent,
+} from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
 import { renderInsights } from '../format/insights';
+import type { WatchEntry } from '../watch/entries';
 import {
   buildReportModel,
+  watchReportBlock,
   type ReportKpi,
   type ReportModel,
   type ReportTable,
@@ -458,6 +466,119 @@ describe('section « Fiscalité française (estimation) »', () => {
     const blind = computeFrenchTax({ events: taxEvents });
     const m = buildReportModel(report, { ...opts, tax: blind });
     expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
+  });
+});
+
+describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () => {
+  const acc = (id: string, kind: Account['kind'], country?: string): Account => ({
+    id,
+    kind,
+    label: id,
+    space: 'invest',
+    createdAt: '2026-01-01T00:00:00Z',
+    ...(country === undefined ? {} : { country }),
+  });
+
+  it('absente sans déclarations fournies', () => {
+    expect(model.declarations).toBeNull();
+  });
+
+  it('absente quand aucun compte n’est concerné (tout est hors périmètre France)', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('ch:main', 'coinhouse'), acc('csv:fr', 'csv', 'FR')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations).toBeNull();
+  });
+
+  it('liste les comptes concernés et avertit du risque de sanction', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('ch:main', 'coinhouse'), acc('csv:nl', 'csv', 'NL')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations?.title).toBe('Comptes à déclarer (formulaire 3916-bis)');
+    expect(m.declarations?.details).toHaveLength(1);
+    expect(m.declarations?.details[0]?.label).toBe('csv:nl');
+    expect(m.declarations?.details[0]?.hint).toContain('Pays-Bas');
+    const warnings = m.declarations?.warnings.join(' ') ?? '';
+    expect(warnings).toContain('750 € par compte omis');
+    expect(warnings).toContain('50 000 €');
+    expect(warnings).toContain('NFT');
+    // Aucun compte incertain ici : pas d'avertissement « clé détenue seul ».
+    expect(warnings).not.toContain('détenez seul la clé');
+    expect(m.declarations?.note).toContain('ni déclaration, ni conseil fiscal');
+    expect(m.declarations?.note).toContain('1649 bis C');
+    // Le régime de sanction sans seuil ne doit jamais s'afficher comme « 1 500 € sans condition ».
+    expect(m.declarations?.note).toContain('1 500 €');
+    expect(m.declarations?.note).toContain('50 000 €');
+    // Aucun délai de prescription : non vérifié en source primaire (voir l'étude P66).
+    expect(m.declarations?.note).not.toMatch(/\b10 ans\b/);
+  });
+
+  it('avertit spécifiquement pour un compte auto-hébergé incertain, jamais promu', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('oc:btc', 'onchain')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations });
+    expect(m.declarations?.details[0]?.value).toBe('Incertain (clé détenue seul)');
+    expect(m.declarations?.warnings.join(' ')).toContain('détenez seul la clé');
+  });
+});
+
+describe('section « Veille réglementaire »', () => {
+  const watchEntry = (over: Partial<WatchEntry> = {}): WatchEntry => ({
+    id: 'fixture',
+    title: 'Entrée de test',
+    status: 'in-force',
+    statusDate: '2026-01-01',
+    effect: 'Effet de test.',
+    source: { label: 'Source de test', url: null, official: false, checkedOn: '2026-01-01' },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-01-01',
+    topics: ['cession'],
+    ...over,
+  });
+
+  it('absente quand toutes les entrées sont in-force', () => {
+    expect(watchReportBlock([watchEntry(), watchEntry({ id: 'autre' })])).toBeNull();
+  });
+
+  it('absente quand la liste est vide', () => {
+    expect(watchReportBlock([])).toBeNull();
+  });
+
+  it('présente dès qu’au moins une entrée n’est pas in-force, avec une ligne par entrée concernée', () => {
+    const block = watchReportBlock([
+      watchEntry({ id: 'a', status: 'in-force' }),
+      watchEntry({ id: 'b', status: 'dropped', title: 'Retirée' }),
+      watchEntry({ id: 'c', status: 'in-discussion', title: 'En discussion' }),
+    ]);
+    expect(block).not.toBeNull();
+    expect(block!.title).toBe('Veille réglementaire');
+    expect(block!.items).toHaveLength(2);
+    expect(block!.items.join(' ')).toContain('Retirée');
+    expect(block!.items.join(' ')).toContain('En discussion');
+    expect(block!.note).toContain('jamais un conseil');
+  });
+
+  it('signale les sources non officielles dans la ligne elle-même', () => {
+    const block = watchReportBlock([
+      watchEntry({ status: 'dropped', certainty: 'secondary-only' }),
+    ]);
+    expect(block!.items[0]).toContain('(source non officielle)');
+  });
+
+  it('reflète la vraie table dans un rapport construit normalement', () => {
+    // La table de veille réelle porte au moins une entrée qui n'est pas in-force (P67) : le bloc
+    // doit donc apparaître dans un rapport ordinaire, sans configuration particulière.
+    expect(model.watch).not.toBeNull();
+    expect(model.watch!.items.length).toBeGreaterThan(0);
   });
 });
 

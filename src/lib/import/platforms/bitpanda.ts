@@ -140,6 +140,9 @@ function resolveHeader(table: CsvTable): ResolvedTable | null {
 export const bitpanda: PlatformConverter = {
   id: 'bitpanda',
   label: 'Bitpanda — export de l’historique',
+  // Bitpanda GmbH, Vienne (Autriche) : entité unique, agréée MiCA en Autriche — organisme étranger
+  // au sens de l'art. 1649 bis C malgré le passeport européen (P66, docs/declarations-fr.md).
+  country: 'AT',
   detect(header) {
     const canonical = header.map(canonHeader);
     if (REQUIRED.every((name) => canonical.includes(name))) return true;

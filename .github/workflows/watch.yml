@@ -1,0 +1,94 @@
+name: Veille réglementaire
+
+# Rappel mensuel : la table de veille (`src/lib/watch/entries.ts`) est tenue entièrement à la
+# main — aucun générateur ne l'alimente, car « adopté en commission » ou « la doctrine n'est pas
+# stabilisée » sont des jugements de lecture d'un texte, pas une donnée qu'une requête peut
+# récupérer (voir `docs/veille-reglementaire.md`). Sa barrière de fraîcheur (`entries.test.ts`)
+# échoue quand une entrée n'a pas été relue depuis trop longtemps (3 mois pour un statut mouvant,
+# 6 pour un statut stable) ou quand une échéance annoncée est dépassée sans relecture postérieure.
+#
+# Ce cron se contente de lancer ces tests et d'ouvrir (ou refermer) un rappel — contrairement à
+# `market-data.yml`, il ne régénère et ne committe rien : il n'y a rien ici qu'une requête puisse
+# rafraîchir automatiquement.
+
+on:
+  schedule:
+    - cron: '11 7 1 * *' # le 1er de chaque mois, 07 h 11 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: watch
+  cancel-in-progress: false
+
+jobs:
+  check:
+    name: Fraîcheur de la veille réglementaire
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+
+      - name: Tests de la veille réglementaire
+        id: tests
+        continue-on-error: true
+        run: npx vitest run src/lib/watch src/lib/format/watch.test.ts
+
+      - name: Garder le planning actif
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable watch.yml --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Ouvrir, commenter ou refermer l’issue de rappel
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          TESTS: ${{ steps.tests.outcome }}
+        with:
+          script: |
+            const title = '[veille réglementaire] Relecture nécessaire';
+            const label = 'veille réglementaire';
+            const failed = process.env.TESTS !== 'success';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `Exécution : ${runUrl}`,
+              `- Tests de la veille (\`src/lib/watch\`, \`src/lib/format/watch.test.ts\`) : **${process.env.TESTS}**`,
+              '',
+              'Au moins une entrée de `src/lib/watch/entries.ts` n’a pas été relue à temps (3 mois',
+              'pour un statut mouvant, 6 pour un statut stable), ou une échéance annoncée est',
+              'dépassée sans relecture postérieure.',
+              '',
+              'Marche à suivre : rouvrez la source de chaque entrée que `npx vitest run src/lib/watch`',
+              'signale, mettez à jour `status`, `statusDate`, `effect` et `source` si le texte a',
+              'changé, puis `reviewedOn` à la date du jour — que le statut ait changé ou non. Détails',
+              'dans `docs/veille-reglementaire.md`.',
+            ].join('\n');
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label });
+            } catch {
+              await github.rest.issues.createLabel({ ...context.repo, name: label, color: 'fbca04', description: 'Veille réglementaire fiscale (P67)' });
+            }
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label, per_page: 5 });
+            const existing = open.find((i) => i.title === title);
+            if (failed) {
+              if (existing) {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Toujours en attente.\n\n${body}` });
+              } else {
+                await github.rest.issues.create({ ...context.repo, title, labels: [label], body });
+              }
+              core.setFailed('Veille réglementaire à relire : voir l’issue.');
+            } else if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Rétabli : toutes les entrées sont à jour.\n\n${body}` });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
+            }

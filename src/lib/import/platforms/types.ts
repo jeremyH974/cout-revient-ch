@@ -4,7 +4,7 @@
  * du pipeline pivot. La clé d'une ligne est le hachage du CONTENU NATIF (décision n° 26) : une
  * correction de convertisseur ne crée jamais de doublon au ré-import.
  */
-import type { PivotAmount } from '../../domain/types';
+import type { CountryCode, PivotAmount } from '../../domain/types';
 import type { CsvTable } from '../csv';
 import type { PivotIssue } from '../pivot/rows';
 
@@ -48,6 +48,13 @@ export interface PlatformConverter {
   id: PlatformFormatId;
   /** Libellé affiché (« Kraken — ledgers.csv »…). */
   label: string;
+  /**
+   * Pays par défaut de l'ORGANISME (3916-bis, P66), déclaré ICI et nulle part ailleurs : posé sur
+   * `Account.country` au premier import réussi si le compte n'en a pas déjà un (jamais réécrit).
+   * Absent tant que la plateforme n'a pas d'entité unique sourcée (Kraken, Coinbase, Binance,
+   * Revolut, Ledger Live) : deviner un pays serait pire que demander à l'utilisateur.
+   */
+  country?: CountryCode;
   detect(header: readonly string[]): boolean;
   convert(table: CsvTable): PlatformConversion;
 }

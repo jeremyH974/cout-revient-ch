@@ -7,6 +7,7 @@
  * des prix, pas des montants). Les montants passent par un seul point de formatage
  * (`Formatter.money`) pour préparer la bascule de devise.
  */
+import { concernedDeclarations, type DeclarationReport } from '../domain/declarations-fr';
 import type { PortfolioReport, PositionReport } from '../domain/engine';
 import { D, ZERO, type Big, type DecimalString } from '../domain/money';
 import type { SubscriptionAnalysis } from '../domain/subscription';
@@ -28,10 +29,13 @@ import {
   fmtRatio,
   roundsToZero,
 } from '../format/fr';
+import { renderDeclarations } from '../format/declarations-fr';
 import { TIER_LABELS, renderInsights, type RenderedInsight } from '../format/insights';
+import { watchSummaryLine } from '../format/watch';
 import { msToParisDay } from '../import/time';
 import type { Currency } from '../fx/types';
 import { assetName } from '../pricing/tickers';
+import { WATCH_ENTRIES, type WatchEntry } from '../watch/entries';
 
 export const APP_NAME = 'Coût de revient CH';
 export const REPORT_TITLE = 'Rapport de portefeuille';
@@ -117,6 +121,17 @@ export interface ReportModel {
   risk: { title: string; details: ReportKpi[]; note: string } | null;
   /** Fiscalité française : estimation par millésime, méthode globale de l'article 150 VH bis. */
   tax: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
+  /**
+   * Comptes à déclarer au formulaire 3916-bis (P66), déduits des comptes déjà saisis. `null` si
+   * aucun compte n'est concerné (tout est hors périmètre France) — jamais une liste vide affichée.
+   */
+  declarations: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
+  /**
+   * Veille réglementaire (P67) : ce qui a changé, ou pourrait changer, dans le droit ou la
+   * doctrine — jamais un calcul. Table manuelle (`../watch/entries.ts`), indépendante du
+   * portefeuille : présente dès qu'au moins une ligne n'est pas `in-force`.
+   */
+  watch: { title: string; note: string; items: string[] } | null;
   /** Coût réel des opérations : commissions payées et spread implicite estimé. */
   spread: { title: string; details: ReportKpi[]; note: string } | null;
   /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
@@ -153,6 +168,8 @@ export interface ReportModelOptions {
   risk?: RiskMetrics | null | undefined;
   /** Estimation fiscale française (décision n° 43), calculée par l'appelant. Toujours en euros. */
   tax?: TaxLedger | null | undefined;
+  /** Comptes à déclarer au formulaire 3916-bis (P66), calculés par l'appelant sur ses comptes. */
+  declarations?: DeclarationReport | null | undefined;
   /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
   spread?: SpreadEstimate | null | undefined;
   /** Récapitulatif DAC8 de l’année en cours (décision n° 50), calculé par l’appelant. */
@@ -811,6 +828,87 @@ function taxSection(
 }
 
 /**
+ * Comptes à déclarer au formulaire 3916-bis (P66) — **aide au report, ni déclaration, ni conseil
+ * fiscal**, comme la fiscalité 150 VH bis. `null` dès qu'aucun compte n'est CONCERNÉ (un compte
+ * hors périmètre France, Coinhouse en tête, n'a rien à faire dans une liste « à déclarer »).
+ */
+function declarationsSection(
+  declarations: DeclarationReport | null | undefined,
+): ReportModel['declarations'] {
+  if (!declarations) return null;
+  const concerned = concernedDeclarations(declarations);
+  if (concerned.length === 0) return null;
+  const details: ReportKpi[] = renderDeclarations(concerned).map((d) => ({
+    label: d.accountLabel,
+    value: d.statusLabel,
+    tone: 'neutral',
+    hint: d.detail,
+  }));
+
+  const warnings: string[] = [];
+  if (declarations.includedCount > 0)
+    warnings.push(
+      '750 € par compte omis, 1 500 € si la valeur cumulée de vos comptes dépasse 50 000 € dans ' +
+        'l’année — même pour un compte vide ou clos.',
+    );
+  if (declarations.uncertainCount > 0)
+    warnings.push(
+      'Portefeuille dont vous détenez seul la clé : le texte ne tranche pas ce cas — vérifiez avec ' +
+        'un professionnel.',
+    );
+  const unknownCount = concerned.filter((a) => a.status === 'unknown').length;
+  if (unknownCount > 0)
+    warnings.push(
+      `${plural(unknownCount, 'compte a un pays d’organisme inconnu', 'comptes ont un pays d’organisme inconnu')} : précisez-le depuis l’écran Comptes pour savoir s’ils doivent être déclarés.`,
+    );
+  warnings.push(
+    'Le texte couvre aussi les actifs uniques et non fongibles (NFT), que cette application ne ' +
+      'suit pas : cette liste n’est donc pas exhaustive si vous détenez des NFT.',
+  );
+
+  return {
+    title: 'Comptes à déclarer (formulaire 3916-bis)',
+    details,
+    note:
+      'Aide au report, déduite de vos comptes saisis : ni déclaration, ni conseil fiscal. Les ' +
+      'comptes de crypto-actifs ouverts, détenus, utilisés ou clos auprès d’une entreprise, ' +
+      'personne morale, institution ou organisme établi à l’étranger se déclarent avec la ' +
+      'déclaration de revenus (article 1649 bis C du CGI) ; les organismes établis en France en ' +
+      'sont hors périmètre, y compris sous passeport européen MiCA. Sanctions estimées (article ' +
+      '1736 X du CGI) : 750 € par compte non déclaré, 125 € par omission ou inexactitude, plafond ' +
+      '10 000 € par déclaration — portés à 1 500 € et 250 € seulement si la valeur cumulée de vos ' +
+      'comptes dépasse 50 000 € à un moment de l’année. **Ce n’est ni une déclaration, ni un ' +
+      'conseil fiscal** : faites vérifier votre situation par un professionnel avant toute ' +
+      'déclaration.',
+    warnings,
+  };
+}
+
+/**
+ * Veille réglementaire (P67) : un bloc court, juste après la fiscalité — là où le rapport porte
+ * déjà des avertissements. Seules les lignes qui ne sont PAS `in-force` sont reprises : une loi en
+ * vigueur n'est pas un avertissement, un texte retiré, en discussion ou de doctrine non stabilisée
+ * l'est. Fonction pure sur `entries` (jamais un import caché) pour rester testable sans dépendre de
+ * la table réelle ; `watchSection` l'applique à `WATCH_ENTRIES`, seul appelant en production.
+ */
+export function watchReportBlock(entries: readonly WatchEntry[]): ReportModel['watch'] {
+  const items = entries.filter((e) => e.status !== 'in-force').map(watchSummaryLine);
+  if (items.length === 0) return null;
+  return {
+    title: 'Veille réglementaire',
+    note:
+      'Ce que le droit et la doctrine fiscale française disent, ou ne disent pas encore, à la ' +
+      'date de ce rapport : un fait, jamais un conseil. Faites vérifier votre situation par un ' +
+      'professionnel avant toute décision.',
+    items,
+  };
+}
+
+function watchSection(): ReportModel['watch'] {
+  return watchReportBlock(WATCH_ENTRIES);
+}
+
+/**
  * Constats : le rapport ne les recalcule pas, il rend en français ceux que l'appelant a produits
  * (mêmes phrases qu'à l'écran d'accueil, mêmes réglages de devise et de mode discret).
  */
@@ -1079,6 +1177,8 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
     tax: taxSection(opts.tax, opts.discreet, opts.dac8),
+    declarations: declarationsSection(opts.declarations),
+    watch: watchSection(),
     spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),
     allocation: allocationTable(report, f),

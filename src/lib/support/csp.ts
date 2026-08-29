@@ -201,6 +201,16 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     use: 'link',
     why: 'Prix spot du pétrole, crédité dans la table des sources. L’API est interrogée en CI, avec une clé qui ne quitte jamais les secrets du dépôt.',
   },
+
+  /*
+   * Veille réglementaire (P67) : table tenue à la main, jamais interrogée par l'app — seuls les
+   * liens « source » de chaque entrée (`src/lib/watch/entries.ts`) subsistent dans le code livré.
+   */
+  {
+    origin: 'https://www.legifrance.gouv.fr',
+    use: 'link',
+    why: 'Textes officiels (lois, décrets, articles du CGI) cités par la table de veille réglementaire, liés depuis chaque entrée qui en a une.',
+  },
 ];
 
 /** Origines autorisées par `connect-src`, dans l'ordre de la table. */

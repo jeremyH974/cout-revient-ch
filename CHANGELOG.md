@@ -7,6 +7,29 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **« Pourquoi ce chiffre ? »** : un PRU, un latent, un réalisé, des frais ou une valeur se
+  cliquent, et l'app montre **d'où le montant vient** — les lignes brutes qui l'ont produit avec
+  leur numéro, la jambe contrepartie réellement retenue, les lots consommés, le cours utilisé avec
+  sa source et sa date. Ce qui manque est **nommé** plutôt que comblé : un chiffre qui dépend d'un
+  cours externe, une ligne encore à qualifier, un coût reporté le disent. Les montants restent en
+  euros même en affichage dollars, et le mode discret masque les montants sans effacer la structure
+  (`docs/tracabilite.md`, `docs/DECISIONS.md` n° 61).
+- **Comptes à déclarer (formulaire 3916-bis)** : l'app déduit de vos comptes déjà saisis ceux qui
+  relèvent de l'obligation française, avec le pays de l'organisme, un export CSV et un bouton
+  « Copier la liste ». Coinhouse en est exclu — c'est un prestataire français. Un portefeuille dont
+  vous détenez seul la clé est signalé **incertain** : le texte ne tranche pas ce cas, et l'app ne
+  tranche pas à votre place. Aide au report, ni déclaration ni conseil fiscal
+  (`docs/declarations-fr.md`, `docs/DECISIONS.md` n° 62).
+- **Veille réglementaire** : un écran dédié et un bloc court dans le rapport disent ce qui a changé,
+  ou pourrait changer, dans le droit et la doctrine — chaque ligne avec son statut, sa date et sa
+  source, et la mention explicite quand cette source n'est pas officielle. Un test **échoue** dès
+  qu'une entrée n'a pas été relue à temps : le silence ne doit pas se confondre avec la stabilité
+  (`docs/veille-reglementaire.md`, `docs/DECISIONS.md` n° 64).
+- **Le serveur MCP s'installe en deux gestes**, sans rien compiler : un fichier à télécharger depuis
+  la dernière version publiée, une ligne à coller. Il devine désormais votre fichier de sauvegarde
+  et, s'il ne le trouve pas, nomme le chemin qu'il a essayé (`docs/mcp.md`,
+  `docs/DECISIONS.md` n° 63).
+
 - **« Vos chiffres face au décor »** : l'écran « Contexte de marché » mesure désormais si votre
   portefeuille bouge réellement avec les indicateurs qu'il affiche. La série comparée est votre
   **rendement, apports et retraits neutralisés** — comparer une valeur brute, qui monte parce qu'on

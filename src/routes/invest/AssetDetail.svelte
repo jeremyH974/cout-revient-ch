@@ -18,11 +18,20 @@
   import Pct from '../../components/shared/Pct.svelte';
   import Qty from '../../components/shared/Qty.svelte';
   import Sheet from '../../components/shared/Sheet.svelte';
+  import WhySheet from '../../components/shared/WhySheet.svelte';
+  import type { TraceMetric } from '$lib/domain/engine';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { asset }: { asset: string } = $props();
+  /** Le montant lui-même ouvre sa traçabilité (P61) : aucune icône « ? » ajoutée à côté. */
+  let whyOpen = $state(false);
+  let whyMetric = $state<TraceMetric>('pru');
+  const why = (metric: TraceMetric): void => {
+    whyMetric = metric;
+    whyOpen = true;
+  };
   let tab = $state<'lots' | 'history' | 'calc'>('history');
   let priceSheet = $state(false);
   let manualPrice = $state('');
@@ -131,24 +140,66 @@
         <div>
           <p class="label">Détenu</p>
           <p class="big"><Qty value={p.qty} abbreviate /></p>
-          <p class="muted small">@ PRU {p.pru ? price(p.pru) : '—'}</p>
+          <p class="muted small">
+            @ PRU <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('pru')}>{p.pru ? price(p.pru) : '—'}</button
+            >
+          </p>
         </div>
         <div>
           <p class="label">Investi</p>
-          <p class="big"><Money value={p.costBasis} compact /></p>
+          <p class="big">
+            <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('cost-basis')}><Money value={p.costBasis} compact /></button
+            >
+          </p>
         </div>
         <div>
           <p class="label">Valeur</p>
-          <p class="big"><Money value={p.value} compact /></p>
+          <p class="big">
+            <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('value')}><Money value={p.value} compact /></button
+            >
+          </p>
           {#if !p.closed || p.dust}<p class="small">
-              <Money value={p.unrealized} sign colored /> (<Pct value={p.unrealizedPct} /> vs PRU)
+              <button
+                class="why"
+                type="button"
+                aria-describedby="why-hint-detail"
+                onclick={() => why('unrealized')}
+                ><Money value={p.unrealized} sign colored /></button
+              >
+              (<Pct value={p.unrealizedPct} /> vs PRU)
               {p.dust ? 'latent résiduel' : 'latent'}
             </p>{/if}
         </div>
       </div>
       <p class="line">
-        Réalisé <Money value={p.realized} sign colored /> ·
-        <strong>Total <Money value={p.total} sign colored strong /></strong>
+        Réalisé
+        <button
+          class="why"
+          type="button"
+          aria-describedby="why-hint-detail"
+          onclick={() => why('realized')}><Money value={p.realized} sign colored /></button
+        >
+        ·
+        <strong
+          >Total <button
+            class="why"
+            type="button"
+            aria-describedby="why-hint-detail"
+            onclick={() => why('total')}><Money value={p.total} sign colored strong /></button
+          ></strong
+        >
         · ROI <Pct value={p.roi} />
         <span class="muted small">sur <Money value={p.roiBase} /> engagés</span>
       </p>
@@ -212,6 +263,10 @@
 
   <AlertRuleSheet bind:open={alertSheet} {asset} />
   <SimulateSheet bind:open={simulateSheet} {asset} />
+  <WhySheet
+    bind:open={whyOpen}
+    target={{ metric: whyMetric, scope: { kind: 'position', asset } }}
+  />
 
   <Sheet bind:open={priceSheet} title="Prix manuel pour {asset.toUpperCase()}">
     <p>
@@ -266,6 +321,8 @@
     </form>
   </Sheet>
 {/if}
+
+<span id="why-hint-detail" class="sr-only">Pourquoi ce chiffre ?</span>
 
 <style>
   .empty {
@@ -331,6 +388,17 @@
   }
   .line {
     font-size: var(--fs-sm);
+  }
+  /* Le montant EST le déclencheur de sa traçabilité : souligné en pointillés, cible ≥ 24 px. */
+  .why {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
   }
   .warn {
     color: var(--warn);

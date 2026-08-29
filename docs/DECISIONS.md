@@ -1178,3 +1178,134 @@
     points pour une fenêtre de trente jours ; elles sont nommées comme non mesurées plutôt que
     mesurées sur quatre observations. Une fenêtre sous douze couples est omise, pas assortie d'une
     réserve : un coefficient sur huit points est du bruit présenté comme une mesure.
+61. **Un chiffre affiché sait dire d'où il vient, et cette explication est une structure du moteur,
+    pas un écran** (29/08/2026, proposition P61, étude `proposals/2026-08-29-data-ia-et-agentique.md`).
+    La douleur n° 1 du marché n'est pas l'absence de calcul, c'est l'impossibilité de le contester :
+    des utilisateurs d'outils payants décrivent en août 2026 des soldes faux sans aucun moyen de
+    remonter à la ligne fautive. La réponse est une fonction **pure**, `traceMetric`
+    (`engine/trace.ts`), qui rend un arbre typé — chaînes décimales, codes, jamais un mot de
+    français — dont l'écran, le PDF et le serveur MCP sont trois consommateurs. **Une trace qui
+    n'existerait qu'à l'écran serait un échec de conception** : elle ne pourrait être ni testée
+    comme un chiffre, ni citée par une réponse d'IA, ni exportée à un tiers.
+    **Chaque nœud porte sa contribution, sa provenance et son opérateur.** Une provenance est une
+    ligne brute (clé stable, numéro de ligne, type brut), un événement, un lot, un cours (source,
+    date, fraîcheur) ou un réglage du moteur. L'opérateur dit comment les enfants forment le
+    parent — d'où l'invariant central, vérifié par une propriété : **la somme des contributions
+    d'un nœud additif égale son montant**. Le résidu est calculé, exposé et jamais masqué ; il est
+    borné par un epsilon (1e-9) sans quoi les divisions à trente décimales le rendraient non nul en
+    permanence et la propriété « résidu non nul ⟹ trou nommé » serait infalsifiable.
+    **La jambe contrepartie retenue devient une donnée, pas une convention tacite.** `TradeEvent`
+    porte désormais `counterRowKey` : la règle d'or de l'export Coinhouse (décision n° 4) cesse
+    d'être une règle qu'on croit sur parole pour devenir une ligne qu'on peut lire. De même, une
+    cession consigne les lots qu'elle consomme — l'information était déjà calculée dans la
+    proratisation (décision n° 6), elle était jetée. Ces deux champs restent **optionnels** :
+    les rendre obligatoires imposait d'éditer une vingtaine de fichiers de tests partagés pour un
+    comportement identique, l'absence étant déjà un trou nommé.
+    **Ce qui manque est nommé, jamais comblé.** Un chiffre qui dépend d'un cours externe s'arrête
+    sur une feuille `external-quote` portant sa source et sa date ; une position dont des lignes
+    restent à qualifier porte une feuille à contribution nulle citant leurs clés. Inventer une
+    valeur pour fermer l'arbre transformerait un outil d'audit en source d'erreur.
+    **À la demande, pour un seul chiffre.** Conserver le lignage de toutes les métriques de toutes
+    les positions gonflerait un rapport recalculé à chaque changement d'état, pour un objet qu'on
+    ouvre une fois. Le rapport contient déjà l'historique et les lots : une trace est un repli
+    linéaire à un clic. Rien n'est persisté (décision n° 3).
+    **Ce qui est écarté** : l'IA, absente de bout en bout — une trace est une propriété
+    arithmétique, pas une explication rédigée ; la conversion en devise d'affichage — une trace
+    reste **en euros**, la devise des lignes d'origine, car convertir introduirait une chaîne
+    d'arrondis qui casserait le bouclage (même choix que la fiscalité, décision n° 43) ; une
+    seconde lecture du PRU « tous achats confondus », qui contredirait son invariance à la vente
+    (décision n° 5) ; le mode discret masque les montants mais **conserve la structure** (dates,
+    numéros de ligne, jambe retenue, source du cours), sans quoi la fonctionnalité disparaîtrait au
+    moment où l'on montre son écran ; et au-delà de deux cents contributions, la trace est tronquée
+    par un nœud agrégé portant la somme exacte des omises — plafonner sans lui casserait le
+    bouclage à tous les niveaux.
+
+62. **Le 3916-bis est déduit des comptes, et jamais tranché à la place de l'utilisateur**
+    (29/08/2026, proposition P66). Le compte de première classe (décision n° 20) gagne
+    `Account.country` (ISO 3166-1 alpha-2, optionnel) : la juridiction de **l'organisme**, ni celle
+    de l'utilisateur ni celle de la chaîne — réutilisable pour DAC8 et les obligations futures.
+    Le défaut est posé **une seule fois**, sur le convertisseur de plateforme, et **seulement quand
+    il est sourcé** (Bitvavo NL, Bitpanda AT, SwissBorg CH) ; Kraken, Coinbase, Binance, Revolut et
+    Ledger Live ont des structures multi-entités et restent **volontairement sans défaut** —
+    deviner un pays serait pire que demander. Une sauvegarde écrite avant ce changement se recharge
+    sans perte, et ses comptes ressortent en `unknown`.
+    **Quatre statuts, aucun deviné** (`declarations-fr.ts`, moteur pur, décision n° 40) :
+    `excluded-domestic` pour Coinhouse et tout compte déclaré français — le critère de l'art. 1649
+    bis C du CGI est l'établissement de l'organisme, pas sa licence, et Coinhouse est un prestataire
+    français agréé ; `included` pour un compte étranger connu, **même vide et même clos dans
+    l'année**, car le texte ne pose aucun seuil de valeur ; `uncertain-self-hosted` pour une adresse
+    on-chain, une clé étendue ou Hyperliquid, **jamais promu quelle que soit l'activité** — le texte
+    vise un compte détenu _auprès d'un tiers_, ce que la doctrine BOI-RPPM-PVBMC-30-30 n'exclut pas
+    noir sur blanc pour l'auto-hébergé, et qu'un amendement en discussion viserait à couvrir au-delà
+    de 5 000 € ; `unknown` pour un compte sans pays, ni présumé français ni présumé étranger.
+    **Les montants de sanction affichés sont ceux de l'art. 1736 X** : 750 € par compte omis, 125 €
+    par inexactitude, plafond de 10 000 € par déclaration, portés à 1 500 € et 250 € **seulement
+    si** la valeur cumulée des comptes dépasse 50 000 € dans l'année. La veille de l'étude source
+    annonçait « 1 500 € sans seuil », par confusion avec le régime bancaire de l'art. 1649 A :
+    c'est la lecture du texte primaire qui fait foi.
+    **Ce qui est écarté** : tout délai de prescription — le « dix ans » qui circule n'a pas été
+    confirmé en source primaire pour les actifs numériques, et un chiffre non vérifié est pire
+    qu'un chiffre absent ; et toute prétention à l'exhaustivité — le texte couvre désormais les
+    jetons uniques, que l'app ne suit pas, et le dit. Aide au report, jamais une déclaration :
+    relecture professionnelle requise avant publication.
+
+63. **Le serveur MCP se distribue en actif de release, jamais en paquet npm** (29/08/2026,
+    proposition P63a). `npm run mcp:build` produisait déjà un fichier autonome sans dépendance
+    (décision n° 48) ; il manquait un canal à la portée d'un non-développeur, alors que le public
+    visé n'a jamais cloné un dépôt. Un workflow déclenché par la publication d'une version rejoue
+    ce build sur l'étiquette, le fait passer une **poignée de main stdio réelle** avant publication,
+    puis publie `server.js` sous un nom stable, avec sa somme SHA-256 et une attestation de
+    provenance GitHub signée. L'installation tient alors en deux gestes : télécharger le fichier,
+    coller une ligne `claude mcp add`. Le serveur devine sa sauvegarde (`CRCH_BACKUP`, puis
+    l'argument, puis `~/Downloads/cout-revient-ch-sauvegarde.json`) et, à l'échec, **nomme le chemin
+    qu'il a essayé** plutôt que d'échouer en silence.
+    **L'épreuve de bout en bout existe désormais vraiment.** `docs/mcp.md` l'affirmait depuis la
+    décision n° 48, mais aucun test ne lançait de processus : `mcp/tools.test.ts` appelait les
+    fonctions pures en mémoire. `mcp/server.test.ts` lance un vrai `node mcp/dist/server.js` sur une
+    sauvegarde sérialisée depuis la fixture, et vérifie la négociation de version et son repli, les
+    sept outils annotés en lecture seule, un appel structuré recoupé avec le moteur **hors
+    processus**, l'erreur de protocole sur outil inconnu, et que chaque ligne de `stdout` est un
+    JSON valide. Une documentation qui promet une garantie que le code ne donne pas est une dette,
+    pas une approximation : on rend la phrase vraie, on ne la corrige pas.
+    **Conséquence sur la commande de vérification** : `npm run check` construit désormais le serveur
+    avant de lancer les tests, sans quoi il serait rouge sur un dépôt fraîchement cloné. Un hook
+    `pretest` ne peut pas jouer ce rôle : `.npmrc` active `ignore-scripts` (décision n° 13), qui
+    désactive tous les scripts de cycle de vie. Le build MCP cesse au passage de recopier `public/`
+    à côté du serveur — le bundle n'a aucun usage des icônes de la PWA.
+    **Ce qui est écarté** : le format `.mcpb` — son outil d'empaquetage s'exécuterait en CI depuis
+    un paquet npm tiers, exactement le vecteur que la décision n° 13 a fermé, et son support en
+    ligne de commande n'est pas confirmé en août 2026 ; `npx` sur une archive non publiée, qui
+    réexécute `npm install` et contourne `.npmrc` ; et la publication sur npm, qui est le vecteur
+    Shai-Hulud lui-même. Aucune dépendance ajoutée. La somme de contrôle sert l'auditabilité, pas
+    l'utilisateur ordinaire qui ne la vérifiera jamais : elle est proposée sans être survendue.
+
+64. **La veille réglementaire est une table compilée et relue à la main, jamais une prévision**
+    (29/08/2026, proposition P67). `src/lib/watch/entries.ts` reprend le motif du calendrier macro
+    (décision n° 58) **sans son générateur** : il n'existe aucune source structurée pour « adopté en
+    commission » ou « doctrine non stabilisée » — c'est un jugement de lecture. La table est donc
+    manuelle de bout en bout, comme le catalogue d'attributions (décision n° 47). Chaque entrée
+    porte un statut fermé, une source datée, son caractère officiel ou non, et une date de
+    relecture — **jamais un montant**.
+    **La barrière n'est plus un script qui refuse d'écrire, c'est un test qui échoue.** Faute de
+    génération, `entries.test.ts` tombe dès qu'une entrée mouvante n'a pas été relue depuis trois
+    mois, qu'une entrée stable ne l'a pas été depuis six, ou qu'une échéance annoncée est passée
+    sans mise à jour — sans délai de grâce. Trois mois est calé sur le rythme observé : l'amendement
+    « fortune improductive » est passé du vote de l'Assemblée à l'abandon définitif en moins de
+    quatre mois. Un cron mensuel dédié le fait échouer même sans commit, pour que **le silence ne se
+    confonde jamais avec la stabilité**.
+    **Le statut est un code, rendu en français par `format/watch.ts`** (décision n° 40) ; le libellé
+    court et l'effet en une phrase restent, eux, des données — paraphraser du droit dans un
+    vocabulaire contrôlé coderait un risque plus grand que celui qu'on évite. Une entrée dont la
+    source n'est pas officielle le dit à l'écran ; trois le sont aujourd'hui (staking, airdrops,
+    date du premier échange DAC8), faute de texte publié.
+    **Ce n'est pas un constat** : un constat se déduit de vos chiffres, une entrée de veille est
+    vraie indépendamment de vos données ; la forcer dans `insights.ts` casserait le contrat de la
+    décision n° 40. Elle vit donc sur un écran dédié et dans un bloc court du rapport, limité aux
+    lignes qui ne sont pas en vigueur — là où l'utilisateur lit déjà des avertissements.
+    **Ce qui est écarté** : l'accueil, tout badge, tout compteur et toute notification — l'app
+    informe, elle ne devient pas un fil d'actualité anxiogène ; et toute formulation qui presse
+    (« pensez à », « avant qu'il ne soit trop tard »). La règle d'écriture est celle des constats :
+    décrire l'état du droit, jamais ce qu'il faudrait en faire. Cette recherche l'a d'ailleurs pris
+    en défaut une fois : plusieurs sites commerciaux annoncent encore que les crypto-actifs sont
+    entrés dans l'assiette d'un impôt sur la fortune en 2026, alors que la loi promulguée le
+    19/02/2026 ne retient pas la mesure.
