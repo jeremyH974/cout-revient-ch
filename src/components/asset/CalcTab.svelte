@@ -1,11 +1,23 @@
 <script lang="ts">
-  import type { HistoryEntry, PositionReport } from '$lib/domain/engine';
+  import type { HistoryEntry, PositionReport, TraceMetric } from '$lib/domain/engine';
   import type { Big } from '$lib/domain/money';
   import { MASK, fmtDate, fmtMasked, fmtMoney, fmtPct, fmtQty } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import { app } from '../../state/app.svelte';
+  import WhySheet from '../shared/WhySheet.svelte';
 
   let { position }: { position: PositionReport } = $props();
+  /**
+   * Le déclencheur de la traçabilité est le montant lui-même (P61) : pas d'icône « ? » semée à
+   * côté de chaque chiffre — 22 px de cible supplémentaire par montant, et `target-size`
+   * (WCAG 2.2 AA) tombe sur les écrans denses.
+   */
+  let whyOpen = $state(false);
+  let whyMetric = $state<TraceMetric>('pru');
+  const why = (metric: TraceMetric): void => {
+    whyMetric = metric;
+    whyOpen = true;
+  };
   const p = $derived(position);
   const discreet = $derived(app.state.ui.discreet);
   // Mode discret : montants et quantités masqués ; les prix (PRU, cours) restent lisibles.
@@ -40,7 +52,11 @@
         </p>
         <p class="formula">
           Latent résiduel = {eur(p.value)} − {eur(p.costBasis)} =
-          <strong>{eur(p.unrealized, { sign: true })}</strong>
+          <button class="why" type="button" onclick={() => why('unrealized')}
+            ><strong>{eur(p.unrealized, { sign: true })}</strong><span class="sr-only">
+              — pourquoi ce chiffre ?</span
+            ></button
+          >
         </p>
       {:else}
         <p>
@@ -57,7 +73,12 @@
         Il change uniquement quand vous achetez, jamais quand vous vendez.
       </p>
       <p class="formula">
-        {eur(p.costBasis)} ÷ {qty(p.qty)} = <strong>{p.pru ? price(p.pru) : '—'}</strong>
+        {eur(p.costBasis)} ÷ {qty(p.qty)} =
+        <button class="why" type="button" onclick={() => why('pru')}
+          ><strong>{p.pru ? price(p.pru) : '—'}</strong><span class="sr-only">
+            — pourquoi ce chiffre ?</span
+          ></button
+        >
       </p>
     </section>
     <section>
@@ -69,7 +90,11 @@
       </p>
       <p class="formula">
         {qty(p.qty)} × ({p.price ? price(p.price.priceEur) : '—'} − {p.pru ? price(p.pru) : '—'}) =
-        <strong>{eur(p.unrealized, { sign: true })}</strong>
+        <button class="why" type="button" onclick={() => why('unrealized')}
+          ><strong>{eur(p.unrealized, { sign: true })}</strong><span class="sr-only">
+            — pourquoi ce chiffre ?</span
+          ></button
+        >
         ({fmtPct(p.unrealizedPct)} vs PRU)
       </p>
     </section>
@@ -91,7 +116,14 @@
           </li>
         {/each}
       </ul>
-      <p class="formula">Total réalisé = <strong>{eur(p.realized, { sign: true })}</strong></p>
+      <p class="formula">
+        Total réalisé =
+        <button class="why" type="button" onclick={() => why('realized')}
+          ><strong>{eur(p.realized, { sign: true })}</strong><span class="sr-only">
+            — pourquoi ce chiffre ?</span
+          ></button
+        >
+      </p>
     {/if}
   </section>
   <section>
@@ -101,7 +133,11 @@
         + récompenses{/if} = {eur(p.realized, { sign: true })}
       {eur(p.unrealized, { sign: true })}{#if p.otherIncome.gt('0')}
         {eur(p.otherIncome, { sign: true })}{/if} =
-      <strong>{eur(p.total, { sign: true })}</strong>
+      <button class="why" type="button" onclick={() => why('total')}
+        ><strong>{eur(p.total, { sign: true })}</strong><span class="sr-only">
+          — pourquoi ce chiffre ?</span
+        ></button
+      >
     </p>
     <p>
       Le ROI rapporte ce total au <strong>capital maximal engagé</strong> sur cet actif : le plus d'euros
@@ -121,14 +157,24 @@
         ; aucun pourcentage n'est calculé sur cette base.{/if}
     </p>
     <p class="formula">
-      {eur(p.investedTotal)} − {eur(p.proceedsTotal)} =
+      <button class="why" type="button" onclick={() => why('invested')}
+        >{eur(p.investedTotal)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      >
+      −
+      <button class="why" type="button" onclick={() => why('proceeds')}
+        >{eur(p.proceedsTotal)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      >
+      =
       <strong>{eur(p.netInvested)}</strong>
     </p>
   </section>
   <section>
     <h3>Frais</h3>
     <p class="formula">
-      Frais Coinhouse payés sur cet actif : {eur(p.feesEur)}{#if p.rebatesEur.gt('0')}
+      Frais Coinhouse payés sur cet actif :
+      <button class="why" type="button" onclick={() => why('fees')}
+        >{eur(p.feesEur)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      >{#if p.rebatesEur.gt('0')}
         (dont remises obtenues : {eur(p.rebatesEur)}){/if}. Le spread est déjà dans les prix all-in.
     </p>
   </section>
@@ -143,6 +189,10 @@
       </p>
     </section>
   {/if}
+  <WhySheet
+    bind:open={whyOpen}
+    target={{ metric: whyMetric, scope: { kind: 'position', asset: p.asset } }}
+  />
 </div>
 
 <style>
@@ -169,5 +219,16 @@
   }
   .warn {
     color: var(--warn);
+  }
+  /* Le montant EST le déclencheur : souligné en pointillés, cible ≥ 24 px (WCAG 2.2 AA). */
+  .why {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    color: inherit;
+    font: inherit;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    cursor: pointer;
   }
 </style>

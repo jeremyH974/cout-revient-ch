@@ -27,7 +27,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (boucle chronologique), `engine/aggregate.ts` (`computePortfolio` : rapport consolidé sur tout le
   grand livre ; `computePortfolioByAccount` : le même grand livre groupé par `accountId`, un rapport
   — donc un PRU — par compte, le contrôle de solde n'étant transmis qu'au compte Coinhouse),
-  `engine/integrity.ts` (colonne Solde), `transfers.ts` (virements internes appariés entre comptes,
+  `engine/integrity.ts` (colonne Solde), `engine/trace.ts` (« Pourquoi ce chiffre ? » : la chaîne
+  d'un montant jusqu'aux lignes brutes — ne recalcule rien, assemble ce que le moteur conservait
+  déjà ; sous un opérateur additif la somme des enfants **est** celle du parent, et un trou est
+  nommé plutôt que comblé. Rendu français dans `format/trace.ts`, docs/tracabilite.md,
+  docs/DECISIONS.md n° 61), `transfers.ts` (virements internes appariés entre comptes,
   coût transporté vers le dépôt, jamais persisté, docs/DECISIONS.md n° 25), `xirr.ts` (rendement
   personnel annualisé money-weighted : Newton pour semer, bissection pour trancher, taux en float64
   seulement à la frontière du solveur, docs/DECISIONS.md n° 27) et `date.ts` (arithmétique de dates
