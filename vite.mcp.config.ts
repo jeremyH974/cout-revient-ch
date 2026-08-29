@@ -9,6 +9,9 @@ import { defineConfig } from 'vite';
  * des extensions à tout le code de l'app pour le confort d'un outil annexe, on regroupe ici.
  */
 export default defineConfig({
+  // Le serveur n'a aucun usage des icônes et du manifeste de la PWA : sans cela, chaque build
+  // recopierait tout `public/` à côté de `server.js`.
+  publicDir: false,
   build: {
     ssr: 'mcp/server.ts',
     outDir: 'mcp/dist',
