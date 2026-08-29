@@ -120,6 +120,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   une seule fois, à la génération — contrairement aux dates Coinhouse, naïves et jamais converties.
   `index.ts` ne fait que sélectionner et regrouper par jour local. Détail : docs/calendrier-macro.md,
   docs/DECISIONS.md n° 58.
+- `src/lib/macro` — indicateurs macroéconomiques américains, **compilés dans le bundle** comme le
+  calendrier : `snapshot.generated.ts` est engendré par `scripts/generate-macro.ts` (Trésor et Fed
+  en CI, pétrole si la clé EIA est fournie). `stats.ts` porte les seules décisions statistiques du
+  projet — rang percentile à rangs moyens, transformations des séries non stationnaires,
+  volatilité par Welford — et vérifie qu'aucun rang ne regarde vers l'avenir. `types.ts` pose la
+  règle : jamais une valeur sans son rang, jamais le rang d'un niveau qui dérive, deux fenêtres
+  plutôt qu'une. Détail : docs/macro.md, docs/DECISIONS.md n° 59.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`), et la
   table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57).

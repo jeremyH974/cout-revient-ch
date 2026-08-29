@@ -1,0 +1,154 @@
+name: Données de marché
+
+# Régénère les deux fichiers du contexte de marché depuis les sources officielles américaines :
+# le calendrier des publications (`events.generated.ts`) et les indicateurs macro
+# (`snapshot.generated.ts`). Ni l'un ni l'autre n'est interrogé par l'application — tout est
+# compilé dans le bundle, d'où l'absence totale de requête à l'exécution.
+#
+# **Lundi et vendredi.** Le vendredi rattrape le relevé H.4.1 de la Fed, publié le jeudi
+# après-midi à New York ; le lundi rafraîchit la courbe des taux après le week-end. Deux passages
+# suffisent : les indicateurs sont affichés avec leur date d'observation, et rien ne prétend être
+# du temps réel.
+#
+# Le job ne committe **que** si les générateurs franchissent leurs barrières ET si `npm run check`
+# passe : un push effectué avec le `GITHUB_TOKEN` ne déclenche aucun workflow, donc rien ne
+# validerait le résultat après coup. La CI est ensuite appelée explicitement, car c'est elle qui
+# porte le déploiement sur Pages.
+#
+# Le BLS n'est pas relu ici — son réseau de diffusion refuse les clients non-navigateurs. Sa table
+# est tenue à la main dans `src/lib/calendar/bls-schedule.ts`, et une barrière du générateur
+# réclame sa relecture, via l'issue ci-dessous, avant qu'elle ne s'épuise.
+
+on:
+  schedule:
+    - cron: '17 6 * * 1,5' # lundi et vendredi, 06 h 17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-data
+  cancel-in-progress: false
+
+jobs:
+  regenerate:
+    name: Régénérer et publier
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+      - run: npm ci
+
+      - name: Régénérer le calendrier
+        id: calendar
+        continue-on-error: true
+        run: npm run calendar
+
+      # La clé EIA est facultative : sans elle, l'indicateur du pétrole est simplement absent, et
+      # l'instantané enregistre pourquoi. Rien n'échoue.
+      - name: Régénérer les indicateurs macro
+        id: macro
+        continue-on-error: true
+        env:
+          EIA_API_KEY: ${{ secrets.EIA_API_KEY }}
+        run: npm run macro
+
+      - name: Y a-t-il quelque chose à publier ?
+        id: diff
+        run: |
+          if git diff --quiet -- src/lib/calendar/events.generated.ts src/lib/macro/snapshot.generated.ts; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git --no-pager diff --stat -- src/lib/calendar/events.generated.ts src/lib/macro/snapshot.generated.ts
+          fi
+
+      # Le push ne déclenchant aucun workflow, la validation doit avoir lieu AVANT le commit.
+      - name: Vérifier le dépôt avec les nouvelles données
+        id: check
+        if: steps.diff.outputs.changed == 'true'
+        continue-on-error: true
+        run: npm run check
+
+      - name: Committer et publier
+        if: steps.diff.outputs.changed == 'true' && steps.check.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/lib/calendar/events.generated.ts src/lib/macro/snapshot.generated.ts
+          git commit -m "chore(market): refresh the US calendar and macro indicators"
+          git push
+          # La CI porte le déploiement sur Pages et n'est pas déclenchée par ce push.
+          gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+      - name: Garder le planning actif
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable market-data.yml --repo "$GITHUB_REPOSITORY" || true
+
+      - name: Ouvrir, commenter ou refermer l’issue des données de marché
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          CALENDAR: ${{ steps.calendar.outcome }}
+          MACRO: ${{ steps.macro.outcome }}
+          CHECK: ${{ steps.check.outcome }}
+          CHANGED: ${{ steps.diff.outputs.changed }}
+        with:
+          script: |
+            const title = '[données de marché] La régénération a échoué';
+            const label = 'données de marché';
+            const calendar = process.env.CALENDAR;
+            const macro = process.env.MACRO;
+            const check = process.env.CHECK;
+            const failed = calendar !== 'success' || macro !== 'success' || (check && check !== 'success');
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = [
+              `Exécution : ${runUrl}`,
+              `- Calendrier des publications : **${calendar}**`,
+              `- Indicateurs macro : **${macro}**`,
+              `- Vérification du dépôt (\`npm run check\`) : **${check || 'non lancée (rien à publier)'}**`,
+              `- Données modifiées : **${process.env.CHANGED || 'false'}**`,
+              '',
+              'Causes les plus probables, dans l’ordre :',
+              '',
+              '1. **La table du BLS s’épuise.** Elle est tenue à la main parce que `www.bls.gov`',
+              '   refuse les clients non-navigateurs. Rouvrez les quatre pages de calendrier dans',
+              '   un vrai navigateur et reportez les dates dans `src/lib/calendar/bls-schedule.ts`',
+              '   (les URL y sont), puis mettez `BLS_CHECKED_ON` à jour.',
+              '2. **Une série de la Fed a changé d’identifiant.** Le générateur macro échoue en la',
+              '   nommant ; `tests/fixtures/macro/fed-h41.csv` sert de référence pour comparer.',
+              '3. **La page du FOMC a changé de forme.** Même principe, fixture',
+              '   `tests/fixtures/calendar/fomccalendars.html`.',
+              '4. **Le flux du Trésor est indisponible.** Souvent passager : relancer suffit.',
+              '',
+              'Aucune donnée appauvrie n’a été publiée : les générateurs refusent d’écrire plutôt',
+              'que de laisser croire qu’il ne se passe rien.',
+            ].join('\n');
+            try {
+              await github.rest.issues.getLabel({ ...context.repo, name: label });
+            } catch {
+              await github.rest.issues.createLabel({ ...context.repo, name: label, color: '0e8a16', description: 'Calendrier et indicateurs macro' });
+            }
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label, per_page: 5 });
+            const existing = open.find((i) => i.title === title);
+            if (failed) {
+              if (existing) {
+                await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Toujours en échec.\n\n${body}` });
+              } else {
+                await github.rest.issues.create({ ...context.repo, title, labels: [label], body });
+              }
+              core.setFailed('Données de marché non régénérées : voir l’issue.');
+            } else if (existing) {
+              await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Rétabli.\n\n${body}` });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
+            }

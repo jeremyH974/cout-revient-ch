@@ -5,6 +5,8 @@ import { BTC_HOSTS } from '../import/onchain/btc';
 import { FLAVOR_LABELS } from '../import/onchain/etherscan';
 import { FEAR_GREED_ATTRIBUTION } from '../pricing/fear-greed';
 import { defaultPriceProviders } from '../pricing/providers/index';
+import { CALENDAR } from '../calendar/events.generated';
+import { MACRO } from '../macro/snapshot.generated';
 import { DATA_SOURCES, requiredAttributions, sourceEmitting } from './sources';
 
 /**
@@ -23,6 +25,12 @@ function namesEmittedByTheApp(): string[] {
     ...Object.values(FLAVOR_LABELS),
     ...BTC_HOSTS,
     FEAR_GREED_ATTRIBUTION,
+    // Sources du contexte de marché : l'app ne les contacte pas, ce sont les générateurs qui le
+    // font en CI — mais leurs données sont bien affichées, donc elles doivent être créditées.
+    // Les listes viennent des fichiers engendrés eux-mêmes : ajouter une source à un générateur
+    // fait grandir celle-ci, et fait échouer ce test tant qu'elle n'est pas au catalogue.
+    ...CALENDAR.sources.map((s) => s.source),
+    ...MACRO.sources.map((s) => s.source),
   ];
 }
 

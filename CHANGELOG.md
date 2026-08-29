@@ -7,6 +7,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Des indicateurs macroéconomiques**, en tête de l'écran « Contexte de marché » : réserves des
+  banques auprès de la Fed, taux réel et nominal à dix ans, pente de la courbe américaine — et le
+  prix du pétrole dès qu'une clé sera fournie.
+- **Aucun chiffre n'est affiché seul.** Chacun vient avec son **rang dans son propre passé**, sur
+  deux fenêtres : « 2,42 % » ne dit rien, « 96ᵉ percentile sur un an, 99ᵉ sur dix ans » dit tout.
+  Les deux fenêtres se contredisent parfois, et c'est justement ce qu'il faut voir : la pente de la
+  courbe est au 11ᵉ percentile sur un an mais au 50ᵉ sur dix ans.
+- **Les séries qui montent tendanciellement sont converties en variation avant d'être classées** —
+  sinon leur rang vaudrait 100 % en permanence. L'écran le dit sous la valeur (« variation sur
+  3 mois »), et chaque chiffre porte sa date d'observation.
+- **Le VIX n'y figure pas**, et ce n'est pas un oubli : les conditions de Cboe interdisent d'en
+  stocker l'historique, et son serveur refuse les appels directs depuis un navigateur. Aucune
+  source libre n'existe pour cet indice. La liquidité affichée est, elle, le chiffre **publié par
+  la Fed**, et non le calcul reconstitué à la main que l'on voit souvent — la différence est
+  expliquée à côté (`docs/DECISIONS.md` n° 59, `docs/macro.md`).
 - **Un écran « Contexte de marché »**, dans le menu « Plus » : le calendrier des publications
   américaines qui font bouger les marchés — décisions de la Fed, inflation CPI et PCE, emploi,
   PIB, prix à la production, postes vacants. Les heures sont converties dans votre fuseau, en

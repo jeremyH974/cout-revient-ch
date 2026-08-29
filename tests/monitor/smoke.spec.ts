@@ -51,3 +51,39 @@ test('manifeste, service worker et logos sont servis', async ({ request }) => {
   expect(icon.status()).toBe(200);
   expect(icon.headers()['content-type'] ?? '').toContain('svg');
 });
+
+test('le contexte de marché est servi, daté et sans requête sortante', async ({ page }) => {
+  /**
+   * Ce que cette surveillance attrape et qu'aucun test local ne peut voir : un instantané publié
+   * qui aurait vieilli — le cron en échec depuis des semaines, l'issue ignorée — et une éventuelle
+   * requête sortante que la CSP de production laisserait passer alors que l'écran promet de n'en
+   * faire aucune.
+   */
+  // Comparaison exacte à l'hôte surveillé, et non un `endsWith` : « evil-github.io » se termine
+  // lui aussi par « github.io », et laisserait passer une requête qu'on croit interdire.
+  const expectedHost = new URL(MONITOR_BASE_URL).hostname;
+  const external: string[] = [];
+  page.on('request', (request) => {
+    if (new URL(request.url()).hostname !== expectedHost) external.push(request.url());
+  });
+
+  await page.goto('#/market');
+  await expect(page.getByRole('heading', { name: 'Régime macroéconomique' })).toBeVisible();
+
+  const rows = page.locator('.regime .list li');
+  await expect(rows.first()).toBeVisible();
+  expect(await rows.count()).toBeGreaterThanOrEqual(4);
+
+  // Chaque indicateur porte au moins deux rangs : c'est la règle du module, vérifiée en ligne.
+  for (let index = 0; index < (await rows.count()); index += 1) {
+    expect(await rows.nth(index).locator('.rank').count()).toBeGreaterThanOrEqual(2);
+  }
+
+  // Aucun indicateur ne doit être signalé périmé : si le cron ne tourne plus, cela se voit ici.
+  await expect(rows.locator('.stale')).toHaveCount(0);
+
+  // Et le calendrier doit encore connaître des échéances à venir.
+  await expect(page.getByText('Prochaine publication :')).toBeVisible();
+
+  expect(external, 'l’écran de contexte ne doit contacter personne').toEqual([]);
+});

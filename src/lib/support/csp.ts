@@ -191,6 +191,16 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     use: 'link',
     why: 'Pages officielles du Bureau of Economic Analysis (inflation PCE, PIB).',
   },
+  {
+    origin: 'https://home.treasury.gov',
+    use: 'link',
+    why: 'Courbe des taux du Trésor américain, liée depuis chaque indicateur de taux. Le flux XML est lu par le générateur, en CI, jamais par le navigateur.',
+  },
+  {
+    origin: 'https://www.eia.gov',
+    use: 'link',
+    why: 'Prix spot du pétrole, crédité dans la table des sources. L’API est interrogée en CI, avec une clé qui ne quitte jamais les secrets du dépôt.',
+  },
 ];
 
 /** Origines autorisées par `connect-src`, dans l'ordre de la table. */

@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { CALENDAR, daysUntilIncomplete, groupByDay, splitAround } from '$lib/calendar';
+  import { CALENDAR, daysUntilIncomplete, groupByDay, localDay, splitAround } from '$lib/calendar';
   import type { MarketEvent } from '$lib/calendar';
   import { nowIso, nowMs } from '$lib/clock';
   import AppBar from '../components/layout/AppBar.svelte';
+  import MacroSection from '../components/market/MacroSection.svelte';
   import { app } from '../state/app.svelte';
 
   /**
@@ -69,6 +70,9 @@
     return withOrdinal.charAt(0).toUpperCase() + withOrdinal.slice(1);
   }
 
+  /** Jour local du lecteur : c'est lui qui décide si une donnée est « d'hier ». */
+  const localToday = $derived(localDay(nowIso(tick), timeZone));
+
   const zoneLabel = $derived(
     zoneFormat.formatToParts(new Date(tick)).find((p) => p.type === 'timeZoneName')?.value ?? '',
   );
@@ -116,6 +120,10 @@
       </p>
     {/if}
   </section>
+
+  <MacroSection today={localToday} />
+
+  <h2 class="section-title">Calendrier des publications</h2>
 
   <div class="controls">
     <label class="toggle">
@@ -244,6 +252,9 @@
   h2 {
     font-size: var(--fs-md);
     margin-bottom: var(--space-2);
+  }
+  .section-title {
+    margin-top: var(--space-2);
   }
   h3 {
     font-size: var(--fs-sm);

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { CALENDAR, splitAround } from '../../src/lib/calendar';
+import { MACRO, orderedIndicators } from '../../src/lib/macro';
 import { stubNetwork } from './helpers/network';
 
 /**
@@ -70,4 +71,44 @@ test('annonce jusqu’où il sait, sans laisser croire qu’il sait au-delà', a
   );
   await expect(page.getByText(new RegExp(`Complet jusqu.au ${complete}`))).toBeVisible();
   await expect(page.getByText('« Majeure » est un choix de rédaction')).toBeVisible();
+});
+
+test('affiche chaque indicateur macro avec son rang, jamais une valeur seule', async ({ page }) => {
+  await page.goto('#/market');
+  const rows = page.locator('.regime .list li');
+  await expect(rows).toHaveCount(MACRO.indicators.length);
+
+  // La règle qui fonde tout le module : aucune valeur ne s'affiche sans son rang historique, et
+  // deux fenêtres au moins, parce qu'un percentile n'existe que relativement à la sienne.
+  for (const [index, indicator] of orderedIndicators().entries()) {
+    const row = rows.nth(index);
+    await expect(row.getByRole('heading', { level: 3 })).toHaveText(indicator.label);
+    const ranks = row.locator('.rank');
+    await expect(ranks).toHaveCount(indicator.ranks.length);
+    expect(indicator.ranks.length).toBeGreaterThanOrEqual(2);
+    for (const [i, rank] of indicator.ranks.entries()) {
+      await expect(ranks.nth(i)).toContainText(`${Math.round(rank.percentile)}`);
+    }
+    // Et jamais sans sa date d'observation.
+    await expect(row).toContainText('Au ');
+  }
+});
+
+test('dit ce qu’il a fait à une série avant de la classer', async ({ page }) => {
+  await page.goto('#/market');
+  const reserves = page.locator('.regime .list li', { hasText: 'Réserves bancaires' });
+  await expect(reserves).toContainText('variation sur 3 mois');
+  // La réserve sur la « liquidité nette » est affichée, pas cachée dans le code.
+  await expect(reserves).toContainText('n’est pas une statistique officielle');
+});
+
+test('les indicateurs macro non plus ne contactent personne', async ({ page }) => {
+  const external: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') external.push(request.url());
+  });
+  await page.goto('#/market');
+  await expect(page.getByRole('heading', { name: 'Régime macroéconomique' })).toBeVisible();
+  expect(external).toEqual([]);
 });
