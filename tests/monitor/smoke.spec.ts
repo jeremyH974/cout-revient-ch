@@ -59,10 +59,12 @@ test('le contexte de marché est servi, daté et sans requête sortante', async 
    * requête sortante que la CSP de production laisserait passer alors que l'écran promet de n'en
    * faire aucune.
    */
+  // Comparaison exacte à l'hôte surveillé, et non un `endsWith` : « evil-github.io » se termine
+  // lui aussi par « github.io », et laisserait passer une requête qu'on croit interdire.
+  const expectedHost = new URL(MONITOR_BASE_URL).hostname;
   const external: string[] = [];
   page.on('request', (request) => {
-    const host = new URL(request.url()).hostname;
-    if (!host.endsWith('github.io')) external.push(request.url());
+    if (new URL(request.url()).hostname !== expectedHost) external.push(request.url());
   });
 
   await page.goto('#/market');
