@@ -131,6 +131,11 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
     expect(migrated.dropped, 'aucune entrée de la fixture v1 ne doit être écartée').toBe(0);
     const expected: StoredStateV1 = {
       ...envelope.state,
+      // Conteneur ajouté APRÈS le gel de la fixture (P68, doublons candidats). C'est le chemin
+      // additif que la politique de `docs/backup-format.md` autorise sans montée de schéma : le
+      // fichier ancien se relit toujours, il gagne un conteneur vide. La fixture, elle, ne bouge
+      // pas — seul l'attendu constate l'ajout, et c'est exactement ce que ce test doit exiger.
+      duplicateOverrides: {},
       priceCache: {
         ...envelope.state.priceCache,
         btc: { ...envelope.state.priceCache['btc']!, stale: true },
