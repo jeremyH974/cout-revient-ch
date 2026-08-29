@@ -137,7 +137,7 @@ test('export sans chiffres calculés : refus nommé, et le repli proposé', asyn
     'export-transactions.csv',
     'Blockpit-ID,Timestamp,Transaction Type,Incoming Asset,Outgoing Asset\ndemo-1,15.03.2026 10:00:00,Trade,BTC,EUR\n',
   );
-  await expect(page.getByText('Aucun chiffre calculé')).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Aucun chiffre calculé/ })).toBeVisible();
   await expect(page.getByText('le calcul de ce moteur sur leurs données')).toBeVisible();
   await page.getByRole('link', { name: 'Aller à l’écran Importer' }).click();
   await expect(page).toHaveURL(/#\/invest\/import$/);

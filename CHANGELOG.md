@@ -7,6 +7,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Réconciliation** : un écran qui ne dit plus « quelque chose ne va pas » mais **quoi corriger,
+  dans quel ordre, et comment**. Lignes à qualifier, actifs sans cours, soldes qui ne tombent pas
+  juste, virements sans contrepartie, entrées sans coût d'acquisition, doublons candidats, comptes
+  sans pays : chaque anomalie porte sa preuve — les lignes brutes concernées — et un bouton d'action.
+  Un doublon n'est signalé que s'il vient de deux sources ou de deux comptes différents : deux achats
+  identiques le même jour sur le même compte sont un investissement programmé, pas une erreur
+  (`docs/reconciliation.md`, `docs/DECISIONS.md` n° 65).
+- **Second avis** : votre export Waltio se compare à ce moteur, ligne à ligne sur l'annexe 2086. Un
+  écart n'est présenté comme « à examiner » que sur une grandeur qui **ne dépend d'aucune méthode de
+  calcul** ; partout ailleurs, l'app énonce les deux nombres et dit que les deux peuvent être justes.
+  Aucun classement d'outils, aucune comparaison de prix, et les mots « erreur » ou « se trompe »
+  n'existent pas — un test le vérifie. Le fichier comparé n'entre jamais dans votre portefeuille
+  (`docs/second-avis.md`, `docs/DECISIONS.md` n° 67).
+- **Vos données restent les vôtres, et c'est vérifié** : le format de sauvegarde est documenté
+  champ par champ, sa politique de version est écrite, et une sauvegarde ancienne se relit toujours.
+  L'export portable est prouvé **sans aucune perte** par un test qui exporte puis réimporte des
+  milliers d'historiques tirés au hasard. Ce qu'il ne sait pas porter est annoncé **avant** le
+  téléchargement, compté sur vos propres données (`docs/backup-format.md`, `docs/DECISIONS.md` n° 66).
+
 - **« Pourquoi ce chiffre ? »** : un PRU, un latent, un réalisé, des frais ou une valeur se
   cliquent, et l'app montre **d'où le montant vient** — les lignes brutes qui l'ont produit avec
   leur numéro, la jambe contrepartie réellement retenue, les lots consommés, le cours utilisé avec
