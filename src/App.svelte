@@ -26,6 +26,7 @@
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
   import Report from './routes/invest/Report.svelte';
+  import SecondOpinion from './routes/invest/SecondOpinion.svelte';
   import { recordError } from '$lib/support/errors';
   import SupportSection from './components/settings/SupportSection.svelte';
   import { app } from './state/app.svelte';
@@ -156,6 +157,8 @@
         <Help />
       {:else if route.name === 'report'}
         <Report />
+      {:else if route.name === 'secondOpinion'}
+        <SecondOpinion />
       {:else if route.name === 'news'}
         <News />
       {:else}

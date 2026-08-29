@@ -1,0 +1,2 @@
+Blockpit-ID,Timestamp,Source Type,Source Name,Integration,Transaction Type,Incoming Asset,Incoming Amount,Outgoing Asset,Outgoing Amount,Fee Asset,Fee Amount,Transaction ID,Note,Merge ID
+demo-1,15.03.2026 10:00:00,Wallet,Demo Wallet,Manual,Trade,BTC,0.1,EUR,3000,EUR,10,,Ligne de demonstration,

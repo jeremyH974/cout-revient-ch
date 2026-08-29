@@ -10,6 +10,7 @@
   import { riskMetrics } from '$lib/domain/risk';
   import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
+  import { router } from '$lib/router.svelte';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import InsightList from '../../components/shared/InsightList.svelte';
@@ -170,6 +171,12 @@
     <button class="secondary" type="button" onclick={downloadCessions}>
       Cessions au format 2086 (CSV)
     </button>
+    <!-- Second avis (P62) : l'annexe 2086 est le seul terrain où la méthode est imposée par la
+         loi des deux côtés — c'est donc ici, à côté de nos propres cessions, que la comparaison
+         avec l'annexe d'un autre outil a un sens. -->
+    <a class="secondary" href={router.href({ name: 'secondOpinion' })}>
+      Comparer à une annexe 2086 d’un autre outil
+    </a>
   {/if}
   {#if model.declarations}
     <button class="secondary" type="button" onclick={downloadDeclarations}>

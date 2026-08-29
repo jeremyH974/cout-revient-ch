@@ -7,6 +7,7 @@ export type Route =
   | { name: 'import' }
   | { name: 'add' }
   | { name: 'report' }
+  | { name: 'secondOpinion' }
   | { name: 'alerts' }
   | { name: 'trading' }
   | { name: 'trades' }
@@ -64,6 +65,8 @@ function parseInvest(sub: string | undefined, arg: string | undefined): Route {
       return { name: 'add' };
     case 'report':
       return { name: 'report' };
+    case 'second-opinion':
+      return { name: 'secondOpinion' };
     case 'alerts':
       return { name: 'alerts' };
     default:
@@ -138,6 +141,8 @@ export function toHash(route: Route): string {
       return '#/invest/add';
     case 'report':
       return '#/invest/report';
+    case 'secondOpinion':
+      return '#/invest/second-opinion';
     case 'alerts':
       return '#/invest/alerts';
     case 'trades':
