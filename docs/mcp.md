@@ -2,6 +2,8 @@
 
 > Livré le 26/08/2026 — décision de conception : [`docs/DECISIONS.md`](DECISIONS.md) n° 48.
 > Chiffré dans [`proposals/2026-08-push-et-mcp.md`](proposals/2026-08-push-et-mcp.md) (option B).
+> Installation sans compilation (P63a, 29/08/2026) : actif de release GitHub + une commande. Même
+> arbitrage que la décision n° 13 : aucun paquet publié, aucune dépendance ajoutée.
 
 ## Ce que ça fait
 
@@ -16,22 +18,73 @@ ce soit d'autre.
 
 ## Mise en route
 
+**Installer en deux étapes (Claude Code)**
+
+1. Téléchargez `server.js` depuis la
+   [dernière version publiée](https://github.com/jeremyH974/cout-revient-ch/releases/latest) — il
+   arrive dans _Téléchargements_. (Lien direct, toujours à jour :
+   `https://github.com/jeremyH974/cout-revient-ch/releases/latest/download/server.js`.)
+2. Ouvrez le terminal (PowerShell sur Windows) et collez :
+   - **Windows** :
+     ```powershell
+     claude mcp add --scope user cout-revient -- node "$env:USERPROFILE\Downloads\server.js"
+     ```
+   - **macOS** :
+     ```bash
+     claude mcp add --scope user cout-revient -- node ~/Downloads/server.js
+     ```
+
+Rien d'autre à taper : si votre sauvegarde (**Réglages → Télécharger une sauvegarde**) est aussi
+dans _Téléchargements_, le serveur la trouve seul — c'est le fichier
+`cout-revient-ch-sauvegarde.json` qu'il y cherche par défaut. Sinon, ajoutez son chemin en
+troisième mot de la commande — glissez le fichier dans le terminal pour l'insérer sans le taper.
+
+Vous utilisez la **sauvegarde automatique** (Réglages, dossier réécrit à chaque modification) ?
+Pointez-la vers _Téléchargements_ et le serveur suit l'app sans qu'aucune commande ne soit
+retapée. Le chemin peut aussi être fixé une fois pour toutes par la variable d'environnement
+`CRCH_BACKUP` — utile si la sauvegarde vit ailleurs.
+
+**Désinstaller** : `claude mcp remove cout-revient`, puis supprimez `server.js`.
+
+**Claude Desktop** (sans terminal) : Réglages → Développeur → Modifier la configuration, collez le
+bloc `mcpServers` ci-dessous, remplacez le chemin de `server.js` par le vôtre, enregistrez,
+redémarrez.
+
+```json
+{
+  "mcpServers": {
+    "cout-revient": {
+      "command": "node",
+      "args": ["C:\\chemin\\vers\\server.js"]
+    }
+  }
+}
+```
+
+Si votre sauvegarde n'est pas dans _Téléchargements_, ajoutez son chemin comme second élément
+d'`args`.
+
+### Vérifier ce que vous avez téléchargé (facultatif)
+
+Chaque publication liste aussi `SHA256SUMS.txt` à côté de `server.js` : il permet de confirmer,
+octet pour octet, que le fichier reçu est bien celui construit par la CI du dépôt. Honnêtement :
+presque personne ne fait cette vérification, et elle n'est pas nécessaire pour utiliser le
+serveur — elle existe pour qui veut auditer, pas comme une étape attendue de tout le monde.
+
+- **Windows (PowerShell)** : `Get-FileHash server.js -Algorithm SHA256`, à comparer à la ligne
+  correspondante de `SHA256SUMS.txt`.
+- **macOS** : les deux fichiers dans le même dossier, puis `shasum -a 256 -c SHA256SUMS.txt`.
+
+### Depuis les sources
+
+Pour construire `server.js` vous-même plutôt que de télécharger celui de la release (auditer le
+code avant de l'exécuter, ou tester une modification locale) :
+
 ```bash
+npm ci
 npm run mcp:build
+claude mcp add --scope user cout-revient -- node ./mcp/dist/server.js
 ```
-
-Puis déclarez le serveur dans votre client. Pour Claude Code :
-
-```bash
-claude mcp add cout-revient -- node /chemin/vers/cout-revient-ch/mcp/dist/server.js /chemin/vers/sauvegarde.json
-```
-
-La sauvegarde est celle que produit l'app : **Réglages → Télécharger une sauvegarde**, ou mieux, le
-dossier de **sauvegarde automatique** (Chrome et Edge sur ordinateur), réécrit à chaque
-modification — le serveur relit le fichier à chaque question, vos réponses suivent donc l'app sans
-rien relancer.
-
-Le chemin peut aussi passer par la variable d'environnement `CRCH_BACKUP`.
 
 ## Les outils
 
@@ -90,6 +143,15 @@ un fichier autonome avec Vite — déjà une dépendance du projet.
 `2024-11-05`. Si un client demande une version inconnue, le serveur répond la sienne et laisse le
 client décider — c'est la règle de négociation de la spécification.
 
+**Publication automatisée** (`.github/workflows/mcp-release.yml`) : à chaque release GitHub
+publiée (ou à la demande), le workflow construit `server.js`, fait rejouer l'épreuve de bout en
+bout — **porte bloquante**, rien n'est publié si elle échoue — puis attache `server.js` et
+`SHA256SUMS.txt` à la release. Nom d'actif **fixe**, jamais versionné : c'est ce qui garde
+`/releases/latest/download/server.js` comme lien permanent. Une attestation de provenance
+signée (Sigstore, `actions/attest-build-provenance`) relie le fichier publié à ce run précis, à ce
+commit et à ce workflow — vérifiable avec `gh attestation verify server.js --owner jeremyH974`
+par qui veut auditer la chaîne complète, pas une étape attendue de l'utilisateur courant.
+
 ## Ce que ça ne fait pas
 
 Pas de cours frais (aucun réseau), pas de repère « mêmes apports en BTC » ni de mesures de risque
@@ -101,7 +163,16 @@ fiscale (même raison), et aucune écriture. Pour tout cela, l'app reste la réf
 - `mcp/tools.test.ts` — chaque outil est en lecture seule et publie un schéma exploitable ; chaque
   réponse porte sa provenance ; les totaux sont ceux du moteur ; un actif inconnu, une quantité hors
   position et un barème de frais inventé produisent une erreur d'outil explicite plutôt qu'un
-  résultat approximatif.
-- Épreuve de bout en bout (poignée de main réelle sur stdio) : négociation de version, `tools/list`,
-  `tools/call` avec contenu structuré, outil inconnu en erreur de protocole, repli sur version
-  inconnue, et `stdout` ne contenant que des messages MCP.
+  résultat approximatif. Des appels de fonction en mémoire : aucun processus, `server.ts` n'est
+  jamais importé.
+- `mcp/server.test.ts` — l'épreuve de bout en bout que le paragraphe ci-dessus promettait : un
+  **vrai** processus `node mcp/dist/server.js`, une **vraie** poignée de main JSON-RPC sur stdio.
+  Négociation de version connue et repli sur une version inconnue ; `tools/list` rend les 7 outils,
+  tous annotés `readOnlyHint` ; `tools/call` rend du contenu texte ET structuré, recoupé avec les
+  totaux du moteur rejoué hors processus ; un outil **inconnu** produit une erreur de PROTOCOLE
+  (JSON-RPC), tandis qu'un argument invalide sur un outil **connu** reste un résultat (`isError`) —
+  deux chemins distincts, tous deux vérifiés ; et chaque ligne vue sur `stdout`, du début à la fin
+  de l'échange, est un message JSON-RPC valide et rien d'autre.
+- Ce test est une **porte bloquante** à deux endroits : avant `npm test` en CI (`ci.yml`, qui
+  construit `mcp/dist/server.js` juste avant) et avant toute publication d'actif
+  (`mcp-release.yml`) — un serveur qui ne répond pas correctement ne peut pas être publié.
