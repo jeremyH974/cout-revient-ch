@@ -36,11 +36,16 @@ import {
  * Les routes ne calculent rien : elles lisent `app.report`.
  */
 import {
+  coinhouseTraceRow,
   computePortfolio,
   computePortfolioByAccount,
+  pivotTraceRow,
+  traceMetric,
   type PortfolioReport,
   type PositionReport,
   type PriceQuoteInput,
+  type Trace,
+  type TraceTarget,
 } from '$lib/domain/engine';
 import { computeDeclarations, type DeclarationReport } from '$lib/domain/declarations-fr';
 import { buildInsights, type Insight } from '$lib/domain/insights';
@@ -1373,6 +1378,42 @@ export class AppState {
     if (q) next[eventId] = q;
     else delete next[eventId];
     this.state.qualifications = next;
+  }
+
+  /**
+   * Rapport **en euros**, quelle que soit la devise d'affichage : socle de la traçabilité (P61).
+   * Une trace convertie ajouterait un arrondi par niveau et cesserait de boucler ; c'est le même
+   * choix que les montants fiscaux (docs/DECISIONS.md n° 43). En euros, c'est le rapport affiché.
+   */
+  eurReport = $derived.by((): PortfolioReport =>
+    this.currency === 'EUR'
+      ? this.report
+      : computePortfolio({
+          events: this.events,
+          prices: this.quotes,
+          settings: this.state.engineSettings,
+          balances: balanceRecords(Object.values(this.state.rawRows)),
+        }),
+  );
+
+  /**
+   * « Pourquoi ce chiffre ? » — la chaîne complète d'un montant affiché, jusqu'aux lignes brutes.
+   * L'accesseur de lignes couvre les DEUX magasins (export Coinhouse et format pivot) : sans cela,
+   * la moitié des utilisateurs ne verraient que des trous.
+   */
+  trace(target: TraceTarget): Trace {
+    return traceMetric({
+      report: this.eurReport,
+      target,
+      settings: this.state.engineSettings,
+      events: this.events,
+      row: (key) => {
+        const raw = this.state.rawRows[key];
+        if (raw) return coinhouseTraceRow(raw);
+        const pivot = this.state.pivotRows[key];
+        return pivot ? pivotTraceRow(pivot) : null;
+      },
+    });
   }
 
   /** Numéros de ligne (fichier importé) des lignes brutes d'un événement, triés. */

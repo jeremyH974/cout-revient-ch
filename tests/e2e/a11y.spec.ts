@@ -71,6 +71,27 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
    * identifiant : il ne peut pas figurer dans la liste ci-dessus, et il était le seul écran à
    * n'être jamais passé sous axe.
    */
+  /**
+   * La feuille « Pourquoi ce chiffre ? » (P61) est un arbre dépliable ouvert dans un `<dialog>` :
+   * la structure la plus riche de l'application en attributs implicites (disclosure, `<dl>`,
+   * piège de focus). Elle ne peut pas figurer dans la liste ci-dessus — il faut la déplier.
+   */
+  test('avec la démo : la feuille « Pourquoi ce chiffre ? », entièrement dépliée', async ({
+    page,
+  }) => {
+    await openDemo(page);
+    await page.goto('#/invest/asset/btc');
+    await page
+      .locator('header.hero')
+      .getByRole('button', { name: /pourquoi ce chiffre/ })
+      .first()
+      .click();
+    const sheet = page.getByRole('dialog');
+    await expect(sheet).toBeVisible();
+    await sheet.getByRole('button', { name: 'Tout déplier' }).click();
+    await expectNoViolations(page, 'feuille « Pourquoi ce chiffre ? »');
+  });
+
   test('avec la démo : #/trading/trade/<id> (détail et journal)', async ({ page }) => {
     await openDemo(page);
     await page.goto('#/trading/trades');

@@ -3,8 +3,8 @@
  * lots par acquisition consommés au prorata, compteurs réalisé / investi / produits.
  */
 import { D, ZERO, isPositive, isZero, type Big } from '../money';
-import type { AccountId, AssetCode, EventId, NaiveDateTime, QuotePrice } from '../types';
-import type { BlockedInfo, HistoryEntry, HistoryKind, LotOrigin } from './report';
+import type { AccountId, AssetCode, EventId, NaiveDateTime, QuotePrice, RowKey } from '../types';
+import type { BlockedInfo, HistoryEntry, HistoryKind, LotConsumption, LotOrigin } from './report';
 
 export interface Lot {
   id: string;
@@ -20,6 +20,8 @@ export interface Lot {
 
 export interface Movement {
   eventId: EventId;
+  /** Lignes brutes de l'événement : recopiées telles quelles dans l'historique. */
+  rowKeys: readonly RowKey[];
   accountId: AccountId;
   at: NaiveDateTime;
   kind: HistoryKind;
@@ -98,6 +100,7 @@ export class PositionState {
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
     this.history.push({
       eventId: m.eventId,
+      rowKeys: m.rowKeys,
       accountId: m.accountId,
       at: m.at,
       kind: m.kind,
@@ -109,6 +112,7 @@ export class PositionState {
       feeEur: m.feeEur,
       rebateEur: m.rebateEur,
       realized: null,
+      lotsConsumed: [],
       pruAfter: this.pru,
       qtyAfter: this.qty,
       warnings: m.warnings,
@@ -146,6 +150,7 @@ export class PositionState {
         this.blocked = { eventId: m.eventId, at: m.at, deficit: excess };
         this.history.push({
           eventId: m.eventId,
+          rowKeys: m.rowKeys,
           accountId: m.accountId,
           at: m.at,
           kind: m.kind,
@@ -157,6 +162,7 @@ export class PositionState {
           feeEur: m.feeEur,
           rebateEur: m.rebateEur,
           realized: null,
+          lotsConsumed: [],
           pruAfter: this.pru,
           qtyAfter: this.qty,
           warnings: [...warnings, 'Opération bloquée : historique d’achat manquant.'],
@@ -170,14 +176,27 @@ export class PositionState {
     const fullClose = qty.eq(this.qty);
     const costOfSale = fullClose ? this.costBasis : this.costBasis.times(qty).div(this.qty);
     const fraction = fullClose ? null : qty.div(this.qty);
+    // La part prise à chaque lot est déjà calculée ici : la consigner ne coûte rien et c'est la
+    // seule façon de répondre plus tard à « quels achats ont payé cette vente ? ».
+    const lotsConsumed: LotConsumption[] = [];
     for (const lot of this.lots) {
       if (!isPositive(lot.qtyRemaining)) continue;
+      const takenQty = fraction === null ? lot.qtyRemaining : lot.qtyRemaining.times(fraction);
+      const takenCost = fraction === null ? lot.costRemaining : lot.costRemaining.times(fraction);
+      lotsConsumed.push({
+        lotId: lot.id,
+        eventId: lot.eventId,
+        openedAt: lot.openedAt,
+        origin: lot.origin,
+        qty: takenQty,
+        cost: takenCost,
+      });
       if (fraction === null) {
         lot.qtyRemaining = ZERO;
         lot.costRemaining = ZERO;
       } else {
-        lot.qtyRemaining = lot.qtyRemaining.minus(lot.qtyRemaining.times(fraction));
-        lot.costRemaining = lot.costRemaining.minus(lot.costRemaining.times(fraction));
+        lot.qtyRemaining = lot.qtyRemaining.minus(takenQty);
+        lot.costRemaining = lot.costRemaining.minus(takenCost);
       }
     }
     const realized = proceeds.minus(costOfSale);
@@ -192,6 +211,7 @@ export class PositionState {
     this.rebatesEur = this.rebatesEur.plus(m.rebateEur);
     this.history.push({
       eventId: m.eventId,
+      rowKeys: m.rowKeys,
       accountId: m.accountId,
       at: m.at,
       kind: m.kind,
@@ -203,6 +223,7 @@ export class PositionState {
       feeEur: m.feeEur,
       rebateEur: m.rebateEur,
       realized,
+      lotsConsumed,
       pruAfter: this.pru,
       qtyAfter: this.qty,
       warnings,
