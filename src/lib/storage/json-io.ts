@@ -101,6 +101,7 @@ export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): St
     manualEvents: { ...incoming.manualEvents, ...current.manualEvents },
     qualifications: { ...incoming.qualifications, ...current.qualifications },
     transferOverrides: { ...incoming.transferOverrides, ...current.transferOverrides },
+    duplicateOverrides: { ...incoming.duplicateOverrides, ...current.duplicateOverrides },
     taxAnnotations: { ...incoming.taxAnnotations, ...current.taxAnnotations },
     assetSettings: { ...incoming.assetSettings, ...current.assetSettings },
     accounts: { ...incoming.accounts, ...current.accounts },

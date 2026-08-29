@@ -23,6 +23,7 @@ import {
 } from '../domain/types';
 import type { PivotAmount } from '../domain/types';
 import type { TransferOverride } from '../domain/transfers';
+import type { DuplicateReview } from '../domain/reconciliation';
 
 export const SCHEMA_VERSION = 1 as const;
 export const APP_ID = 'cout-revient-ch';
@@ -129,6 +130,12 @@ export interface StoredStateV1 {
   qualifications: Record<EventId, Qualification>;
   /** Corrections d'appariement de virements : id de retrait → id de dépôt imposé ou « none ». */
   transferOverrides: Record<EventId, TransferOverride>;
+  /**
+   * Doublons candidats déjà tranchés par l'utilisateur (P68), clé `duplicatePairKey(a, b)` → statut.
+   * Même forme que `transferOverrides` : un item confirmé ou écarté n'est plus reproposé, mais rien
+   * n'est jamais supprimé automatiquement des données (voir `src/lib/domain/reconciliation.ts`).
+   */
+  duplicateOverrides: Record<string, DuplicateReview>;
   /** Réservé au futur mode fiscal (valeur globale du portefeuille au jour de chaque cession). */
   taxAnnotations: Record<EventId, { portfolioValueEur: DecimalString | null }>;
   assetSettings: Record<AssetCode, AssetSettings>;
@@ -178,6 +185,7 @@ export function emptyState(): StoredStateV1 {
     manualEvents: {},
     qualifications: {},
     transferOverrides: {},
+    duplicateOverrides: {},
     taxAnnotations: {},
     assetSettings: {},
     accounts: {},
@@ -217,6 +225,7 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
     ui: { ...empty.ui, ...(isRecord(state.ui) ? state.ui : {}) },
     pivotRows: isRecord(state.pivotRows) ? state.pivotRows : {},
     transferOverrides: isRecord(state.transferOverrides) ? state.transferOverrides : {},
+    duplicateOverrides: isRecord(state.duplicateOverrides) ? state.duplicateOverrides : {},
     taxAnnotations: isRecord(state.taxAnnotations) ? state.taxAnnotations : {},
     assetSettings: isRecord(state.assetSettings) ? state.assetSettings : {},
     accounts: isRecord(state.accounts) ? state.accounts : {},
@@ -330,6 +339,9 @@ function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
 }
 
 const EVENT_ID = /^[A-Za-z0-9:._#+-]{1,200}$/;
+/** `duplicatePairKey(a, b)` : deux identifiants d'événement au format `EVENT_ID`, joints par `~`. */
+const DUPLICATE_PAIR_KEY = /^[A-Za-z0-9:._#+-]{1,200}~[A-Za-z0-9:._#+-]{1,200}$/;
+const DUPLICATE_REVIEWS = new Set(['confirmed', 'dismissed']);
 
 function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
   if (!isRecord(raw)) return null;
@@ -633,6 +645,12 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       transferOverrides[id] = raw;
     else dropped++;
   }
+  const duplicateOverrides: Record<string, DuplicateReview> = {};
+  for (const [key, raw] of Object.entries(state.duplicateOverrides)) {
+    if (DUPLICATE_PAIR_KEY.test(key) && typeof raw === 'string' && DUPLICATE_REVIEWS.has(raw))
+      duplicateOverrides[key] = raw as DuplicateReview;
+    else dropped++;
+  }
   const priceCache: Record<AssetCode, PriceQuoteInput> = {};
   for (const [asset, raw] of Object.entries(state.priceCache)) {
     if (isRecord(raw) && isDecimal(raw['priceEur']) && typeof raw['at'] === 'string') {
@@ -784,6 +802,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       manualEvents,
       qualifications,
       transferOverrides,
+      duplicateOverrides,
       taxAnnotations,
       priceCache,
       assetSettings,

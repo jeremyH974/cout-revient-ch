@@ -24,6 +24,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/import',
     '#/add',
     '#/accounts',
+    '#/reconciliation',
     '#/help',
     '#/privacy',
     '#/settings',
@@ -54,6 +55,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/trading/fills',
     '#/more',
     '#/accounts',
+    '#/reconciliation',
     '#/invest/asset/btc',
     '#/invest/alerts',
   ]) {
