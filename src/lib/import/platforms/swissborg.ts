@@ -100,6 +100,9 @@ interface SbRow {
 export const swissborg: PlatformConverter = {
   id: 'swissborg',
   label: 'SwissBorg — relevé de compte',
+  // SwissBorg SA, Lausanne (Suisse) : entité unique, hors UE — organisme étranger sans ambiguïté
+  // au sens de l'art. 1649 bis C (P66, docs/declarations-fr.md).
+  country: 'CH',
   detect(header) {
     const canonical = header.map(canonHeader);
     if (!FIXED_REQUIRED.every((n) => canonical.includes(n))) return false;

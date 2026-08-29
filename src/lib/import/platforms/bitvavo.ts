@@ -26,6 +26,9 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 export const bitvavo: PlatformConverter = {
   id: 'bitvavo',
   label: 'Bitvavo — historique de transactions',
+  // Bitvavo B.V., Amsterdam (Pays-Bas) : entité unique, agréée MiCA aux Pays-Bas — organisme
+  // étranger au sens de l'art. 1649 bis C malgré le passeport européen (P66, docs/declarations-fr.md).
+  country: 'NL',
   detect(header) {
     const canonical = header.map(canonHeader);
     return REQUIRED_DETECT.every((name) => canonical.includes(name));

@@ -184,6 +184,47 @@ describe('comptes', () => {
     expect(result.dropped).toBe(4);
   });
 
+  it('sanitizeState : Account.country (P66) — code ISO valide conservé, invalide écarté, compte jamais perdu', () => {
+    const accounts = {
+      'csv:nl': { kind: 'csv', label: 'Bitvavo', space: 'invest', createdAt: '', country: 'NL' },
+      'csv:bad': { kind: 'csv', label: 'Bogus', space: 'invest', createdAt: '', country: 'nl' },
+      'csv:num': { kind: 'csv', label: 'Bogus 2', space: 'invest', createdAt: '', country: 42 },
+    };
+    const state: StoredStateV1 = {
+      ...emptyState(),
+      accounts: accounts as unknown as Record<AccountId, Account>,
+    };
+    const result = sanitizeState(state);
+    // Un code ISO invalide n'invalide jamais le COMPTE entier : il retombe seulement à `unknown`.
+    expect(Object.keys(result.state.accounts).sort()).toEqual(['csv:bad', 'csv:nl', 'csv:num']);
+    expect(result.state.accounts['csv:nl']!.country).toBe('NL');
+    expect(result.state.accounts['csv:bad']!.country).toBeUndefined();
+    expect(result.state.accounts['csv:num']!.country).toBeUndefined();
+  });
+
+  it('sanitizeState : une sauvegarde écrite AVANT P66 (compte sans `country`) se recharge sans perte', () => {
+    // Exactement la forme d'une sauvegarde antérieure : le champ `country` n'existe tout simplement
+    // pas sur l'objet sérialisé (pas même `undefined`) — c'est la donnée réelle de l'utilisateur,
+    // une régression ici est inacceptable.
+    const legacyAccount = {
+      kind: 'csv',
+      label: 'Kraken',
+      space: 'invest',
+      createdAt: '2026-01-01T10:00:00Z',
+    };
+    expect('country' in legacyAccount).toBe(false);
+    const state: StoredStateV1 = {
+      ...emptyState(),
+      accounts: { 'csv:legacy': legacyAccount } as unknown as Record<AccountId, Account>,
+    };
+    const result = sanitizeState(state);
+    const restored = result.state.accounts['csv:legacy'];
+    expect(restored).toBeDefined();
+    expect(restored?.label).toBe('Kraken');
+    expect(restored?.country).toBeUndefined();
+    expect(result.dropped).toBe(0);
+  });
+
   it("sanitizeState : ManualEvent.accountId conservé seulement s'il respecte le format id de compte", () => {
     const manual = (accountId?: unknown) => ({
       kind: 'buy',

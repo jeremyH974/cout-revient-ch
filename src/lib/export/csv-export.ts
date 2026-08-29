@@ -2,10 +2,12 @@
  * Exports tableur : `;` + BOM UTF-8 + virgule décimale (s'ouvrent directement dans Excel FR).
  * Colonnes documentées dans docs/exports.md ; montants dans la devise d'affichage.
  */
+import { concernedDeclarations, type DeclarationReport } from '../domain/declarations-fr';
 import type { HistoryEntry, PortfolioReport, PositionReport } from '../domain/engine';
 import { COINHOUSE_ACCOUNT_ID, MANUAL_ACCOUNT_ID, type AccountId } from '../domain/types';
 import { D, type Big } from '../domain/money';
 import type { TaxLedger } from '../domain/tax-fr';
+import { countryName, STATUS_LABELS } from '../format/declarations-fr';
 import { roundHalfUp } from '../format/fr';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
 import type { MetricPoint } from '../history/metrics';
@@ -265,6 +267,32 @@ export function cessionsToCsv(ledger: TaxLedger, year?: number): string {
     c.gainEur === null ? text('—') : num(D(c.gainEur)),
     // Une cession sans valeur globale ne peut pas être chiffrée : la colonne le dit, ligne par ligne.
     text(c.gainEur === null ? 'non — valeur du portefeuille inconnue ce jour-là' : 'oui'),
+  ]);
+  return file(header, rows);
+}
+
+/**
+ * Comptes à déclarer au formulaire **3916-bis** (P66) : une ligne par compte CONCERNÉ, c'est-à-dire
+ * tout sauf ceux hors périmètre France d'office (Coinhouse, compte au pays `'FR'`). **Aide au
+ * report, pas une déclaration** : à vérifier avec un professionnel avant tout report.
+ */
+export function accountDeclarationsToCsv(declarations: DeclarationReport): string {
+  const header = [
+    'Compte',
+    'Statut',
+    'Pays de l’organisme',
+    'Utilisé dans l’année',
+    'Détenu actuellement',
+    'Peut-être clos dans l’année',
+  ];
+  const yesNo = (value: boolean): string => text(value ? 'oui' : 'non');
+  const rows = concernedDeclarations(declarations).map((a) => [
+    text(a.label),
+    text(STATUS_LABELS[a.status]),
+    text(a.country ? countryName(a.country) : 'inconnu'),
+    yesNo(a.usedInYear),
+    yesNo(a.currentlyHolds),
+    yesNo(a.possiblyClosedInYear),
   ]);
   return file(header, rows);
 }

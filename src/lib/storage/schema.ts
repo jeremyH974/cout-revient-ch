@@ -522,6 +522,8 @@ function sanitizeAlertEvent(raw: unknown): AlertEvent | null {
 const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv', 'onchain']);
 const ONCHAIN_CHAINS = new Set(['btc', 'eth', 'arbitrum', 'base']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
+/** ISO 3166-1 alpha-2 : deux lettres majuscules, rien d'autre (P66, `Account.country`). */
+const COUNTRY_CODE = /^[A-Z]{2}$/;
 
 function sanitizeAccount(id: string, raw: unknown): Account | null {
   if (!isRecord(raw) || !ACCOUNT_ID.test(id)) return null;
@@ -541,6 +543,10 @@ function sanitizeAccount(id: string, raw: unknown): Account | null {
     account.address = a['address'];
   if (typeof a['chain'] === 'string' && ONCHAIN_CHAINS.has(a['chain']))
     account.chain = a['chain'] as 'btc' | 'eth' | 'arbitrum' | 'base';
+  // Absent sur toute sauvegarde écrite avant P66 : reste `undefined`, le compte redevient `unknown`
+  // au premier calcul de déclaration — jamais une perte de compte, jamais un pays inventé.
+  if (typeof a['country'] === 'string' && COUNTRY_CODE.test(a['country']))
+    account.country = a['country'];
   return account;
 }
 

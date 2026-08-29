@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { cessionsToCsv } from './csv-export';
+import { accountDeclarationsToCsv, cessionsToCsv } from './csv-export';
+import { computeDeclarations } from '../domain/declarations-fr';
 import { computeFrenchTax } from '../domain/tax-fr';
 import { computePortfolio } from '../domain/engine';
 import { D } from '../domain/money';
-import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from '../domain/types';
+import {
+  DEFAULT_ENGINE_SETTINGS,
+  type Account,
+  type LedgerEvent,
+  type TradeEvent,
+} from '../domain/types';
 import { lotsToCsv, operationsToCsv, positionsToCsv, seriesToCsv } from './csv-export';
 
 const base = (id: string) => ({
@@ -225,5 +231,54 @@ describe('cessionsToCsv — colonnes du formulaire 2086', () => {
     const ledger = computeFrenchTax({ events, closingValueAt: () => D('15000') });
     expect(cessionsToCsv(ledger, 2025).trimEnd().split('\r\n')).toHaveLength(1);
     expect(cessionsToCsv(ledger, 2026).trimEnd().split('\r\n')).toHaveLength(2);
+  });
+});
+
+describe('accountDeclarationsToCsv — comptes à déclarer (formulaire 3916-bis, P66)', () => {
+  const acc = (id: string, kind: Account['kind'], country?: string): Account => ({
+    id,
+    kind,
+    label: id,
+    space: 'invest',
+    createdAt: '2026-01-01T00:00:00Z',
+    ...(country === undefined ? {} : { country }),
+  });
+
+  it('ne liste que les comptes concernés : Coinhouse et le pays FR sont écartés', () => {
+    const declarations = computeDeclarations({
+      accounts: [
+        acc('ch:main', 'coinhouse'),
+        acc('csv:fr', 'csv', 'FR'),
+        acc('csv:nl', 'csv', 'NL'),
+      ],
+      events: [],
+      year: 2026,
+    });
+    const lines = accountDeclarationsToCsv(declarations).trimEnd().split('\r\n');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('Statut');
+    expect(lines[1]).toContain('"csv:nl"');
+    expect(lines[1]).toContain('Pays-Bas');
+  });
+
+  it('dit « inconnu » plutôt que d’inventer un pays', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('man:x', 'manual')],
+      events: [],
+      year: 2026,
+    });
+    const cells = accountDeclarationsToCsv(declarations).trimEnd().split('\r\n')[1]!.split(';');
+    expect(cells[2]).toBe('"inconnu"');
+  });
+
+  it('un compte étranger vide reste dans l’export, marqué « non » utilisé et « non » détenu', () => {
+    const declarations = computeDeclarations({
+      accounts: [acc('csv:empty', 'csv', 'AT')],
+      events: [],
+      year: 2026,
+    });
+    const cells = accountDeclarationsToCsv(declarations).trimEnd().split('\r\n')[1]!.split(';');
+    expect(cells[3]).toBe('"non"');
+    expect(cells[4]).toBe('"non"');
   });
 });
