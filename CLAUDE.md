@@ -21,8 +21,15 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   y compris sur son propre flux `.ics` ; sa table est tenue à la main dans
   `src/lib/calendar/bls-schedule.ts`, et une barrière du générateur réclame sa relecture avant
   qu'elle ne s'épuise. Le script **refuse d'écrire** un calendrier appauvri, et ne réécrit rien si
-  seuls les horodatages changent. Le cron hebdomadaire (`.github/workflows/calendar.yml`) valide
-  par `npm run check` **avant** de committer, puis appelle `ci.yml` — un push du robot ne
+  seuls les horodatages changent.
+- `npm run macro` — régénère `src/lib/macro/snapshot.generated.ts` (taux du Trésor, réserves
+  bancaires de la Fed, pétrole si `EIA_API_KEY` est fournie). **Les colonnes de la Fed sont
+  choisies par identifiant stable** (`RESH4R_N.WW`), jamais par libellé. Mêmes barrières que le
+  calendrier. Règle de fond (décision n° 59) : **la licence d'une source choisit son mode de
+  transport** — instantané committé si la redistribution est autorisée, appel navigateur si seul
+  l'usage personnel l'est, abandon sinon (c'est le cas du VIX de Cboe).
+- Le cron `.github/workflows/market-data.yml` (lundi et vendredi) lance les deux générateurs,
+  valide par `npm run check` **avant** de committer, puis appelle `ci.yml` — un push du robot ne
   déclenche aucun workflow, et c'est la CI qui publie sur Pages.
 - `node scripts/generate-icons.mjs` — écrit les logos manquants de `public/icons/` et réécrit
   `KNOWN_ICONS`. Exige `npm install --no-save @web3icons/core@4.0.55` avant, puis `npm uninstall`

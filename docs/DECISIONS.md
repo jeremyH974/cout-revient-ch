@@ -1090,3 +1090,49 @@
     qu'après la réunion ; la déduire de sa règle serait une prévision présentée comme un fait), le
     consensus de marché (propriétaire partout), et les valeurs de l'ISM, du Conference Board et de
     l'Université du Michigan — dont la **date** est un fait libre mais la **valeur** sous copyright.
+
+59. **La licence d'une source choisit son mode de transport — et un chiffre ne s'affiche jamais
+    sans son rang** (29/08/2026). Les indicateurs macroéconomiques suivent le motif du calendrier
+    (décision n° 58) : un module TypeScript engendré, committé, compilé dans le bundle, donc aucune
+    requête à l'exécution. Mais l'étude des conditions d'utilisation a produit une règle plus
+    générale, qui gouvernera aussi les flux.
+    **Trois modes, et c'est la licence qui tranche, pas la commodité technique.** Une source qui
+    autorise explicitement le stockage et la redistribution va dans l'instantané committé — c'est
+    le cas du Trésor américain, de la Réserve fédérale (« information on the Board's website is in
+    the public domain and may be copied and distributed without permission. Please cite to the
+    Board as the source ») et de l'EIA. Une source qui n'autorise que l'usage personnel doit être
+    appelée **depuis le navigateur, jamais stockée** : DefiLlama interdit de « republish the data
+    in any form without permission » mais concède l'accès personnel non commercial. Une source qui
+    n'autorise ni l'un ni l'autre est **abandonnée**.
+    **Le VIX est abandonné.** Cboe interdit de « store either in hard copy or in an electronic
+    retrieval system » sans accord écrit ; committer un instantané tombe exactement sous cette
+    clause. Et `cdn.cboe.com` n'envoie aucun en-tête CORS, ce qui ferme aussi l'appel direct. Il
+    n'existe aucune source libre : c'est un indice propriétaire. Le remplacement prévu est la
+    volatilité réalisée du bitcoin, calculée localement depuis l'historique que l'app détient déjà
+    — aucune licence en jeu, et plus pertinent pour un portefeuille crypto que la volatilité
+    implicite des actions américaines.
+    **Un chiffre ne s'affiche jamais sans son rang, et jamais le rang d'un niveau qui dérive.** Un
+    percentile du niveau de la masse monétaire ou du bilan de la Fed vaudrait 99 % en permanence :
+    ces séries montent, c'est tout ce qu'elles disent. Les séries non stationnaires sont donc
+    converties — variation sur trois mois, variation annuelle — **avant** d'être classées, et
+    l'écran annonce la transformation. Le rang est un **percentile**, jamais un z-score : celui-ci
+    suppose une loi normale que les queues épaisses des marchés démentent, et l'échelle 0-100 se
+    lit sans explication. **Deux fenêtres sont affichées**, jamais une : un percentile n'existe que
+    relativement à la sienne, et les deux se contredisent parfois — la pente de la courbe est au
+    11ᵉ percentile sur un an mais au 50ᵉ sur dix ans, et c'est précisément l'information.
+    **Une seule source pour la liquidité, et un chiffre officiel plutôt qu'un bricolage.** Le
+    relevé H.4.1 contient les quatre composantes à la même fréquence hebdomadaire : plus besoin
+    d'interroger la Fed de New York et Fiscal Data séparément — deux sources automatiques au lieu
+    de quatre, et surtout plus de mélange de fréquences, qui est le piège d'alignement classique.
+    Ce sont les **réserves bancaires** qui sont affichées, publiées par la Fed, et non le
+    `bilan − compte du Trésor − reverse repo` que reconstituent beaucoup d'observateurs : même
+    idée, mais un nombre officiel. La réserve d'usage est écrite à côté du chiffre.
+    **Les colonnes de la Fed sont choisies par identifiant, jamais par libellé.** Le fichier compte
+    cent cinquante-sept colonnes dont les descriptions contiennent des virgules et peuvent être
+    réécrites ; la ligne d'en-tête porte des identifiants courts et stables (`RESH4R_N.WW`), et un
+    identifiant absent fait échouer la génération.
+    **Le catalogue d'attributions couvre désormais les sources de build.** L'app ne les contacte
+    pas — les générateurs le font en CI — mais leurs données sont affichées, donc elles doivent
+    être créditées. Le croisement de `sources.test.ts` lit maintenant les instantanés engendrés
+    eux-mêmes : ajouter une source à un générateur fait échouer la CI tant qu'elle n'est pas
+    inscrite au catalogue.

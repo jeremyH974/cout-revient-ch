@@ -203,6 +203,74 @@ export const DATA_SOURCES: readonly DataSource[] = [
     },
     emits: ['alternative.me'],
   },
+
+  /*
+   * Sources du contexte de marché. Elles se distinguent de toutes les précédentes sur un point :
+   * l'application ne les contacte **jamais**. Leurs données sont récupérées par les générateurs,
+   * en intégration continue, et compilées dans le bundle (décisions n° 58 et n° 59). Elles n'en
+   * doivent pas moins être créditées — c'est même parce que leurs conditions autorisent
+   * explicitement le stockage et la redistribution qu'elles ont été retenues.
+   */
+  {
+    id: 'federal-reserve',
+    label: 'Réserve fédérale',
+    role: 'Calendrier des réunions du FOMC, et bilan hebdomadaire de la Fed (relevé H.4.1).',
+    url: 'https://www.federalreserve.gov',
+    notice: 'Federal Reserve Board',
+    duty: 'courtesy',
+    terms: {
+      url: 'https://www.federalreserve.gov/disclaimer.htm',
+      checkedOn: '2026-08-29',
+      clause:
+        'Disclaimer — « information on the Board’s website is in the public domain and may be copied and distributed without permission. Please cite to the Board as the source of the information. »',
+    },
+    emits: ['fomc', 'fed'],
+  },
+  {
+    id: 'bls',
+    label: 'Bureau of Labor Statistics',
+    role: 'Dates de publication de l’inflation CPI, de l’emploi, des prix à la production et des postes vacants.',
+    url: 'https://www.bls.gov/schedule/news_release/',
+    notice: null,
+    duty: 'unverified',
+    terms: null,
+    emits: ['bls'],
+  },
+  {
+    id: 'bea',
+    label: 'Bureau of Economic Analysis',
+    role: 'Dates de publication de l’inflation PCE et du PIB américain.',
+    url: 'https://www.bea.gov/news/schedule',
+    notice: null,
+    duty: 'unverified',
+    terms: null,
+    emits: ['bea'],
+  },
+  {
+    id: 'treasury',
+    label: 'Département du Trésor américain',
+    role: 'Courbe des taux souverains : dix ans nominal, deux ans, et dix ans réel (TIPS).',
+    url: 'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates',
+    notice: null,
+    duty: 'unverified',
+    terms: null,
+    emits: ['treasury'],
+  },
+  {
+    id: 'eia',
+    label: 'U.S. Energy Information Administration',
+    role: 'Prix spot quotidien du pétrole WTI.',
+    url: 'https://www.eia.gov/dnav/pet/pet_pri_spt_s1_d.htm',
+    notice: 'Source: U.S. Energy Information Administration',
+    duty: 'courtesy',
+    terms: {
+      url: 'https://www.eia.gov/about/copyrights_reuse.php',
+      checkedOn: '2026-08-29',
+      clause:
+        'Copyrights and Reuse — « U.S. government publications are in the public domain » ; la mention est recommandée (« should »), non imposée',
+    },
+    emits: ['eia'],
+  },
 ];
 
 /** Sources dont la mention est contractuelle : celles-là ne peuvent pas être masquées. */
