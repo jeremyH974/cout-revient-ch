@@ -4,6 +4,7 @@
   import type { MarketEvent } from '$lib/calendar';
   import { nowIso, nowMs } from '$lib/clock';
   import AppBar from '../components/layout/AppBar.svelte';
+  import LensSection from '../components/market/LensSection.svelte';
   import MacroSection from '../components/market/MacroSection.svelte';
   import { app } from '../state/app.svelte';
 
@@ -122,6 +123,8 @@
   </section>
 
   <MacroSection today={localToday} />
+
+  <LensSection />
 
   <h2 class="section-title">Calendrier des publications</h2>
 

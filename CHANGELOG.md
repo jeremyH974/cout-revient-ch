@@ -7,6 +7,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **« Vos chiffres face au décor »** : l'écran « Contexte de marché » mesure désormais si votre
+  portefeuille bouge réellement avec les indicateurs qu'il affiche. La série comparée est votre
+  **rendement, apports et retraits neutralisés** — comparer une valeur brute, qui monte parce qu'on
+  y verse de l'argent, à un indice sans apports fabriquerait une performance qui n'existe pas.
+- **Quatre fenêtres, jamais une.** 30, 90, 180 et 365 jours, fixées d'avance. Leur désaccord est
+  l'information : l'écran dit « les quatre fenêtres concordent » ou « elles se contredisent — aucun
+  chiffre unique ne décrit cette relation », et affiche l'écart.
+- **Une superposition optionnelle** : votre courbe de rendement et un indicateur, ramenés à 100 au
+  premier jour qu'ils ont en commun, sur **un seul axe**. Deux échelles indépendantes permettraient
+  de faire coïncider n'importe quelles courbes ; les deux traits se distinguent par le style, jamais
+  par la seule couleur.
+- **Rien n'est calculé sans que vous le demandiez.** Cet écran promet de ne rien demander au réseau,
+  et les corrélations exigent l'historique de vos cours : un bouton le propose, il ne se déclenche
+  pas tout seul (`docs/DECISIONS.md` n° 60).
+
 - **Des indicateurs macroéconomiques**, en tête de l'écran « Contexte de marché » : réserves des
   banques auprès de la Fed, taux réel et nominal à dix ans, pente de la courbe américaine — et le
   prix du pétrole dès qu'une clé sera fournie.

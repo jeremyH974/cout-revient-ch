@@ -89,6 +89,25 @@ Le cron [`market-data.yml`](../.github/workflows/market-data.yml) tourne **lundi
 vendredi rattrape le relevé H.4.1 publié le jeudi après-midi à New York. Il valide par
 `npm run check` **avant** de committer, puis appelle `ci.yml`, seule à publier sur Pages.
 
+## Confronter le décor à vos chiffres
+
+La section « Vos chiffres face au décor » corrèle les variations quotidiennes de **l'indice de
+rendement pondéré temps de votre portefeuille** — celui de [`twr.ts`](../src/lib/domain/twr.ts),
+où les apports et retraits sont neutralisés — à celles de chaque indicateur quotidien.
+
+Quatre refus fondent [`correlation.ts`](../src/lib/macro/correlation.ts) : jamais sur les niveaux
+(régression fallacieuse), alignement sur les jours communs **avant** différenciation, Spearman
+plutôt que Pearson (queues épaisses), et quatre fenêtres fixées d'avance plutôt qu'une choisie après
+coup. L'écart entre fenêtres est affiché : c'est lui qui dit si un coefficient veut dire quelque
+chose.
+
+La superposition ([`overlay.ts`](../src/lib/macro/overlay.ts)) est optionnelle, à **axe unique**, et
+rebasée au premier jour commun aux deux séries. Les séries hebdomadaires — les réserves de la Fed —
+sont nommées comme non mesurées : elles n'ont pas assez de points pour une fenêtre de trente jours.
+
+Rien de tout cela n'est calculé sans une action explicite : l'historique de prix nécessaire n'est
+pas chargé d'office depuis cet écran.
+
 ## Les licences, qui ont décidé de tout
 
 C'est la conclusion la plus utile de cette brique : **la licence d'une source choisit son mode de

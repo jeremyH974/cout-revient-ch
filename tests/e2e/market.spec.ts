@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { CALENDAR, splitAround } from '../../src/lib/calendar';
 import { MACRO, orderedIndicators } from '../../src/lib/macro';
+import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
 
 /**
@@ -111,4 +112,34 @@ test('les indicateurs macro non plus ne contactent personne', async ({ page }) =
   await page.goto('#/market');
   await expect(page.getByRole('heading', { name: 'Régime macroéconomique' })).toBeVisible();
   expect(external).toEqual([]);
+});
+
+test('la confrontation à vos chiffres attend qu’on la demande', async ({ page }) => {
+  await page.goto('#/market');
+  const lens = page.locator('.lens');
+  await expect(lens.getByRole('heading', { name: 'Vos chiffres face au décor' })).toBeVisible();
+  // Sans données importées, la section explique au lieu de disparaître.
+  await expect(lens).toContainText('une fois vos opérations importées');
+  await expect(lens.getByRole('button')).toHaveCount(0);
+});
+
+test('avec un portefeuille, elle propose le calcul sans le lancer d’elle-même', async ({
+  page,
+}) => {
+  await openDemo(page);
+
+  // La promesse de l'écran : aucune requête tant que l'utilisateur n'a rien demandé. On mesure à
+  // partir de l'arrivée sur l'écran, une fois la démo chargée.
+  const external: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') external.push(request.url());
+  });
+  await page.goto('#/market');
+
+  const lens = page.locator('.lens');
+  await expect(
+    lens.getByRole('button', { name: /Calculer à partir de mon historique/ }),
+  ).toBeVisible();
+  expect(external, 'la section ne doit rien télécharger avant qu’on le lui demande').toEqual([]);
 });
