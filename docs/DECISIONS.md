@@ -1136,3 +1136,45 @@
     être créditées. Le croisement de `sources.test.ts` lit maintenant les instantanés engendrés
     eux-mêmes : ajouter une source à un générateur fait échouer la CI tant qu'elle n'est pas
     inscrite au catalogue.
+
+60. **Une corrélation se lit sur quatre fenêtres ou pas du tout, et la superposition passe par le
+    rendement pondéré temps** (29/08/2026). La brique P50 confronte le contexte macro aux chiffres
+    de l'utilisateur. Elle est faite de refus, chacun visant une erreur documentée.
+    **La série de référence est l'indice de rendement du portefeuille, pas le cours du bitcoin.**
+    C'est la question qui intéresse — « est-ce que _mon_ portefeuille bouge avec les taux ? » —, et
+    c'est aussi la seule série exploitable : l'indice produit par `twrEur` neutralise les apports et
+    les retraits par construction. Comparer une **valeur brute**, qui monte parce qu'on y verse de
+    l'argent, à une série sans apports fabrique une surperformance qui n'existe pas ; c'est un
+    défaut réel, mesuré chez d'autres outils à trente-quatre points de surperformance injustifiée
+    sur dix-huit mois.
+    **Jamais sur les niveaux.** Corréler deux séries qui ont chacune une tendance rend un
+    coefficient proche de 1 sans qu'aucun lien n'existe — la régression fallacieuse de Granger et
+    Newbold (1974). On corrèle donc des **variations** : rendements logarithmiques d'un côté,
+    différences premières de l'autre.
+    **L'alignement précède la différenciation.** Les deux séries sont d'abord superposées sur leurs
+    seuls jours communs — la crypto cote sept jours sur sept, les taux cinq — _puis_ différenciées.
+    L'ordre inverse comparerait un rendement de trois jours à une variation d'un jour. Reporter la
+    dernière valeur du taux le week-end aurait été pire encore : cela fabrique des variations nulles
+    qui diluent mécaniquement la covariance. Le nombre de jours écartés est affiché.
+    **Spearman, pas Pearson.** Pearson reste sensible aux valeurs extrêmes même sur plusieurs
+    centaines de points, et les rendements crypto en sont pleins. Un test le montre : sur sept
+    points sans lien plus un krach commun, Pearson dépasse 0,9 quand Spearman reste sous 0,6.
+    **Quatre fenêtres, jamais une, et l'écart entre elles est l'information principale.** La
+    corrélation glissante entre le bitcoin et à peu près n'importe quoi change de signe selon la
+    fenêtre. Les quatre sont fixées dans le code, avant tout résultat — en choisir une après coup
+    serait du p-hacking. L'écart entre la plus faible et la plus forte est rendu explicitement, et
+    l'écran le traduit : « les quatre fenêtres concordent », ou « elles se contredisent — aucun
+    chiffre unique ne décrit cette relation ».
+    **Un seul axe pour la superposition.** Deux ordonnées indépendantes permettent d'étirer l'une
+    ou l'autre jusqu'à faire coïncider n'importe quelles courbes : la corrélation apparente devient
+    un choix de graphiste. Les deux séries sont donc ramenées à une base commune de 100 **au premier
+    jour qu'elles ont en commun** — jamais à une date choisie après coup — et partagent la même
+    échelle. Les deux traits se distinguent par le style, plein et pointillé, jamais par la seule
+    couleur.
+    **Rien n'est calculé sans qu'on le demande.** L'écran promet de ne rien demander au réseau ; le
+    calcul des corrélations exige l'historique de prix, qui n'est donc **pas** chargé d'office
+    depuis cet écran. Un bouton le propose, et la superposition est derrière une case à cocher.
+    **Ce qui est écarté** : les séries hebdomadaires — les réserves de la Fed — n'ont pas assez de
+    points pour une fenêtre de trente jours ; elles sont nommées comme non mesurées plutôt que
+    mesurées sur quatre observations. Une fenêtre sous douze couples est omise, pas assortie d'une
+    réserve : un coefficient sur huit points est du bruit présenté comme une mesure.

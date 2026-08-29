@@ -126,7 +126,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   projet — rang percentile à rangs moyens, transformations des séries non stationnaires,
   volatilité par Welford — et vérifie qu'aucun rang ne regarde vers l'avenir. `types.ts` pose la
   règle : jamais une valeur sans son rang, jamais le rang d'un niveau qui dérive, deux fenêtres
-  plutôt qu'une. Détail : docs/macro.md, docs/DECISIONS.md n° 59.
+  plutôt qu'une. `correlation.ts` et `overlay.ts` confrontent ces séries à l'**indice de rendement
+  pondéré temps** du portefeuille (`domain/twr.ts`) : corrélation sur les variations et non les
+  niveaux, alignement sur les jours communs avant différenciation, Spearman plutôt que Pearson,
+  quatre fenêtres fixées d'avance, et superposition à axe unique rebasée au premier jour commun.
+  Détail : docs/macro.md, docs/DECISIONS.md n° 59 et n° 60.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`), et la
   table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57).
