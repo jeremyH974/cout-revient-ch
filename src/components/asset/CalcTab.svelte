@@ -52,10 +52,12 @@
         </p>
         <p class="formula">
           Latent résiduel = {eur(p.value)} − {eur(p.costBasis)} =
-          <button class="why" type="button" onclick={() => why('unrealized')}
-            ><strong>{eur(p.unrealized, { sign: true })}</strong><span class="sr-only">
-              — pourquoi ce chiffre ?</span
-            ></button
+          <button
+            class="why"
+            type="button"
+            aria-describedby="why-hint-calc"
+            onclick={() => why('unrealized')}
+            ><strong>{eur(p.unrealized, { sign: true })}</strong></button
           >
         </p>
       {:else}
@@ -74,10 +76,11 @@
       </p>
       <p class="formula">
         {eur(p.costBasis)} ÷ {qty(p.qty)} =
-        <button class="why" type="button" onclick={() => why('pru')}
-          ><strong>{p.pru ? price(p.pru) : '—'}</strong><span class="sr-only">
-            — pourquoi ce chiffre ?</span
-          ></button
+        <button
+          class="why"
+          type="button"
+          aria-describedby="why-hint-calc"
+          onclick={() => why('pru')}><strong>{p.pru ? price(p.pru) : '—'}</strong></button
         >
       </p>
     </section>
@@ -90,10 +93,12 @@
       </p>
       <p class="formula">
         {qty(p.qty)} × ({p.price ? price(p.price.priceEur) : '—'} − {p.pru ? price(p.pru) : '—'}) =
-        <button class="why" type="button" onclick={() => why('unrealized')}
-          ><strong>{eur(p.unrealized, { sign: true })}</strong><span class="sr-only">
-            — pourquoi ce chiffre ?</span
-          ></button
+        <button
+          class="why"
+          type="button"
+          aria-describedby="why-hint-calc"
+          onclick={() => why('unrealized')}
+          ><strong>{eur(p.unrealized, { sign: true })}</strong></button
         >
         ({fmtPct(p.unrealizedPct)} vs PRU)
       </p>
@@ -118,10 +123,11 @@
       </ul>
       <p class="formula">
         Total réalisé =
-        <button class="why" type="button" onclick={() => why('realized')}
-          ><strong>{eur(p.realized, { sign: true })}</strong><span class="sr-only">
-            — pourquoi ce chiffre ?</span
-          ></button
+        <button
+          class="why"
+          type="button"
+          aria-describedby="why-hint-calc"
+          onclick={() => why('realized')}><strong>{eur(p.realized, { sign: true })}</strong></button
         >
       </p>
     {/if}
@@ -133,10 +139,11 @@
         + récompenses{/if} = {eur(p.realized, { sign: true })}
       {eur(p.unrealized, { sign: true })}{#if p.otherIncome.gt('0')}
         {eur(p.otherIncome, { sign: true })}{/if} =
-      <button class="why" type="button" onclick={() => why('total')}
-        ><strong>{eur(p.total, { sign: true })}</strong><span class="sr-only">
-          — pourquoi ce chiffre ?</span
-        ></button
+      <button
+        class="why"
+        type="button"
+        aria-describedby="why-hint-calc"
+        onclick={() => why('total')}><strong>{eur(p.total, { sign: true })}</strong></button
       >
     </p>
     <p>
@@ -157,12 +164,18 @@
         ; aucun pourcentage n'est calculé sur cette base.{/if}
     </p>
     <p class="formula">
-      <button class="why" type="button" onclick={() => why('invested')}
-        >{eur(p.investedTotal)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      <button
+        class="why"
+        type="button"
+        aria-describedby="why-hint-calc"
+        onclick={() => why('invested')}>{eur(p.investedTotal)}</button
       >
       −
-      <button class="why" type="button" onclick={() => why('proceeds')}
-        >{eur(p.proceedsTotal)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      <button
+        class="why"
+        type="button"
+        aria-describedby="why-hint-calc"
+        onclick={() => why('proceeds')}>{eur(p.proceedsTotal)}</button
       >
       =
       <strong>{eur(p.netInvested)}</strong>
@@ -172,8 +185,8 @@
     <h3>Frais</h3>
     <p class="formula">
       Frais Coinhouse payés sur cet actif :
-      <button class="why" type="button" onclick={() => why('fees')}
-        >{eur(p.feesEur)}<span class="sr-only"> — pourquoi ce chiffre ?</span></button
+      <button class="why" type="button" aria-describedby="why-hint-calc" onclick={() => why('fees')}
+        >{eur(p.feesEur)}</button
       >{#if p.rebatesEur.gt('0')}
         (dont remises obtenues : {eur(p.rebatesEur)}){/if}. Le spread est déjà dans les prix all-in.
     </p>
@@ -194,6 +207,8 @@
     target={{ metric: whyMetric, scope: { kind: 'position', asset: p.asset } }}
   />
 </div>
+
+<span id="why-hint-calc" class="sr-only">Pourquoi ce chiffre ?</span>
 
 <style>
   .calc {

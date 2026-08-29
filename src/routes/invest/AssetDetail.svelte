@@ -141,37 +141,42 @@
           <p class="label">Détenu</p>
           <p class="big"><Qty value={p.qty} abbreviate /></p>
           <p class="muted small">
-            @ PRU <button class="why" type="button" onclick={() => why('pru')}
-              >{p.pru ? price(p.pru) : '—'}<span class="sr-only">
-                — pourquoi ce chiffre ?</span
-              ></button
+            @ PRU <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('pru')}>{p.pru ? price(p.pru) : '—'}</button
             >
           </p>
         </div>
         <div>
           <p class="label">Investi</p>
           <p class="big">
-            <button class="why" type="button" onclick={() => why('cost-basis')}
-              ><Money value={p.costBasis} compact /><span class="sr-only">
-                — pourquoi ce chiffre ?</span
-              ></button
+            <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('cost-basis')}><Money value={p.costBasis} compact /></button
             >
           </p>
         </div>
         <div>
           <p class="label">Valeur</p>
           <p class="big">
-            <button class="why" type="button" onclick={() => why('value')}
-              ><Money value={p.value} compact /><span class="sr-only">
-                — pourquoi ce chiffre ?</span
-              ></button
+            <button
+              class="why"
+              type="button"
+              aria-describedby="why-hint-detail"
+              onclick={() => why('value')}><Money value={p.value} compact /></button
             >
           </p>
           {#if !p.closed || p.dust}<p class="small">
-              <button class="why" type="button" onclick={() => why('unrealized')}
-                ><Money value={p.unrealized} sign colored /><span class="sr-only">
-                  — pourquoi ce chiffre ?</span
-                ></button
+              <button
+                class="why"
+                type="button"
+                aria-describedby="why-hint-detail"
+                onclick={() => why('unrealized')}
+                ><Money value={p.unrealized} sign colored /></button
               >
               (<Pct value={p.unrealizedPct} /> vs PRU)
               {p.dust ? 'latent résiduel' : 'latent'}
@@ -180,17 +185,19 @@
       </div>
       <p class="line">
         Réalisé
-        <button class="why" type="button" onclick={() => why('realized')}
-          ><Money value={p.realized} sign colored /><span class="sr-only">
-            — pourquoi ce chiffre ?</span
-          ></button
+        <button
+          class="why"
+          type="button"
+          aria-describedby="why-hint-detail"
+          onclick={() => why('realized')}><Money value={p.realized} sign colored /></button
         >
         ·
         <strong
-          >Total <button class="why" type="button" onclick={() => why('total')}
-            ><Money value={p.total} sign colored strong /><span class="sr-only">
-              — pourquoi ce chiffre ?</span
-            ></button
+          >Total <button
+            class="why"
+            type="button"
+            aria-describedby="why-hint-detail"
+            onclick={() => why('total')}><Money value={p.total} sign colored strong /></button
           ></strong
         >
         · ROI <Pct value={p.roi} />
@@ -314,6 +321,8 @@
     </form>
   </Sheet>
 {/if}
+
+<span id="why-hint-detail" class="sr-only">Pourquoi ce chiffre ?</span>
 
 <style>
   .empty {

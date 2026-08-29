@@ -31,10 +31,12 @@ test('le PRU s’explique jusqu’aux lignes brutes, et le mode discret garde la
 
   // Le déclencheur est le montant lui-même : pas d'icône « ? » ajoutée à côté.
   const hero = page.locator('header.hero');
-  await hero
-    .getByRole('button', { name: /pourquoi ce chiffre/ })
-    .first()
-    .click();
+  const trigger = hero.locator('button.why').first();
+  // Le nom accessible du bouton est le PRU lui-même ; « Pourquoi ce chiffre ? » est une
+  // description, jamais du texte inséré dans le montant.
+  await expect(trigger).toHaveAccessibleName(pruText(btc));
+  await expect(trigger).toHaveAccessibleDescription('Pourquoi ce chiffre ?');
+  await hero.locator('button.why').first().click();
 
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
@@ -58,12 +60,18 @@ test('le PRU s’explique jusqu’aux lignes brutes, et le mode discret garde la
   // La jambe retenue est nommée : c'est toute la valeur ajoutée face à la règle d'or.
   await expect(sheet).toContainText('jambe contrepartie retenue');
 
-  // Mode discret : les montants disparaissent, la structure reste.
+  // Mode discret : les montants disparaissent, la structure reste. La feuille est MODALE : on la
+  // ferme pour basculer, puis on la rouvre — le geste réel de qui s'apprête à montrer son écran.
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
   await page.getByRole('button', { name: 'Mode discret (masquer les montants)' }).click();
+  await hero.locator('button.why').first().click();
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole('button', { name: 'Tout déplier' }).click();
+
   await expect(sheet).toContainText(MASK);
   await expect(sheet).not.toContainText(moneyText(btc.costBasis));
-  const stillShown = await shownLineNumbers(sheet);
-  expect(stillShown).toEqual(shown);
+  expect(await shownLineNumbers(sheet)).toEqual(shown);
   await expect(sheet).toContainText('Type brut');
   await expect(sheet).toContainText('jambe contrepartie retenue');
   await expect(sheet).toContainText('retombent exactement');
@@ -82,10 +90,7 @@ test('la traçabilité du réalisé montre les lots consommés par chaque cessio
     .getByRole('button', { name: 'Calcul' })
     .click();
 
-  const trigger = page
-    .locator('section', { hasText: 'Réalisé' })
-    .getByRole('button', { name: /pourquoi ce chiffre/ })
-    .last();
+  const trigger = page.locator('section', { hasText: 'Réalisé' }).locator('button.why').last();
   await trigger.click();
 
   const sheet = page.getByRole('dialog');

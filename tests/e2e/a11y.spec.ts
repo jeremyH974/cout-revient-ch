@@ -81,11 +81,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
   }) => {
     await openDemo(page);
     await page.goto('#/invest/asset/btc');
-    await page
-      .locator('header.hero')
-      .getByRole('button', { name: /pourquoi ce chiffre/ })
-      .first()
-      .click();
+    await page.locator('header.hero').locator('button.why').first().click();
     const sheet = page.getByRole('dialog');
     await expect(sheet).toBeVisible();
     await sheet.getByRole('button', { name: 'Tout déplier' }).click();
