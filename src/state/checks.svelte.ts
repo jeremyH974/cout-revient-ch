@@ -7,6 +7,12 @@
  * écran où le voyant manquant se serait vu est justement celui qui ne le calculait pas.
  */
 import { nowIso } from '$lib/clock';
+import {
+  buildReconciliation,
+  summarizeReconciliation,
+  type ReconciliationReport,
+  type ReconciliationSummary,
+} from '$lib/domain/reconciliation';
 import { reconcileNetWorth, latestNetWorth } from '$lib/history/net-worth';
 import { isIOS, isStandalone } from '$lib/support/environment';
 import { runSelfChecks, type SelfCheck } from '$lib/support/self-check';
@@ -51,6 +57,34 @@ class ChecksState {
    * bas de l'écran — sinon plus rien n'est prioritaire.
    */
   blocking = $derived(this.all.some((c) => c.level === 'fail'));
+
+  /**
+   * Réconciliation P68 (écarts, trous et doublons) : nommée `dataReconciliation` pour ne pas se
+   * confondre avec `reconciliation` ci-dessus, qui bricole le pont patrimoine ↔ apports nets
+   * (décision n° 55) — deux choses différentes, toutes deux appelées « réconciliation » dans le
+   * projet. Toujours en euros (`app.eurReport` / `app.events`), comme la traçabilité (P61) : une
+   * `TraceTarget` posée ici est résolue plus tard par `app.trace()`, qui travaille aussi en euros.
+   */
+  dataReconciliation = $derived.by((): ReconciliationReport =>
+    buildReconciliation({
+      report: app.eurReport,
+      events: app.events,
+      transfers: app.transferPairing,
+      declarations: app.declarations,
+      tax: history.status.loadedAt === null ? null : history.frenchTax(),
+      trading: app.hlAccounts.map((account) => ({
+        accountId: account.id,
+        gap:
+          app.tradingReport.accounts.find((a) => a.accountId === account.id)?.reconciliation?.gap ??
+          null,
+      })),
+      duplicateOverrides: app.state.duplicateOverrides,
+    }),
+  );
+
+  dataReconciliationSummary = $derived.by((): ReconciliationSummary =>
+    summarizeReconciliation(this.dataReconciliation),
+  );
 }
 
 export const checks = new ChecksState();

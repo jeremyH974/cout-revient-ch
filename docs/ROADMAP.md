@@ -1,6 +1,6 @@
-# Feuille de route — propositions classées par ROI (23 août 2026)
+# Feuille de route — **livré (29/08/2026)**s classées par ROI (23 août 2026)
 
-> Question traitée : « Comment améliorer le produit ? Recherches en ligne sourcées et à jour, propositions
+> Question traitée : « Comment améliorer le produit ? Recherches en ligne sourcées et à jour, **livré (29/08/2026)**s
 > classées par ROI (qualité, fiabilité, satisfaction des utilisateurs), ordre d'exécution, pour un
 > commanditaire non développeur. »
 >
@@ -12,7 +12,7 @@
 
 > **Complément du 23/08/2026 — version 2** : la demande d'un membre du Discord (tracker des
 > investissements spot et des trades, journal, statistiques) et l'exigence du propriétaire de séparer
-> clairement « Investissement » et « Trading » font l'objet d'une proposition dédiée, sourcée, dans
+> clairement « Investissement » et « Trading » font l'objet d'une **livré (29/08/2026)** dédiée, sourcée, dans
 > [`docs/proposals/2026-08-23-espaces-investissement-trading.md`](proposals/2026-08-23-espaces-investissement-trading.md).
 > Ses propositions P19-P28 sont reprises ci-dessous (§ 3 bis et phase T). La version 1 est figée
 > (`v1.0.0`) ; la version 2 se développe sur la branche `v2`.
@@ -592,9 +592,9 @@ Détail et sources : [`proposals/2026-08-29-data-ia-et-agentique.md`](proposals/
 | P63a | Serveur MCP installable sans build (actif de release)            |   3    |     2     |    5    |    1     | **10** |   **livré (29/08/2026)**    |
 | P67  | Veille réglementaire compilée (millésimes et textes en cours)    |   3    |     3     |    3    |    1     | **9**  |   **livré (29/08/2026)**    |
 | P61  | « Pourquoi ce chiffre ? » — traçabilité jusqu'aux lignes brutes  |   5    |     5     |    4    |    2     | **7**  |   **livré (29/08/2026)**    |
-| P72  | Anti-verrouillage : format de sauvegarde documenté et versionné  |   2    |     3     |    2    |    1     |   7    |         proposition         |
-| P68  | Réconciliation : écarts, trous et doublons en liste d'actions    |   4    |     5     |    3    |    2     |   6    |         proposition         |
-| P62  | Second avis sur un export concurrent (Koinly/CoinTracker/Waltio) |   5    |     4     |    5    |   2,5    |  5,6   |         proposition         |
+| P72  | Anti-verrouillage : format de sauvegarde documenté et versionné  |   2    |     3     |    2    |    1     |   7    |   **livré (29/08/2026)**    |
+| P68  | Réconciliation : écarts, trous et doublons en liste d'actions    |   4    |     5     |    3    |    2     |   6    |   **livré (29/08/2026)**    |
+| P62  | Second avis sur un export concurrent (Koinly/CoinTracker/Waltio) |   5    |     4     |    5    |   2,5    |  5,6   |   **livré (29/08/2026)**    |
 | P70  | Harnais d'évaluation des fonctions IA + garde-fous testés        |   2    |     5     |    1    |   1,5    |  5,3   | proposition — **prérequis** |
 | P65  | « Votre année crypto » — rapport narratif étiqueté IA, en BYOK   |   3    |     2     |    5    |    2     |   5    |         proposition         |
 | P64  | Qualification assistée des lignes inconnues (IA locale)          |   5    |     4     |    4    |    3     |  4,3   |         proposition         |

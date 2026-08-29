@@ -10,6 +10,7 @@
   import News from './routes/News.svelte';
   import Overview from './routes/Overview.svelte';
   import Privacy from './routes/Privacy.svelte';
+  import Reconciliation from './routes/Reconciliation.svelte';
   import Settings from './routes/Settings.svelte';
   import Trading from './routes/Trading.svelte';
   import Watch from './routes/Watch.svelte';
@@ -25,6 +26,7 @@
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
   import Report from './routes/invest/Report.svelte';
+  import SecondOpinion from './routes/invest/SecondOpinion.svelte';
   import { recordError } from '$lib/support/errors';
   import SupportSection from './components/settings/SupportSection.svelte';
   import { app } from './state/app.svelte';
@@ -137,6 +139,8 @@
         <Watch />
       {:else if route.name === 'accounts'}
         <Accounts />
+      {:else if route.name === 'reconciliation'}
+        <Reconciliation />
       {:else if route.name === 'asset'}
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}
@@ -153,6 +157,8 @@
         <Help />
       {:else if route.name === 'report'}
         <Report />
+      {:else if route.name === 'secondOpinion'}
+        <SecondOpinion />
       {:else if route.name === 'news'}
         <News />
       {:else}

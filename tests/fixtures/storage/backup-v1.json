@@ -1,0 +1,233 @@
+{
+  "app": "cout-revient-ch",
+  "schemaVersion": 1,
+  "exportedAt": "2026-01-20T08:30:00Z",
+  "state": {
+    "schemaVersion": 1,
+    "imports": [
+      {
+        "id": "imp-1",
+        "at": "2026-01-05T09:00:00Z",
+        "fileName": "export-demo.csv",
+        "rows": 2,
+        "newRows": 2,
+        "format": "coinhouse"
+      },
+      {
+        "id": "imp-2",
+        "at": "2026-01-10T09:00:00Z",
+        "fileName": "pivot-demo.csv",
+        "rows": 1,
+        "newRows": 1,
+        "format": "koinly-universal",
+        "accountId": "csv:demo",
+        "header": ["Date", "Sent Amount"],
+        "unknownColumns": []
+      }
+    ],
+    "rawRows": {
+      "ch:1:btc": {
+        "key": "ch:1:btc",
+        "importId": "imp-1",
+        "lineNo": 2,
+        "id": "1",
+        "at": "2026-01-05T11:00:00",
+        "type": "Echange",
+        "qty": "0.05",
+        "asset": "btc",
+        "marketPrice": "20000",
+        "valueEur": "-1000",
+        "feeAsset": null,
+        "feeEur": null,
+        "feeRebate": null,
+        "balance": "0.05",
+        "account": "Portefeuille",
+        "extra": {}
+      },
+      "ch:1:eur": {
+        "key": "ch:1:eur",
+        "importId": "imp-1",
+        "lineNo": 3,
+        "id": "1",
+        "at": "2026-01-05T11:00:00",
+        "type": "Echange",
+        "qty": "-1000",
+        "asset": "eur",
+        "marketPrice": null,
+        "valueEur": "-1000",
+        "feeAsset": null,
+        "feeEur": "2.5",
+        "feeRebate": "0",
+        "balance": null,
+        "account": "",
+        "extra": {}
+      }
+    },
+    "pivotRows": {
+      "pv:csv:demo:abc123": {
+        "key": "pv:csv:demo:abc123",
+        "importId": "imp-2",
+        "lineNo": 2,
+        "accountId": "csv:demo",
+        "date": "2026-01-10 09:00:00",
+        "at": "2026-01-10T10:00:00",
+        "sent": { "amount": "500", "currency": "eur" },
+        "received": { "amount": "0.01", "currency": "btc" },
+        "fee": null,
+        "netWorth": null,
+        "label": null,
+        "description": null,
+        "txHash": null
+      }
+    },
+    "manualEvents": {
+      "m1": {
+        "id": "m1",
+        "at": "2026-01-02T10:00:00",
+        "kind": "buy",
+        "asset": "eth",
+        "qty": "1",
+        "amountEur": "2000",
+        "scope": "coinhouse",
+        "accountId": "man:demo",
+        "note": "Achat synthétique de démo"
+      }
+    },
+    "qualifications": {
+      "ch:1:sell": { "kind": "reward", "fairValueEur": "25" }
+    },
+    "transferOverrides": {
+      "ch:w1": "none"
+    },
+    "taxAnnotations": {
+      "ch:1:sell": { "portfolioValueEur": "15000" }
+    },
+    "assetSettings": {
+      "sol": { "manualPriceEur": "120.5", "manualPriceAt": "2026-01-15", "coingeckoId": "solana" }
+    },
+    "accounts": {
+      "csv:demo": {
+        "id": "csv:demo",
+        "kind": "csv",
+        "label": "Exchange de démo",
+        "space": "invest",
+        "createdAt": "2026-01-10T09:00:00Z",
+        "country": "NL"
+      },
+      "man:demo": {
+        "id": "man:demo",
+        "kind": "manual",
+        "label": "Portefeuille papier",
+        "space": "invest",
+        "createdAt": "2026-01-02T09:00:00Z"
+      }
+    },
+    "hyperliquid": {
+      "accounts": {},
+      "spotPairs": {
+        "@107": { "base": "HYPE", "quote": "USDC" }
+      }
+    },
+    "journal": {
+      "man:t1": {
+        "tradeId": "man:t1",
+        "thesis": "Test de gel de fixture : ne jamais changer.",
+        "review": "",
+        "setup": "Cassure",
+        "tags": ["btc"],
+        "mistakes": [],
+        "rating": null,
+        "plan": null
+      }
+    },
+    "manualTrades": {
+      "t1": {
+        "id": "t1",
+        "accountId": "man:demo",
+        "symbol": "ETH",
+        "direction": "long",
+        "qty": "1",
+        "entryPrice": "100",
+        "exitPrice": null,
+        "openedAt": "2026-01-03T10:00:00",
+        "closedAt": null,
+        "fees": "0",
+        "quote": "EUR"
+      }
+    },
+    "engineSettings": {
+      "migrationMode": "carry-cost",
+      "rewardValuation": "fair-value",
+      "includeSubscriptionsInPnl": true
+    },
+    "priceCache": {
+      "btc": {
+        "asset": "btc",
+        "priceEur": "45000",
+        "at": "2026-01-20T00:00:00Z",
+        "source": "coingecko",
+        "stale": false
+      }
+    },
+    "fx": {
+      "base": "EUR",
+      "rates": {
+        "USD": { "2026-01-20": "1.08" }
+      },
+      "updatedAt": {
+        "USD": "2026-01-20T08:00:00Z"
+      },
+      "source": "frankfurter"
+    },
+    "alerts": {
+      "rules": {
+        "al:btc-low": {
+          "id": "al:btc-low",
+          "asset": "btc",
+          "direction": "below",
+          "threshold": { "kind": "pru-pct", "percent": "10" },
+          "repeat": "recurring",
+          "enabled": true,
+          "note": "Renfort si BTC casse -10 % sous PRU",
+          "createdAt": "2026-01-05T09:00:00Z"
+        }
+      },
+      "states": {
+        "al:btc-low": { "armed": true, "lastTriggeredAtMs": null, "triggerCount": 0 }
+      },
+      "events": [
+        {
+          "id": "al:e1",
+          "ruleId": "al:btc-low",
+          "asset": "btc",
+          "direction": "below",
+          "thresholdEur": "18000",
+          "priceEur": "17950",
+          "pruEur": "20000",
+          "at": "2026-01-18T10:00:00Z",
+          "read": false
+        }
+      ],
+      "settings": { "watch": true, "watchMinutes": 5, "systemNotifications": false }
+    },
+    "ui": {
+      "theme": "dark",
+      "discreet": false,
+      "hideClosed": true,
+      "priceSource": "auto",
+      "displayCurrency": "EUR",
+      "chartMetric": "value",
+      "assetChartMetric": "pru",
+      "lastBackupAt": "2026-01-20T08:00:00Z",
+      "disclaimerAcceptedAt": "2026-01-01T09:00:00Z",
+      "demoMode": false,
+      "lastSeenVersion": "2.10.0",
+      "coingeckoDemoKey": null,
+      "explorerKey": null,
+      "explorerFlavor": "etherscan",
+      "liveMids": false,
+      "marketContext": true,
+      "liveFills": false
+    }
+  }
+}

@@ -1309,3 +1309,93 @@
     en défaut une fois : plusieurs sites commerciaux annoncent encore que les crypto-actifs sont
     entrés dans l'assiette d'un impôt sur la fortune en 2026, alors que la loi promulguée le
     19/02/2026 ne retient pas la mesure.
+65. **La réconciliation est une liste d'actions, pas un second jeu de voyants — et l'« écart » est
+    une notion partagée** (29/08/2026, proposition P68, étude
+    `proposals/2026-08-29-data-ia-et-agentique.md`). Les auto-vérifications (décision n° 56) disent
+    qu'un chiffre est faux ; `domain/reconciliation.ts` dit désormais **quoi corriger, dans quel
+    ordre, comment** — une fonction pure rendant des items codés (sévérité, action), jamais une
+    phrase : `format/reconciliation.ts` seul écrit du français (décision n° 40). Le module
+    **consomme** l'appariement des virements, la fiscalité, les déclarations et l'intégrité des
+    soldes ; il ne recalcule rien.
+    **Chaque anomalie pointe vers son dossier** : les clés de lignes brutes concernées et, quand
+    c'est pertinent, la cible de trace qui ouvre « Pourquoi ce chiffre ? » (décision n° 61)
+    directement dessus. Une réconciliation sans preuve serait une accusation sans dossier.
+    **L'écart devient un type partagé** (`ValueGap`, `domain/gap.ts`) : `ours`, `theirs`, `delta`,
+    et une source qui distingue le solde annoncé par une plateforme, un solde on-chain et un export
+    concurrent. P68 l'instancie sur Coinhouse et Hyperliquid ; le second avis (décision n° 67) le
+    réutilise sans réécrire le calcul de divergence. La sévérité, l'action et le tri restent propres
+    à chacun : un écart avec son propre grand livre et un écart avec un outil tiers n'appellent pas
+    le même correctif.
+    **Un doublon n'est signalé que s'il vient de deux sources d'import ou de deux comptes
+    différents.** Deux achats identiques le même jour sur le même compte sont un achat programmé
+    légitime : sans cette condition, toute stratégie d'investissement régulier produirait une pluie
+    de faux positifs. Et un candidat ne s'efface jamais seul — l'utilisateur confirme ou écarte.
+    **Ce qui est écarté** : le solde on-chain reste un type nommé **sans donnée ni affichage**,
+    parce qu'aucune lecture de solde par adresse n'existe — une section grisée « bientôt » ferait
+    semblant d'exister, ce qui est pire qu'une absence ; et le trou de prix à la date d'une cession
+    est signalé sans action, faute d'écran pour annoter la valeur globale : la limite est nommée,
+    pas comblée. L'écran technique des réglages ne change pas — c'est la séparation des deux écrans,
+    et non une troncature, qui évite de noyer l'utilisateur.
+
+66. **Le format de sauvegarde a une politique de version écrite, et l'export portable est garanti
+    par une propriété d'aller-retour, pas par une promesse** (29/08/2026, proposition P72).
+    `SCHEMA_VERSION` existait sans avoir jamais bougé, et toute évolution passée était additive sans
+    que la règle soit écrite nulle part. Elle l'est désormais (`docs/backup-format.md`) : additif —
+    champ optionnel, énumération élargie, conteneur vide par défaut — pas de montée ; cassant —
+    renommage, changement d'unité, suppression — montée et migration. Garantie explicite : **une
+    sauvegarde ancienne se relit toujours plus tard ; l'inverse n'est pas garanti.** Une fixture v1
+    gelée, synthétique, le prouve sur un fichier réel plutôt que sur un état fabriqué par le test.
+    **L'écriture et la lecture ne s'étaient jamais parlé.** L'export au format pivot et son
+    importeur (décision n° 24) coexistaient depuis des mois sans qu'aucun test ne relie les deux.
+    Une propriété fast-check exporte désormais des événements tirés au hasard, les réimporte et
+    exige des PRU, coûts, valeurs et résultats identiques. Le résultat est plus fort que la
+    tolérance visée : **l'écart est exactement nul**, les jambes en euros étant relues directement
+    et les jambes en dollars divisées par le taux fixé, sans arrondi intermédiaire.
+    **Ce qui ne survit pas est annoncé AVANT le téléchargement, chiffré sur les données de
+    l'utilisateur** : tant de migrations qui se reliront comme des ventes, tant de comptes fusionnés
+    en un seul, tant de virements internes dont la paire ne se reformera pas, le coût d'un solde
+    d'ouverture perdu. Un décompte réel, pas un avertissement générique — même doctrine que la
+    traçabilité (décision n° 61) : on nomme le trou, et surtout **on ne laisse jamais un chiffre
+    changer de sens en silence**. Deux cas nommés figent ces pertes ; le test échoue si le
+    comportement change, dans un sens comme dans l'autre.
+    **Ce qui est écarté** : aucun schéma JSON publié — il n'existe aucun consommateur externe, et un
+    schéma écrit à la main dériverait de la fonction d'assainissement, sa vraie source de vérité ;
+    et aucune norme d'échange n'est réinventée, aucune n'existant en 2026 au-delà de ce CSV.
+
+67. **Le second avis compare des nombres, jamais des outils — et un écart n'est « à examiner » que
+    sur une grandeur qui ne dépend d'aucune méthode** (29/08/2026, proposition P62). Une divergence
+    avec un logiciel concurrent vient presque toujours d'une méthode légitimement différente : coût
+    moyen pondéré invariant à la vente (décision n° 5) contre FIFO ou HIFO, PRU par actif (n° 10)
+    contre méthode globale de l'article 150 VH bis (n° 43), frais inclus ou non, récompenses à coût
+    nul (n° 9), taux et sources de prix, périmètre différent. Le garde-fou n'est donc pas un
+    avertissement mais une **partition typée des grandeurs**, déclarée dans une table unique :
+    invariantes (quantité détenue, somme des prix de cession, somme des acquisitions), sensibles à
+    la méthode (PRU, coût, réalisé, latent), imposées par la loi (lignes de l'annexe 2086). **Seules
+    les invariantes et les légales peuvent produire un « écart à examiner ».**
+    **Sur une grandeur sensible dont la méthode diffère, les deux nombres sont énoncés et leur
+    soustraction est mise à `null`.** L'app dit ce que chacun trouve, et refuse de chiffrer un écart
+    qu'elle ne sait pas interpréter. `unexplained` n'est atteignable qu'au bout d'une cascade fermée
+    — arrondi, méthode, périmètre, valorisation — rejouée échelon par échelon par une propriété.
+    **Le moteur ne rejoue jamais FIFO** : simuler la méthode d'un tiers pour le confort d'un
+    comparatif contredirait les décisions n° 5 et 6 ; on préfère dire « non décidable ».
+    **La v1 ne compare que l'annexe 2086**, parce que c'est le seul terrain où le piège disparaît :
+    la méthode y est imposée par la loi, donc un écart y est réellement examinable. CoinTracking et
+    CoinTracker sont reconnus mais annoncés non comparables — leurs chiffres sont sensibles à une
+    méthode qu'ils n'exposent pas, et n'auraient produit que des comparaisons non concluantes. Le
+    rapport complet de Koinly est en PDF : le lire supposerait une dépendance nouvelle (décision
+    n° 13), c'est refusé et dit. L'export de Blockpit ne contient aucun chiffre calculé, et l'écran
+    le nomme. Sans chiffres, le repli est le rejeu de notre moteur sur leurs opérations — annoncé
+    pour ce qu'il est : notre calcul sur leurs données, jamais une comparaison de deux calculs.
+    **Le vocabulaire est vérifié par un test.** Les mots « erreur », « faux », « se trompe »,
+    « surestime » n'existent pas dans le rendu, aucun score de fiabilité ni classement d'outils
+    n'est produit, et ni les prix ni les offres ne sont comparés — ce qui est aussi la condition de
+    licéité d'une comparaison (art. L122-1 s. du code de la consommation) et, surtout, la condition
+    de sa crédibilité. Le test a d'ailleurs fait échouer le commentaire de code qui l'annonçait.
+    **Le périmètre doit être confirmé avant tout affichage**, faute de quoi un utilisateur suivant
+    plus de comptes chez le concurrent verrait un écart massif et parfaitement légitime ; et si la
+    méthode n'est pas déclarée, l'app dit « comparaison non concluante » plutôt que d'afficher un
+    nombre qu'elle ne sait pas lire.
+    **Ce qui est écarté** : le fichier tiers n'entre jamais dans le grand livre et rien n'est
+    persisté (décision n° 3) ; la descente vers « Pourquoi ce chiffre ? » est câblée mais
+    **n'apparaît sur aucun écart en v1**, une ligne 2086 ne portant aucune trace juste — l'afficher
+    en visant à côté serait pire que son absence.

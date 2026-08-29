@@ -162,7 +162,7 @@
       {/each}
     </ul>
     <p class="small">
-      <a href={router.href({ name: 'settings' })}>Toutes les auto-vérifications (réglages)</a>
+      <a href={router.href({ name: 'reconciliation' })}>Voir la réconciliation complète</a>
     </p>
   </section>
 {/snippet}

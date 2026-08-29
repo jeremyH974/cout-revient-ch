@@ -1,0 +1,2 @@
+Currency,Amount,Purchase value,Sell value,Profit,Method
+BTC,0.1,2000.00,2990.00,990.00,FIFO

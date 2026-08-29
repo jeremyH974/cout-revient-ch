@@ -30,7 +30,7 @@ export const SPACES: readonly Space[] = [
     label: 'Investissement',
     home: { name: 'portfolio' },
     backLabel: 'Retour au portefeuille',
-    routes: ['portfolio', 'asset', 'import', 'add', 'report', 'alerts'],
+    routes: ['portfolio', 'asset', 'import', 'add', 'report', 'secondOpinion', 'alerts'],
   },
   {
     id: 'trading',
@@ -44,7 +44,17 @@ export const SPACES: readonly Space[] = [
     label: 'Plus',
     home: { name: 'more' },
     backLabel: 'Retour au menu',
-    routes: ['more', 'market', 'watch', 'accounts', 'settings', 'help', 'news', 'privacy'],
+    routes: [
+      'more',
+      'market',
+      'watch',
+      'accounts',
+      'reconciliation',
+      'settings',
+      'help',
+      'news',
+      'privacy',
+    ],
   },
 ];
 

@@ -1,9 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Account, AccountId } from '../domain/types';
 import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import { STORAGE_KEY, clearState, loadState, saveState } from './local-storage';
 import { migrateState } from './migrations';
-import { emptyState, sanitizeState, type StoredStateV1 } from './schema';
+import { APP_ID, SCHEMA_VERSION, emptyState, sanitizeState, type StoredStateV1 } from './schema';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -99,6 +100,63 @@ describe('stockage', () => {
     });
     expect(result.ok && result.state.ui.theme).toBe('auto');
     expect(migrateState({ schemaVersion: 2 }).ok).toBe(false);
+  });
+});
+
+/**
+ * Fixture GELÉE (docs/backup-format.md) : 100 % synthétique, ne doit plus jamais changer. Elle
+ * prouve la garantie du format — une sauvegarde ancienne se relit toujours plus tard — sur un
+ * fichier réel plutôt que sur un état construit en mémoire par le test lui-même. L'« attendu » est
+ * dérivé du JSON brut (jamais retapé à la main, pour ne pas doubler le risque de coquille) avec la
+ * SEULE transformation documentée : un cours mis en cache redevient toujours périmé à la relecture.
+ */
+describe('fixture gelée v1 (backup-v1.json)', () => {
+  const raw = readFileSync('tests/fixtures/storage/backup-v1.json', 'utf8');
+  const envelope = JSON.parse(raw) as {
+    app: string;
+    schemaVersion: number;
+    exportedAt: string;
+    state: StoredStateV1;
+  };
+
+  it('enveloppe : app et schemaVersion attendus', () => {
+    expect(envelope.app).toBe(APP_ID);
+    expect(envelope.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('se relit aujourd’hui exactement comme prévu, sans rien écarter', () => {
+    const migrated = migrateState(envelope.state);
+    expect(migrated.ok).toBe(true);
+    if (!migrated.ok) return;
+    expect(migrated.dropped, 'aucune entrée de la fixture v1 ne doit être écartée').toBe(0);
+    const expected: StoredStateV1 = {
+      ...envelope.state,
+      // Conteneur ajouté APRÈS le gel de la fixture (P68, doublons candidats). C'est le chemin
+      // additif que la politique de `docs/backup-format.md` autorise sans montée de schéma : le
+      // fichier ancien se relit toujours, il gagne un conteneur vide. La fixture, elle, ne bouge
+      // pas — seul l'attendu constate l'ajout, et c'est exactement ce que ce test doit exiger.
+      duplicateOverrides: {},
+      priceCache: {
+        ...envelope.state.priceCache,
+        btc: { ...envelope.state.priceCache['btc']!, stale: true },
+      },
+    };
+    expect(migrated.state).toEqual(expected);
+
+    // Même garantie par le chemin réellement emprunté à la restauration (enveloppe complète).
+    const parsed = parseBackup(raw);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    expect(parsed.state).toEqual(expected);
+    expect(parsed.exportedAt).toBe(envelope.exportedAt);
+  });
+
+  it('point fixe : ré-assainir le résultat ne change plus rien (idempotence)', () => {
+    const migrated = migrateState(envelope.state);
+    if (!migrated.ok) throw new Error(migrated.error);
+    const again = sanitizeState(migrated.state);
+    expect(again.dropped).toBe(0);
+    expect(again.state).toEqual(migrated.state);
   });
 });
 
@@ -343,6 +401,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
     };
     s.qualifications['ch:r1:0'] = { kind: 'reward', fairValueEur: null };
     s.transferOverrides['ch:r1:0'] = 'none';
+    s.duplicateOverrides['e1~e2'] = 'confirmed';
     s.taxAnnotations['ch:r1:0'] = { portfolioValueEur: '1000' };
     s.assetSettings['btc'] = {
       manualPriceEur: '50000',
@@ -458,6 +517,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       'manualEvents',
       'qualifications',
       'transferOverrides',
+      'duplicateOverrides',
       'taxAnnotations',
       'assetSettings',
       'accounts',
