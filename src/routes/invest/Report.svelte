@@ -1,12 +1,14 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { nowIso } from '$lib/clock';
-  import { cessionsToCsv } from '$lib/export/csv-export';
+  import { accountDeclarationsToCsv, cessionsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildInsights } from '$lib/domain/insights';
+  import { computeDeclarations, concernedDeclarations } from '$lib/domain/declarations-fr';
   import { dac8Summary } from '$lib/domain/tax-fr';
   import { riskMetrics } from '$lib/domain/risk';
+  import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
@@ -48,6 +50,18 @@
   const tax = $derived(history.status.loadedAt === null ? null : history.frenchTax());
 
   /**
+   * Comptes à déclarer au formulaire 3916-bis (P66) : aucun historique de prix requis, donc
+   * calculable tout de suite (contrairement à `tax`, qui attend `history.ensure()`).
+   */
+  const declarations = $derived(
+    computeDeclarations({
+      accounts: app.accounts,
+      events: app.events,
+      year: Number(generatedAt.slice(0, 4)),
+    }),
+  );
+
+  /**
    * Constats du rapport : ceux de l'accueil, ENRICHIS du repère « mêmes apports en BTC » et des
    * mesures de risque — l'écran d'accueil ne charge pas l'historique de prix, celui-ci si.
    */
@@ -74,6 +88,7 @@
       insights,
       risk,
       tax,
+      declarations,
       spread,
       dac8,
       performance,
@@ -115,6 +130,29 @@
     toasts.push('Cessions exportées : à vérifier avant tout report.', 'success');
   }
 
+  /**
+   * Comptes à déclarer au formulaire 3916-bis (P66) : une AIDE AU REPORT, pas une déclaration —
+   * comme les cessions 2086 ci-dessus.
+   */
+  function downloadDeclarations(): void {
+    downloadText(
+      `cout-revient-ch-comptes-3916bis-${model.meta.dateStamp}.csv`,
+      accountDeclarationsToCsv(declarations),
+      'text/csv;charset=utf-8',
+    );
+    toasts.push('Comptes exportés : à vérifier avant tout report.', 'success');
+  }
+
+  async function copyDeclarations(): Promise<void> {
+    try {
+      const text = declarationsToText(renderDeclarations(concernedDeclarations(declarations)));
+      await navigator.clipboard.writeText(text);
+      toasts.push('Liste des comptes copiée : collez-la où vous voulez.', 'success');
+    } catch {
+      toasts.push('Copie impossible dans ce navigateur.', 'error');
+    }
+  }
+
   async function print(): Promise<void> {
     generatedAt = nowIso();
     await tick();
@@ -131,6 +169,14 @@
   {#if tax && tax.cessions.length > 0}
     <button class="secondary" type="button" onclick={downloadCessions}>
       Cessions au format 2086 (CSV)
+    </button>
+  {/if}
+  {#if model.declarations}
+    <button class="secondary" type="button" onclick={downloadDeclarations}>
+      Comptes à déclarer (3916-bis, CSV)
+    </button>
+    <button class="secondary" type="button" onclick={() => void copyDeclarations()}>
+      Copier la liste
     </button>
   {/if}
   <button class="secondary" type="button" onclick={() => void print()}>
@@ -232,6 +278,31 @@
         </ul>
       {/if}
       <p class="note">{model.tax.note}</p>
+    </section>
+  {/if}
+
+  {#if model.declarations}
+    <section class="card">
+      <h2>{model.declarations.title}</h2>
+      <table class="details">
+        <tbody>
+          {#each model.declarations.details as d (d.label)}
+            <tr>
+              <th scope="row">{d.label}</th>
+              <td class="right num {d.tone}">{d.value}</td>
+              <td class="hint">{d.hint ?? ''}</td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+      {#if model.declarations.warnings.length > 0}
+        <ul class="warnings">
+          {#each model.declarations.warnings as warning (warning)}
+            <li>{warning}</li>
+          {/each}
+        </ul>
+      {/if}
+      <p class="note">{model.declarations.note}</p>
     </section>
   {/if}
 

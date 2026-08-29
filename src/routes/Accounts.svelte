@@ -7,7 +7,8 @@
    */
   import { D } from '$lib/domain/money';
   import { pairFeeQty } from '$lib/domain/transfers';
-  import type { Account, OnchainChain } from '$lib/domain/types';
+  import type { Account, CountryCode, OnchainChain } from '$lib/domain/types';
+  import { COUNTRY_OPTIONS, renderDeclarations } from '$lib/format/declarations-fr';
   import { fmtDate, fmtQty } from '$lib/format/fr';
   import { HL_ADDRESS } from '$lib/import/hyperliquid/api-types';
   import { EXTENDED_PUBLIC_RE } from '$lib/import/onchain/xpub-detect';
@@ -90,6 +91,14 @@
   };
   const declared = (a: Account): boolean => a.id in app.state.accounts;
 
+  // --- 3916-bis (P66) : statut de déclaration déduit de chaque compte -----------------------------
+  const declarationOf = $derived(
+    new Map(renderDeclarations(app.declarations.accounts).map((d) => [d.accountId, d])),
+  );
+  function changeCountry(a: Account, value: string): void {
+    app.setAccountCountry(a.id, value === '' ? null : (value as CountryCode));
+  }
+
   function add(): void {
     const name = label.trim();
     if (name === '')
@@ -159,6 +168,27 @@
                   ? 's'
                   : ''}{/if}</span
             >
+            {#if declarationOf.get(a.id)}
+              {@const decl = declarationOf.get(a.id)!}
+              <p class="declaration">
+                <span class="badge status-{decl.status}">{decl.statusLabel}</span>
+                <span class="muted small">{decl.detail}</span>
+              </p>
+              {#if decl.status === 'unknown' && declared(a)}
+                <label class="field country"
+                  ><span class="sr-only">Pays de l'organisme — {a.label}</span>
+                  <select
+                    value={a.country ?? ''}
+                    onchange={(e) => changeCountry(a, e.currentTarget.value)}
+                  >
+                    <option value="">Pays de l'organisme…</option>
+                    {#each COUNTRY_OPTIONS as c (c.code)}
+                      <option value={c.code}>{c.name}</option>
+                    {/each}
+                  </select>
+                </label>
+              {/if}
+            {/if}
             {#if a.kind === 'onchain'}
               <span class="muted small mono"
                 >{OC_CHAIN_LABELS[a.chain ?? 'btc']} · {shortKey(a.address ?? '')}</span
@@ -481,6 +511,50 @@
   .mono {
     font-family: var(--font-mono);
     word-break: break-all;
+  }
+  .declaration {
+    margin: 2px 0 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    padding: 1px var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-xs);
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--fg-muted);
+  }
+  .badge.status-included {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .badge.status-uncertain-self-hosted {
+    border-color: var(--info);
+    color: var(--info);
+  }
+  .badge.status-unknown {
+    border-color: var(--fg-muted);
+    color: var(--fg-muted);
+  }
+  .field.country {
+    margin-top: var(--space-1);
+    font-weight: 400;
+  }
+  .field.country select {
+    min-height: var(--tap);
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    padding: 0 var(--space-2);
   }
   .transfers {
     list-style: none;
