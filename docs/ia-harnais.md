@@ -22,6 +22,8 @@ un test lit le TEXTE des fichiers de ce dossier et échoue s'il y trouve `fetch(
 | [`src/lib/ai/anchor.ts`](../src/lib/ai/anchor.ts)                                 | Confronte ces nombres au JSON source, par une **liste fermée** de dérivations            |
 | [`src/lib/ai/contract.ts`](../src/lib/ai/contract.ts)                             | Étiquette, motifs de refus, `AiOutcome`, consignes système, contrat d'adaptateur         |
 | [`src/lib/ai/narrative.ts`](../src/lib/ai/narrative.ts)                           | **P65** — la charge utile du récit, et le pipeline fixe qui la juge                      |
+| [`src/lib/ai/mapping.ts`](../src/lib/ai/mapping.ts)                               | **P64** — l'appariement de colonnes : contrôle 0, et l'ancrage sur des **jetons**        |
+| [`src/lib/import/mapping/`](../src/lib/import/mapping/)                           | **P64** — la voie DÉTERMINISTE (sans clé, sans réseau) et son vérificateur               |
 | [`src/lib/ai/adapters/recorded.ts`](../src/lib/ai/adapters/recorded.ts)           | Rejoue des cassettes enregistrées — **aucun chemin réseau**                              |
 | [`src/lib/net/anthropic.ts`](../src/lib/net/anthropic.ts)                         | **P65** — le seul chemin réseau, hors de `src/lib/ai/` pour ne pas désarmer le garde-fou |
 | [`src/lib/format/lexicon.ts`](../src/lib/format/lexicon.ts)                       | Lexiques proscrits : accusation, conseil, garantie, classement                           |
@@ -380,13 +382,99 @@ transmet — à un comptable, à un conseiller —, et un texte généré y vois
 calculés sans que le lecteur suivant sache lequel est lequel. Le presse-papier est différent : le
 colleur est celui qui a vu la carte.
 
+## P64 — l'appariement de colonnes, et l'ancrage sur des JETONS
+
+La deuxième tâche du harnais (`src/lib/ai/mapping.ts`) est le **miroir** de la première : même
+contrat, même `AiOutcome`, même feuille de consentement, même repli. Une seconde mécanique aurait
+divergé de la première au premier correctif, et l'écart se serait vu non pas dans un test, mais dans
+ce qui part vers un modèle.
+
+**La voie déterministe est la fonctionnalité ; le modèle est un supplément.** `src/lib/import/mapping/`
+apparie les colonnes d'un fichier inconnu **sans clé et sans réseau** — c'est ce que 100 % des
+utilisateurs ont. Le modèle ne peut que **combler ses trous** (contrôle 5) : il ne peut jamais
+écraser un appariement déterministe dont la confiance atteint le seuil de pré-cochage, et sa
+confiance déclarée est plafonnée **sous** ce seuil — une proposition de modèle arrive donc toujours
+« à confirmer », jamais pré-cochée. La provenance est affichée par **pastille ET texte**, jamais par
+la couleur seule (WCAG 2.2 AA, critère 1.4.1).
+
+### Ce qui part, et la preuve qu'il n'en part pas plus
+
+`{ colonnes:[{i, entete, forme, distincts?}], typesDistincts, cible:[{champ, role}] }` — des
+en-têtes, des formes de colonne, des compteurs. **Ni cellule, ni montant, ni date, ni compte, ni nom
+de fichier.**
+
+`typesDistincts` est l'exception assumée : sans les libellés de type, le modèle ne peut pas traduire
+« Récompense de staking » en `staking`. Elle est bornée sur trois axes — quarante entrées au plus,
+quarante caractères au plus, et tout libellé portant **quatre chiffres consécutifs, une arobase, un
+préfixe `0x` ou un séparateur décimal** est **écarté, jamais tronqué**. Tronquer serait pire :
+la moitié d'une adresse reste une adresse, et la troncature donne l'illusion d'avoir protégé
+quelque chose. Le nombre de libellés écartés est **affiché avant l'envoi** — c'est plus informatif
+qu'une case à cocher de plus, et cela dit exactement ce que le filtre a fait.
+
+La **propriété de non-fuite** (`src/lib/import/mapping/payload.property.test.ts`) est le pendant,
+pour P64, de la propriété d'ancrage de la décision n° 70. Elle a trois volets :
+
+1. fast-check engendre un CSV dont **chaque cellule** vaut une sentinelle : la charge utile n'en
+   contient aucune ;
+2. une sentinelle placée dans la colonne de type et portant un motif interdit reste absente — et
+   son pendant, un libellé anodin, **passe**, sans quoi la propriété serait vraie parce que rien ne
+   part jamais ;
+3. les **clés** de la charge utile sont exactement la liste blanche déclarée, **à toute
+   profondeur** — sans quoi un futur champ « exemples » entrerait dans l'envoi sans qu'aucun test ne
+   tombe.
+
+### L'ancrage porte sur les jetons, pas sur les nombres
+
+Le récit s'ancre sur des chiffres. Ici il n'y a presque pas de nombres : il y a des **index**, des
+**noms de champ** et des **libellés**. L'ancrage est le même principe appliqué à un autre matériau —
+tout `i` est un index fourni, tout `champ` et tout `cible` appartiennent aux listes fournies, tout
+`libelle` est recopié **caractère pour caractère** depuis l'envoi. Un jeton inventé fait tomber la
+réponse **entière**, et c'est **le même motif** : `unanchored`. Aucun huitième motif n'est créé
+(décision n° 69).
+
+Aucun lexique n'est appliqué ici, et c'est délibéré : le contrôle 0 exige que le texte entier soit
+un objet JSON, sans rien avant ni après. Une prose de conseil ne franchirait jamais l'analyse, et
+l'y chercher serait un contrôle qui ne peut pas mordre — c'est-à-dire un contrôle qui rassure sans
+vérifier.
+
+### Le vérificateur rejoue l'import ; il ne juge pas l'appariement
+
+Après le contrôle 0 viennent les contrôles 1 à 4 (`src/lib/import/mapping/verify.ts`), qui
+**rejouent le fichier entier** — le pipeline d'import est pur, rien n'est écrit. Le rapport est
+**codé**, jamais en français (`rows-kept=0.87<0.90`), et traduit une seule fois à l'écran
+(`src/lib/format/mapping.ts`).
+
+Le contrôle le plus discriminant est **« aucune position bloquée »** : une survente est la signature
+d'un `envoyé`/`reçu` inversé, et c'est le seul cas où tout le reste passe. C'est ce que prouve
+`26-jambes-inversees`, le cas du jeu de référence dont la réponse est **parfaitement conforme au
+JSON** et refusée quand même. Un test vérifie non seulement qu'il est refusé, mais **par quel
+contrôle** : un refus au contrôle 0 signifierait que la cassette est mal écrite, et le cas ne
+prouverait plus rien.
+
+### Les cinq cas P64 du jeu de référence
+
+| Cas                       | Ce qu'il éprouve                                                 |
+| ------------------------- | ---------------------------------------------------------------- |
+| `23-appariement-nominal`  | le modèle comble un vrai trou (un en-tête `free-text` opaque)    |
+| `24-index-hors-plage`     | un index hors des colonnes fournies → contrôle 0 → `unanchored`  |
+| `25-libelle-invente`      | un libellé jamais envoyé → contrôle 0 → `unanchored`             |
+| `26-jambes-inversees`     | **JSON valide, refusé au contrôle « position bloquée »**         |
+| `27-mapping-aucun-modele` | aucun modèle → `no-model`, repli sur la proposition déterministe |
+
+Les cas d'appariement portent un champ `csv` : le fichier synthétique sur lequel le vérificateur
+rejoue l'import. **Il ne voyage jamais vers le modèle** — et deux tests du registre le constatent
+sur les cas committés eux-mêmes : l'entrée stockée est exactement celle que produit le code livré,
+et aucune cellule du fichier ne s'y trouve.
+
 ## Ce qui reste à faire
 
 - La **première capture réelle** : `15-recit-p65-nominal` porte encore une cassette **manuscrite**,
   faute d'avoir été capturée. Un `npm run ai:capture` la remplacera, et le banc d'essai basculera
-  seul sur l'empreinte du vrai modèle.
-- Les tâches `column-mapping` (P64) et `assistant` (P69), avec leur consigne système et leur repli
-  propres — `TASK_FALLBACK` les attend.
+  seul sur l'empreinte du vrai modèle. Les cinq cassettes P64 sont, elles aussi, manuscrites — et
+  `capture-ai.ts` ne sait capturer que la tâche `narrative` : un appariement capturé demanderait de
+  lui apprendre à construire un vérificateur, ce qui n'est pas fait.
+- La tâche `assistant` (P69), avec sa consigne système et son repli propres — `TASK_FALLBACK`
+  l'attend.
 - Un **choix de modèle** : `UiSettings.aiModelId` existe et vaut toujours `null` en v1. Chaque
   modèle supplémentaire multiplierait les cassettes, et un petit modèle qui échoue à l'ancrage
   produit un refus — sûr, mais sans valeur pour l'utilisateur.

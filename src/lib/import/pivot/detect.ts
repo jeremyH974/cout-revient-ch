@@ -20,8 +20,13 @@ export type PivotField =
   | 'description'
   | 'txHash';
 
-/** En-têtes acceptés par champ (comparaison insensible à la casse et aux espaces multiples). */
-const HEADERS: Record<PivotField, readonly string[]> = {
+/**
+ * En-têtes acceptés par champ (comparaison insensible à la casse et aux espaces multiples).
+ *
+ * Exportée pour l'appariement assisté (P64) : c'est sa règle « en-tête déjà connu », celle qui
+ * vaut 1,00 dans son score. Une seconde copie de cette table y aurait divergé au premier ajout.
+ */
+export const HEADERS: Record<PivotField, readonly string[]> = {
   date: ['date', 'date (utc)'],
   sentAmount: ['sent amount', 'from amount'],
   sentCurrency: ['sent currency', 'from currency'],

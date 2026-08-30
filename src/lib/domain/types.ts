@@ -106,6 +106,32 @@ export type CountryCode = string;
  * plateforme ») et consolidé (grand livre entier) ; le contrôle de solde Coinhouse reste piloté par
  * `EventScope`.
  */
+/**
+ * Un appariement de colonnes mémorisé sur un compte (P64). Sans lui, l'utilisateur referait le
+ * même travail à chaque export mensuel de la même plateforme.
+ *
+ * `headerKey` est l'empreinte de l'en-tête normalisé du fichier : la mémoire ne s'applique donc
+ * **qu'au même en-tête**. Une plateforme qui ajoute, retire ou renomme une colonne repose la
+ * question, et c'est exactement ce qu'on veut — un appariement rejoué sur des colonnes décalées
+ * produirait des montants faux sans que rien ne le signale.
+ *
+ * Une structure de données, pas un type importé du module d'appariement : `src/lib/domain` ne
+ * dépend de rien (règle du projet), et la sauvegarde ne doit pas suivre les remaniements de
+ * `src/lib/import/`.
+ */
+export interface StoredColumnMapping {
+  /** Empreinte FNV-1a des en-têtes normalisés du fichier apparié. */
+  headerKey: string;
+  /** Champ pivot → index de colonne. */
+  columns: Record<string, number>;
+  /** Libellé de type du fichier → étiquette pivot. */
+  typeLabels: Record<string, string>;
+  /** Devise lue dans un en-tête plutôt que dans une colonne (`Contre-valeur (EUR)`). */
+  impliedCurrencies?: Record<string, string>;
+  /** ISO 8601 : quand l'utilisateur l'a confirmé. */
+  confirmedAt: string;
+}
+
 export interface Account {
   id: AccountId;
   kind: AccountKind;
@@ -118,6 +144,11 @@ export interface Account {
    * deviné à partir du réseau on-chain ou de l'adresse.
    */
   country?: CountryCode | null;
+  /**
+   * Appariement de colonnes confirmé pour ce compte (P64) : réutilisé au prochain export du même
+   * fichier. Champ **optionnel et additif** — aucune montée de `SCHEMA_VERSION` (décision n° 66).
+   */
+  columnMapping?: StoredColumnMapping;
   /** Trading seulement : router les achats spot « à garder » vers l'espace Investissement. */
   spotAsInvestment?: boolean;
   /** Adresse publique (Hyperliquid, on-chain) ; jamais une clé. */

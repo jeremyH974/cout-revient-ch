@@ -1,0 +1,131 @@
+{
+  "id": "25-libelle-invente",
+  "task": "column-mapping",
+  "csv": "demo-inconnu.csv",
+  "input": {
+    "colonnes": [
+      {
+        "i": 0,
+        "entete": "Horodatage",
+        "forme": "dmy-datetime",
+        "distincts": 5
+      },
+      {
+        "i": 1,
+        "entete": "Opération",
+        "forme": "free-text",
+        "distincts": 5
+      },
+      {
+        "i": 2,
+        "entete": "Quantité vendue",
+        "forme": "decimal-comma",
+        "distincts": 4
+      },
+      {
+        "i": 3,
+        "entete": "Devise vendue",
+        "forme": "asset-code",
+        "distincts": 3
+      },
+      {
+        "i": 4,
+        "entete": "Quantité achetée",
+        "forme": "decimal-comma",
+        "distincts": 4
+      },
+      {
+        "i": 5,
+        "entete": "Devise achetée",
+        "forme": "asset-code",
+        "distincts": 3
+      },
+      {
+        "i": 6,
+        "entete": "Commission",
+        "forme": "decimal-comma",
+        "distincts": 2
+      },
+      {
+        "i": 7,
+        "entete": "Devise des frais",
+        "forme": "asset-code",
+        "distincts": 2
+      },
+      {
+        "i": 8,
+        "entete": "Contre-valeur (EUR)",
+        "forme": "decimal-comma",
+        "distincts": 5
+      },
+      {
+        "i": 9,
+        "entete": "Note",
+        "forme": "free-text",
+        "distincts": 5
+      }
+    ],
+    "typesDistincts": [
+      "achat",
+      "échange",
+      "vente",
+      "récompense",
+      "frais de retrait"
+    ],
+    "cible": [
+      {
+        "champ": "date",
+        "role": "required"
+      },
+      {
+        "champ": "sentAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "sentCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "feeAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "feeCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "label",
+        "role": "optional"
+      },
+      {
+        "champ": "description",
+        "role": "optional"
+      },
+      {
+        "champ": "txHash",
+        "role": "optional"
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": "unanchored"
+  }
+}

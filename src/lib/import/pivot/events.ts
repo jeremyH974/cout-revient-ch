@@ -19,8 +19,16 @@ import type {
 } from '../../domain/types';
 import { applyQualification } from '../coinhouse/qualify';
 
+/*
+ * Les quatre tables d'étiquettes sont EXPORTÉES depuis P64 : l'appariement assisté y traduit les
+ * libellés de type d'un fichier inconnu (« Récompense », « Staking-Reward », « Frais de retrait »)
+ * vers les étiquettes que ce module lit déjà. Elles restent la seule source de vérité — une table
+ * recopiée dans le module d'appariement aurait divergé au premier ajout d'étiquette, et la
+ * divergence se serait vue non pas à la lecture, mais dans un montant.
+ */
+
 /** Étiquettes Koinly traitées comme un revenu (entrée sans contrepartie, juste valeur). */
-const REWARD_LABELS = new Set([
+export const REWARD_LABELS = new Set([
   'reward',
   'staking',
   'stake',
@@ -37,7 +45,7 @@ const REWARD_LABELS = new Set([
 ]);
 
 /** Étiquettes « frais » : une sortie fiat seule devient un frais hors opération. */
-const FEE_LABELS = new Set([
+export const FEE_LABELS = new Set([
   'cost',
   'fee',
   'tax',
@@ -49,10 +57,10 @@ const FEE_LABELS = new Set([
 ]);
 
 /** Étiquettes de sortie « sans plus-value » chez Koinly : sortie au coût, annotée. */
-const NEUTRAL_OUT_LABELS = new Set(['gift', 'lost', 'donation']);
+export const NEUTRAL_OUT_LABELS = new Set(['gift', 'lost', 'donation']);
 
 /** Étiquettes de DÉPENSE (paiement carte, débit) : cession réalisée à la contre-valeur fournie. */
-const SPEND_LABELS = new Set(['spend', 'card spend', 'payment']);
+export const SPEND_LABELS = new Set(['spend', 'card spend', 'payment']);
 
 export type UsdRate = (day: string) => string | null;
 

@@ -10,7 +10,13 @@ import { detectPivotFormat, type PivotFormat } from './detect';
 import { pivotLedgerEvents, type UsdRate } from './events';
 import { parsePivotRows, pivotRowsEqual, type ParsedPivotRows, type PivotIssue } from './rows';
 
-export type ImportedFormat = PivotFormat | PlatformFormatId | 'ghostfolio-json' | 'onchain-sync';
+export type ImportedFormat =
+  | PivotFormat
+  | PlatformFormatId
+  | 'ghostfolio-json'
+  | 'onchain-sync'
+  /** Fichier inconnu, lu par un appariement de colonnes confirmé par l'utilisateur (P64). */
+  | 'mapped-csv';
 
 export interface PivotImportReport {
   format: ImportedFormat;

@@ -42,14 +42,26 @@ import {
   type AiTask,
   type ModelAdapter,
 } from '../../src/lib/ai/contract';
+import { judgeMapping, parseMappingReply } from '../../src/lib/ai/mapping';
 import { judgeNarrative, refusalOfModelError, sentencesOf } from '../../src/lib/ai/narrative';
+import { parseCsvText } from '../../src/lib/import/csv';
+import { TYPE_TARGETS } from '../../src/lib/import/mapping/labels';
+import { mergeModelMapping, type ModelMapping } from '../../src/lib/import/mapping/merge';
+import { buildColumnMappingInput } from '../../src/lib/import/mapping/payload';
+import { confirmedMapping, proposeMapping } from '../../src/lib/import/mapping/propose';
+import { contextOf, firstFailure, verifyMapping } from '../../src/lib/import/mapping/verify';
+import type { ColumnMappingInput } from '../../src/lib/import/mapping/payload';
 import { ALL_LEXICONS, scanOutput, type LexiconHit } from '../../src/lib/format/lexicon';
 import { ANTHROPIC_MODEL_ID } from '../../src/lib/net/anthropic';
 import { ANTHROPIC_HOST } from '../../src/lib/net/anthropic';
 
 const CASES_DIR = fileURLToPath(new URL('../fixtures/ai/cases/', import.meta.url));
 const REPLIES_DIR = fileURLToPath(new URL('../fixtures/ai/replies/', import.meta.url));
+const MAPPING_DIR = fileURLToPath(new URL('../fixtures/mapping/', import.meta.url));
 const AI_DIR = fileURLToPath(new URL('../../src/lib/ai/', import.meta.url));
+
+/** Taux EUR/USD fixe : le banc d'essai ne dépend d'aucun taux réel, comme il ne dépend d'aucune heure. */
+const USD_RATE = (): string => '1.1';
 
 /** Instant fixe : le banc d'essai ne dépend jamais de l'heure à laquelle il tourne. */
 const NOW = '2026-08-30T09:00:00';
@@ -78,6 +90,12 @@ interface CaseSpec {
   };
   /** Limite ASSUMÉE du vérificateur : le cas est vert, et il est étiqueté comme tel. */
   readonly knownLimitation?: string;
+  /**
+   * `column-mapping` seulement : le fichier synthétique sur lequel le vérificateur rejoue l'import
+   * (`tests/fixtures/mapping/`). Il ne voyage JAMAIS vers le modèle — la charge utile est
+   * `input`, et elle ne porte aucune cellule. C'est justement ce que le cas éprouve.
+   */
+  readonly csv?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -86,9 +104,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function parseCase(raw: unknown, file: string): CaseSpec {
   if (!isRecord(raw)) throw new Error(`${file} : un objet JSON est attendu`);
-  const { id, task, input, expect: expected, knownLimitation } = raw;
+  const { id, task, input, expect: expected, knownLimitation, csv } = raw;
   if (typeof id !== 'string' || id === '') throw new Error(`${file} : \`id\` manquant`);
-  if (task !== 'narrative') throw new Error(`${file} : tâche « ${String(task)} » inconnue`);
+  if (task !== 'narrative' && task !== 'column-mapping')
+    throw new Error(`${file} : tâche « ${String(task)} » inconnue`);
   if (!isRecord(expected)) throw new Error(`${file} : \`expect\` manquant`);
   const { anchored, lexicon, mustRefuse } = expected;
   if (typeof anchored !== 'boolean' || typeof lexicon !== 'boolean')
@@ -101,6 +120,7 @@ function parseCase(raw: unknown, file: string): CaseSpec {
     input,
     expect: { anchored, lexicon, mustRefuse: mustRefuse as AiRefusal | null },
     ...(typeof knownLimitation === 'string' ? { knownLimitation } : {}),
+    ...(typeof csv === 'string' ? { csv } : {}),
   };
 }
 
@@ -167,17 +187,37 @@ type Verdict =
   | { readonly kind: 'recapture'; readonly why: string }
   | {
       readonly kind: 'evaluated';
-      readonly outcome: AiOutcome<string>;
+      readonly outcome: AiOutcome<unknown>;
       readonly text: string | null;
       readonly audit: AnchorReport | null;
       readonly hits: readonly LexiconHit[];
     };
 
+/**
+ * Le vérificateur RÉEL d'un cas d'appariement : proposition déterministe du fichier synthétique,
+ * fusion de ce que le modèle propose (contrôle 5 : il ne peut que combler un trou), puis rejeu de
+ * l'import entier. Rend `null` s'il accepte, ou le code du premier contrôle en échec.
+ */
+function mappingVerifier(spec: CaseSpec): (model: ModelMapping) => string | null {
+  const file = spec.csv;
+  if (file === undefined) throw new Error(`${spec.id} : \`csv\` manquant pour un appariement`);
+  const table = parseCsvText(readFileSync(join(MAPPING_DIR, file), 'utf8'));
+  const proposal = proposeMapping(table);
+  return (model) => {
+    const merged = mergeModelMapping(proposal, model);
+    const verdict = verifyMapping(
+      confirmedMapping(merged.proposal),
+      contextOf(table, proposal, USD_RATE),
+    );
+    return verdict.ok ? null : (firstFailure(verdict)?.code ?? 'refus sans code');
+  };
+}
+
 async function evaluateCase(spec: CaseSpec, adapter: ModelAdapter | null): Promise<Verdict> {
   if (adapter === null) {
     return {
       kind: 'evaluated',
-      outcome: refuse<string>(spec.task, 'no-model'),
+      outcome: refuse<unknown>(spec.task, 'no-model'),
       text: null,
       audit: null,
       hits: [],
@@ -192,7 +232,7 @@ async function evaluateCase(spec: CaseSpec, adapter: ModelAdapter | null): Promi
     // Un échec porteur de son motif : le chemin réel du pipeline, éprouvé sans réseau.
     return {
       kind: 'evaluated',
-      outcome: refuse<string>(spec.task, refusalOfModelError(error)),
+      outcome: refuse<unknown>(spec.task, refusalOfModelError(error)),
       text: null,
       audit: null,
       hits: [],
@@ -200,6 +240,23 @@ async function evaluateCase(spec: CaseSpec, adapter: ModelAdapter | null): Promi
   }
   if (reply.modelId !== adapter.id)
     return { kind: 'recapture', why: `modèle enregistré « ${reply.modelId} » ≠ « ${adapter.id} »` };
+  if (spec.task === 'column-mapping') {
+    /*
+     * P64. Le jugement passe par le PIPELINE LIVRÉ (`judgeMapping`), et son vérificateur est le
+     * vrai : il rejoue l'import entier du fichier synthétique. C'est ce qui permet au cas
+     * « jambes inversées » d'être conforme au JSON et refusé quand même — le seul cas du jeu de
+     * référence où le contrôle qui mord n'est ni la forme, ni le vocabulaire, mais le moteur.
+     */
+    const outcome = judgeMapping(
+      reply.text,
+      spec.input as ColumnMappingInput,
+      TYPE_TARGETS,
+      reply.modelId,
+      NOW,
+      mappingVerifier(spec),
+    );
+    return { kind: 'evaluated', outcome, text: reply.text, audit: null, hits: [] };
+  }
   /*
    * Le verdict vient du PIPELINE LIVRÉ (`judgeNarrative`), plus d'une réimplémentation locale.
    * C'était la faiblesse discrète du banc d'essai : il vérifiait sa propre copie des règles, donc
@@ -252,6 +309,48 @@ describe('registre du jeu de référence', () => {
   it('donne à chaque cas une entrée distincte : sinon deux cas partageraient une cassette', () => {
     const keys = CASES.map((spec) => keyOf(spec, MODEL));
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  /**
+   * P64 : l'entrée écrite dans le cas doit être **exactement** celle que produit le code livré sur
+   * le fichier synthétique. Sans ce contrôle, une évolution de la charge utile laisserait les cas
+   * intacts et verts — ils éprouveraient un envoi que l'application ne fait plus. Un échec ici
+   * n'est pas une régression : c'est un cas à régénérer, et le message le dit.
+   */
+  it('fige la charge utile réelle des cas d’appariement, fichier par fichier', () => {
+    for (const spec of CASES) {
+      if (spec.csv === undefined) continue;
+      const table = parseCsvText(readFileSync(join(MAPPING_DIR, spec.csv), 'utf8'));
+      const rebuilt = buildColumnMappingInput(table, proposeMapping(table)).input;
+      expect(
+        spec.input,
+        `${spec.id} : la charge utile a changé — régénérez le cas et sa cassette`,
+      ).toEqual(rebuilt);
+    }
+  });
+
+  it('n’envoie AUCUNE cellule des fichiers d’appariement dans la charge utile des cas', () => {
+    // La preuve de non-fuite vit dans `payload.property.test.ts` ; ici on la constate sur les cas
+    // committés eux-mêmes, qui sont ce qui partirait réellement vers un modèle.
+    for (const spec of CASES) {
+      if (spec.csv === undefined) continue;
+      const table = parseCsvText(readFileSync(join(MAPPING_DIR, spec.csv), 'utf8'));
+      const sent = JSON.stringify(spec.input);
+      const labels = new Set((spec.input as ColumnMappingInput).typesDistincts);
+      for (const row of table.rows) {
+        for (const cell of row) {
+          const value = cell.trim();
+          // Deux exceptions, et elles sont déclarées : les libellés de type (la seule donnée de
+          // cellule qui voyage) et les valeurs qui figurent déjà dans un EN-TÊTE — « EUR » est une
+          // cellule de ce fichier autant qu'un morceau de « Contre-valeur (EUR) », et l'en-tête,
+          // lui, part légitimement. La version forte de la propriété, immunisée contre cette
+          // coïncidence par des sentinelles, vit dans `import/mapping/payload.property.test.ts`.
+          if (value === '' || labels.has(value.toLowerCase())) continue;
+          if (table.header.some((h) => h.includes(value))) continue;
+          expect(sent, `${spec.id} : « ${value} »`).not.toContain(value);
+        }
+      }
+    }
   });
 
   it('n’écrit aucun caractère invisible en clair : ils sont échappés dans le fichier', () => {
@@ -373,9 +472,39 @@ describe('verdict par cas', () => {
             `couverture ${(anchorCoverage(audit) * 100).toFixed(0)} %, ` +
             `${audit.checked.length} nombres contrôlés, ${audit.excluded.length} écartés`,
         );
+      } else if (text !== null && spec.task === 'column-mapping') {
+        const payload = spec.input as ColumnMappingInput;
+        indicative.push(
+          `${spec.id} — ${payload.colonnes.length} colonnes décrites, ` +
+            `${payload.typesDistincts.length} libellé(s) de type envoyé(s), ` +
+            `réponse de ${text.length} caractères`,
+        );
       }
     });
   }
+});
+
+describe('P64 : le cas qui prouve que le vérificateur mord', () => {
+  /**
+   * `26-jambes-inversees` est le seul cas du jeu de référence où **tout est conforme sauf le
+   * résultat** : le JSON est valide, les index existent, les champs sont déclarés, aucun doublon,
+   * les dates se lisent, les montants aussi, les devises sont connues. Seul le moteur s'en
+   * aperçoit — en essayant de céder des actifs jamais acquis.
+   *
+   * Le test ci-dessous ne se contente donc pas de vérifier que le cas est refusé : il vérifie
+   * **par quel contrôle**. Un refus au contrôle 0 signifierait que la cassette est mal écrite, et
+   * le cas ne prouverait plus rien.
+   */
+  it('refuse les jambes inversées au contrôle « aucune position bloquée », pas avant', () => {
+    const spec = CASES.find((c) => c.id === '26-jambes-inversees');
+    if (spec === undefined) throw new Error('cas 26 absent du jeu de référence');
+    const reply = CASSETTES.get(keyOf(spec, MODEL));
+    if (reply === undefined) throw new Error('cassette du cas 26 absente');
+    const model = parseMappingReply(reply.text, spec.input as ColumnMappingInput, TYPE_TARGETS);
+    // Contrôle 0 : la réponse est parfaitement conforme. C'est tout l'intérêt du cas.
+    expect(model).not.toBeNull();
+    expect(mappingVerifier(spec)(model!)).toMatch(/^blocked=/);
+  });
 });
 
 describe('les deux limites connues sont étiquetées, pas seulement racontées', () => {

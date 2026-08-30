@@ -1,0 +1,80 @@
+{
+  "id": "27-mapping-aucun-modele",
+  "task": "column-mapping",
+  "input": {
+    "colonnes": [
+      {
+        "i": 0,
+        "entete": "Horodatage",
+        "forme": "iso-datetime"
+      },
+      {
+        "i": 1,
+        "entete": "Montant",
+        "forme": "decimal-dot"
+      },
+      {
+        "i": 2,
+        "entete": "Unité",
+        "forme": "asset-code",
+        "distincts": 2
+      }
+    ],
+    "typesDistincts": [],
+    "cible": [
+      {
+        "champ": "date",
+        "role": "required"
+      },
+      {
+        "champ": "sentAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "sentCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "feeAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "feeCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "label",
+        "role": "optional"
+      },
+      {
+        "champ": "description",
+        "role": "optional"
+      },
+      {
+        "champ": "txHash",
+        "role": "optional"
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": "no-model"
+  }
+}
