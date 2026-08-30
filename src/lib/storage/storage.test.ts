@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Account, AccountId } from '../domain/types';
+import { aiKey } from '../../state/ai-key.svelte';
 import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import { STORAGE_KEY, clearState, loadState, saveState } from './local-storage';
 import { migrateState } from './migrations';
@@ -136,6 +137,12 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       // fichier ancien se relit toujours, il gagne un conteneur vide. La fixture, elle, ne bouge
       // pas — seul l'attendu constate l'ajout, et c'est exactement ce que ce test doit exiger.
       duplicateOverrides: {},
+      // Deux champs ajoutés APRÈS le gel (P65, récit narratif) — même chemin additif que le
+      // conteneur ci-dessus. La fixture a rougi dès leur déclaration, et c'est très exactement son
+      // rôle : elle constate qu'une sauvegarde de 2026 gagne deux préférences à valeur par défaut,
+      // sans montée de `SCHEMA_VERSION` et sans qu'aucune donnée de l'utilisateur ne bouge. Le
+      // fichier gelé, lui, n'est pas retouché.
+      ui: { ...envelope.state.ui, aiEnabled: false, aiModelId: null },
       priceCache: {
         ...envelope.state.priceCache,
         btc: { ...envelope.state.priceCache['btc']!, stale: true },
@@ -547,5 +554,73 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       expect(merged[key], `${key} aurait dû rester celui de l'état courant`).toEqual(
         emptyState()[key],
       );
+  });
+});
+
+/**
+ * La clé Anthropic (P65) n'entre pas dans la sauvegarde — et c'est prouvé sur le **texte** du
+ * fichier produit, pas sur la forme du type.
+ *
+ * Un test de forme (« `UiSettings` ne déclare pas ce champ ») serait tautologique : il relirait la
+ * déclaration qu'on vient d'écrire. Celui-ci pose une sentinelle dans le store mémoire, sérialise
+ * une sauvegarde issue d'un état RENSEIGNÉ, et cherche la sentinelle dans la chaîne obtenue. Il
+ * échouerait aussi bien si quelqu'un ajoutait un jour le champ au schéma que s'il l'injectait à la
+ * volée dans l'export.
+ *
+ * Le même test constate l'autre moitié de la règle, celle qu'une phrase fausse du schéma niait
+ * jusqu'ici : les deux clés **gratuites** (CoinGecko, explorateur), elles, figurent bien dans la
+ * sauvegarde. C'est un choix — s'épargner de les ressaisir —, pas un oubli.
+ */
+describe('clé Anthropic : hors de la sauvegarde, par construction', () => {
+  const ANTHROPIC_SENTINEL = 'sk-ant-SENTINELLE-DE-TEST-ne-doit-jamais-etre-serialisee';
+  const FREE_KEY_SENTINEL = 'CG-SENTINELLE-de-test-cle-gratuite';
+
+  function richState(): StoredStateV1 {
+    const s = emptyState();
+    s.rawRows['a'] = row('a');
+    s.ui.theme = 'light';
+    s.ui.coingeckoDemoKey = FREE_KEY_SENTINEL;
+    s.ui.explorerKey = 'jeton-explorateur-de-test';
+    s.ui.aiEnabled = true;
+    return s;
+  }
+
+  it('la sentinelle posée en mémoire n’apparaît pas dans le texte de la sauvegarde', () => {
+    aiKey.set(ANTHROPIC_SENTINEL);
+    expect(aiKey.present, 'la clé doit bien être en mémoire, sinon le test ne prouve rien').toBe(
+      true,
+    );
+    const text = serializeBackup(richState(), '2026-08-30T10:00:00Z');
+    expect(text).not.toContain(ANTHROPIC_SENTINEL);
+    expect(text).not.toContain('sk-ant');
+    aiKey.clear();
+    expect(aiKey.present).toBe(false);
+  });
+
+  it('les deux clés gratuites, elles, y figurent — la différence est délibérée et documentée', () => {
+    const text = serializeBackup(richState(), '2026-08-30T10:00:00Z');
+    expect(text).toContain(FREE_KEY_SENTINEL);
+    expect(text).toContain('jeton-explorateur-de-test');
+  });
+
+  it('le store de la clé n’écrit dans aucun stockage persistant (lu sur son texte)', () => {
+    const source = readFileSync('src/state/ai-key.svelte.ts', 'utf8');
+    for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'IDBDatabase'])
+      expect(source.includes(forbidden), `ai-key.svelte.ts contient ${forbidden}`).toBe(false);
+  });
+
+  it('le consentement se mémorise par empreinte de requête, jamais « l’IA est autorisée »', () => {
+    const a = { system: 'consigne', user: '{"a":1}' };
+    const b = { system: 'consigne', user: '{"a":2}' };
+    aiKey.clear();
+    expect(aiKey.hasConsent(a, 'm')).toBe(false);
+    aiKey.grantConsent(a, 'm');
+    expect(aiKey.hasConsent(a, 'm')).toBe(true);
+    // Une charge utile différente — un ré-import, un prix rafraîchi — redemande le consentement.
+    expect(aiKey.hasConsent(b, 'm')).toBe(false);
+    // Un modèle différent aussi : ce n'est pas le même destinataire.
+    expect(aiKey.hasConsent(a, 'autre-modele')).toBe(false);
+    aiKey.clear();
+    expect(aiKey.consentCount).toBe(0);
   });
 });

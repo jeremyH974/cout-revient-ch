@@ -3,21 +3,31 @@
 > P70, livré le 30/08/2026. Issu de l'étude
 > [`proposals/2026-08-29-data-ia-et-agentique.md`](proposals/2026-08-29-data-ia-et-agentique.md)
 > (§ 0 et § P70), qui le pose comme **prérequis** : pas une ligne d'IA livrée sans son harnais.
+>
+> **Mise à jour du 30/08/2026 (P65).** Le premier vrai modèle est branché : récit narratif du
+> rapport, clé apportée par l'utilisateur, consentement à chaque envoi. Tout ce qui suit reste
+> vrai — le harnais n'a pas été assoupli pour laisser passer le premier client réel, il a été
+> étendu. Les paragraphes ajoutés par P65 le disent.
 
 ## Ce que ça fait, et ce que ça ne fait pas
 
-**Il n'y a aucun LLM dans ce code, et P70 n'en ajoute aucun.** Ce qui est livré, c'est l'outillage
-qui rendra sûres les fonctions à venir — le récit narratif (P65), l'appariement de colonnes (P64),
-l'assistant intégré (P69) :
+P70 n'a livré **aucun modèle** : seulement l'outillage qui rendrait sûres les fonctions à venir.
+P65 branche la première (le récit narratif) ; P64 (appariement de colonnes) et P69 (assistant)
+suivront. Le chemin réseau vit **hors** de `src/lib/ai/`, et ce n'est pas un détail de rangement :
+un test lit le TEXTE des fichiers de ce dossier et échoue s'il y trouve `fetch(`.
 
-| Module                                                                            | Rôle                                                                          |
-| --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| [`src/lib/ai/numbers.ts`](../src/lib/ai/numbers.ts)                               | Lit les nombres d'un texte français et les **classe** avant de les normaliser |
-| [`src/lib/ai/anchor.ts`](../src/lib/ai/anchor.ts)                                 | Confronte ces nombres au JSON source, par une **liste fermée** de dérivations |
-| [`src/lib/ai/contract.ts`](../src/lib/ai/contract.ts)                             | Étiquette, motifs de refus, `AiOutcome`, contrat d'adaptateur de modèle       |
-| [`src/lib/ai/adapters/recorded.ts`](../src/lib/ai/adapters/recorded.ts)           | Rejoue des cassettes enregistrées — **aucun chemin réseau**                   |
-| [`src/lib/format/lexicon.ts`](../src/lib/format/lexicon.ts)                       | Lexiques proscrits : accusation, conseil, garantie, classement                |
-| [`tests/integration/ai-harness.test.ts`](../tests/integration/ai-harness.test.ts) | Le banc d'essai, et son verdict en trois classes                              |
+| Module                                                                            | Rôle                                                                                     |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| [`src/lib/ai/numbers.ts`](../src/lib/ai/numbers.ts)                               | Lit les nombres d'un texte français et les **classe** avant de les normaliser            |
+| [`src/lib/ai/anchor.ts`](../src/lib/ai/anchor.ts)                                 | Confronte ces nombres au JSON source, par une **liste fermée** de dérivations            |
+| [`src/lib/ai/contract.ts`](../src/lib/ai/contract.ts)                             | Étiquette, motifs de refus, `AiOutcome`, consignes système, contrat d'adaptateur         |
+| [`src/lib/ai/narrative.ts`](../src/lib/ai/narrative.ts)                           | **P65** — la charge utile du récit, et le pipeline fixe qui la juge                      |
+| [`src/lib/ai/adapters/recorded.ts`](../src/lib/ai/adapters/recorded.ts)           | Rejoue des cassettes enregistrées — **aucun chemin réseau**                              |
+| [`src/lib/net/anthropic.ts`](../src/lib/net/anthropic.ts)                         | **P65** — le seul chemin réseau, hors de `src/lib/ai/` pour ne pas désarmer le garde-fou |
+| [`src/lib/format/lexicon.ts`](../src/lib/format/lexicon.ts)                       | Lexiques proscrits : accusation, conseil, garantie, classement                           |
+| [`src/lib/format/ai.ts`](../src/lib/format/ai.ts)                                 | **P65** — le français des refus et de l'étiquette (le contrat ignore la langue)          |
+| [`scripts/capture-ai.ts`](../scripts/capture-ai.ts)                               | **P65** — `npm run ai:capture`, hors CI : trois tirages, tout ou rien                    |
+| [`tests/integration/ai-harness.test.ts`](../tests/integration/ai-harness.test.ts) | Le banc d'essai, et son verdict en trois classes                                         |
 
 La règle de fond ne change pas : **l'IA n'entre jamais dans le calcul ; elle entre dans la
 compréhension, la qualification et la distribution.** Cette règle n'est une garantie que parce
@@ -174,7 +184,10 @@ cassettes vivent dans `tests/fixtures/ai/replies/<hash>.json` :
 ```
 
 Les espaces insécables et le moins typographique y sont échappés en `\uXXXX` : un séparateur
-invisible dans une fixture est un piège de relecture.
+invisible dans une fixture est un piège de relecture. **Cette convention est désormais tenue par un
+test** (P65) et par le script de capture, qui échappe ce qu'il écrit — elle n'était jusqu'ici
+qu'une phrase de documentation, et un simple `JSON.stringify` suffisait à la défaire sans que rien
+ne le signale.
 
 **Cassette absente = exception, jamais de repli réseau.** Il n'existe aucun chemin réseau dans le
 module, et un test le vérifie sur le TEXTE des fichiers de `src/lib/ai` (`fetch(`,
@@ -199,22 +212,43 @@ Un fichier par cas dans `tests/fixtures/ai/cases/`, lisible et diffable :
 { "id": "…", "task": "narrative", "input": {…}, "expect": { "anchored": true, "lexicon": true, "mustRefuse": null } }
 ```
 
-| Cas                              | Ce qu'il éprouve                                         |
-| -------------------------------- | -------------------------------------------------------- |
-| `01-recit-nominal`               | récit entièrement ancré                                  |
-| `02-chiffre-invente`             | **un** chiffre inventé → échec (`not-in-source`)         |
-| `03-total-recompose`             | chiffre juste, somme de deux constats → échec            |
-| `04-milliers-espace-fine`        | milliers en U+202F                                       |
-| `05-milliers-insecable`          | milliers en U+00A0                                       |
-| `06-abrege-milliers`             | `12,3 k€` depuis `12345.67`                              |
-| `07-pourcentage-depuis-ratio`    | `12,3 %` depuis un ratio `0.1234`                        |
-| `08-quantite-exacte`             | quantité crypto à 9 décimales, exacte                    |
-| `09-quantite-tronquee`           | la même tronquée à 4 décimales → échec                   |
-| `10-dates-et-numeros-de-ligne`   | dates, heure et numéros de ligne, aucun montant → passe  |
-| `11-lexique-conseil`             | « vous devriez alléger » → refus lexique                 |
-| `12-modele-indisponible`         | aucun modèle → `refused: 'no-model'`, repli déterministe |
-| `13-limite-connue-mauvais-actif` | **vert et étiqueté** : bonne valeur, mauvais actif       |
-| `14-limite-connue-sens-inverse`  | **vert et étiqueté** : bonne valeur, sens inversé        |
+| Cas                              | Ce qu'il éprouve                                          |
+| -------------------------------- | --------------------------------------------------------- |
+| `01-recit-nominal`               | récit entièrement ancré                                   |
+| `02-chiffre-invente`             | **un** chiffre inventé → échec (`not-in-source`)          |
+| `03-total-recompose`             | chiffre juste, somme de deux constats → échec             |
+| `04-milliers-espace-fine`        | milliers en U+202F                                        |
+| `05-milliers-insecable`          | milliers en U+00A0                                        |
+| `06-abrege-milliers`             | `12,3 k€` depuis `12345.67`                               |
+| `07-pourcentage-depuis-ratio`    | `12,3 %` depuis un ratio `0.1234`                         |
+| `08-quantite-exacte`             | quantité crypto à 9 décimales, exacte                     |
+| `09-quantite-tronquee`           | la même tronquée à 4 décimales → échec                    |
+| `10-dates-et-numeros-de-ligne`   | dates, heure et numéros de ligne, aucun montant → passe   |
+| `11-lexique-conseil`             | « vous devriez alléger » → refus lexique                  |
+| `12-modele-indisponible`         | aucun modèle → `refused: 'no-model'`, repli déterministe  |
+| `13-limite-connue-mauvais-actif` | **vert et étiqueté** : bonne valeur, mauvais actif        |
+| `14-limite-connue-sens-inverse`  | **vert et étiqueté** : bonne valeur, sens inversé         |
+| `15-recit-p65-nominal`           | la charge utile réelle de P65, entièrement ancrée         |
+| `16-total-absent-de-l-entree`    | le même récit sans `totaux` dans l'entrée → `unanchored`  |
+| `17-cle-invalide`                | clé refusée par l'API → `model-error`, repli déterministe |
+| `18-plafond-atteint`             | `429` → `quota`                                           |
+| `19-delai-depasse`               | abandon au bout de trente secondes → `timeout`            |
+| `20-reponse-vide`                | réponse blanche → `empty`                                 |
+| `21-reponse-tronquee`            | réponse coupée au plafond de sortie → `empty`             |
+| `22-consentement-refuse`         | l'utilisateur annule l'envoi → `no-model`                 |
+
+Les six derniers n'ont **pas de cassette**, et ne peuvent pas en avoir : `parseCassette` refuse un
+texte vide, et une cassette ne porte ni code HTTP ni délai. Ils sont joués par un adaptateur qui
+**rejette avec son motif**, exactement comme le fait l'adaptateur réseau — même forme d'erreur,
+même champ `aiRefusal`. Le banc d'essai éprouve ainsi les branches d'échec du pipeline sans qu'un
+seul test touche au réseau, et un test unitaire de `narrative.ts` vérifie que la lecture en canard
+s'accorde avec l'erreur réellement levée par `src/lib/net/anthropic.ts` — c'est cette paire qui
+tient une frontière volontairement non typée.
+
+Le cas `16` mérite d'être lu deux fois : c'est lui qui **justifie la présence des totaux dans la
+charge utile**. Sans eux, un modèle qui cite la valeur du portefeuille cite un nombre introuvable
+dans sa source, et le texte est jeté — non parce qu'il est faux, mais parce que rien ne permet de
+dire qu'il est juste.
 
 Un test de registre échoue si un identifiant est dupliqué, si une cassette est orpheline, ou si
 deux cas partagent la même entrée — ils partageraient alors la même cassette sans qu'on le voie.
@@ -269,10 +303,90 @@ avait raison à chaque fois :
 - `src/lib/format/lexicon.test.ts` et `src/lib/format/second-opinion.lexicon.test.ts`.
 - `tests/integration/ai-harness.test.ts` — le banc d'essai complet.
 
+## P65 — le premier vrai modèle, et ce qu'il a fallu ajouter
+
+### Le pipeline est fixe, et il est le même partout
+
+appel → texte vide ? `empty` → lexique (**les quatre domaines**) → `forbidden-lexicon` → ancrage
+(`auditText`, **sans aucun `literals`**) → tout audit non vide devient `unanchored` → étiquette.
+Sinon **refus, texte jeté entier**, repli sur `insightsToText`.
+
+L'ordre n'est pas indifférent : le lexique passe **avant** l'ancrage, parce qu'une phrase de
+conseil parfaitement ancrée reste une phrase de conseil, et que c'est ce motif-là qu'on veut lire
+quand les deux échouent.
+
+**Aucun `literals` n'est accordé au modèle.** Les constantes de gabarit — le seuil de 305 €, la
+fenêtre de douze mois, le 100 % du repère — sont une dérogation réservée à _notre_ rendu
+déterministe, dont les phrases sont relues et versionnées. Les accorder au modèle blanchirait
+d'avance un nombre inventé qui tomberait dessus par hasard.
+
+Le banc d'essai appelle désormais `judgeNarrative`, **le pipeline livré**, au lieu d'en tenir une
+copie. C'était sa faiblesse discrète : il vérifiait sa propre réimplémentation des règles, donc un
+pipeline qui aurait oublié le lexique serait resté vert.
+
+### Les totaux sont dans l'entrée, par nécessité
+
+La charge utile est `{ devise, periode, totaux, constats:[{code,tone,values}] }` — et rien d'autre :
+ni ligne d'opération, ni lot, ni date d'opération, ni adresse, ni compte. Les **totaux** y figurent
+parce que le modèle n'a droit à aucune addition (décision n° 68) : tout chiffre citable doit être
+une **ancre**. L'alternative — le laisser additionner deux constats — produirait un chiffre juste
+que le vérificateur refuserait, et la seule façon de le faire passer serait d'autoriser
+l'arithmétique, c'est-à-dire de laisser l'IA entrer dans le calcul.
+
+### Deux identités de modèle
+
+`MODEL = 'handwritten/p70'` est une **fiction** : les cassettes écrites à la main ne viennent
+d'aucun modèle, et leur prêter un identifiant réel serait le premier pas vers une capture qu'on ne
+saurait plus distinguer d'une rédaction. `CAPTURED_MODEL` est le vrai modèle. Le modèle entrant
+dans la clé, une cassette capturée porte une **autre empreinte**, et le banc d'essai la préfère dès
+qu'elle existe — sans qu'on touche à un test. Avant la première capture, tout retombe sur les
+cassettes manuscrites, sans rien signaler : il n'y a rien à signaler.
+
+### `npm run ai:capture` — ce qu'il a le droit de lire
+
+L'export réel de l'utilisateur vit à la **racine** du dépôt (ignoré par git). Un script de capture
+qui accepterait un chemin en paramètre serait le chemin le plus court entre des données réelles et
+une cassette committée. Donc : **aucun paramètre d'entrée** — le script refuse de démarrer s'il en
+reçoit — et toute lecture passe par `readAllowed`, qui n'admet que `tests/fixtures/ai/cases/` et le
+jeu de démonstration synthétique, sur des chemins **résolus**. La règle n'est pas dans un
+commentaire, elle est dans une fonction.
+
+**Trois tirages, tout ou rien.** Un modèle n'est pas déterministe : une capture unique mesurerait
+la chance. Si l'un des trois échoue à l'ancrage ou au lexique, **rien n'est écrit** et le script
+sort en erreur — un cas dont deux réponses sur trois passent n'est pas un cas qui passe. Un seul
+tirage est committé, avec `source: 'fixture-capture'` ; trois seraient trois fois le même test.
+Seuls les cas portant `"capture": true` sont concernés : les cassettes qui éprouvent un séparateur
+de milliers ou une limite connue sont écrites à la main **exprès**, et une capture réelle leur
+ferait perdre ce qu'elles testent.
+
+Le script tourne sous `node --import ./scripts/ts-resolve.mjs` : Node exige une extension sur les
+imports relatifs, le code de l'application n'en met pas, et le crochet de résolution comble l'écart
+**uniquement pour les scripts qui le chargent** — ni l'application, ni la CI, ni les tests n'en
+dépendent.
+
+### L'étiquette, à l'écran et dans le presse-papier
+
+La carte « Votre année en résumé » se distingue par **trois marques indépendantes** — bordure
+pointillée, pastille textuelle « généré par IA », fond alternatif : jamais la seule couleur
+(WCAG 2.2 AA, critère 1.4.1). Les attributs `data-ai-generated`, `data-ai-model` et `data-ai-at`
+en donnent la version lisible par machine, choisie plutôt que suivie (aucune norme technique n'est
+stabilisée — entrée `ai-act-marquage` de la veille réglementaire).
+
+**Le presse-papier porte l'étiquette en préfixe.** Une mention qui ne vit que sur l'écran ne
+protège que le lecteur qui savait déjà.
+
+**Limite assumée de la v1 : le récit ne sort ni au PDF ni à l'impression.** Un rapport imprimé se
+transmet — à un comptable, à un conseiller —, et un texte généré y voisinerait des chiffres
+calculés sans que le lecteur suivant sache lequel est lequel. Le presse-papier est différent : le
+colleur est celui qui a vu la carte.
+
 ## Ce qui reste à faire
 
-- Le **script de capture** (avec P65) : trois tirages par cas sur un vrai modèle, provenance
-  `fixture-capture`, **jamais sur un export réel**.
+- La **première capture réelle** : `15-recit-p65-nominal` porte encore une cassette **manuscrite**,
+  faute d'avoir été capturée. Un `npm run ai:capture` la remplacera, et le banc d'essai basculera
+  seul sur l'empreinte du vrai modèle.
 - Les tâches `column-mapping` (P64) et `assistant` (P69), avec leur consigne système et leur repli
   propres — `TASK_FALLBACK` les attend.
-- L'affichage de l'étiquette, qui viendra avec le premier écran qui montrera un texte généré.
+- Un **choix de modèle** : `UiSettings.aiModelId` existe et vaut toujours `null` en v1. Chaque
+  modèle supplémentaire multiplierait les cassettes, et un petit modèle qui échoue à l'ancrage
+  produit un refus — sûr, mais sans valeur pour l'utilisateur.

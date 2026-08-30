@@ -1,0 +1,32 @@
+{
+  "id": "20-reponse-vide",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "periode": {
+      "du": "2026-01-01",
+      "au": "2026-08-30"
+    },
+    "totaux": {
+      "valeur": "24310.75",
+      "investi": "21000",
+      "latent": "3310.75",
+      "realise": "-2310.5",
+      "total": "1000.25"
+    },
+    "constats": [
+      {
+        "code": "realized",
+        "tone": "positive",
+        "values": {
+          "amount": "104"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": "empty"
+  }
+}

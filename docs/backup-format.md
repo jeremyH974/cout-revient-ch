@@ -75,6 +75,12 @@ aujourd'hui exactement comme attendu. Ce fichier ne doit **plus jamais changer**
 cassante fait grimper `SCHEMA_VERSION`, une SECONDE fixture (`backup-v2.json`, elle aussi gelée) le
 rejoint ; la première continue d'être vérifiée, migrée, jamais retouchée.
 
+Elle rougit à chaque ajout additif, et **c'est son rôle** : l'ajout de `aiEnabled` et `aiModelId`
+(P65) l'a fait échouer aussitôt. Ce qui bouge alors, ce n'est pas la fixture — c'est l'**attendu**
+du test, qui constate que le fichier de 2026 gagne deux préférences à leur valeur par défaut, sans
+qu'aucune donnée de l'utilisateur ne change et sans montée de `SCHEMA_VERSION`. Un échec de ce test
+pose donc toujours la même question, la bonne : « l'ajout est-il vraiment additif ? »
+
 ## Pourquoi pas de schéma publié
 
 Pas de JSON Schema en regard de ce document : aucun consommateur externe connu ne lit
@@ -209,10 +215,28 @@ opt-in, cadence, notifications système). Détail complet : `docs/alerts.md`, d�
 d'affichage, métriques par défaut des deux graphiques (courbe « Évolution » et fiche actif),
 dates de dernière sauvegarde / d'acceptation de l'avertissement, mode démo, `lastSeenVersion`
 (semver de l'app, voir § L'enveloppe), clé CoinGecko Demo, clé et fournisseur d'explorateur de
-blocs, trois interrupteurs réseau opt-in (`liveMids`, `marketContext`, `liveFills`) — tous
-booléens ou chaînes, aucun montant. Deux champs restent **propres à l'appareil** par construction
-et ne devraient jamais quitter la machine qui les a réglés : `coingeckoDemoKey`, `explorerKey`
-(voir § Fusion, ci-dessous).
+blocs, trois interrupteurs réseau opt-in (`liveMids`, `marketContext`, `liveFills`), et l'opt-in du
+récit par IA (`aiEnabled`, `aiModelId` — P65) — tous booléens ou chaînes, aucun montant.
+
+#### Les clés, et laquelle n'y est pas
+
+Deux clés d'API **figurent dans le fichier de sauvegarde** : `coingeckoDemoKey` et `explorerKey`.
+Elles n'en sont écartées que lors d'une restauration « en fusionnant », qui conserve les réglages
+de l'appareil courant (§ Fusion). C'est un choix : les deux sont **gratuites** et en **lecture
+seule** — au pire, quelqu'un lit à votre place des cours ou des transactions déjà publiques —, et
+les ressaisir à chaque restauration coûterait plus que ce qu'on protégerait. Le commentaire du
+schéma prétendait l'inverse (« jamais dans une sauvegarde ») : il était faux, et c'est le sujet sur
+lequel une phrase fausse coûte le plus cher. Il est corrigé.
+
+**La clé d'API du modèle de langage (P65), elle, n'apparaît dans aucune sauvegarde, et ne le pourra
+pas** : elle ne fait pas partie de `StoredStateV1`. Elle vit en mémoire vive
+(`src/state/ai-key.svelte.ts`) et disparaît au rechargement de l'onglet. La différence n'est pas
+une nuance de prudence : une clé d'IA est un **moyen de paiement**, pas un laissez-passer de
+lecture. L'exclusion est donc structurelle — il n'y a pas de champ à oublier de filtrer — et un
+test la prouve sur le **texte** d'une sauvegarde issue d'un état renseigné, sentinelle à l'appui
+(`src/lib/storage/storage.test.ts`, § « clé Anthropic »). Le même test constate que les deux clés
+gratuites, elles, y sont bien : les deux moitiés de la règle sont vérifiées, pas seulement celle
+qui rassure.
 
 ## Fusion
 

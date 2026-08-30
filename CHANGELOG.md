@@ -5,6 +5,33 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.14.0] - 2026-08-30
+
+### Added
+
+- **« Votre année en résumé »** : sur le rapport, trois à six phrases en français écrites par un
+  modèle de langage à partir de vos **constats déjà calculés**. Le modèle ne calcule rien — et ce
+  n'est pas une promesse, c'est une fonction qui le vérifie : **tout nombre du texte doit se
+  retrouver dans les données envoyées**. Un chiffre inventé, un total recomposé même juste, ou un
+  mot de conseil, et le texte est **écarté en entier** ; la carte affiche alors le motif et le
+  résumé que l'app sait écrire seule.
+- **Avec votre propre clé, et rien qu'à votre demande.** La fonction est décochée par défaut. Vous
+  collez votre clé, elle reste **en mémoire vive** — ni stockage du navigateur, ni sauvegarde — et
+  disparaît au rechargement. **Avant chaque envoi**, une fenêtre montre le contenu exact qui
+  partira, en entier, jamais tronqué, avec la consigne donnée au modèle, la destination et le coût
+  plafond. Confirmer une fois ne vaut que pour ce contenu-là.
+- **Ce qui ne part jamais** : vos lignes d'opérations, vos lots, les dates de vos opérations, vos
+  adresses, vos clés. **Le mode discret masque les montants à l'écran, pas dans l'envoi** — l'app
+  vous le dit avant d'envoyer.
+- Un bouton **« Tester la clé »** vérifie la clé et le chemin réseau en envoyant deux mots, sans
+  aucune de vos données.
+
+### Changed
+
+- **L'application ne dit plus que rien ne sort.** Le README, l'accueil, le menu et l'écran Vie
+  privée décrivent désormais ce qui ne part jamais, ce qui peut partir, sur quelle action et vers
+  où. Une phrase d'accueil se contredisait déjà elle-même auparavant.
+
 ### Added
 
 - **Le harnais qui rendra l'IA sûre, avant qu'il y ait la moindre IA.** Un vérificateur prend un

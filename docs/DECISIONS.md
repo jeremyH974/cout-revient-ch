@@ -1454,3 +1454,73 @@
     nécessaire, jamais suffisante — une recommandation peut se faire par le choix et l'ordre des
     constats, que nul test ne lit. Le test dit « aucun mot de conseil » ; il ne dit pas « ce n'est
     pas du conseil ».
+69. **BYOK accepté, avec consentement par usage — et l'application cesse de dire qu'elle n'envoie
+    rien** (30/08/2026, proposition P74, étude `proposals/2026-08-29-data-ia-et-agentique.md`). Un
+    utilisateur peut fournir **sa propre** clé d'API pour obtenir un récit de ses constats déjà
+    calculés. Trois choses sont tranchées ensemble, parce qu'elles ne valent que réunies.
+    **La clé ne vit qu'en mémoire** : ni `localStorage`, ni `sessionStorage`, ni IndexedDB, ni
+    `StoredStateV1` — donc **structurellement absente de la sauvegarde**, qui est un fichier que
+    l'utilisateur télécharge et peut transmettre. Le test le prouve sur le **texte sérialisé**, pas
+    sur la forme du type : un test de forme serait tautologique. Le même test constate que les clés
+    CoinGecko et explorateur, elles, **y figurent** — l'asymétrie est délibérée et documentée :
+    celles-là sont gratuites et en lecture seule, une clé d'IA est un **moyen de paiement**, et le
+    confort perdu (un collage par session) ne pèse rien face à ce qu'une sauvegarde égarée
+    permettrait de dépenser. Un troisième test lit le **texte du module** de la clé et échoue s'il
+    contient le nom d'un stockage persistant.
+    **Le consentement est par usage, jamais un interrupteur.** Avant chaque envoi, l'écran montre le
+    **contenu réel** — corps exact, jamais tronqué, consigne système intégrale, destination, modèle,
+    plafond de coût — jamais une description. Il se mémorise pour la session, mais **lié à
+    l'empreinte de la charge utile** : un nouvel import, des prix rafraîchis ou un changement de
+    devise reposent la question. On ne mémorise jamais « l'IA est autorisée ». L'écran avertit aussi
+    que **le mode discret masque à l'écran, pas dans l'envoi** — le piège est réel.
+    **L'adaptateur vit dans `src/lib/net/`, pas dans `src/lib/ai/`.** Le harnais (décision n° 68)
+    vérifie sur le **texte des fichiers** que `src/lib/ai/**` ne contient aucun appel réseau : y
+    poser l'adaptateur aurait cassé cet invariant pour une symétrie de nommage. Un test miroir exige
+    que ce fichier soit le **seul du dépôt** à écrire l'origine du modèle. Aucune dépendance ajoutée
+    (décision n° 13) : `fetch` nu, en-tête d'accès navigateur direct, délai de 30 s, **aucun réessai
+    automatique** — la facture est celle de l'utilisateur. Les six familles d'erreur retombent sur
+    les **sept motifs de refus déjà typés**, sans en créer un huitième.
+    **Le maillon manquant de la décision n° 57 est posé** : un test de bout en bout lit la CSP
+    réellement présente dans `dist/index.html` après build et la croise avec la table des origines.
+    Jusqu'ici la table n'était croisée qu'avec le code source ; une origine déclarée mais absente de
+    la sortie aurait marché en développement et échoué en silence en production. Il n'a rien attrapé
+    au premier passage — l'injection était correcte — mais deux sondes négatives prouvent qu'il mord.
+    **La conséquence est assumée et écrite.** Le README, l'écran d'accueil, le menu et l'écran Vie
+    privée affirmaient que rien ne quitte le navigateur. C'est devenu inexact. Les textes disent
+    désormais ce qui ne part **jamais** (lignes d'opérations, lots, dates, adresses, clés), ce qui
+    **peut** partir (constats agrégés, codes d'actifs), sur quelle action et vers quelle origine.
+    Une phrase d'accueil se contredisait d'ailleurs déjà elle-même avant ce chantier — « rien n'est
+    envoyé nulle part », suivi de ce qui l'était.
+    **Ce qui est écarté** : aucun proxy (il ferait du projet un intermédiaire aux données) ; aucune
+    clé fournie par le projet ; aucun comptage de jetons préalable (un second aller-retour consenti
+    pour chiffrer un appel à un centime) ; aucun choix de modèle en v1, chaque modèle multipliant les
+    cassettes. **Risque nommé, non réduit** : la CSP étant globale et injectée au build, l'origine
+    s'ouvre pour tous, y compris pour qui n'activera jamais la fonction.
+
+70. **Le récit est un rendu du JSON des constats, jamais une lecture des transactions — et une
+    sortie non ancrée est jetée entière** (30/08/2026, proposition P65). Ce qui part est la
+    structure typée déjà calculée, plus les **totaux**, et **jamais une transaction ni une ligne
+    brute**. Les totaux sont dans l'entrée par nécessité : le modèle n'a droit à **aucune addition,
+    même juste** (décision n° 68), donc tout chiffre citable doit être une ancre. **Aucune constante
+    de gabarit n'est déclarée pour le modèle** : cette dérogation est réservée à _notre_ rendu
+    déterministe, l'accorder au modèle blanchirait un nombre inventé.
+    **Le pipeline est fixe** : appel, puis texte vide, puis lexique — les quatre domaines, conseil et
+    garantie compris —, puis ancrage, puis étiquette. À défaut : **refus**, texte jeté entier, et
+    repli sur le résumé que l'application sait écrire seule. Une sortie partiellement valide n'est
+    jamais publiée, et la carte affiche alors le motif du refus en français plutôt qu'un blanc.
+    **L'étiquette survit au copier-coller** : visible sous le texte, lisible par machine sur le
+    conteneur, et **préfixée dans le presse-papier**. Aucune norme technique n'existant pour le
+    marquage de l'article 50, le choix est daté et inscrit dans la veille réglementaire (décision
+    n° 64), qui le remettra en cause à sa barrière de trois mois.
+    **Le récit n'entre ni au PDF ni à l'impression en v1.** Un rapport se transmet — à un comptable,
+    à un conseiller — et un texte généré y voisinerait des chiffres calculés sans que le lecteur
+    puisse toujours faire la différence. Le presse-papier, lui, est un geste délibéré de
+    l'utilisateur, et l'étiquette l'accompagne.
+    **Les cassettes réelles se capturent hors CI**, par un script qui **n'accepte aucun paramètre
+    d'entrée** et ne lit que le jeu synthétique — la racine du dépôt, où vit l'export réel de
+    l'utilisateur, lui est fermée. Il tire trois fois et échoue si les trois ne passent pas les
+    garde-fous : la variance se mesure à la capture, elle ne se stocke pas.
+    **Limite reconduite, et elle est la même qu'au premier jour** : un ancrage vert dit qu'aucun
+    chiffre n'a été fabriqué. Il ne dit rien d'un chiffre juste attribué au mauvais actif, d'un sens
+    inversé, d'une omission, ni d'une recommandation faite par le seul choix et le seul ordre des
+    constats — que nul test ne lit.

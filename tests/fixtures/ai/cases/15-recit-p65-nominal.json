@@ -1,0 +1,60 @@
+{
+  "id": "15-recit-p65-nominal",
+  "task": "narrative",
+  "capture": true,
+  "input": {
+    "devise": "EUR",
+    "periode": {
+      "du": "2026-01-01",
+      "au": "2026-08-30"
+    },
+    "totaux": {
+      "valeur": "24310.75",
+      "investi": "21000",
+      "latent": "3310.75",
+      "realise": "-2310.5",
+      "total": "1000.25"
+    },
+    "constats": [
+      {
+        "code": "concentration",
+        "tone": "attention",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "share": "0.7213",
+          "amount": "18452.9"
+        }
+      },
+      {
+        "code": "fees-12m",
+        "tone": "neutral",
+        "values": {
+          "amount": "1284.37",
+          "rate": "0.0041"
+        }
+      },
+      {
+        "code": "realized",
+        "tone": "negative",
+        "values": {
+          "amount": "-2310.5"
+        }
+      },
+      {
+        "code": "stablecoin-share",
+        "tone": "neutral",
+        "values": {
+          "share": "0.0812",
+          "amount": "1974.03"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}
