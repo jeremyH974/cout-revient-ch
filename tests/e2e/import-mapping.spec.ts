@@ -43,6 +43,25 @@ test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
 });
 
+/**
+ * En-têtes de la fixture, dans l'ordre. On choisit une colonne par son INDICE : dès qu'elle est
+ * affectée, son option porte un suffixe « (actuellement : …) » et un libellé exact ne la trouve
+ * plus — c'est ce qui faisait échouer ce test à sa première exécution réelle.
+ */
+const HEADERS = [
+  'Horodatage',
+  'Opération',
+  'Quantité vendue',
+  'Devise vendue',
+  'Quantité achetée',
+  'Devise achetée',
+  'Commission',
+  'Devise des frais',
+  'Contre-valeur (EUR)',
+  'Note',
+] as const;
+const col = (name: (typeof HEADERS)[number]): string => String(HEADERS.indexOf(name));
+
 test('un CSV aux en-têtes inconnus : appariement déterministe, correction, import, annulation', async ({
   page,
 }) => {
@@ -66,18 +85,26 @@ test('un CSV aux en-têtes inconnus : appariement déterministe, correction, imp
   const description = page.getByLabel('Description');
   await description.selectOption('');
   await expect(page.getByRole('button', { name: /^Importer \d+ ligne/ })).toBeEnabled();
-  await description.selectOption({ label: 'Note' });
+  await description.selectOption(col('Note'));
 
   // 3) Une inversion des jambes fait rougir le contrôle du SENS, avant tout import.
-  await page.getByLabel('Quantité envoyée').selectOption({ label: 'Quantité achetée' });
-  await page.getByLabel('Actif envoyé').selectOption({ label: 'Devise achetée' });
+  // Permutation COMPLÈTE des deux jambes. Ne voler que les colonnes « envoyé » rendrait
+  // l'appariement incomplet, et le refus viendrait alors de l'admissibilité — pas du sens. Or
+  // c'est le contrôle du SENS qu'on veut voir mordre : lui seul détecte une inversion sur un
+  // fichier par ailleurs parfaitement lisible.
+  await page.getByLabel('Quantité envoyée').selectOption(col('Quantité achetée'));
+  await page.getByLabel('Actif envoyé').selectOption(col('Devise achetée'));
+  await page.getByLabel('Quantité reçue').selectOption(col('Quantité vendue'));
+  await page.getByLabel('Actif reçu').selectOption(col('Devise vendue'));
+  // Les colonnes indispensables sont toutes là : le refus qui suit ne peut venir que du sens.
+  await expect(page.getByText('Colonnes indispensables : vérifié')).toBeVisible();
   await expect(page.getByText('Sens des opérations : refusé')).toBeVisible();
   await expect(page.getByRole('button', { name: /^Importer \d+ ligne/ })).toBeDisabled();
   // On rétablit : le contrôle repasse au vert et l'import redevient possible.
-  await page.getByLabel('Quantité envoyée').selectOption({ label: 'Quantité vendue' });
-  await page.getByLabel('Actif envoyé').selectOption({ label: 'Devise vendue' });
-  await page.getByLabel('Quantité reçue').selectOption({ label: 'Quantité achetée' });
-  await page.getByLabel('Actif reçu').selectOption({ label: 'Devise achetée' });
+  await page.getByLabel('Quantité envoyée').selectOption(col('Quantité vendue'));
+  await page.getByLabel('Actif envoyé').selectOption(col('Devise vendue'));
+  await page.getByLabel('Quantité reçue').selectOption(col('Quantité achetée'));
+  await page.getByLabel('Actif reçu').selectOption(col('Devise achetée'));
   await expect(page.getByText('Sens des opérations : vérifié')).toBeVisible();
 
   // 4) Import : les chiffres de l'écran sont ceux du moteur, jamais des littéraux.
