@@ -1,0 +1,26 @@
+{
+  "id": "03-total-recompose",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "fees-12m",
+        "values": {
+          "amount": "1284.37"
+        }
+      },
+      {
+        "code": "realized",
+        "values": {
+          "amount": "-2310.5"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": false,
+    "lexicon": true,
+    "mustRefuse": "unanchored"
+  }
+}

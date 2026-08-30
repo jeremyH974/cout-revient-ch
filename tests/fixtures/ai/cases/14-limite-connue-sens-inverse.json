@@ -1,0 +1,21 @@
+{
+  "id": "14-limite-connue-sens-inverse",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "realized",
+        "values": {
+          "amount": "-2310.5"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  },
+  "knownLimitation": "Sens inversé : une moins-value devient une plus-value. La valeur absolue est un rendu déclaré, donc aucun chiffre n’est fabriqué et l’ancrage reste vert."
+}

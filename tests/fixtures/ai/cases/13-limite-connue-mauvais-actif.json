@@ -1,0 +1,25 @@
+{
+  "id": "13-limite-connue-mauvais-actif",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "concentration",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "share": "0.7213",
+          "amount": "18452.9"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  },
+  "knownLimitation": "Bonne valeur, mauvais actif : la part est celle de BTC, la phrase l’attribue à ETH. Le vérificateur ne lit pas à quel actif un nombre est rattaché."
+}

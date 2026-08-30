@@ -1,6 +1,8 @@
 /**
- * Veille réglementaire française sur la fiscalité des crypto-actifs (P67) : ce que la loi et la
- * doctrine disent, à la date où c'est relu — jamais ce qu'elles pourraient devenir.
+ * Veille réglementaire (P67) : ce que la loi et la doctrine disent, à la date où c'est relu —
+ * jamais ce qu'elles pourraient devenir. Principalement la fiscalité française des crypto-actifs ;
+ * depuis P70, aussi les obligations qui pèsent sur **ce que l'app affiche** (marquage des textes
+ * générés par un modèle) — même nature de fait juridique, même barrière de fraîcheur.
  *
  * **Table entièrement manuelle, sans générateur.** Contrairement au calendrier macro
  * (`../calendar`) ou aux indicateurs (`../macro`), rien ici ne s'automatise : « adopté en
@@ -44,10 +46,10 @@ export type WatchStatus =
 
 /**
  * Thème d'une ligne, pour un filtre éventuel sur l'écran dédié (`relevantTo`). Volontairement
- * grossier : cinq thèmes suffisent à neuf entrées, une taxonomie plus fine coûterait plus qu'elle
+ * grossier : six thèmes suffisent à dix entrées, une taxonomie plus fine coûterait plus qu'elle
  * ne rendrait service.
  */
-export type WatchTopic = 'cession' | 'detention' | 'revenus' | 'declaratif' | 'nft';
+export type WatchTopic = 'cession' | 'detention' | 'revenus' | 'declaratif' | 'nft' | 'ia';
 
 /** Certitude de l'entrée : ce que le texte permet d'affirmer, distinct du statut lui-même. */
 export type WatchCertainty = 'confirmed' | 'secondary-only';
@@ -238,6 +240,28 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     certainty: 'confirmed',
     reviewedOn: '2026-08-29',
     topics: ['nft', 'cession'],
+  },
+  {
+    // Ajoutée par P70 : le harnais d'évaluation des fonctions d'IA impose d'étiqueter tout texte
+    // généré (`AI_NOTICE`, dans `src/lib/ai/contract.ts`). La mention VISIBLE est claire et
+    // datée ; le marquage LISIBLE PAR MACHINE ne l'est pas, et c'est exactement le genre
+    // d'incertitude que cette table existe pour ne pas laisser à l'état de rumeur.
+    id: 'ai-act-marquage',
+    title: 'Marquage des textes générés par une IA (AI Act, art. 50)',
+    status: 'doctrine-unsettled',
+    statusDate: '2026-08-30',
+    effect:
+      'La mention visible d’un texte généré est obligatoire depuis le 02/08/2026 ; le marquage lisible par machine, lui, n’a aucune norme technique stabilisée — aucun format n’est désigné, et le délai de grâce annoncé pour l’existant court jusqu’à décembre 2026',
+    source: {
+      label:
+        'Aucune norme technique identifiée (le règlement (UE) 2024/1689, art. 50, impose le marquage sans en désigner le format ; les formats cités le sont par des praticiens)',
+      url: null,
+      official: false,
+      checkedOn: '2026-08-30',
+    },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-08-30',
+    topics: ['ia'],
   },
 ];
 
