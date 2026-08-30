@@ -295,7 +295,14 @@ describe('aucun chemin réseau dans le harnais', () => {
    * l'adaptateur qui la contacte, et la table qui l'autorise (décision n° 57).
    */
   it('un seul fichier du code livré écrit l’origine du modèle, plus la table qui l’autorise', () => {
-    const ALLOWED = ['src/lib/net/anthropic.ts', 'src/lib/support/csp.ts'];
+    // Trois fichiers ont le droit de nommer l'hôte, et pour trois raisons distinctes :
+    // l'adaptateur l'appelle, la table des origines l'autorise dans la CSP, et l'écran Vie privée
+    // l'AFFICHE à l'utilisateur — dire où vont les données est la raison d'être de cet écran.
+    const ALLOWED = [
+      'src/lib/net/anthropic.ts',
+      'src/lib/support/csp.ts',
+      'src/routes/Privacy.svelte',
+    ];
     const found: string[] = [];
     // `scripts` est inclus : le script de capture appelle le vrai modèle, et il doit passer par
     // l'adaptateur — pas réécrire l'URL, où elle échapperait au classement des erreurs.
