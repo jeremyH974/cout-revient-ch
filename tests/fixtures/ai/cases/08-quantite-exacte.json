@@ -1,0 +1,23 @@
+{
+  "id": "08-quantite-exacte",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "position",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "qty": "0.123456789"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

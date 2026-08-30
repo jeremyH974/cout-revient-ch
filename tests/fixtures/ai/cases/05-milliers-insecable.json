@@ -1,0 +1,20 @@
+{
+  "id": "05-milliers-insecable",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "fees-12m",
+        "values": {
+          "amount": "9876.54"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

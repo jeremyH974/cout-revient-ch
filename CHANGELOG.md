@@ -5,6 +5,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Le harnais qui rendra l'IA sûre, avant qu'il y ait la moindre IA.** Un vérificateur prend un
+  texte français et la structure de données qui l'a produit, et rend la liste des nombres du texte
+  **introuvables dans la source** : c'est ce qui permettra de garantir qu'une phrase générée ne
+  contient aucun chiffre inventé. Un texte qui ne s'ancre pas sera rejeté **entier**, jamais
+  affiché en partie.
+- **Son premier client est notre propre rendu français**, et il y a déjà trouvé trois nombres écrits
+  en dur dans nos phrases plutôt que tirés de vos données. Ils sont désormais déclarés et justifiés
+  un par un.
+- **Sa limite est écrite noir sur blanc** : un ancrage vert dit qu'aucun chiffre n'a été fabriqué, et
+  rien de plus — pas qu'un chiffre juste est attribué au bon actif, ni qu'une phrase sans chiffre est
+  vraie. Deux cas de référence figent cette limite dans les tests plutôt que dans un paragraphe
+  (`docs/ia-harnais.md`, `docs/DECISIONS.md` n° 68).
+
+### Fixed
+
+- Un test de cohérence échouait au hasard selon la vitesse de la machine : il n'attendait pas le
+  chargement de l'historique de prix, contrairement à son voisin immédiat.
+
 ## [2.13.0] - 2026-08-30
 
 ### Added

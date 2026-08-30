@@ -138,6 +138,18 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`), et la
   table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57).
+- `src/lib/ai` — le **harnais d'évaluation des fonctions d'IA** (P70), et rien d'autre : il
+  n'existe aucun modèle dans ce code. `numbers.ts` lit les nombres d'un texte français et les
+  classe avant de les normaliser (les milliers d'`Intl` fr-FR sont en U+202F, pas en U+00A0) ;
+  `anchor.ts` les confronte au JSON source par une **liste fermée** de dérivations, comparée par
+  `Big.eq` et sans epsilon ; `contract.ts` porte l'étiquette obligatoire, les motifs de refus et
+  l'invariant « une sortie acceptée n'a aucun nombre non ancré » ; `adapters/recorded.ts` rejoue
+  des cassettes, **sans aucun chemin réseau**. Module pur, sans DOM, donc exposable au serveur
+  MCP. Détail : docs/ia-harnais.md.
+- `src/lib/format/lexicon.ts` — les lexiques proscrits (accusation, conseil, garantie, classement),
+  appliqués soit au TEXTE d'un fichier (commentaires compris, avec exception nommée mot pour mot),
+  soit à des phrases rendues (sans exception). Généralise le garde-fou du second avis
+  (docs/DECISIONS.md n° 67) pour qu'il serve aussi aux sorties de modèle.
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.

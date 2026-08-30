@@ -1,0 +1,20 @@
+{
+  "id": "12-modele-indisponible",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "realized",
+        "values": {
+          "amount": "1500"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": "no-model"
+  }
+}

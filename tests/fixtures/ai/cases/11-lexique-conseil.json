@@ -1,0 +1,24 @@
+{
+  "id": "11-lexique-conseil",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "concentration",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "share": "0.6842",
+          "amount": "12000"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": false,
+    "mustRefuse": "forbidden-lexicon"
+  }
+}

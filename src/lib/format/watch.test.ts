@@ -66,13 +66,14 @@ describe('watchCertaintyLabel — switch exhaustif', () => {
 });
 
 describe('watchTopicLabel — switch exhaustif', () => {
-  it('donne un libellé distinct à chacun des cinq thèmes', () => {
+  it('donne un libellé distinct à chacun des six thèmes', () => {
     const topics: readonly WatchEntry['topics'][number][] = [
       'cession',
       'detention',
       'revenus',
       'declaratif',
       'nft',
+      'ia',
     ];
     const labels = topics.map(watchTopicLabel);
     for (const label of labels) expect(label.length).toBeGreaterThan(0);

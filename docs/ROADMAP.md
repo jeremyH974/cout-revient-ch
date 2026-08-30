@@ -586,22 +586,22 @@ Toutes ces étapes sont livrées au 24/08/2026.
 
 Détail et sources : [`proposals/2026-08-29-data-ia-et-agentique.md`](proposals/2026-08-29-data-ia-et-agentique.md).
 
-| #    | Proposition                                                      | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |            État             |
-| ---- | ---------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :-------------------------: |
-| P66  | Comptes à déclarer (3916-bis) déduits des comptes saisis         |   4    |     4     |    4    |    1     | **12** |   **livré (29/08/2026)**    |
-| P63a | Serveur MCP installable sans build (actif de release)            |   3    |     2     |    5    |    1     | **10** |   **livré (29/08/2026)**    |
-| P67  | Veille réglementaire compilée (millésimes et textes en cours)    |   3    |     3     |    3    |    1     | **9**  |   **livré (29/08/2026)**    |
-| P61  | « Pourquoi ce chiffre ? » — traçabilité jusqu'aux lignes brutes  |   5    |     5     |    4    |    2     | **7**  |   **livré (29/08/2026)**    |
-| P72  | Anti-verrouillage : format de sauvegarde documenté et versionné  |   2    |     3     |    2    |    1     |   7    |   **livré (29/08/2026)**    |
-| P68  | Réconciliation : écarts, trous et doublons en liste d'actions    |   4    |     5     |    3    |    2     |   6    |   **livré (29/08/2026)**    |
-| P62  | Second avis sur un export concurrent (Koinly/CoinTracker/Waltio) |   5    |     4     |    5    |   2,5    |  5,6   |   **livré (29/08/2026)**    |
-| P70  | Harnais d'évaluation des fonctions IA + garde-fous testés        |   2    |     5     |    1    |   1,5    |  5,3   | proposition — **prérequis** |
-| P65  | « Votre année crypto » — rapport narratif étiqueté IA, en BYOK   |   3    |     2     |    5    |    2     |   5    |         proposition         |
-| P64  | Qualification assistée des lignes inconnues (IA locale)          |   5    |     4     |    4    |    3     |  4,3   |         proposition         |
-| P63b | MCP v2 : parité fonctionnelle, MCP Apps, compétence de domaine   |   4    |     3     |    5    |    3     |   4    |         proposition         |
-| P73  | Banc d'essai public d'exactitude (jeu synthétique, rejouable)    |   3    |     4     |    2    |   2,5    |  3,6   |         proposition         |
-| P69  | Assistant intégré (BYOK, outils = les fonctions du moteur)       |   3    |     2     |    4    |    3     |   3    |         proposition         |
-| P71  | Version anglaise                                                 |   2    |     1     |    2    |    2     |  2,5   |         proposition         |
+| #    | Proposition                                                      | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |          État          |
+| ---- | ---------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: | :--------------------: |
+| P66  | Comptes à déclarer (3916-bis) déduits des comptes saisis         |   4    |     4     |    4    |    1     | **12** | **livré (29/08/2026)** |
+| P63a | Serveur MCP installable sans build (actif de release)            |   3    |     2     |    5    |    1     | **10** | **livré (29/08/2026)** |
+| P67  | Veille réglementaire compilée (millésimes et textes en cours)    |   3    |     3     |    3    |    1     | **9**  | **livré (29/08/2026)** |
+| P61  | « Pourquoi ce chiffre ? » — traçabilité jusqu'aux lignes brutes  |   5    |     5     |    4    |    2     | **7**  | **livré (29/08/2026)** |
+| P72  | Anti-verrouillage : format de sauvegarde documenté et versionné  |   2    |     3     |    2    |    1     |   7    | **livré (29/08/2026)** |
+| P68  | Réconciliation : écarts, trous et doublons en liste d'actions    |   4    |     5     |    3    |    2     |   6    | **livré (29/08/2026)** |
+| P62  | Second avis sur un export concurrent (Koinly/CoinTracker/Waltio) |   5    |     4     |    5    |   2,5    |  5,6   | **livré (29/08/2026)** |
+| P70  | Harnais d'évaluation des fonctions IA + garde-fous testés        |   2    |     5     |    1    |   1,5    |  5,3   | **livré (30/08/2026)** |
+| P65  | « Votre année crypto » — rapport narratif étiqueté IA, en BYOK   |   3    |     2     |    5    |    2     |   5    |      proposition       |
+| P64  | Qualification assistée des lignes inconnues (IA locale)          |   5    |     4     |    4    |    3     |  4,3   |      proposition       |
+| P63b | MCP v2 : parité fonctionnelle, MCP Apps, compétence de domaine   |   4    |     3     |    5    |    3     |   4    |      proposition       |
+| P73  | Banc d'essai public d'exactitude (jeu synthétique, rejouable)    |   3    |     4     |    2    |   2,5    |  3,6   |      proposition       |
+| P69  | Assistant intégré (BYOK, outils = les fonctions du moteur)       |   3    |     2     |    4    |    3     |   3    |      proposition       |
+| P71  | Version anglaise                                                 |   2    |     1     |    2    |    2     |  2,5   |      proposition       |
 
 **P70 est un prérequis strict** de P64, P65 et P69 : aucune fonction d'IA n'est livrée avant son
 harnais d'évaluation. Règle de fond de l'étude : **l'IA n'entre jamais dans le calcul ; elle entre

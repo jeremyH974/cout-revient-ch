@@ -1,0 +1,47 @@
+{
+  "id": "01-recit-nominal",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "fees-12m",
+        "values": {
+          "amount": "1284.37",
+          "rate": "0.0041"
+        }
+      },
+      {
+        "code": "concentration",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "share": "0.7213",
+          "amount": "18452.9"
+        }
+      },
+      {
+        "code": "realized",
+        "values": {
+          "amount": "-2310.5"
+        }
+      },
+      {
+        "code": "tax-year",
+        "values": {
+          "year": 2026,
+          "proceeds": "12500",
+          "net": "1840.25",
+          "tax": "577.84",
+          "count": 7
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

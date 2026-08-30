@@ -9,11 +9,17 @@ l'alimente.
 
 ## Ce qu'elle contient
 
-Neuf lignes, au démarrage de P67 : le taux et le seuil d'exonération du prélèvement forfaitaire
+Neuf lignes au démarrage de P67 : le taux et le seuil d'exonération du prélèvement forfaitaire
 unique, l'option pour le barème progressif, un amendement de « fortune improductive » proposé puis
 abandonné, le régime encore incertain des récompenses de staking et des airdrops, la collecte et le
 premier échange automatique DAC8/CARF entre administrations fiscales, et le régime propre aux
 jetons uniques (NFT) — hors périmètre de cette app, qui ne suit que des actifs fongibles.
+
+Une dixième depuis P70 (thème `ia`, voir [`ia-harnais.md`](ia-harnais.md)) : l'article 50 de l'AI
+Act impose depuis le 02/08/2026 une mention **visible** sur tout texte généré par un modèle, mais
+son marquage **lisible par machine** n'a aucune norme technique stabilisée. Ce n'est pas de la
+fiscalité — c'est une obligation qui pèse sur ce que l'app affiche —, et c'est exactement ce pour
+quoi cette table existe : écrire ce qu'on sait, écrire ce qu'on ne sait pas, et le dater.
 
 Chaque ligne porte : un statut codé, la date à laquelle ce statut est devenu vrai, une phrase sur
 son effet, sa source (avec son adresse quand elle a pu être confirmée), un degré de certitude

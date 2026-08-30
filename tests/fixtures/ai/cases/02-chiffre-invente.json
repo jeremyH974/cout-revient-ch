@@ -1,0 +1,21 @@
+{
+  "id": "02-chiffre-invente",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "fees-12m",
+        "values": {
+          "amount": "1102.44",
+          "rate": "0.0032"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": false,
+    "lexicon": true,
+    "mustRefuse": "unanchored"
+  }
+}
