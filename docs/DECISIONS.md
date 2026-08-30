@@ -1399,3 +1399,58 @@
     persisté (décision n° 3) ; la descente vers « Pourquoi ce chiffre ? » est câblée mais
     **n'apparaît sur aucun écart en v1**, une ligne 2086 ne portant aucune trace juste — l'afficher
     en visant à côté serait pire que son absence.
+68. **Aucune fonction d'IA n'est livrée sans son vérificateur d'ancrage, et un texte qui ne s'ancre
+    pas est jeté entier** (30/08/2026, proposition P70, étude
+    `proposals/2026-08-29-data-ia-et-agentique.md`). La règle de l'étude — l'IA n'entre jamais dans
+    le calcul, elle entre dans la compréhension, la qualification et la distribution — n'est une
+    garantie que si elle est **vérifiée par une fonction**, jamais promise par une consigne donnée
+    au modèle. `src/lib/ai/anchor.ts` est cette fonction : pure, elle prend un texte français et la
+    structure typée qui l'a produit, et rend la liste des nombres du texte introuvables dans la
+    source. Elle compare en `Big`, jamais en flottant, et n'admet qu'une **liste fermée de
+    dérivations déclarées** (valeur exacte, arrondis d'affichage, ratio en pourcentage, abréviation,
+    valeur absolue) : une dérivation libre blanchirait l'arithmétique du modèle, qui est précisément
+    ce qu'on lui interdit.
+    **Le français est le vrai problème, pas le modèle.** Vérifié empiriquement sur l'ICU du dépôt :
+    `Intl` en français groupe les milliers avec U+202F, l'espace fine insécable — **pas** U+00A0,
+    qui ne sert que devant `€` et `%` — et le signe moins produit par `format/fr.ts` est U+2212. Un
+    vérificateur écrit contre l'espace insécable ordinaire laisserait passer **tous** les milliers,
+    en silence. Dates, heures, années et numéros de ligne sont classés avant normalisation et exclus
+    du contrôle.
+    **Le harnais est livré avec un client réel : notre propre rendu.** `format/insights.ts` doit
+    passer son propre vérificateur, et la propriété qui l'exige a trouvé, au premier passage, trois
+    constantes écrites en dur dans nos gabarits — le seuil de 305 €, la fenêtre de douze mois, le
+    100 % du repère — qui ne viennent d'aucune donnée. Elles sont désormais **déclarées** par
+    l'appelant, avec leur raison et le genre de jeton où elles apparaissent, et un test exige que
+    chaque déclaration reste nécessaire. Un harnais dont le premier client est du code déterministe
+    ne peut pas rester un cadre théorique.
+    **La limite est nommée, pas comblée.** Un ancrage vert dit exactement une chose : aucun chiffre
+    n'a été fabriqué. Il ne dit rien d'un nombre juste mais attribué au mauvais actif, d'un sens
+    inversé, d'une omission, d'une collision fortuite, ni d'une phrase fausse sans chiffre. Deux cas
+    de cette famille figurent dans le jeu de référence, **verts et étiquetés comme limites
+    connues** : une limite qui ne vit que dans la prose finit par être oubliée.
+    **Le refus est un état de première classe, jamais un texte dégradé.** Une sortie non ancrée, ou
+    portant un mot du lexique proscrit, est rejetée **entière** et remplacée par le rendu
+    déterministe existant — même doctrine que le repli du second avis (décision n° 67). Toute sortie
+    acceptée porte son étiquette « généré par IA », visible et lisible par machine (AI Act art. 50,
+    applicable depuis le 02/08/2026), vérifiée comme un invariant et non comme une intention.
+    **La CI ne sort jamais sur Internet et n'appelle jamais un modèle.** Les réponses sont rejouées
+    depuis des cassettes committées, indexées par l'empreinte du prompt et portant le modèle, la
+    date et la **provenance** de la capture — jamais un export réel. C'est le motif « instantané
+    committé + barrière » des générateurs de calendrier et de macro (décision n° 58). Cassette
+    absente : cas « à recapturer », rapporté et non bloquant. Cassette présente et invariant violé :
+    échec. C'est ce qui distingue « la sortie est fausse » de « le modèle a changé ».
+    **Le lexique devient un module.** Le test de vocabulaire du second avis est généralisé en
+    `format/lexicon.ts`, avec un vocabulaire par domaine — jamais d'accusation, jamais de conseil,
+    jamais de garantie, jamais de classement. Le fichier source reste lu commentaires compris, et un
+    faux positif se traite par exception nommée mot pour mot, accompagnée du test qui exige que
+    cette exception soit encore présente intacte.
+    **Ce qui est écarté** : aucun cadre d'évaluation installé — Inspect est en Python, et promptfoo,
+    DeepEval ou Braintrust apportent un arbre de dépendances et un tableau de bord pour deux cents
+    lignes de contrôles déterministes (décision n° 13) ; aucun juge fondé sur un modèle en position
+    bloquante, ses biais de position et d'auto-préférence étant mesurés et non corrigés ; aucune
+    tolérance relative sur les nombres, l'arrondi étant déjà modélisé par les dérivations
+    d'affichage ; et **aucune prétention à vérifier mécaniquement la frontière information /
+    conseil** (doctrine AMF du 04/08/2026) : l'absence de lexique impératif en est une condition
+    nécessaire, jamais suffisante — une recommandation peut se faire par le choix et l'ordre des
+    constats, que nul test ne lit. Le test dit « aucun mot de conseil » ; il ne dit pas « ce n'est
+    pas du conseil ».

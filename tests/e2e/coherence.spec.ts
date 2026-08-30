@@ -568,7 +568,9 @@ test('le repli maximal dit la même chose dans le constat et dans le tableau', a
   await openDataset(page);
   await page.goto('#/report');
   const section = page.locator('section', { has: page.getByRole('heading', { name: 'Risque' }) });
-  await expect(section).toBeVisible();
+  // Comme la section fiscale plus bas, celle-ci n'apparaît qu'une fois l'historique de prix
+  // chargé : sans ce délai, le test échoue au hasard selon la vitesse de la machine.
+  await expect(section).toBeVisible({ timeout: 20_000 });
 
   const row = section.locator('tr', { hasText: 'Repli maximal' });
   const rowText = plain(await row.innerText());
