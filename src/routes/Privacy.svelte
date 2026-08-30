@@ -68,8 +68,34 @@
       fait localement, et les notifications sont générées par votre navigateur — aucun serveur de notification
       n'existe.
     </li>
+    <li>
+      Si — et seulement si — vous activez le <strong>récit par intelligence artificielle</strong>
+      (décoché par défaut) et collez votre propre clé d'API : des
+      <strong>constats agrégés</strong> et des <strong>codes d'actifs</strong> partent vers
+      <code>api.anthropic.com</code>, sur votre clic, envoi par envoi. Ne partent
+      <strong>jamais</strong> : vos lignes d'opérations, vos lots, les dates de vos opérations, vos
+      adresses publiques, vos clés. Avant chaque envoi, une fenêtre affiche
+      <strong>le contenu exact</strong> qui partira — en entier, jamais tronqué — la destination, le modèle
+      et le coût plafond. Rien n'est envoyé si vous ne confirmez pas, et confirmer une fois ne vaut que
+      pour ce contenu-là : dès qu'il change (nouvel import, prix rafraîchis, devise changée), la question
+      est reposée.
+    </li>
   </ul>
   <p>Pas de compte, pas de cookies, pas de statistiques, pas de publicité.</p>
+  <h2>Votre clé d'API pour l'IA</h2>
+  <p>
+    Elle n'est <strong>enregistrée nulle part</strong> : ni dans le stockage du navigateur, ni dans
+    vos sauvegardes JSON. Elle vit dans l'onglet ouvert et disparaît au rechargement — il faut donc
+    la recoller à chaque session. C'est délibéré : les deux autres clés que l'application accepte
+    (CoinGecko, explorateur de blocs) sont gratuites et en lecture seule, et elles figurent dans vos
+    sauvegardes pour vous éviter de les ressaisir ; une clé d'IA est un
+    <strong>moyen de paiement</strong>, et le confort perdu — un collage par session — ne pèse rien
+    face à ce qu'une sauvegarde égarée permettrait de dépenser.
+  </p>
+  <p>
+    Attention : le <strong>mode discret masque les montants à l'écran, pas dans l'envoi</strong>. Ce
+    que la fenêtre de confirmation affiche est ce qui part, au caractère près.
+  </p>
   <p>
     Le diagnostic copiable proposé dans les réglages (pour signaler un problème) ne contient ni
     montant ni quantité : seulement la version, votre navigateur, les colonnes de votre fichier et

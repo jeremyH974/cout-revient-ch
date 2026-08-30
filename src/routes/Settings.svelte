@@ -10,6 +10,7 @@
   import { FLAVOR_LABELS, KEYED_FLAVORS } from '$lib/import/onchain/etherscan';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
+  import AiSection from '../components/settings/AiSection.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
   import SelfChecks from '../components/settings/SelfChecks.svelte';
   import SourcesSection from '../components/settings/SourcesSection.svelte';
@@ -438,6 +439,8 @@
   </section>
 
   <EngineSettings />
+
+  <AiSection />
 
   <section class="card group">
     <h2>Vérifications automatiques</h2>

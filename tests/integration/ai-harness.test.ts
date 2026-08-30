@@ -20,7 +20,7 @@
  * réelles, avec P65 (voir `docs/ia-harnais.md`).
  */
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -200,6 +200,36 @@ describe('aucun chemin réseau dans le harnais', () => {
         expect(source.includes(forbidden), `${file} contient ${forbidden}`).toBe(false);
       }
     }
+  });
+
+  /**
+   * Le miroir du test ci-dessus, et il est aussi important que lui. Le premier dit « le harnais ne
+   * sait pas parler au réseau » ; celui-ci dit « **un seul** fichier sait où appeler ». Sans lui,
+   * un second appel écrit ailleurs — dans un composant, dans un script — échapperait à la revue,
+   * au classement des erreurs et à la feuille de consentement, tout en restant parfaitement
+   * conforme au premier test.
+   *
+   * Deux fichiers ont le droit d'écrire cette origine, et ils se surveillent l'un l'autre :
+   * l'adaptateur qui la contacte, et la table qui l'autorise (décision n° 57).
+   */
+  it('un seul fichier du code livré écrit l’origine du modèle, plus la table qui l’autorise', () => {
+    const ALLOWED = ['src/lib/net/anthropic.ts', 'src/lib/support/csp.ts'];
+    const found: string[] = [];
+    for (const dir of ['src', 'public']) {
+      const base = fileURLToPath(new URL(`../../${dir}/`, import.meta.url));
+      for (const entry of readdirSync(base, { recursive: true, withFileTypes: true })) {
+        const scanned =
+          (entry.name.endsWith('.ts') ||
+            entry.name.endsWith('.svelte') ||
+            entry.name.endsWith('.js')) &&
+          !entry.name.endsWith('.test.ts');
+        if (!entry.isFile() || !scanned) continue;
+        const path = join(entry.parentPath, entry.name);
+        if (!readFileSync(path, 'utf8').includes('https://api.anthropic.com')) continue;
+        found.push(`${dir}/${path.slice(base.length).split(sep).join('/')}`);
+      }
+    }
+    expect(found.sort()).toEqual(ALLOWED);
   });
 });
 

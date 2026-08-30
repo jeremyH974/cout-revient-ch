@@ -77,6 +77,25 @@ génère un PDF A4 (page de garde, synthèse, répartition, positions ouvertes, 
 clôturées, méthodologie) entièrement dans le navigateur : rien n'est envoyé. Le mode discret masque
 les montants ; « Imprimer / Enregistrer en PDF » est l'alternative sans bibliothèque.
 
+### Intelligence artificielle : facultative, avec votre propre clé
+
+Décochée par défaut, dans Réglages → « Récit par intelligence artificielle ». Il n'y a **aucune clé
+dans l'application** : vous collez la vôtre, elle reste **en mémoire vive** (ni stockage du
+navigateur, ni sauvegarde JSON) et disparaît au rechargement — à recoller à chaque session. Un
+bouton **« Tester la clé »** envoie deux mots sans aucune de vos données, pour vérifier la clé et
+le chemin réseau séparément du reste.
+
+**Ce qui ne part jamais** : vos lignes d'opérations, vos lots, les dates de vos opérations, vos
+adresses publiques, vos clés. **Ce qui peut partir** : des constats agrégés et des codes d'actifs
+(BTC, ETH…), vers `api.anthropic.com` et nulle part ailleurs, **sur votre clic, envoi par envoi**.
+Avant chaque envoi, une fenêtre montre le **contenu exact** qui partira — en entier, jamais
+tronqué —, la consigne intégrale donnée au modèle, la destination, le modèle et le coût plafond
+(facturé sur votre compte). Confirmer une fois ne vaut que pour ce contenu-là : dès qu'il change,
+la question est reposée. **Le mode discret masque les montants à l'écran, pas dans l'envoi.**
+
+Pourquoi cette clé-là n'est pas enregistrée alors que les deux autres le sont : les clés CoinGecko
+et explorateur de blocs sont gratuites et en lecture seule, une clé d'IA est un moyen de paiement.
+
 ## Évolution et exports
 
 Chaque page affiche une carte **Évolution** : valeur de vos avoirs reconstituée jour par jour

@@ -68,13 +68,21 @@ export interface UiSettings {
   lastSeenVersion: string | null;
   /**
    * Clé CoinGecko « Demo » (gratuite, optionnelle) : lève les limites de débit du plan public.
-   * Propre à l'appareil (jamais dans une sauvegarde fusionnée), envoyée en en-tête uniquement.
+   * Envoyée en en-tête à CoinGecko uniquement.
+   *
+   * **Elle FIGURE dans le fichier de sauvegarde** — comme tout `ui` — et n'en est écartée que lors
+   * d'une restauration « en fusionnant », qui conserve les réglages de l'appareil courant. Le
+   * commentaire disait l'inverse ; il était faux, et c'est le sujet sur lequel une phrase fausse
+   * coûte le plus cher. Le choix, lui, ne change pas : une clé gratuite et en lecture seule vaut
+   * qu'on s'épargne de la ressaisir. La clé Anthropic (P65), qui est un moyen de paiement, ne vit
+   * pas ici — voir `src/state/ai-key.svelte.ts` et `docs/backup-format.md`.
    */
   coingeckoDemoKey: string | null;
   /**
    * Clé d'explorateur de blocs (Etherscan V2 ou Blockscout Pro), gratuite et facultative : elle ne
    * lit que des données publiques et ne peut rien signer — à la différence d'une clé d'exchange,
-   * qui reste refusée (décision n° 32). Propre à l'appareil, envoyée au seul explorateur choisi.
+   * qui reste refusée (décision n° 32). Envoyée au seul explorateur choisi, et présente dans la
+   * sauvegarde aux mêmes conditions que la clé CoinGecko ci-dessus.
    */
   explorerKey: string | null;
   explorerFlavor: ExplorerFlavor;
@@ -87,6 +95,25 @@ export interface UiSettings {
   marketContext: boolean;
   /** Exécutions en direct (`userFills`) : opt-in distinct des prix, même socket. */
   liveFills: boolean;
+  /**
+   * Récit narratif rédigé par un modèle de langage (P65) : opt-in, décoché par défaut. Ce
+   * booléen dit seulement « je veux voir le bouton » ; il **n'autorise aucun envoi** — chaque
+   * envoi passe par la feuille de consentement, qui montre la charge utile réelle.
+   *
+   * La clé d'API, elle, n'est PAS ici : elle vit en mémoire vive
+   * (`src/state/ai-key.svelte.ts`), donc jamais dans ce fichier ni dans une sauvegarde.
+   */
+  aiEnabled: boolean;
+  /**
+   * Modèle épinglé par l'utilisateur, ou `null` pour « celui de la version installée ».
+   *
+   * En v1 il n'existe **aucun sélecteur** : le champ vaut toujours `null`, et c'est délibéré.
+   * Écrire ici l'identifiant du jour figerait dans les sauvegardes un modèle que la prochaine
+   * version remplacera, et une sauvegarde restaurée dans deux ans ressusciterait un modèle
+   * disparu. Le champ existe pour qu'un choix futur soit **additif** (`docs/backup-format.md`),
+   * sans montée de `SCHEMA_VERSION`.
+   */
+  aiModelId: string | null;
 }
 
 /** Réglages des alertes de prix (P29, décision n° 36). */
@@ -174,6 +201,8 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   liveMids: false,
   marketContext: false,
   liveFills: false,
+  aiEnabled: false,
+  aiModelId: null,
 };
 
 export function emptyState(): StoredStateV1 {
@@ -780,6 +809,13 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     state = { ...state, ui: { ...state.ui, liveFills: false } };
   if (typeof state.ui.demoMode !== 'boolean')
     state = { ...state, ui: { ...state.ui, demoMode: false } };
+  if (typeof state.ui.aiEnabled !== 'boolean')
+    state = { ...state, ui: { ...state.ui, aiEnabled: false } };
+  // Un identifiant de modèle est une chaîne ou rien. Aucune liste blanche : la table des modèles
+  // valides appartient à la version installée, pas au fichier — un modèle inconnu se remplace au
+  // moment de l'appel, il ne fait pas échouer une restauration.
+  if (state.ui.aiModelId !== null && typeof state.ui.aiModelId !== 'string')
+    state = { ...state, ui: { ...state.ui, aiModelId: null } };
   if (state.ui.lastSeenVersion !== null && typeof state.ui.lastSeenVersion !== 'string')
     state = { ...state, ui: { ...state.ui, lastSeenVersion: null } };
   state = {

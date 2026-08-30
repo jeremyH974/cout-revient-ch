@@ -138,6 +138,13 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     why: 'Indice Fear & Greed crypto (décision n° 44), derrière un opt-in réseau distinct des prix.',
   },
 
+  // — Modèle de langage (P65), uniquement si l'utilisateur colle sa propre clé —
+  {
+    origin: 'https://api.anthropic.com',
+    use: 'connect',
+    why: 'Récit narratif rédigé par un modèle de langage, à partir de constats DÉJÀ calculés. Contactée seulement si l’utilisateur a collé sa propre clé d’API et confirmé l’envoi, écran par écran ; jamais au chargement, jamais en tâche de fond.',
+  },
+
   // — Origines qui ne sont que des liens ou des mentions affichées —
   {
     origin: 'https://jeremyh974.github.io',
