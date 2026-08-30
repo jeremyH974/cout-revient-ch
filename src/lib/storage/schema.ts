@@ -19,6 +19,7 @@ import {
   type Qualification,
   type RawCoinhouseRow,
   type RawPivotRow,
+  type StoredColumnMapping,
   type RowKey,
 } from '../domain/types';
 import type { PivotAmount } from '../domain/types';
@@ -588,7 +589,67 @@ function sanitizeAccount(id: string, raw: unknown): Account | null {
   // au premier calcul de déclaration — jamais une perte de compte, jamais un pays inventé.
   if (typeof a['country'] === 'string' && COUNTRY_CODE.test(a['country']))
     account.country = a['country'];
+  // Appariement de colonnes mémorisé (P64). Additif : absent de toute sauvegarde antérieure, et
+  // un appariement illisible est simplement OUBLIÉ — le compte survit, l'utilisateur réapparie.
+  const mapping = sanitizeColumnMapping(a['columnMapping']);
+  if (mapping) account.columnMapping = mapping;
   return account;
+}
+
+/** Champs cibles admis dans un appariement mémorisé : ceux du pipeline pivot, et rien d'autre. */
+const MAPPING_FIELDS = new Set([
+  'date',
+  'sentAmount',
+  'sentCurrency',
+  'receivedAmount',
+  'receivedCurrency',
+  'feeAmount',
+  'feeCurrency',
+  'netWorthAmount',
+  'netWorthCurrency',
+  'label',
+  'description',
+  'txHash',
+]);
+/** Bornes d'un appariement mémorisé : un fichier plausible, jamais un tableau de mille colonnes. */
+const MAX_MAPPED_COLUMNS = 200;
+const MAX_MAPPED_LABELS = 200;
+
+function sanitizeColumnMapping(raw: unknown): StoredColumnMapping | null {
+  if (!isRecord(raw)) return null;
+  const { headerKey, columns, typeLabels, impliedCurrencies, confirmedAt } = raw;
+  if (typeof headerKey !== 'string' || headerKey === '' || headerKey.length > 64) return null;
+  if (typeof confirmedAt !== 'string' || confirmedAt === '') return null;
+  if (!isRecord(columns)) return null;
+  const mapped: Record<string, number> = {};
+  for (const [field, index] of Object.entries(columns)) {
+    if (!MAPPING_FIELDS.has(field)) return null;
+    if (typeof index !== 'number' || !Number.isInteger(index)) return null;
+    if (index < 0 || index >= MAX_MAPPED_COLUMNS) return null;
+    mapped[field] = index;
+  }
+  const labels: Record<string, string> = {};
+  if (isRecord(typeLabels)) {
+    for (const [value, target] of Object.entries(typeLabels).slice(0, MAX_MAPPED_LABELS)) {
+      if (typeof target !== 'string' || target === '') continue;
+      labels[value.slice(0, MAX_TEXT)] = target.slice(0, MAX_TEXT);
+    }
+  }
+  const implied: Record<string, string> = {};
+  if (isRecord(impliedCurrencies)) {
+    for (const [field, code] of Object.entries(impliedCurrencies)) {
+      if (!MAPPING_FIELDS.has(field) || typeof code !== 'string' || code === '') continue;
+      implied[field] = code.slice(0, 20);
+    }
+  }
+  const mapping: StoredColumnMapping = {
+    headerKey,
+    columns: mapped,
+    typeLabels: labels,
+    confirmedAt,
+  };
+  if (Object.keys(implied).length > 0) mapping.impliedCurrencies = implied;
+  return mapping;
 }
 
 function validQualification(raw: unknown): raw is Qualification {

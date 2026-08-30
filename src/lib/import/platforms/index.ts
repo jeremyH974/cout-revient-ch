@@ -49,13 +49,15 @@ export const FORMAT_LABELS: Record<ImportedFormat, string> = {
   swissborg: 'SwissBorg — relevé de compte',
   'ghostfolio-json': 'Ghostfolio — export JSON',
   'onchain-sync': 'Synchronisation on-chain',
+  'mapped-csv': 'CSV apparié colonne par colonne',
 };
 
 /** Formats CSV acceptés par l'écran d'import (message d'erreur). */
 export const ACCEPTED_FORMATS_HINT =
   'Formats acceptés : export Coinhouse, CSV pivot Koinly/Waltio (Universal ou From/To), ' +
   'Kraken (ledgers.csv), Revolut (relevé crypto), Coinbase (relevé de transactions), Bitvavo, ' +
-  'Ledger Live, Binance (Statements ou Trade History), Bitpanda et SwissBorg, et JSON Ghostfolio.';
+  'Ledger Live, Binance (Statements ou Trade History), Bitpanda et SwissBorg, et JSON Ghostfolio. ' +
+  'Tout autre CSV passe par l’appariement de colonnes, que vous confirmez avant l’import (P64).';
 
 export function importAnyCsv(
   text: string,

@@ -76,7 +76,10 @@ import {
   type ManualEvent,
   type OnchainChain,
   type Qualification,
+  type RawCoinhouseRow,
+  type RawPivotRow,
   type RowKey,
+  type StoredColumnMapping,
 } from '$lib/domain/types';
 import { pairTransfers, type TransferOverride, type TransferPairing } from '$lib/domain/transfers';
 import type { DuplicateReview } from '$lib/domain/reconciliation';
@@ -105,6 +108,8 @@ import {
   OnchainError,
   type OnchainSyncResult,
 } from '$lib/import/onchain/normalize';
+import { fnv1a } from '$lib/import/pivot/rows';
+import { importMappedCsv, normalizeHeader, type ConfirmedMapping } from '$lib/import/mapping/index';
 import { pivotLedgerEvents } from '$lib/import/pivot/events';
 import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index';
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
@@ -131,6 +136,18 @@ import {
   type FolderPermission,
 } from '$lib/storage/backup-folder';
 import { requestPersistentStorage } from '$lib/storage/local-storage';
+
+/**
+ * Empreinte de l'en-tête d'un fichier : c'est à elle qu'un appariement mémorisé est lié (P64).
+ *
+ * Les en-têtes sont NORMALISÉS avant hachage (accents, casse, séparateurs) : un export qui
+ * changerait « Date UTC » en « Date (UTC) » retrouve son appariement, alors qu'un export qui
+ * ajoute, retire ou déplace une colonne ne le retrouve pas — et repose donc la question, ce qui
+ * est exactement ce qu’on veut : un appariement rejoué sur des colonnes décalées produirait des
+ * montants faux sans que rien ne le signale.
+ */
+export const headerFingerprint = (header: readonly string[]): string =>
+  fnv1a(header.map((h) => normalizeHeader(h).text).join('|'));
 import type { TradingCheckInput } from '$lib/support/self-check';
 import {
   clearPersistedState,
@@ -1308,6 +1325,153 @@ export class AppState {
       void requestPersistentStorage();
     }
     return result;
+  }
+
+  /**
+   * Importe un CSV inconnu avec un appariement de colonnes **confirmé par l'utilisateur** (P64),
+   * et **mémorise cet appariement sur le compte**.
+   *
+   * La mémorisation est liée à l'empreinte de l'en-tête (`headerKey`) : l'export du mois suivant,
+   * s'il a le même en-tête, retrouve l'appariement tout seul ; un en-tête différent repose la
+   * question. Sans elle, l'utilisateur referait le même travail à chaque export mensuel — et un
+   * appariement rejoué sur des colonnes décalées produirait des montants faux en silence.
+   */
+  importMapped(
+    text: string,
+    fileName: string,
+    accountId: AccountId,
+    mapping: ConfirmedMapping,
+    now = nowMs(),
+  ): PivotImportResult {
+    this.exitDemo();
+    const importId = `imp:${now.toString(36)}`;
+    const usd = rateLookup(this.state.fx.rates.USD ?? {});
+    const result = importMappedCsv(
+      text,
+      mapping,
+      this.state.pivotRows,
+      accountId,
+      importId,
+      (day) => usd.rate(day),
+      this.state.qualifications,
+    );
+    if (result.ok) {
+      this.state.pivotRows = result.rows;
+      this.state.imports = [
+        ...this.state.imports,
+        {
+          id: importId,
+          at: nowIso(now),
+          fileName,
+          rows: result.report.parsedRows,
+          newRows: result.report.newRows,
+          format: result.report.format,
+          header: result.report.header,
+          unknownColumns: result.report.unknownColumns,
+          accountId,
+        },
+      ];
+      this.rememberMapping(accountId, result.report.header, mapping, now);
+      void this.ensureRates('USD');
+      void requestPersistentStorage();
+    }
+    return result;
+  }
+
+  /**
+   * Le taux BCE EUR/USD d'un jour, tel que l'import l'emploie. Exposé pour que l'écran
+   * d'appariement puisse **rejouer l'import à blanc** avec exactement les mêmes taux que l'import
+   * réel : un vérificateur qui verrait d'autres taux ne vérifierait pas l'import qui va se faire.
+   */
+  usdRate(day: string): string | null {
+    return rateLookup(this.state.fx.rates.USD ?? {}).rate(day);
+  }
+
+  /** Pose l'appariement confirmé sur le compte, sous l'empreinte de l'en-tête qu'il décrit. */
+  private rememberMapping(
+    accountId: AccountId,
+    header: readonly string[],
+    mapping: ConfirmedMapping,
+    now: number,
+  ): void {
+    const account = this.state.accounts[accountId];
+    if (!account) return;
+    const stored: StoredColumnMapping = {
+      headerKey: headerFingerprint(header),
+      columns: { ...mapping.columns } as Record<string, number>,
+      typeLabels: { ...mapping.typeLabels },
+      confirmedAt: nowIso(now),
+    };
+    if (mapping.impliedCurrencies && Object.keys(mapping.impliedCurrencies).length > 0)
+      stored.impliedCurrencies = { ...mapping.impliedCurrencies } as Record<string, string>;
+    this.state.accounts = {
+      ...this.state.accounts,
+      [accountId]: { ...account, columnMapping: stored },
+    };
+  }
+
+  /**
+   * L'appariement mémorisé d'un compte, **s'il décrit le même en-tête**. `null` sinon : une
+   * plateforme qui renomme, ajoute ou retire une colonne repose la question.
+   */
+  rememberedMapping(accountId: AccountId, header: readonly string[]): ConfirmedMapping | null {
+    const stored = this.state.accounts[accountId]?.columnMapping;
+    if (!stored || stored.headerKey !== headerFingerprint(header)) return null;
+    const implied = stored.impliedCurrencies;
+    return implied === undefined
+      ? { columns: stored.columns as ConfirmedMapping['columns'], typeLabels: stored.typeLabels }
+      : {
+          columns: stored.columns as ConfirmedMapping['columns'],
+          typeLabels: stored.typeLabels,
+          impliedCurrencies: implied as NonNullable<ConfirmedMapping['impliedCurrencies']>,
+        };
+  }
+
+  /**
+   * **Annule un import**, par identifiant : ses lignes partent, ses qualifications aussi, et le
+   * portefeuille se recalcule.
+   *
+   * Une fonctionnalité qui *propose* un appariement doit pouvoir défaire son erreur. Un
+   * appariement confirmé à tort pollue le portefeuille d'un second jeu de clés que le
+   * dédoublonnage par hachage (décision n° 26) ne rattrapera **pas** — les clés d'un mauvais
+   * appariement sont, elles, parfaitement valides. Sans « annuler », le seul recours serait de
+   * supprimer le compte entier, donc aussi les imports corrects qu'il porte.
+   *
+   * Seules les lignes que CET import a réellement ajoutées partent : une ligne déjà connue garde
+   * l'identifiant de l'import qui l'a insérée la première (le pipeline n'écrase jamais), donc un
+   * ré-import annulé ne retire jamais les lignes d'un import antérieur.
+   */
+  undoImport(importId: string): { removed: number } | null {
+    const batch = this.state.imports.find((i) => i.id === importId);
+    if (!batch) return null;
+    let removed = 0;
+    const pivotRows: Record<RowKey, RawPivotRow> = {};
+    const qualifications = { ...this.state.qualifications };
+    for (const [key, row] of Object.entries(this.state.pivotRows)) {
+      if (row.importId === importId) {
+        removed += 1;
+        delete qualifications[key];
+        continue;
+      }
+      pivotRows[key] = row;
+    }
+    const rawRows: Record<RowKey, RawCoinhouseRow> = {};
+    for (const [key, row] of Object.entries(this.state.rawRows)) {
+      if (row.importId === importId) {
+        removed += 1;
+        delete qualifications[key];
+        continue;
+      }
+      rawRows[key] = row;
+    }
+    this.state.pivotRows = pivotRows;
+    this.state.rawRows = rawRows;
+    this.state.qualifications = qualifications;
+    this.state.imports = this.state.imports.filter((i) => i.id !== importId);
+    // L'appariement mémorisé n'est pas retiré : l'utilisateur annule un import, pas forcément le
+    // travail d'appariement qu'il vient de faire. L'écran lui propose de le corriger et de
+    // recommencer, ce qui serait impossible s'il disparaissait avec les lignes.
+    return { removed };
   }
 
   /** Importe un export JSON Ghostfolio dans un compte (même pipeline que le pivot). */

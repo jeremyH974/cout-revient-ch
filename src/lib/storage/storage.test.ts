@@ -167,6 +167,60 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
   });
 });
 
+describe('appariement de colonnes mémorisé (P64)', () => {
+  const account = (columnMapping: unknown) => ({
+    id: 'csv:demo',
+    kind: 'csv',
+    label: 'Démo',
+    space: 'invest',
+    createdAt: '2026-08-30T09:00:00.000Z',
+    columnMapping,
+  });
+  const stateWith = (columnMapping: unknown) => ({
+    ...emptyState(),
+    accounts: { 'csv:demo': account(columnMapping) as never },
+  });
+
+  it('relit un appariement valide, tel quel', () => {
+    const mapping = {
+      headerKey: 'abc123',
+      columns: { date: 0, sentAmount: 2, sentCurrency: 3 },
+      typeLabels: { récompense: 'reward' },
+      impliedCurrencies: { netWorthCurrency: 'EUR' },
+      confirmedAt: '2026-08-30T09:00:00.000Z',
+    };
+    const { state, dropped } = sanitizeState(stateWith(mapping));
+    expect(dropped).toBe(0);
+    expect(state.accounts['csv:demo']?.columnMapping).toEqual(mapping);
+  });
+
+  it('OUBLIE un appariement illisible sans emporter le compte avec lui', () => {
+    // Un champ cible inventé, un index négatif, une empreinte absente : dans les trois cas le
+    // compte survit, l'utilisateur réapparie. Perdre un compte pour une préférence serait le
+    // contraire de la garantie du format (docs/backup-format.md).
+    for (const broken of [
+      { headerKey: 'abc', columns: { dateDeValeur: 0 }, typeLabels: {}, confirmedAt: 'x' },
+      { headerKey: 'abc', columns: { date: -1 }, typeLabels: {}, confirmedAt: 'x' },
+      { headerKey: '', columns: { date: 0 }, typeLabels: {}, confirmedAt: 'x' },
+      { headerKey: 'abc', columns: { date: 0 }, typeLabels: {} },
+      'pas un objet',
+    ]) {
+      const { state, dropped } = sanitizeState(stateWith(broken));
+      expect(dropped, JSON.stringify(broken)).toBe(0);
+      expect(state.accounts['csv:demo'], JSON.stringify(broken)).toBeDefined();
+      expect(state.accounts['csv:demo']?.columnMapping, JSON.stringify(broken)).toBeUndefined();
+    }
+  });
+
+  it('reste ABSENT d’un compte qui n’en a pas : le champ est additif, pas un conteneur', () => {
+    // C'est ce qui explique que la fixture v1 gelée ne rougisse PAS : rien n'est ajouté à un
+    // compte ancien, il n'y a donc aucun attendu à mettre à jour (docs/backup-format.md).
+    const { state } = sanitizeState(stateWith(undefined));
+    expect(state.accounts['csv:demo']).toBeDefined();
+    expect('columnMapping' in (state.accounts['csv:demo'] ?? {})).toBe(false);
+  });
+});
+
 describe('assainissement', () => {
   it('écarte les entrées invalides sans planter', () => {
     const raw = {
