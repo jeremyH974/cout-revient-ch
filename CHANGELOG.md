@@ -5,6 +5,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.13.0] - 2026-08-30
+
 ### Added
 
 - **Réconciliation** : un écran qui ne dit plus « quelque chose ne va pas » mais **quoi corriger,

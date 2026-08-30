@@ -39,7 +39,7 @@ Un fichier de sauvegarde est un objet JSON à quatre champs (`BackupFile`,
 Piège documenté ici plutôt que découvert en lisant le code : `state` porte lui-même un champ
 `schemaVersion` (identique à celui de l'enveloppe — `isStoredStateV1` le revérifie), et `state.ui`
 porte un troisième champ qui **ressemble** à une version mais n'en est pas une : `lastSeenVersion`
-est le numéro sémantique de l'application (`2.12.0`, `package.json`) dont l'utilisateur a vu les
+est le numéro sémantique de l'application (`2.13.0`, `package.json`) dont l'utilisateur a vu les
 nouveautés — il n'a **aucun rapport** avec `schemaVersion` et ne conditionne aucune migration.
 
 Un fichier édité à la main (ou une sauvegarde ancienne à qui il manque des clés) est repassé par
