@@ -45,6 +45,7 @@ import {
 import { judgeNarrative, refusalOfModelError, sentencesOf } from '../../src/lib/ai/narrative';
 import { ALL_LEXICONS, scanOutput, type LexiconHit } from '../../src/lib/format/lexicon';
 import { ANTHROPIC_MODEL_ID } from '../../src/lib/net/anthropic';
+import { ANTHROPIC_HOST } from '../../src/lib/net/anthropic';
 
 const CASES_DIR = fileURLToPath(new URL('../fixtures/ai/cases/', import.meta.url));
 const REPLIES_DIR = fileURLToPath(new URL('../fixtures/ai/replies/', import.meta.url));
@@ -308,14 +309,9 @@ describe('aucun chemin réseau dans le harnais', () => {
           !entry.name.endsWith('.test.ts');
         if (!entry.isFile() || !scanned) continue;
         const path = join(entry.parentPath, entry.name);
-        // Faux positif de `js/incomplete-url-substring-sanitization` : la règle vise le cas où
-        // l'on décide si UNE URL appartient à un hôte par sous-chaîne, ce qui est contournable.
-        // Ici le receveur est le CONTENU d'un fichier source lu sur disque, jamais une URL, et
-        // aucune décision de sécurité n'en dépend — on demande seulement quels fichiers citent
-        // l'origine. Découper la chaîne pour échapper à l'analyseur rendrait le test illisible
-        // sans le rendre plus sûr.
-        // codeql[js/incomplete-url-substring-sanitization]
-        if (!readFileSync(path, 'utf8').includes('https://api.anthropic.com')) continue;
+        // L'hôte vient de l'adaptateur, jamais réécrit ici : une source unique de vérité, et
+        // le test suit automatiquement si l'origine change un jour.
+        if (!readFileSync(path, 'utf8').includes(ANTHROPIC_HOST)) continue;
         found.push(`${dir}/${path.slice(base.length).split(sep).join('/')}`);
       }
     }
