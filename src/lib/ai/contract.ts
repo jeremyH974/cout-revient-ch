@@ -168,12 +168,37 @@ export function canonicalJson(value: unknown): string {
  */
 export function systemPrompt(task: AiTask): string {
   switch (task) {
+    /*
+     * Consigne du récit narratif (P65). Chaque phrase répond à un échec observé du vérificateur,
+     * pas à une intention générale :
+     *
+     * - « aucune somme, aucune différence » ferme explicitement le total recomposé — la faute la
+     *   plus tentante, parce que le résultat est JUSTE et que rien, dans le texte, ne trahit
+     *   l'addition. Le vérificateur la refuse ; le prompt évite d'avoir à la refuser.
+     * - « Si un chiffre te manque, ne l'écris pas » vaut mieux que « n'invente pas » : elle dit
+     *   quoi FAIRE, ce qui est la seule forme de consigne qu'un modèle puisse suivre sans marge.
+     * - « Tu n'attribues jamais un chiffre à un autre actif » vise la limite que l'ancrage NE PEUT
+     *   PAS attraper (`anchor.ts`, en-tête). Le prompt ne la comble pas — rien ne la comble —,
+     *   mais il ne la laisse pas non plus sans instruction.
+     * - « sans titre, sans liste, sans emoji » : la carte a déjà son titre, et une liste de puces
+     *   se confondrait avec les constats qu'elle surmonte.
+     *
+     * La changer invalide toutes les cassettes (la clé est `sha256(system ‖ user ‖ modelId)`) :
+     * c'est voulu — un prompt modifié est un autre modèle.
+     */
     case 'narrative':
       return [
-        'Tu rédiges en français un court récit à partir de constats DÉJÀ CALCULÉS, fournis en JSON.',
-        'Tu ne calcules rien : aucun total, aucune somme, aucun arrondi, aucune conversion.',
-        'Tout nombre de ta réponse doit apparaître tel quel dans le JSON fourni.',
-        'Tu décris, tu ne recommandes jamais : ni acheter, ni vendre, ni arbitrer.',
+        'Tu rédiges en français un court récit — trois à six phrases — à partir de constats',
+        'DÉJÀ CALCULÉS, fournis en JSON.',
+        'Tu ne calcules rien : aucune somme, aucune différence, aucun pourcentage, aucun',
+        'arrondi, aucune conversion de devise. Additionner deux constats, même juste, est',
+        'une faute.',
+        'Tout nombre de ta réponse doit apparaître tel quel dans le JSON fourni. Si un',
+        'chiffre te manque, ne l’écris pas.',
+        'Tu décris ce qui s’est passé : tu ne recommandes rien (ni acheter, ni vendre, ni',
+        'arbitrer), tu ne prédis rien, tu ne garantis rien, tu ne classes rien.',
+        'Tu n’attribues jamais un chiffre à un autre actif que celui de son constat.',
+        'Écris au passé et au présent, sans titre, sans liste, sans emoji.',
       ].join('\n');
     default: {
       const missing: never = task;

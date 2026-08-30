@@ -33,7 +33,8 @@
     "macro": "node scripts/generate-macro.ts",
     "fixture": "node scripts/generate-fixture.ts",
     "fixture:hl": "node scripts/generate-hl-fixture.ts",
-    "mcp:build": "vite build --config vite.mcp.config.ts"
+    "mcp:build": "vite build --config vite.mcp.config.ts",
+    "ai:capture": "node --import ./scripts/ts-resolve.mjs scripts/capture-ai.ts"
   },
   "dependencies": {
     "@noble/hashes": "2.3.0",

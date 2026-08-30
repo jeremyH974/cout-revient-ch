@@ -77,6 +77,36 @@ génère un PDF A4 (page de garde, synthèse, répartition, positions ouvertes, 
 clôturées, méthodologie) entièrement dans le navigateur : rien n'est envoyé. Le mode discret masque
 les montants ; « Imprimer / Enregistrer en PDF » est l'alternative sans bibliothèque.
 
+### Intelligence artificielle : facultative, avec votre propre clé
+
+Décochée par défaut, dans Réglages → « Récit par intelligence artificielle ». Une fois activée, le
+rapport propose une carte **« Votre année en résumé »** : trois à six phrases écrites par un modèle
+de langage **à partir des constats déjà calculés**. Le modèle ne calcule rien — et ce n'est pas une
+promesse faite dans la consigne, c'est une fonction qui le vérifie : **tout nombre du texte doit se
+retrouver dans les constats envoyés**, par une liste fermée de mises en forme admises (arrondi
+d'affichage, pourcentage, abréviation, valeur absolue). Un chiffre inventé, un total recomposé —
+même juste —, ou un mot de conseil, et le texte est **écarté en entier** ; la carte affiche alors
+le motif et le résumé que l'application sait écrire seule. Le texte accepté porte une mention
+« généré par IA » visible, et cette mention **précède le texte dans le presse-papier**. En v1, le
+récit n'apparaît **ni au PDF ni à l'impression** : un rapport se transmet, et un texte généré n'y
+voisinerait pas des chiffres calculés sans risque de confusion.
+
+Il n'y a **aucune clé dans l'application** : vous collez la vôtre, elle reste **en mémoire vive**
+(ni stockage du navigateur, ni sauvegarde JSON) et disparaît au rechargement — à recoller à chaque
+session. Un bouton **« Tester la clé »** envoie deux mots sans aucune de vos données, pour vérifier
+la clé et le chemin réseau séparément du reste.
+
+**Ce qui ne part jamais** : vos lignes d'opérations, vos lots, les dates de vos opérations, vos
+adresses publiques, vos clés. **Ce qui peut partir** : des constats agrégés et des codes d'actifs
+(BTC, ETH…), vers `api.anthropic.com` et nulle part ailleurs, **sur votre clic, envoi par envoi**.
+Avant chaque envoi, une fenêtre montre le **contenu exact** qui partira — en entier, jamais
+tronqué —, la consigne intégrale donnée au modèle, la destination, le modèle et le coût plafond
+(facturé sur votre compte). Confirmer une fois ne vaut que pour ce contenu-là : dès qu'il change,
+la question est reposée. **Le mode discret masque les montants à l'écran, pas dans l'envoi.**
+
+Pourquoi cette clé-là n'est pas enregistrée alors que les deux autres le sont : les clés CoinGecko
+et explorateur de blocs sont gratuites et en lecture seule, une clé d'IA est un moyen de paiement.
+
 ## Évolution et exports
 
 Chaque page affiche une carte **Évolution** : valeur de vos avoirs reconstituée jour par jour
@@ -160,6 +190,12 @@ PapaParse, Vitest. Déploiement automatique sur GitHub Pages à chaque push sur 
   entièrement synthétique, produit par `npm run fixture` (aucune donnée réelle, même transformée).
   Un export réel placé à la racine du projet (ignoré par git) est testé en plus, localement.
 - Icônes PWA et image Open Graph : `python scripts/generate-assets.py` (Pillow).
+- Fonctions d'IA : [docs/ia-harnais.md](docs/ia-harnais.md). La CI **ne sort jamais sur Internet et
+  n'appelle jamais un modèle** — les réponses sont rejouées depuis des cassettes committées.
+  `npm run ai:capture` (hors CI, avec votre propre `ANTHROPIC_API_KEY`) en capture de nouvelles :
+  trois tirages, rien d'écrit si l'un des trois échoue à l'ancrage ou au lexique, et **aucun
+  paramètre d'entrée** — il ne lit que le jeu de référence et la fixture synthétique, jamais un
+  export réel.
 - Feuille de route et propositions : [docs/ROADMAP.md](docs/ROADMAP.md) ; version 2 (espaces
   « Investissement » et « Trading », Vue d'ensemble, import Hyperliquid en lecture seule, journal
   de trading) : [docs/proposals/](docs/proposals/2026-08-23-espaces-investissement-trading.md).

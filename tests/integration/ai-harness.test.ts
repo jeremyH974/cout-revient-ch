@@ -20,7 +20,7 @@
  * réelles, avec P65 (voir `docs/ia-harnais.md`).
  */
 import { readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
@@ -34,16 +34,17 @@ import {
 import { anchorCoverage, auditText, isAnchored, type AnchorReport } from '../../src/lib/ai/anchor';
 import {
   AI_REFUSALS,
-  accept,
   buildRequest,
-  label,
   refuse,
+  refusalOrigin,
   type AiOutcome,
   type AiRefusal,
   type AiTask,
   type ModelAdapter,
 } from '../../src/lib/ai/contract';
+import { judgeNarrative, refusalOfModelError, sentencesOf } from '../../src/lib/ai/narrative';
 import { ALL_LEXICONS, scanOutput, type LexiconHit } from '../../src/lib/format/lexicon';
+import { ANTHROPIC_MODEL_ID } from '../../src/lib/net/anthropic';
 
 const CASES_DIR = fileURLToPath(new URL('../fixtures/ai/cases/', import.meta.url));
 const REPLIES_DIR = fileURLToPath(new URL('../fixtures/ai/replies/', import.meta.url));
@@ -51,7 +52,19 @@ const AI_DIR = fileURLToPath(new URL('../../src/lib/ai/', import.meta.url));
 
 /** Instant fixe : le banc d'essai ne dépend jamais de l'heure à laquelle il tourne. */
 const NOW = '2026-08-30T09:00:00';
+
+/**
+ * Deux identités de modèle, et il en faut deux.
+ *
+ * `MODEL` est une fiction : les douze cassettes écrites à la main ne viennent d'aucun modèle, et
+ * leur mentir un identifiant réel serait le premier pas vers une capture qu'on ne saurait plus
+ * distinguer d'une rédaction. `CAPTURED_MODEL` est le vrai modèle, celui que `npm run ai:capture`
+ * interroge : une cassette capturée porte donc une autre empreinte (le modèle entre dans la clé),
+ * et le banc d'essai la préfère dès qu'elle existe. Avant la première capture, tout retombe sur les
+ * cassettes manuscrites — sans rien signaler, parce qu'il n'y a rien à signaler.
+ */
 const MODEL = 'handwritten/p70';
+const CAPTURED_MODEL = ANTHROPIC_MODEL_ID;
 
 interface CaseSpec {
   readonly id: string;
@@ -104,9 +117,50 @@ const CASSETTES: ReadonlyMap<string, Cassette> = new Map(
 );
 
 const ADAPTER = recordedAdapter(MODEL, CASSETTES);
+const CAPTURED_ADAPTER = recordedAdapter(CAPTURED_MODEL, CASSETTES);
 
-/** Découpe en phrases : des numéros de ligne utiles dans le rapport de lexique. */
-const sentencesOf = (text: string): string[] => text.split(/(?<=[.!?…:;])\s+/u);
+/** La clé d'un cas pour un modèle donné : c'est elle qui nomme le fichier de cassette. */
+const keyOf = (spec: CaseSpec, modelId: string): string =>
+  cassetteKey(buildRequest(spec.task, spec.input), modelId);
+
+/**
+ * La cassette capturée l'emporte sur la manuscrite. C'est la seule façon pour `npm run ai:capture`
+ * d'avoir un effet : il écrit sous l'empreinte du VRAI modèle, et le banc d'essai bascule dessus
+ * de lui-même, sans qu'on touche à un test.
+ */
+const recordedFor = (spec: CaseSpec): ModelAdapter =>
+  CASSETTES.has(keyOf(spec, CAPTURED_MODEL)) ? CAPTURED_ADAPTER : ADAPTER;
+
+/**
+ * Un modèle qui échoue **avec son motif**, pour les cas qui éprouvent le contrat de refus plutôt
+ * qu'une sortie de texte : clé invalide, plafond atteint, délai dépassé, réponse vide ou tronquée.
+ *
+ * Ces états ne peuvent pas venir d'une cassette : `parseCassette` refuse un texte vide, et une
+ * cassette ne porte ni code HTTP ni délai. Ils viennent donc d'un adaptateur qui rejette comme le
+ * fait l'adaptateur réseau — même forme d'erreur, `aiRefusal` compris. Le banc d'essai éprouve
+ * ainsi le pipeline entier, y compris ses branches d'échec, sans qu'aucun test ne touche au réseau.
+ */
+function failingAdapter(reason: AiRefusal): ModelAdapter {
+  return {
+    id: MODEL,
+    complete: () =>
+      Promise.reject(Object.assign(new Error(`échec simulé : ${reason}`), { aiRefusal: reason })),
+  };
+}
+
+/**
+ * Quel modèle pour quel cas. La règle suit l'ORIGINE du refus attendu (`refusalOrigin`) : ce que
+ * le modèle n'a pas dit vient d'un adaptateur en échec, ce que nous avons rejeté vient d'une
+ * cassette qu'il faut bien avoir lue pour la rejeter. `empty` fait exception et rejoint la
+ * première famille, faute de pouvoir enregistrer une cassette vide.
+ */
+function adapterFor(spec: CaseSpec): ModelAdapter | null {
+  const reason = spec.expect.mustRefuse;
+  if (reason === null) return recordedFor(spec);
+  if (reason === 'no-model') return null;
+  if (reason === 'empty') return failingAdapter(reason);
+  return refusalOrigin(reason) === 'model-unavailable' ? failingAdapter(reason) : recordedFor(spec);
+}
 
 type Verdict =
   | { readonly kind: 'recapture'; readonly why: string }
@@ -134,16 +188,26 @@ async function evaluateCase(spec: CaseSpec, adapter: ModelAdapter | null): Promi
   } catch (error) {
     if (error instanceof MissingCassette)
       return { kind: 'recapture', why: `cassette absente : ${error.hash}` };
-    throw error;
+    // Un échec porteur de son motif : le chemin réel du pipeline, éprouvé sans réseau.
+    return {
+      kind: 'evaluated',
+      outcome: refuse<string>(spec.task, refusalOfModelError(error)),
+      text: null,
+      audit: null,
+      hits: [],
+    };
   }
   if (reply.modelId !== adapter.id)
     return { kind: 'recapture', why: `modèle enregistré « ${reply.modelId} » ≠ « ${adapter.id} »` };
+  /*
+   * Le verdict vient du PIPELINE LIVRÉ (`judgeNarrative`), plus d'une réimplémentation locale.
+   * C'était la faiblesse discrète du banc d'essai : il vérifiait sa propre copie des règles, donc
+   * un pipeline qui aurait oublié le lexique serait resté vert. L'audit et les occurrences sont
+   * recalculés ensuite pour le RAPPORT seulement — fonctions pures, aucun appel de plus.
+   */
+  const outcome = judgeNarrative(reply.text, spec.input, reply.modelId, NOW);
   const audit = auditText(reply.text, spec.input);
   const hits = scanOutput(sentencesOf(reply.text), ALL_LEXICONS);
-  const outcome =
-    hits.length > 0
-      ? refuse<string>(spec.task, 'forbidden-lexicon')
-      : accept(spec.task, reply.text, label(reply.modelId, NOW), audit);
   return { kind: 'evaluated', outcome, text: reply.text, audit, hits };
 }
 
@@ -174,8 +238,10 @@ describe('registre du jeu de référence', () => {
   it('nomme chaque cassette d’après son empreinte, et n’en garde aucune orpheline', () => {
     for (const cassette of CASSETTES.values())
       expect(CASSETTE_FILES).toContain(`${cassette.hash}.json`);
+    // Les deux identités : une cassette capturée est légitime, elle porte simplement l'empreinte
+    // du vrai modèle. Ce qui reste interdit, c'est la cassette qu'aucun cas ne réclame.
     const used = new Set(
-      CASES.map((spec) => cassetteKey(buildRequest(spec.task, spec.input), MODEL)),
+      CASES.flatMap((spec) => [keyOf(spec, MODEL), keyOf(spec, CAPTURED_MODEL)]),
     );
     for (const hash of CASSETTES.keys()) {
       expect(used, `cassette orpheline : ${hash}`).toContain(hash);
@@ -183,8 +249,23 @@ describe('registre du jeu de référence', () => {
   });
 
   it('donne à chaque cas une entrée distincte : sinon deux cas partageraient une cassette', () => {
-    const keys = CASES.map((spec) => cassetteKey(buildRequest(spec.task, spec.input), MODEL));
+    const keys = CASES.map((spec) => keyOf(spec, MODEL));
     expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('n’écrit aucun caractère invisible en clair : ils sont échappés dans le fichier', () => {
+    /*
+     * Espace fine insécable, espace insécable, espace fine, moins typographique. Une cassette qui
+     * éprouve le séparateur des milliers ressemblerait, à l'œil, à une cassette qui éprouve
+     * l'espace ordinaire : la relecture ne pourrait rien y voir, et une régression du séparateur
+     * passerait pour un fichier inchangé. La convention était écrite dans `docs/ia-harnais.md`
+     * sans être vérifiée nulle part — un simple `JSON.stringify` suffisait à la défaire.
+     */
+    const invisible = /[\u00a0\u202f\u2009\u2212]/;
+    for (const file of CASSETTE_FILES) {
+      const raw = readFileSync(join(REPLIES_DIR, file), 'utf8');
+      expect(invisible.test(raw), `${file} contient un caractère invisible en clair`).toBe(false);
+    }
   });
 });
 
@@ -201,12 +282,44 @@ describe('aucun chemin réseau dans le harnais', () => {
       }
     }
   });
+
+  /**
+   * Le miroir du test ci-dessus, et il est aussi important que lui. Le premier dit « le harnais ne
+   * sait pas parler au réseau » ; celui-ci dit « **un seul** fichier sait où appeler ». Sans lui,
+   * un second appel écrit ailleurs — dans un composant, dans un script — échapperait à la revue,
+   * au classement des erreurs et à la feuille de consentement, tout en restant parfaitement
+   * conforme au premier test.
+   *
+   * Deux fichiers ont le droit d'écrire cette origine, et ils se surveillent l'un l'autre :
+   * l'adaptateur qui la contacte, et la table qui l'autorise (décision n° 57).
+   */
+  it('un seul fichier du code livré écrit l’origine du modèle, plus la table qui l’autorise', () => {
+    const ALLOWED = ['src/lib/net/anthropic.ts', 'src/lib/support/csp.ts'];
+    const found: string[] = [];
+    // `scripts` est inclus : le script de capture appelle le vrai modèle, et il doit passer par
+    // l'adaptateur — pas réécrire l'URL, où elle échapperait au classement des erreurs.
+    for (const dir of ['src', 'public', 'scripts']) {
+      const base = fileURLToPath(new URL(`../../${dir}/`, import.meta.url));
+      for (const entry of readdirSync(base, { recursive: true, withFileTypes: true })) {
+        const scanned =
+          (entry.name.endsWith('.ts') ||
+            entry.name.endsWith('.svelte') ||
+            entry.name.endsWith('.js')) &&
+          !entry.name.endsWith('.test.ts');
+        if (!entry.isFile() || !scanned) continue;
+        const path = join(entry.parentPath, entry.name);
+        if (!readFileSync(path, 'utf8').includes('https://api.anthropic.com')) continue;
+        found.push(`${dir}/${path.slice(base.length).split(sep).join('/')}`);
+      }
+    }
+    expect(found.sort()).toEqual(ALLOWED);
+  });
 });
 
 describe('verdict par cas', () => {
   for (const spec of CASES) {
     it(`${spec.id}${spec.knownLimitation === undefined ? '' : ' (limite connue)'}`, async () => {
-      const adapter = spec.expect.mustRefuse === 'no-model' ? null : ADAPTER;
+      const adapter = adapterFor(spec);
       const verdict = await evaluateCase(spec, adapter);
 
       if (verdict.kind === 'recapture') {
@@ -231,7 +344,7 @@ describe('verdict par cas', () => {
         expect(outcome.status, spec.id).toBe('ok');
         if (outcome.status === 'ok') {
           expect(outcome.label.generated, spec.id).toBe(true);
-          expect(outcome.label.modelId, spec.id).toBe(MODEL);
+          expect(outcome.label.modelId, spec.id).toBe(adapter?.id);
           expect(outcome.label.notice.length, spec.id).toBeGreaterThan(20);
           expect(outcome.audit.unanchored, spec.id).toEqual([]);
         }

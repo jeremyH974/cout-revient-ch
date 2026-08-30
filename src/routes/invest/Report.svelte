@@ -1,6 +1,12 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
-  import { nowIso } from '$lib/clock';
+  import { nowIso, nowMs } from '$lib/clock';
+  import { buildRequest, type AiOutcome } from '$lib/ai/contract';
+  import { buildNarrativeInput, runNarrative } from '$lib/ai/narrative';
+  import { toDecimalString } from '$lib/domain/money';
+  import { insightsToText } from '$lib/format/insights';
+  import { msToParisNaive } from '$lib/import/time';
+  import { ANTHROPIC_MODEL_ID, anthropicAdapter } from '$lib/net/anthropic';
   import { accountDeclarationsToCsv, cessionsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
   import { downloadReportPdf } from '$lib/export/pdf';
@@ -11,9 +17,12 @@
   import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
   import { router } from '$lib/router.svelte';
+  import ConsentSheet from '../../components/ai/ConsentSheet.svelte';
+  import NarrativeCard from '../../components/ai/NarrativeCard.svelte';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import InsightList from '../../components/shared/InsightList.svelte';
+  import { aiKey } from '../../state/ai-key.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
   import { toasts } from '../../state/ui.svelte';
@@ -159,6 +168,93 @@
     await tick();
     window.print();
   }
+
+  /* --- Récit narratif (P65) ------------------------------------------------------------------
+   *
+   * Rien ne part sans deux gestes : l'opt-in des réglages, puis la confirmation de CET envoi. La
+   * carte ne se remplit jamais toute seule à l'ouverture du rapport — un appel facturé qu'on n'a
+   * pas demandé serait le contraire du consentement par usage.
+   */
+  let narrative = $state<AiOutcome<string> | null>(null);
+  let narrativeBusy = $state(false);
+  let consentOpen = $state(false);
+
+  /** Le modèle de la version installée ; `aiModelId` reste `null` tant qu'aucun choix n'est offert. */
+  const aiModelId = $derived(app.state.ui.aiModelId ?? ANTHROPIC_MODEL_ID);
+
+  /**
+   * La charge utile : la devise, les bornes de la période, les TOTAUX et les constats. Les totaux
+   * y sont **par nécessité** — le modèle n'a le droit d'additionner rien du tout, donc tout chiffre
+   * citable doit être une ancre (décision n° 68). Aucune ligne d'opération, aucun lot, aucune date
+   * d'opération, aucune adresse : ce qui n'est pas ici ne peut pas partir.
+   */
+  const narrativeInput = $derived(
+    buildNarrativeInput({
+      devise: app.currency,
+      periode: {
+        du: app.report.cashFlows[0]?.at.slice(0, 10) ?? generatedAt.slice(0, 10),
+        au: generatedAt.slice(0, 10),
+      },
+      totaux: {
+        valeur: toDecimalString(app.report.totals.value),
+        investi: toDecimalString(app.report.totals.costBasis),
+        latent: toDecimalString(app.report.totals.unrealized),
+        realise: toDecimalString(app.report.totals.realized),
+        total: toDecimalString(app.report.totals.total),
+      },
+      insights,
+    }),
+  );
+  const narrativeRequest = $derived(buildRequest('narrative', narrativeInput));
+
+  /**
+   * Le repli, tel qu'il sera affiché : c'est `insightsToText` — la fonction que le presse-papier
+   * utilise déjà — dont on retire seulement la puce, l'élément de liste la portant lui-même.
+   */
+  const fallbackLines = $derived(
+    insightsToText(model.insights?.items ?? [])
+      .split('\n')
+      .filter((line) => line !== '')
+      .map((line) => line.replace(/^- /, '')),
+  );
+
+  function askNarrative(): void {
+    if (!aiKey.present) {
+      toasts.push(
+        'Collez votre clé d’API dans les réglages : elle reste dans cet onglet.',
+        'error',
+      );
+      return;
+    }
+    // Le consentement est lié à la CHARGE UTILE : un ré-import, un prix rafraîchi ou un changement
+    // de devise change le JSON, donc l'empreinte, donc la question est reposée.
+    if (aiKey.hasConsent(narrativeRequest, aiModelId)) void writeNarrative();
+    else consentOpen = true;
+  }
+
+  async function writeNarrative(): Promise<void> {
+    const key = aiKey.value;
+    if (key === null || narrativeBusy) return;
+    narrativeBusy = true;
+    try {
+      narrative = await runNarrative(
+        anthropicAdapter(key, { modelId: aiModelId }),
+        narrativeInput,
+        msToParisNaive(nowMs()),
+      );
+    } finally {
+      narrativeBusy = false;
+    }
+  }
+
+  async function copyNarrative(text: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(text);
+      toasts.push('Récit copié, étiquette comprise.', 'success');
+    } catch {
+      toasts.push('Copie impossible dans ce navigateur.', 'error');
+    }
+  }
 </script>
 
 <AppBar title="Rapport de portefeuille" back />
@@ -212,6 +308,17 @@
     {/if}
     <p class="disclaimer">{model.cover.disclaimer}</p>
   </header>
+
+  {#if app.state.ui.aiEnabled}
+    <NarrativeCard
+      outcome={narrative}
+      {fallbackLines}
+      busy={narrativeBusy}
+      ready={aiKey.present}
+      onrequest={askNarrative}
+      oncopy={(text) => void copyNarrative(text)}
+    />
+  {/if}
 
   <section class="card">
     <h2>{model.summary.title}</h2>
@@ -426,6 +533,23 @@
     <span>{model.footer.right}</span>
   </footer>
 </article>
+
+<ConsentSheet
+  bind:open={consentOpen}
+  request={narrativeRequest}
+  modelId={aiModelId}
+  purpose="Récit de votre rapport, rédigé à partir des constats ci-dessous."
+  discreet={app.state.ui.discreet}
+  onsend={() => {
+    aiKey.grantConsent(narrativeRequest, aiModelId);
+    void writeNarrative();
+  }}
+  oncancel={() => {
+    // Un consentement refusé n'est pas une panne : c'est le même état que « pas de modèle », et la
+    // carte affiche le repli déterministe plutôt qu'un message d'échec.
+    narrative = { status: 'refused', reason: 'no-model', fallback: 'deterministic' };
+  }}
+/>
 
 <style>
   .actions {
