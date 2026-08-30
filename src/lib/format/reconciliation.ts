@@ -261,3 +261,32 @@ export function renderReconciliation(
 export function reconciliationToText(list: readonly RenderedReconciliationItem[]): string {
   return list.map((item) => `- ${item.title} : ${item.detail}`).join('\n');
 }
+
+/**
+ * Compte rendu d'une synchronisation lancée depuis l'écran de réconciliation. C'est la seule
+ * action qui ne change pas d'écran : sans message, elle passe pour un bouton mort — c'est
+ * exactement le défaut qui a été signalé. Le type d'entrée est structurel et minimal : ce module
+ * reste pur et n'importe rien de l'état Svelte.
+ */
+export interface SyncOutcome {
+  error: string | null;
+  truncated: boolean;
+  added: number;
+}
+
+export function renderSyncReport(status: SyncOutcome | undefined): {
+  text: string;
+  tone: 'error' | 'info';
+} {
+  if (status?.error)
+    return { text: `Synchronisation interrompue : ${status.error}`, tone: 'error' };
+  if (status?.truncated)
+    return { text: 'Synchronisation partielle : relancez pour continuer.', tone: 'info' };
+  const added = status?.added ?? 0;
+  if (added === 0)
+    return { text: 'Aucun élément nouveau : l’écart vient d’ailleurs.', tone: 'info' };
+  return {
+    text: `${added} élément${added > 1 ? 's' : ''} récupéré${added > 1 ? 's' : ''}.`,
+    tone: 'info',
+  };
+}

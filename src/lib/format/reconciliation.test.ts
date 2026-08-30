@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ReconciliationCode, ReconciliationItem } from '../domain/reconciliation';
-import { renderReconciliationItem, type RenderOptions } from './reconciliation';
+import { renderReconciliationItem, renderSyncReport, type RenderOptions } from './reconciliation';
 
 const OPTS: RenderOptions = {
   discreet: false,
@@ -208,5 +208,41 @@ describe('renderReconciliationItem', () => {
 
   it('sans écart chiffré, gapLabel est null', () => {
     expect(renderReconciliationItem(mkItem(), OPTS).gapLabel).toBeNull();
+  });
+});
+
+describe('compte rendu de synchronisation (écran de réconciliation)', () => {
+  it('une erreur est reprise mot pour mot, en ton erreur', () => {
+    const r = renderSyncReport({ error: 'adresse refusée', truncated: false, added: 0 });
+    expect(r.tone).toBe('error');
+    expect(r.text).toContain('adresse refusée');
+  });
+
+  it('une erreur prime sur tout le reste', () => {
+    const r = renderSyncReport({ error: 'coupure', truncated: true, added: 12 });
+    expect(r.tone).toBe('error');
+  });
+
+  it('une synchronisation tronquée invite à relancer', () => {
+    expect(renderSyncReport({ error: null, truncated: true, added: 3 }).text).toContain('relancez');
+  });
+
+  it('rien de neuf le dit, plutôt que de laisser croire que le bouton n’a rien fait', () => {
+    const r = renderSyncReport({ error: null, truncated: false, added: 0 });
+    expect(r.text).toContain('Aucun élément nouveau');
+    expect(r.tone).toBe('info');
+  });
+
+  it('un statut absent est traité comme « rien de neuf », jamais comme un succès muet', () => {
+    expect(renderSyncReport(undefined).text).toContain('Aucun élément nouveau');
+  });
+
+  it('le pluriel s’accorde', () => {
+    expect(renderSyncReport({ error: null, truncated: false, added: 1 }).text).toBe(
+      '1 élément récupéré.',
+    );
+    expect(renderSyncReport({ error: null, truncated: false, added: 4 }).text).toBe(
+      '4 éléments récupérés.',
+    );
   });
 });

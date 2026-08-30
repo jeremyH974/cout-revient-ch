@@ -22,6 +22,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le bouton « Réimporter ou resynchroniser » semblait mort** sur un écart de solde Hyperliquid :
+  la synchronisation partait bien, mais l'écran n'affichait ni attente, ni succès, ni erreur. Il
+  annonce désormais ce qu'il fait et ce qu'il a trouvé — y compris « aucun élément nouveau », qui
+  est une réponse, pas un silence. Signalé par un utilisateur sur la version déployée.
 - Un test de cohérence échouait au hasard selon la vitesse de la machine : il n'attendait pas le
   chargement de l'historique de prix, contrairement à son voisin immédiat.
 

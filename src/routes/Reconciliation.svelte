@@ -18,6 +18,7 @@
    */
   import { onMount } from 'svelte';
   import type { TraceTarget } from '$lib/domain/engine';
+  import type { AccountId } from '$lib/domain/types';
   import {
     duplicatePairKey,
     type ReconciliationItem,
@@ -26,6 +27,7 @@
   import {
     reconciliationToText,
     renderReconciliation,
+    renderSyncReport,
     type RenderedReconciliationItem,
   } from '$lib/format/reconciliation';
   import { router } from '$lib/router.svelte';
@@ -72,6 +74,22 @@
     whyOpen = true;
   }
 
+  /**
+   * Seule action qui ne change pas d'écran : sans compte rendu, elle passerait pour un bouton
+   * mort. On attend la fin, puis on dit ce qui s'est passé — erreur, apport, ou rien de neuf.
+   */
+  async function syncAndReport(id: AccountId): Promise<void> {
+    await app.syncHyperliquid(id);
+    const report = renderSyncReport(app.syncStatus[id]);
+    toasts.push(report.text, report.tone);
+  }
+
+  /** Vrai quand CET item déclenche une synchronisation déjà en cours. */
+  function busy(raw: ReconciliationItem): boolean {
+    const id = raw.action.code === 'reimport-export' ? raw.action.accountId : undefined;
+    return id !== undefined && app.syncStatus[id]?.syncing === true;
+  }
+
   /** Chaque action navigue vers l'écran qui sait déjà la traiter — aucun écran n'est dupliqué ici. */
   function act(raw: ReconciliationItem): void {
     const action = raw.action;
@@ -83,7 +101,7 @@
         const account = action.accountId
           ? app.accounts.find((a) => a.id === action.accountId)
           : undefined;
-        if (account?.kind === 'hyperliquid') void app.syncHyperliquid(account.id);
+        if (account?.kind === 'hyperliquid') void syncAndReport(account.id);
         else router.navigate({ name: 'import' });
         return;
       }
@@ -185,8 +203,12 @@
                   onclick={() => reviewDuplicate(card.raw, 'dismissed')}>Pas un doublon</button
                 >
               {:else if card.view.actionLabel}
-                <button class="primary" type="button" onclick={() => act(card.raw)}
-                  >{card.view.actionLabel}</button
+                <button
+                  class="primary"
+                  type="button"
+                  disabled={busy(card.raw)}
+                  onclick={() => act(card.raw)}
+                  >{busy(card.raw) ? 'Synchronisation…' : card.view.actionLabel}</button
                 >
               {/if}
             </div>
