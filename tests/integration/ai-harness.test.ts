@@ -308,6 +308,13 @@ describe('aucun chemin réseau dans le harnais', () => {
           !entry.name.endsWith('.test.ts');
         if (!entry.isFile() || !scanned) continue;
         const path = join(entry.parentPath, entry.name);
+        // Faux positif de `js/incomplete-url-substring-sanitization` : la règle vise le cas où
+        // l'on décide si UNE URL appartient à un hôte par sous-chaîne, ce qui est contournable.
+        // Ici le receveur est le CONTENU d'un fichier source lu sur disque, jamais une URL, et
+        // aucune décision de sécurité n'en dépend — on demande seulement quels fichiers citent
+        // l'origine. Découper la chaîne pour échapper à l'analyseur rendrait le test illisible
+        // sans le rendre plus sûr.
+        // codeql[js/incomplete-url-substring-sanitization]
         if (!readFileSync(path, 'utf8').includes('https://api.anthropic.com')) continue;
         found.push(`${dir}/${path.slice(base.length).split(sep).join('/')}`);
       }
