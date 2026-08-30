@@ -54,7 +54,7 @@
     <li>
       <h2>3. Importez-le ici</h2>
       <p>
-        Le fichier reste dans votre navigateur. Rien n'est envoyé nulle part — seuls les noms des
+        Le fichier reste dans votre navigateur : il n'est envoyé nulle part. Seuls les noms des
         cryptos sont demandés à CoinGecko/Coinbase pour afficher les prix.
       </p>
     </li>

@@ -7,7 +7,9 @@
 **Votre PRU et vos plus/moins-values par crypto, enfin lisibles — à partir de votre export Coinhouse.**
 
 Application web gratuite, sans compte, qui tourne **entièrement dans votre navigateur** : votre
-fichier n'est envoyé nulle part. Pensée pour les utilisateurs de Coinhouse qui veulent savoir,
+fichier n'est envoyé nulle part, et par défaut aucun de vos chiffres non plus. Une seule
+exception, décochée par défaut et jamais silencieuse — le récit par intelligence artificielle,
+décrit plus bas. Pensée pour les utilisateurs de Coinhouse qui veulent savoir,
 ligne par ligne, leur prix de revient (spread et frais inclus, ventes partielles prises en compte),
 ce qu'ils ont déjà encaissé et ce qu'ils gagneraient en vendant maintenant.
 

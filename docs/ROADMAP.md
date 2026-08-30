@@ -596,7 +596,7 @@ Détail et sources : [`proposals/2026-08-29-data-ia-et-agentique.md`](proposals/
 | P68  | Réconciliation : écarts, trous et doublons en liste d'actions    |   4    |     5     |    3    |    2     |   6    | **livré (29/08/2026)** |
 | P62  | Second avis sur un export concurrent (Koinly/CoinTracker/Waltio) |   5    |     4     |    5    |   2,5    |  5,6   | **livré (29/08/2026)** |
 | P70  | Harnais d'évaluation des fonctions IA + garde-fous testés        |   2    |     5     |    1    |   1,5    |  5,3   | **livré (30/08/2026)** |
-| P65  | « Votre année crypto » — rapport narratif étiqueté IA, en BYOK   |   3    |     2     |    5    |    2     |   5    |      proposition       |
+| P65  | « Votre année crypto » — rapport narratif étiqueté IA, en BYOK   |   3    |     2     |    5    |    2     |   5    | **livré (30/08/2026)** |
 | P64  | Qualification assistée des lignes inconnues (IA locale)          |   5    |     4     |    4    |    3     |  4,3   |      proposition       |
 | P63b | MCP v2 : parité fonctionnelle, MCP Apps, compétence de domaine   |   4    |     3     |    5    |    3     |   4    |      proposition       |
 | P73  | Banc d'essai public d'exactitude (jeu synthétique, rejouable)    |   3    |     4     |    2    |   2,5    |  3,6   |      proposition       |

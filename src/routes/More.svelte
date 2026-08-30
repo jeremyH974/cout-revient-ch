@@ -52,7 +52,7 @@
     {
       route: { name: 'privacy' },
       label: 'Confidentialité',
-      detail: 'Rien ne quitte votre navigateur',
+      detail: 'Ce qui sort, et ce qui ne sort jamais',
     },
   ];
   const visible = $derived(entries.filter((e) => !e.needsData || app.hasData));
