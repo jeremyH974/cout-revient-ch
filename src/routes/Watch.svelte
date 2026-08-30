@@ -13,7 +13,14 @@
    * datés, jamais un conseil — la formulation du bandeau ci-dessous est volontairement stable.
    */
 
-  const TOPICS: readonly WatchTopic[] = ['cession', 'detention', 'revenus', 'declaratif', 'nft'];
+  const TOPICS: readonly WatchTopic[] = [
+    'cession',
+    'detention',
+    'revenus',
+    'declaratif',
+    'nft',
+    'ia',
+  ];
 
   let topic = $state<WatchTopic | 'all'>('all');
 
@@ -28,10 +35,10 @@
     <h2>Fiscalité française des crypto-actifs</h2>
     <p class="muted">
       Ce qui suit décrit l'état du droit et de la doctrine fiscale française applicables aux
-      crypto-actifs, à la date indiquée pour chaque ligne. Ce n'est ni une déclaration, ni un
-      conseil fiscal, ni une prévision : l'app ne dit pas ce qui sera voté, seulement ce qui l'a été
-      et ce qui est proposé. Faites vérifier votre situation par un professionnel avant toute
-      décision.
+      crypto-actifs — et les obligations qui pèsent sur ce que l'app affiche —, à la date indiquée
+      pour chaque ligne. Ce n'est ni une déclaration, ni un conseil fiscal, ni une prévision : l'app
+      ne dit pas ce qui sera voté, seulement ce qui l'a été et ce qui est proposé. Faites vérifier
+      votre situation par un professionnel avant toute décision.
     </p>
   </section>
 

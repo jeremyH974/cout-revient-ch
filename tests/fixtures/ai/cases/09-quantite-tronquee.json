@@ -1,0 +1,23 @@
+{
+  "id": "09-quantite-tronquee",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "position",
+        "values": {
+          "assets": [
+            "eth"
+          ],
+          "qty": "0.987654321"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": false,
+    "lexicon": true,
+    "mustRefuse": "unanchored"
+  }
+}

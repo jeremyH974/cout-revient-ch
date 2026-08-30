@@ -1,0 +1,20 @@
+{
+  "id": "04-milliers-espace-fine",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "fees-12m",
+        "values": {
+          "amount": "1284.37"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

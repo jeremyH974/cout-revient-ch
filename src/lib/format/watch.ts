@@ -62,6 +62,8 @@ export function watchTopicLabel(topic: WatchTopic): string {
       return 'Déclaratif (DAC8/CARF)';
     case 'nft':
       return 'Jetons uniques (NFT)';
+    case 'ia':
+      return 'Textes générés par une IA';
     default: {
       const missing: never = topic;
       throw new Error(`Thème de veille sans libellé : ${String(missing)}`);

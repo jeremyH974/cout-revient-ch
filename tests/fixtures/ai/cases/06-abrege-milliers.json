@@ -1,0 +1,21 @@
+{
+  "id": "06-abrege-milliers",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "subscription-net",
+        "values": {
+          "amount": "12345.67",
+          "tier": "investisseur"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

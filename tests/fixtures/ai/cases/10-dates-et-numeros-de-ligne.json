@@ -1,0 +1,16 @@
+{
+  "id": "10-dates-et-numeros-de-ligne",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "import": {
+      "fichier": "export.csv",
+      "etat": "lignes non qualifiées"
+    }
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}

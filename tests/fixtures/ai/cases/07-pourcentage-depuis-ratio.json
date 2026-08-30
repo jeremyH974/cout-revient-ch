@@ -1,0 +1,23 @@
+{
+  "id": "07-pourcentage-depuis-ratio",
+  "task": "narrative",
+  "input": {
+    "devise": "EUR",
+    "constats": [
+      {
+        "code": "concentration",
+        "values": {
+          "assets": [
+            "btc"
+          ],
+          "share": "0.1234"
+        }
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": null
+  }
+}
