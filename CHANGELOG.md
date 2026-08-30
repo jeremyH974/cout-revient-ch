@@ -5,6 +5,33 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.15.0] - 2026-08-30
+
+### Added
+
+- **Un fichier d'une plateforme inconnue s'importe enfin.** Jusqu'ici, une colonne nommée autrement
+  suffisait à ce que l'app renonce : « Format de fichier non reconnu ». Elle propose désormais une
+  correspondance entre les colonnes de votre fichier et les siennes, colonne par colonne, avec un
+  **indice de confiance** et l'origine de chaque proposition.
+- **Sans clé, sans réseau, et ça marche.** L'appariement s'appuie sur une table de synonymes
+  française et anglaise, sur la tolérance aux fautes de frappe, et sur la **forme des valeurs** —
+  une colonne de dates se reconnaît à ses dates. Mesuré : sur deux cents fichiers dont les colonnes
+  sont mélangées et les en-têtes renommés, **les douze champs sont retrouvés à chaque fois**.
+- **La proposition est vérifiée par le moteur, pas par une promesse.** Avant tout import, l'app
+  rejoue votre fichier à blanc et contrôle que les dates se lisent, que les montants s'additionnent,
+  et surtout **qu'aucune position ne devient négative** — une survente est la signature de deux
+  colonnes inversées, et rien d'autre ne la détecte. Un contrôle qui échoue annule la proposition
+  entière.
+- **Rien n'est importé sans votre confirmation**, ligne par ligne, et **un import se défait** :
+  un bouton retire les lignes et remet tout comme avant.
+- L'appariement confirmé est **mémorisé sur le compte** : votre export du mois prochain se lira
+  tout seul.
+
+### Changed
+
+- Un fichier dont les montants tiennent dans une seule colonne signée est désormais **reconnu et
+  nommé** — « cette forme n'est pas encore prise en charge » — au lieu d'échouer sans expliquer.
+
 ## [2.14.0] - 2026-08-30
 
 ### Added

@@ -250,6 +250,93 @@ Investissement — le même écran **Importer**, la même liste de comptes que l
   modélisée pour ce format, même règle que ci-dessus). Un slug CoinGecko absent de la table de l'app
   est conservé tel quel plutôt que de bloquer l'import, avec une note affichée à l'écran.
 
+## Appariement de colonnes assisté (fichiers inconnus)
+
+Livré avec P64. Quand un CSV ne ressemble à **aucun** des formats ci-dessus, l'application ne
+renonce plus : elle lit ses en-têtes et la forme de ses valeurs, propose un appariement de ses
+colonnes vers les douze champs pivot, et l'utilisateur le **confirme ligne par ligne** avant tout
+import (`src/lib/import/mapping/`). Le fichier rejoint ensuite le pipeline pivot inchangé, sous le
+format `mapped-csv`.
+
+**Cette voie fonctionne sans clé et sans réseau.** C'est celle que tout le monde a. Un modèle de
+langage peut, en option, **combler ses trous** (voir `docs/ia-harnais.md`) ; il ne peut jamais
+écraser un appariement que l'application a trouvé avec confiance, et sa proposition arrive toujours
+« à confirmer ».
+
+### Ce qui décide d'un appariement
+
+| Règle         | Confiance | Ce qu'elle constate                                          |
+| ------------- | --------- | ------------------------------------------------------------ |
+| en-tête connu | 1,00      | l'en-tête est déjà un en-tête pivot (`Sent Amount`…)         |
+| synonyme      | 0,90      | l'en-tête normalisé figure dans la table FR/EN               |
+| distance      | 0,75      | Damerau-Levenshtein normalisée ≥ 0,85 (faute de frappe)      |
+| forme         | 0,60      | la forme des valeurs convient, et cette colonne est la seule |
+
+La normalisation va au-delà de la casse et des espaces : décomposition NFD et dépose des accents,
+`_ - . /` ramenés à l'espace, **parenthèses extraites en jetons d'indice** (`Date (UTC)`,
+`Contre-valeur (EUR)` — l'indice sert aussi de devise quand la colonne n'en a pas), et **dépliage
+des collages** (`sentamount` → `sent amount`) par segmentation sur un vocabulaire fermé. La forme
+des valeurs est inférée sur les cent premières lignes, en classes exclusives (`iso-datetime`,
+`dmy-datetime`, `epoch-s`, `epoch-ms`, `decimal-dot`, `decimal-comma`, `signed-decimal`,
+`asset-code`, `hash-hex`, `enum-small`, `free-text`, `empty`), une classe n'étant retenue qu'au-delà
+de 90 % des cellules non vides.
+
+Deux pénalités : ×0,4 si la forme contredit le champ, −0,15 par colonne concurrente. Au-delà de
+0,80 l'appariement est pré-coché, entre 0,50 et 0,80 il est « à confirmer », en dessous il n'est pas
+proposé. L'affectation est **gloutonne et stable** (un champ ↔ une colonne) : pour au plus une
+trentaine de colonnes et douze champs, un couplage optimal (Hongrois) apporterait un gain
+théorique et perdrait ce qui compte ici — un résultat qu'on peut suivre ligne à ligne.
+
+Les **libellés de type** de la colonne retenue sont appariés par les trois mêmes règles vers les
+quatre tables d'étiquettes du moteur (`REWARD_LABELS`, `FEE_LABELS`, `NEUTRAL_OUT_LABELS`,
+`SPEND_LABELS`, `src/lib/import/pivot/events.ts`). Un libellé non traduit passe tel quel : le
+moteur l'ignore, et la ligne suit son traitement par défaut.
+
+### Rien n'est importé sans être vérifié
+
+Avant tout import, l'appariement courant **rejoue le fichier entier à blanc** — le pipeline est pur,
+rien n'est écrit — et sept contrôles s'enchaînent, dans l'ordre, avec arrêt au premier échec :
+admissibilité (`date` + une paire complète), lignes retenues ≥ 90 % et anomalies ≤ 10 %, dates lues
+≥ 99 % / montants 100 % / devises reconnues ≥ 95 %, invariant comptable sur tout actif, **aucune
+position bloquée**, lignes non qualifiées ≤ 5 %, et l'écart de solde.
+
+Le contrôle « aucune position bloquée » est le plus discriminant : une **survente** est la signature
+d'un `envoyé`/`reçu` inversé, et c'est le seul cas où tout le reste passe — dates, montants et
+devises sont parfaitement lisibles, seul le moteur s'aperçoit que le sens des opérations a été
+retourné.
+
+L'écart de solde n'est contrôlé **que si le fichier porte une colonne de solde**, et sur les seules
+lignes à une jambe (une ligne à deux jambes touche deux actifs, et rien ne dit lequel la colonne
+décrit). Sinon il est **déclaré inapplicable**, jamais réputé vert.
+
+### Mémorisation, et annulation
+
+L'appariement confirmé est **mémorisé sur le compte** de destination, sous l'empreinte de l'en-tête
+qu'il décrit (`Account.columnMapping`, champ optionnel additif — aucune montée de
+`SCHEMA_VERSION`, décision n° 66). L'export du mois suivant, s'il a le même en-tête, le retrouve
+seul ; une plateforme qui ajoute, retire ou renomme une colonne repose la question — un appariement
+rejoué sur des colonnes décalées produirait des montants faux en silence.
+
+Et parce qu'une fonctionnalité qui _propose_ un appariement doit pouvoir défaire son erreur,
+**« Annuler cet import »** retire, par identifiant d'import, les lignes que cet import a réellement
+ajoutées (une ligne déjà connue garde l'identifiant de l'import qui l'a insérée la première) et
+recalcule le portefeuille. Sans lui, un appariement confirmé à tort ne se corrigerait qu'en
+supprimant le compte entier : le dédoublonnage par hachage du contenu natif (décision n° 26) ne
+rattrape pas ce cas, les clés d'un mauvais appariement étant, elles, parfaitement valides.
+
+### Limite de la v1 : le montant unique signé
+
+L'appariement n'écrit que des **paires envoyé/reçu** (`two-legs`). Un fichier à **montant unique
+signé** — une seule colonne de montant, négative pour une sortie, positive pour une entrée — est
+**reconnu et refusé en le disant** (« ce fichier a une colonne de montant signée : cette forme
+n'est pas encore prise en charge »), plutôt que par un « format non reconnu » qui n'apprendrait
+rien. Cette forme est déjà traitée par les convertisseurs natifs des plateformes qui l'emploient
+(Kraken, Bitvavo…) ; la reproduire ici doublerait le périmètre pour un gain marginal.
+
+Autre limite assumée : une colonne de **texte libre** dont l'en-tête n'est reconnu par aucune règle
+reste non appariée — sa forme ne dit rien, et deviner qu'elle est « la description » plutôt que
+« le hachage » serait exactement l'invention que ce module s'interdit.
+
 ## Limites connues
 
 - **XLSX Waltio** : Waltio lit le fichier Koinly (ci-dessus) mais publie séparément un gabarit

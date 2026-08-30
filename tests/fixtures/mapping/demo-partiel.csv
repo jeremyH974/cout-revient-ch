@@ -1,0 +1,4 @@
+Horodatage;Opération;Quantité vendue;Devise vendue;Quantité achetée;Devise achetée;Commission;Devise des frais;Contre-valeur (EUR);Zorglub
+02/03/2026 09:00:00;Achat;2000,00;EUR;0,05;BTC;5,00;EUR;2000,00;Achat de demonstration
+10/04/2026 14:30:00;Échange;0,01;BTC;0,4;ETH;;;450,00;Echange de demonstration
+15/05/2026 08:00:00;Vente;0,20;ETH;300,00;USDC;0,30;USDC;300,00;Vente de demonstration

@@ -1,0 +1,104 @@
+{
+  "id": "26-jambes-inversees",
+  "task": "column-mapping",
+  "csv": "demo-opaque.csv",
+  "input": {
+    "colonnes": [
+      {
+        "i": 0,
+        "entete": "Horodatage",
+        "forme": "iso-datetime",
+        "distincts": 3
+      },
+      {
+        "i": 1,
+        "entete": "Opération",
+        "forme": "free-text",
+        "distincts": 2
+      },
+      {
+        "i": 2,
+        "entete": "col_a",
+        "forme": "decimal-dot",
+        "distincts": 3
+      },
+      {
+        "i": 3,
+        "entete": "col_b",
+        "forme": "asset-code",
+        "distincts": 2
+      },
+      {
+        "i": 4,
+        "entete": "col_c",
+        "forme": "decimal-dot",
+        "distincts": 3
+      },
+      {
+        "i": 5,
+        "entete": "col_d",
+        "forme": "asset-code",
+        "distincts": 3
+      }
+    ],
+    "typesDistincts": [
+      "achat",
+      "vente"
+    ],
+    "cible": [
+      {
+        "champ": "date",
+        "role": "required"
+      },
+      {
+        "champ": "sentAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "sentCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedAmount",
+        "role": "paired"
+      },
+      {
+        "champ": "receivedCurrency",
+        "role": "paired"
+      },
+      {
+        "champ": "feeAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "feeCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthAmount",
+        "role": "optional"
+      },
+      {
+        "champ": "netWorthCurrency",
+        "role": "optional"
+      },
+      {
+        "champ": "label",
+        "role": "optional"
+      },
+      {
+        "champ": "description",
+        "role": "optional"
+      },
+      {
+        "champ": "txHash",
+        "role": "optional"
+      }
+    ]
+  },
+  "expect": {
+    "anchored": true,
+    "lexicon": true,
+    "mustRefuse": "unanchored"
+  }
+}

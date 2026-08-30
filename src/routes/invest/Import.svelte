@@ -11,9 +11,31 @@
   import { downloadText } from '$lib/export/download';
   import { countryName } from '$lib/format/declarations-fr';
   import { fmtDate } from '$lib/format/fr';
+  import { refusalText } from '$lib/format/ai';
   import { router } from '$lib/router.svelte';
+  import { buildRequest, type AiOutcome } from '$lib/ai/contract';
+  import { runMapping } from '$lib/ai/mapping';
+  import { ANTHROPIC_MODEL_ID, anthropicAdapter } from '$lib/net/anthropic';
+  import { msToParisNaive } from '$lib/import/time';
+  import {
+    buildColumnMappingInput,
+    confirmedMapping,
+    contextOf,
+    firstFailure,
+    mergeModelMapping,
+    proposeMapping,
+    verifyMapping,
+    type ConfirmedMapping,
+    type MappingProposal,
+    type MappingTarget,
+    type ModelMapping,
+  } from '$lib/import/mapping/index';
+  import { TYPE_TARGETS } from '$lib/import/mapping/labels';
   import AppBar from '../../components/layout/AppBar.svelte';
+  import ColumnMapping from '../../components/import/ColumnMapping.svelte';
+  import ConsentSheet from '../../components/ai/ConsentSheet.svelte';
   import SupportSection from '../../components/settings/SupportSection.svelte';
+  import { aiKey } from '../../state/ai-key.svelte';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -29,10 +51,69 @@
     text: string;
     fileName: string;
     format: ImportedFormat;
-    kind: 'csv' | 'ghostfolio';
+    kind: 'csv' | 'ghostfolio' | 'mapped';
   } | null>(null);
   let targetAccount = $state<string>('new');
   let newLabel = $state('');
+
+  /** Dernier import réussi : c'est lui que « Annuler cet import » retire (P64, arbitrage n° 4). */
+  let lastImportId = $state<string | null>(null);
+
+  // --- Appariement de colonnes (P64) ------------------------------------------------------------
+  /** Proposition courante : déterministe, éventuellement complétée par le modèle. */
+  let proposal = $state<MappingProposal | null>(null);
+  let mappedColumns = $state<Partial<Record<MappingTarget, number>>>({});
+  let mappedTypes = $state<Record<string, string>>({});
+  let consentOpen = $state(false);
+  let modelOutcome = $state<AiOutcome<ModelMapping> | null>(null);
+
+  const aiModelId = $derived(app.state.ui.aiModelId ?? ANTHROPIC_MODEL_ID);
+  const modelReady = $derived(app.state.ui.aiEnabled && aiKey.present);
+
+  /** L'appariement tel qu'il sera importé : ce que l'écran affiche, au champ près. */
+  const currentMapping = $derived<ConfirmedMapping>(
+    proposal === null
+      ? { columns: {}, typeLabels: {} }
+      : proposal.impliedCurrencies === undefined ||
+          Object.keys(proposal.impliedCurrencies).length === 0
+        ? { columns: mappedColumns, typeLabels: mappedTypes }
+        : {
+            columns: mappedColumns,
+            typeLabels: mappedTypes,
+            impliedCurrencies: proposal.impliedCurrencies,
+          },
+  );
+
+  /**
+   * Le verdict du vérificateur, recalculé à CHAQUE changement de l'utilisateur. C'est ce qui rend
+   * la correction d'une ligne immédiatement lisible : inverser deux colonnes fait rougir « Sens
+   * des opérations » avant l'import, pas après.
+   */
+  const verdict = $derived(
+    proposal === null || pending === null
+      ? null
+      : verifyMapping(
+          currentMapping,
+          contextOf(parseCsvText(pending.text), proposal, (day) => app.usdRate(day)),
+        ),
+  );
+
+  const mappingPayload = $derived(
+    proposal === null || pending === null
+      ? null
+      : buildColumnMappingInput(parseCsvText(pending.text), proposal),
+  );
+  const mappingRequest = $derived(
+    mappingPayload === null
+      ? { system: '', user: '' }
+      : buildRequest('column-mapping', mappingPayload.input),
+  );
+
+  const rememberedAt = $derived(
+    pending === null || targetAccount === 'new'
+      ? null
+      : (app.state.accounts[targetAccount]?.columnMapping?.confirmedAt ?? null),
+  );
 
   const csvAccounts = $derived(app.accounts.filter((a) => a.kind === 'csv'));
   const formatLabel = (format: ImportedFormat): string => FORMAT_LABELS[format];
@@ -42,11 +123,34 @@
     text: string,
     fileName: string,
     format: ImportedFormat,
-    kind: 'csv' | 'ghostfolio',
+    kind: 'csv' | 'ghostfolio' | 'mapped',
   ): void {
     pending = { text, fileName, format, kind };
     targetAccount = csvAccounts[0]?.id ?? 'new';
     newLabel = fileName.replace(/\.(csv|json)$/i, '').slice(0, 60);
+    proposal = null;
+    modelOutcome = null;
+    if (kind !== 'mapped') return;
+    const table = parseCsvText(text);
+    const proposed = proposeMapping(table);
+    proposal = proposed;
+    applyRemembered();
+  }
+
+  /**
+   * Repose l'appariement du compte visé, s'il en a un pour le MÊME en-tête. Appelé au dépôt du
+   * fichier et à chaque changement de compte de destination : la mémoire appartient au compte,
+   * donc changer de compte change la proposition — sans quoi l'utilisateur importerait dans un
+   * compte l'appariement d'un autre.
+   */
+  function applyRemembered(): void {
+    if (pending === null || proposal === null) return;
+    const table = parseCsvText(pending.text);
+    const remembered =
+      targetAccount === 'new' ? null : app.rememberedMapping(targetAccount, table.header);
+    const base = remembered ?? confirmedMapping(proposal);
+    mappedColumns = { ...base.columns };
+    mappedTypes = { ...base.typeLabels };
   }
 
   async function handleFile(file: File | undefined): Promise<void> {
@@ -96,6 +200,12 @@
         stage(text, file.name, converter.id, 'csv');
         return;
       }
+      // 4) Format inconnu : au lieu de renoncer, l'application propose un appariement de colonnes
+      //    (P64). C'est la voie déterministe, elle ne demande ni clé ni réseau.
+      if (header.length >= 3 && parseCsvText(text).rows.length > 0) {
+        stage(text, file.name, 'mapped-csv', 'mapped');
+        return;
+      }
       failure = {
         error: result.error,
         details: [...result.details, ACCEPTED_FORMATS_HINT],
@@ -121,10 +231,14 @@
       const result =
         pending.kind === 'ghostfolio'
           ? app.importGhostfolio(pending.text, pending.fileName, accountId)
-          : app.importPivot(pending.text, pending.fileName, accountId);
+          : pending.kind === 'mapped'
+            ? app.importMapped(pending.text, pending.fileName, accountId, currentMapping)
+            : app.importPivot(pending.text, pending.fileName, accountId);
       if (result.ok) {
         pivotReport = result.report;
+        lastImportId = app.state.imports[app.state.imports.length - 1]?.id ?? null;
         pending = null;
+        proposal = null;
         toasts.push(`${result.report.newRows} nouvelle(s) ligne(s) importée(s).`, 'success');
         const country = isNewAccount ? app.state.accounts[accountId]?.country : null;
         if (country)
@@ -137,6 +251,84 @@
         failure = { error: result.error, details: result.details, header: result.header };
         pending = null;
       }
+    } finally {
+      busy = false;
+    }
+  }
+
+  /**
+   * **Annule le dernier import** : ses lignes partent, le portefeuille se recalcule.
+   *
+   * Une fonctionnalité qui propose un appariement doit pouvoir défaire son erreur. Sans cela, un
+   * appariement confirmé à tort ne se corrigerait qu'en supprimant le compte entier — donc aussi
+   * les imports corrects qu'il porte.
+   */
+  function undoLastImport(): void {
+    if (lastImportId === null) return;
+    const undone = app.undoImport(lastImportId);
+    lastImportId = null;
+    pivotReport = null;
+    report = null;
+    if (undone === null) return;
+    toasts.push(`Import annulé : ${undone.removed} ligne(s) retirée(s).`, 'success');
+  }
+
+  /**
+   * Demande au modèle de compléter l'appariement. Le consentement passe par la MÊME feuille que le
+   * récit (P65) : aucun second mécanisme, et la charge utile affichée est celle qui part.
+   */
+  async function askModel(): Promise<void> {
+    if (proposal === null || pending === null || mappingPayload === null) return;
+    if (!aiKey.hasConsent(mappingRequest, aiModelId)) {
+      consentOpen = true;
+      return;
+    }
+    await sendToModel();
+  }
+
+  async function sendToModel(): Promise<void> {
+    const base = proposal;
+    const staged = pending;
+    const payload = mappingPayload;
+    if (base === null || staged === null || payload === null) return;
+    busy = true;
+    try {
+      const key = aiKey.value;
+      const adapter = key === null ? null : anthropicAdapter(key, { modelId: aiModelId });
+      const table = parseCsvText(staged.text);
+      /*
+       * Le vérificateur donné au modèle est le VRAI : il fusionne sa proposition (contrôle 5 : il
+       * ne peut que combler un trou) puis rejoue l'import entier. Une proposition qui inverserait
+       * les jambes est rejetée ici, avant d'atteindre l'écran.
+       */
+      const verify = (model: ModelMapping): string | null => {
+        const merged = mergeModelMapping(base, model);
+        const replay = verifyMapping(
+          confirmedMapping(merged.proposal),
+          contextOf(table, base, (day) => app.usdRate(day)),
+        );
+        return replay.ok ? null : (firstFailure(replay)?.code ?? 'refus sans code');
+      };
+      const outcome = await runMapping(
+        adapter,
+        payload.input,
+        TYPE_TARGETS,
+        msToParisNaive(Date.now()),
+        verify,
+      );
+      modelOutcome = outcome;
+      if (outcome.status !== 'ok') return;
+      const merged = mergeModelMapping(base, outcome.value);
+      proposal = merged.proposal;
+      const next = confirmedMapping(merged.proposal);
+      mappedColumns = { ...next.columns };
+      mappedTypes = { ...next.typeLabels };
+      toasts.push(
+        merged.filled === 0
+          ? 'Le modèle n’a rien ajouté : l’appariement était déjà complet.'
+          : `${merged.filled} appariement(s) proposé(s) par le modèle, à confirmer.`,
+        'info',
+      );
     } finally {
       busy = false;
     }
@@ -196,8 +388,9 @@
     <span class="big">{busy ? 'Analyse en cours…' : 'Choisir le fichier .csv ou .json'}</span>
     <span class="muted small"
       >Export Coinhouse (Vos transactions → Exporter → Export avancé), CSV Koinly/Waltio, exports
-      natifs Kraken, Revolut, Coinbase, Bitvavo, Ledger Live, ou JSON Ghostfolio. Glissez-déposez ou
-      touchez pour choisir.</span
+      natifs Kraken, Revolut, Coinbase, Bitvavo, Ledger Live, ou JSON Ghostfolio. Tout autre CSV :
+      l’application vous propose un appariement de ses colonnes, que vous confirmez avant l’import.
+      Glissez-déposez ou touchez pour choisir.</span
     >
   </label>
 
@@ -212,12 +405,24 @@
         <legend class="sr-only">Compte de destination</legend>
         {#each csvAccounts as account (account.id)}
           <label class="choice">
-            <input type="radio" name="target" value={account.id} bind:group={targetAccount} />
+            <input
+              type="radio"
+              name="target"
+              value={account.id}
+              bind:group={targetAccount}
+              onchange={applyRemembered}
+            />
             <span>{account.label} <span class="muted small">(existant)</span></span>
           </label>
         {/each}
         <label class="choice">
-          <input type="radio" name="target" value="new" bind:group={targetAccount} />
+          <input
+            type="radio"
+            name="target"
+            value="new"
+            bind:group={targetAccount}
+            onchange={applyRemembered}
+          />
           <span>Nouveau compte</span>
         </label>
         {#if targetAccount === 'new'}
@@ -232,13 +437,40 @@
           </label>
         {/if}
       </fieldset>
-      <div class="actions">
-        <button class="primary" type="button" disabled={busy} onclick={confirmPivot}
-          >Importer dans ce compte</button
-        >
-        <button class="secondary" type="button" onclick={() => (pending = null)}>Annuler</button>
-      </div>
+      {#if pending.kind !== 'mapped'}
+        <div class="actions">
+          <button class="primary" type="button" disabled={busy} onclick={confirmPivot}
+            >Importer dans ce compte</button
+          >
+          <button class="secondary" type="button" onclick={() => (pending = null)}>Annuler</button>
+        </div>
+      {/if}
     </section>
+  {/if}
+
+  {#if pending && pending.kind === 'mapped' && proposal && verdict}
+    {#if modelOutcome && modelOutcome.status === 'refused'}
+      <p class="demo-note" role="status">
+        {refusalText(modelOutcome.reason, modelOutcome.fallback)} L’appariement ci-dessous reste celui
+        que l’application a trouvé seule.
+      </p>
+    {/if}
+    <ColumnMapping
+      {proposal}
+      bind:columns={mappedColumns}
+      bind:typeLabels={mappedTypes}
+      {verdict}
+      {modelReady}
+      {busy}
+      droppedTypeLabels={mappingPayload?.droppedTypeLabels ?? 0}
+      {rememberedAt}
+      onask={() => void askModel()}
+      onconfirm={confirmPivot}
+      oncancel={() => {
+        pending = null;
+        proposal = null;
+      }}
+    />
   {/if}
 
   <!-- Second avis (P62) : un export qui porte des CHIFFRES DÉJÀ CALCULÉS (une annexe 2086) ne
@@ -323,7 +555,18 @@
       {/if}
       <div class="actions">
         <a class="primary" href={router.href({ name: 'portfolio' })}>Voir mon portefeuille</a>
+        {#if lastImportId}
+          <button class="secondary" type="button" onclick={undoLastImport}
+            >Annuler cet import</button
+          >
+        {/if}
       </div>
+      {#if lastImportId}
+        <p class="small muted">
+          « Annuler cet import » retire les lignes que cet import a ajoutées, et rien d’autre : les
+          lignes déjà connues d’un import précédent restent en place.
+        </p>
+      {/if}
     </section>
   {/if}
 
@@ -385,6 +628,25 @@
     </section>
   {/if}
 </div>
+
+<!-- Le MÊME consentement que le récit (P65) : aucun second mécanisme, et la charge utile affichée
+     est celle qui part, au caractère près. -->
+<ConsentSheet
+  bind:open={consentOpen}
+  request={mappingRequest}
+  modelId={aiModelId}
+  purpose="Appariement des colonnes de ce fichier : en-têtes, formes de colonnes et libellés de type — aucune cellule."
+  discreet={app.state.ui.discreet}
+  onsend={() => {
+    aiKey.grantConsent(mappingRequest, aiModelId);
+    void sendToModel();
+  }}
+  oncancel={() => {
+    // Un consentement refusé n'est pas une panne : c'est l'état « pas de modèle », et la
+    // proposition déterministe reste exactement ce qu'elle était.
+    modelOutcome = { status: 'refused', reason: 'no-model', fallback: 'deterministic' };
+  }}
+/>
 
 <style>
   .page {

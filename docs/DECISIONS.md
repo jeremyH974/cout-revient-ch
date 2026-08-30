@@ -1524,3 +1524,54 @@
     chiffre n'a été fabriqué. Il ne dit rien d'un chiffre juste attribué au mauvais actif, d'un sens
     inversé, d'une omission, ni d'une recommandation faite par le seul choix et le seul ordre des
     constats — que nul test ne lit.
+71. **Un fichier inconnu se qualifie par un appariement proposé, vérifié par le moteur lui-même, et
+    jamais appliqué sans confirmation** (30/08/2026, proposition P64, étude
+    `proposals/2026-08-29-data-ia-et-agentique.md`). L'import cassé est la frustration la plus
+    universelle du marché : jusqu'ici, une colonne nommée autrement suffisait à ce que
+    l'application renonce. Elle propose désormais une correspondance colonne → champ du schéma
+    pivot, et libellé → type d'opération.
+    **La voie déterministe fonctionne seule, et c'est celle que tout le monde aura** : normalisation
+    des en-têtes (accents, séparateurs, parenthèses gardées comme jetons d'indice, collages
+    dépliés), table de synonymes française et anglaise, distance de Damerau-Levenshtein **écrite à
+    la main** (aucune dépendance, décision n° 13), et inférence par la **forme des valeurs**.
+    Mesurée par une propriété : sur deux cents tirages où les colonnes sont permutées et les
+    en-têtes renommés par synonymes, **les douze champs sont retrouvés**. La même propriété mesure
+    l'usure quand les en-têtes deviennent **opaques** : au-delà du premier, un champ perdu par
+    en-tête opaque. La conclusion est écrite plutôt que tue — **cet appariement s'appuie d'abord sur
+    les noms** ; la forme ne rattrape que ce qui s'identifie seul, une empreinte ou une date. C'est
+    suffisant, parce qu'un export réel porte des noms parlants, simplement différents des nôtres.
+    **Aucun modèle local n'est chargé** : des dizaines de mégaoctets pour apparier des noms de
+    colonnes seraient disproportionnés face à une application qui tient en quelques centaines de
+    kilo-octets. Le chemin assisté est celui de BYOK (décision n° 69), et il n'est qu'un complément.
+    **Le modèle ne voit aucun montant** — il reçoit les en-têtes, une classe de forme par colonne,
+    et la liste des libellés de types distincts, bornée et **filtrée** : tout libellé portant quatre
+    chiffres consécutifs, un `@`, une adresse ou un séparateur décimal est **écarté, jamais
+    tronqué**. Une propriété l'établit comme celle du récit (décision n° 70) : un fichier dont
+    **chaque cellule** porte une sentinelle, et une charge utile où aucune n'apparaît — clés
+    comprises, à toute profondeur, pour qu'un futur champ « exemples » ne puisse pas entrer sans
+    qu'un test tombe.
+    **Le vérificateur n'est pas un jugement, c'est le moteur.** La proposition est rejouée à blanc,
+    sans rien écrire : indices et libellés doivent tous provenir de l'envoi, les champs
+    indispensables être présents, les dates et montants se lire, puis le rapport doit tenir
+    l'invariant comptable, **ne produire aucune position bloquée** — une survente est la signature
+    d'un `envoyé`/`reçu` inversé, et rien d'autre ne la détecte — et laisser moins de 5 % de lignes
+    à qualifier. L'écart de solde n'existe que si le fichier porte un solde ; sinon il est déclaré
+    **inapplicable**, jamais réputé vert. Un échec jette la proposition entière et retombe sur le
+    déterministe. L'ancrage porte ici sur les **jetons**, pas sur les nombres : le motif `unanchored`
+    est réutilisé, sans huitième motif (décision n° 69), et sans second mécanisme de consentement.
+    **Rien n'est importé sans confirmation ligne à ligne**, chaque appariement affichant sa
+    confiance et sa provenance par pastille **et** par texte. Le modèle ne peut que combler un
+    trou : il n'écrase jamais un appariement déterministe sûr. L'appariement confirmé est mémorisé
+    **sur le compte**, sans quoi l'utilisateur le referait à chaque export mensuel ; le champ étant
+    optionnel et posé par compte, une sauvegarde ancienne ne gagne rien et la fixture gelée
+    (décision n° 66) reste verte — un test fige ce constat.
+    **Un import se défait.** Une fonctionnalité qui _propose_ un appariement doit pouvoir annuler
+    son erreur : un mapping confirmé à tort laisserait un second jeu de lignes que le dédoublonnage
+    par hachage (décision n° 26) ne rattraperait pas. L'annulation retire les lignes de cet import
+    et recalcule.
+    **Ce qui est écarté** : la forme à colonne signée, reconnue et **nommée** à l'écran — « cette
+    forme n'est pas encore prise en charge » — plutôt que rejetée sans explication ; l'application
+    automatique au-dessus d'un seuil, même élevé ; l'envoi d'un extrait de lignes, qui améliorerait
+    pourtant l'appariement — la forme d'une colonne en dit assez.
+    **Limite nommée, non comblée** : un appariement faux mais arithmétiquement cohérent passe tous
+    les contrôles. Un vérificateur vert dit que le fichier **se lit**, pas qu'il se lit juste.

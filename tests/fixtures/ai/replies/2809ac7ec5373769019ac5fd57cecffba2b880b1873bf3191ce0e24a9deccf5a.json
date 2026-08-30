@@ -1,0 +1,7 @@
+{
+  "hash": "2809ac7ec5373769019ac5fd57cecffba2b880b1873bf3191ce0e24a9deccf5a",
+  "modelId": "handwritten/p70",
+  "capturedAt": "2026-08-30T09:00:00",
+  "source": "handwritten",
+  "text": "{\"colonnes\":[{\"i\":2,\"champ\":\"receivedAmount\",\"confiance\":0.95},{\"i\":3,\"champ\":\"receivedCurrency\",\"confiance\":0.95},{\"i\":4,\"champ\":\"sentAmount\",\"confiance\":0.95},{\"i\":5,\"champ\":\"sentCurrency\",\"confiance\":0.95}],\"types\":[]}"
+}

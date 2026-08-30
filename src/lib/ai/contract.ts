@@ -85,17 +85,20 @@ export function refusalOrigin(reason: AiRefusal): RefusalOrigin {
 }
 
 /**
- * Tâches confiables à un modèle. Une seule aujourd'hui ; P64 (appariement de colonnes) et P69
- * (assistant) ajouteront les leurs, avec leur repli.
+ * Tâches confiables à un modèle. Deux aujourd'hui ; P69 (assistant) ajoutera la sienne, avec son
+ * repli.
  */
-export type AiTask = 'narrative';
+export type AiTask = 'narrative' | 'column-mapping';
 
 /**
  * Le repli est une propriété de la TÂCHE, pas du motif de refus : le récit narratif retombe sur
- * `insightsToText`, un assistant conversationnel n'aura rien sur quoi retomber.
+ * `insightsToText`, l'appariement de colonnes sur sa proposition déterministe (la voie que 100 %
+ * des utilisateurs ont, avec ou sans clé), un assistant conversationnel n'aura rien sur quoi
+ * retomber.
  */
 export const TASK_FALLBACK: Record<AiTask, 'deterministic' | 'none'> = {
   narrative: 'deterministic',
+  'column-mapping': 'deterministic',
 };
 
 export type AiOutcome<T> =
@@ -199,6 +202,40 @@ export function systemPrompt(task: AiTask): string {
         'arbitrer), tu ne prédis rien, tu ne garantis rien, tu ne classes rien.',
         'Tu n’attribues jamais un chiffre à un autre actif que celui de son constat.',
         'Écris au passé et au présent, sans titre, sans liste, sans emoji.',
+      ].join('\n');
+    /*
+     * Consigne de l'appariement de colonnes (P64). Elle diffère de la précédente sur un point de
+     * fond : le modèle ne rédige pas, il **cite**. Chaque phrase ferme une manière de fabriquer
+     * une valeur plutôt qu'une manière de mal écrire.
+     *
+     * - « Tu ne vois aucune valeur de cellule, et tu n'en demandes aucune » dit ce qu'il a, et lui
+     *   ôte l'idée d'en réclamer davantage. La charge utile ne contient pas de cellules ; sans
+     *   cette phrase, un modèle poli répondrait « donnez-moi un extrait ».
+     * - Le JSON est décrit **par sa forme exacte**, avec ses clés, parce qu'une sortie qui dévie
+     *   d'un caractère est jetée par le contrôle 0 — autant que la forme attendue soit sous ses
+     *   yeux plutôt que devinée.
+     * - « recopié CARACTÈRE POUR CARACTÈRE » est la condition de l'ancrage : un libellé
+     *   reformulé, même mieux écrit, ne se retrouve pas dans l'envoi et fait tomber la réponse
+     *   entière. La majuscule est là pour ça.
+     * - « Si tu hésites, n'apparie pas cette colonne » donne la consigne UTILE : une absence se
+     *   corrige d'un clic, une erreur se propage à tout le fichier.
+     * - « Tu ne calcules rien » vaut ici comme ailleurs : l'IA n'entre jamais dans le calcul.
+     */
+    case 'column-mapping':
+      return [
+        'Tu apparies les colonnes d’un fichier de transactions à un schéma cible. Tu ne vois',
+        'aucune valeur de cellule, et tu n’en demandes aucune.',
+        'Tu réponds UNIQUEMENT par un objet JSON, sans texte avant ni après, sans commentaire,',
+        'sans bloc de code, de la forme exacte :',
+        '{"colonnes":[{"i":<entier>,"champ":"<nom du schéma cible>","confiance":<0 à 1>}],',
+        ' "types":[{"libelle":"<repris tel quel>","cible":"<nom de type>"}]}',
+        'Tout « i » est l’index d’une colonne fournie. Tout « champ » et tout « cible »',
+        'appartiennent aux listes fournies. Tout « libelle » est recopié CARACTÈRE POUR',
+        'CARACTÈRE depuis la liste fournie. Tu n’inventes ni index, ni nom, ni libellé.',
+        'Un champ au plus par colonne, une colonne au plus par champ.',
+        'Si tu hésites, n’apparie pas cette colonne : une absence se corrige, une erreur se',
+        'propage à tout le fichier.',
+        'Tu ne calcules rien, tu ne décris rien, tu ne conseilles rien.',
       ].join('\n');
     default: {
       const missing: never = task;
