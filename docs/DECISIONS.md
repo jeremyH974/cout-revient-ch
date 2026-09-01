@@ -2067,3 +2067,32 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     as the source** ». L'application relayait ses taux via Frankfurter **sans la citer**. Un devoir
     non constaté et un devoir inexistant ne sont pas la même chose : la table portait le premier en
     croyant décrire le second.
+92. **Deux régimes de protocole dans le même processus, distingués à la forme de la requête**
+    (01/09/2026, proposition P90). La révision `2026-07-28` du Model Context Protocol **supprime**
+    la poignée de main `initialize` — elle ne la déprécie pas : le schéma ne contient plus ni
+    `InitializeRequest` ni `InitializeResult`. La version voyage désormais dans
+    `_meta["io.modelcontextprotocol/protocolVersion"]`, **obligatoire à chaque requête**, et
+    `server/discover` remplace la découverte. `ping` disparaît, `resultType` devient obligatoire sur
+    tout résultat, et les listes portent `ttlMs`/`cacheScope`.
+    Le serveur en était en retard de **deux** révisions, pas d'une : `2025-11-25` lui manquait aussi.
+    **Vérifié en source primaire, pas sur un résumé.** Le rapport de recherche signalait
+    honnêtement que ses citations étaient passées par un outil d'extraction ; pour une
+    implémentation de protocole, la forme exacte du fil ne se déduit pas. Le schéma brut (3 197
+    lignes) a donc été relu directement, et il a corrigé un point du résumé : `DiscoverResult`
+    hérite de `CacheableResult`, donc `ttlMs` et `cacheScope` y sont **obligatoires** et non
+    facultatifs.
+    **Les deux régimes cohabitent**, distingués à la présence de `_meta` — jamais à un état de
+    session. Ce serveur n'en a jamais eu : `mcp/state.ts` recharge la sauvegarde à chaque appel. Le
+    modèle sans état de la révision moderne ne heurte donc aucune hypothèse de conception ; c'est la
+    forme des messages qui change, pas la logique.
+    **Deux détails qui ne se devinent pas.** `server/discover` répond dans les DEUX régimes : sur
+    stdio il n'existe aucun code de statut HTTP pour guider un repli, si bien qu'un client capable
+    des deux versions envoie cette sonde en premier — ne répondre qu'aux modernes la rendrait
+    inutile. Et le repli d'`initialize` reste **dans l'ancien régime** : il répond `2025-11-25` et
+    non `2026-07-28`, parce qu'annoncer la révision moderne à un client qui vient d'appeler
+    `initialize` serait lui désigner une révision où cette méthode n'existe plus.
+    Le régime moderne ne se replie pas en silence : il refuse par `-32022` en nommant ce qu'il sait
+    parler, et c'est au client de rappeler. Un test l'exige, et un autre exige que l'ancien régime
+    reste **intact** — c'est la moitié qui pourrait casser un client existant.
+    Tout le pan HTTP de la révision (autorisation, en-têtes, `subscriptions/listen`) ne s'applique
+    pas : la spécification écarte explicitement stdio de sa partie autorisation.

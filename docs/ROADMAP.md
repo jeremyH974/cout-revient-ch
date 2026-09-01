@@ -270,7 +270,7 @@ pris — décision n° 69).
 | P95 | **Livré (01/09/2026, décision n° 87).** Précision des lots bornée : ×137, rupture repoussée à ~2 500 cessions                                 |   4    |     3     |    3    |    2     |   5    |
 | P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`                                                                  |   0    |     5     |    0    |    1     |   5    |
 | P89 | Macro européenne : BCE, Eurostat, Frankfurter                                                                                                 |   4    |     2     |    4    |    2     |   5    |
-| P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                                                                               |   1    |     3     |    1    |    1     |   5    |
+| P90 | **Livré (01/09/2026, décision n° 92).** Deux régimes de protocole en parallèle ; `server/discover` livré                                      |   1    |     3     |    1    |    1     |   5    |
 | P82 | **Livré autrement (01/09/2026, décision n° 89).** Aucun échelon historique n'existe ; la chaîne et son cliquet sont bâtis à froid             |   1    |     5     |    0    |   1,5    |   4    |
 | P88 | **Abandonné (01/09/2026, décision n° 91).** Redistribution interdite par les CGU CoinGecko, et série figée = risque sous-estimé               |   3    |     4     |    1    |    2     |   4    |
 | P91 | **Livré (01/09/2026, décision n° 90).** Cinq listes d'`ARCHITECTURE.md` adossées à un test ; cinq dérives corrigées                           |   0    |     3     |    1    |    1     |   4    |
