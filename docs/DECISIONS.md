@@ -1897,3 +1897,35 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     objets de trace produits, décimales portées — dont le produit EST le coût. Identiques sur toutes
     les machines, donc jamais clignotantes, et l'ensemble tourne en 0,4 s. Le chronomètre, lui, vit
     dans `npm run bench`, que la CI ne lance pas.
+86. **La brique demandée aurait été fausse : on livre ce qui est vrai à sa place** (01/09/2026,
+    proposition P94). P94 demandait une vue « compensation de moins-values avant le 31/12 ». En
+    relisant la formule appliquée par `previewCession` :
+    `gain = prix de cession − PTA × (prix de cession ÷ valeur globale)`, le gain imposable ne dépend
+    que du **montant encaissé**, du **PTA** et de la **valeur globale du portefeuille**. Il ne dépend
+    **pas de l'actif cédé**. Vendre 1 000 € de bitcoin ou 1 000 € d'un actif effondré produit
+    exactement le même résultat imposable.
+    La récolte de moins-values de Koinly ou Blockpit suppose une comptabilité **par lot** — c'est le
+    droit américain et allemand, pas l'article 150 VH bis, dont la méthode est **globale**. L'écran
+    demandé aurait donc suggéré une optimisation qui n'existe pas, et il aurait été d'autant plus
+    crédible que c'est le comportement de tous les concurrents.
+    **Ce qui est réellement vrai au 31 décembre**, en droit français, tient en deux faits que
+    l'utilisateur ne peut déduire d'aucun de ses chiffres : une **moins-value nette d'année ne se
+    reporte pas** (au 1er janvier elle est éteinte, et d'ici là toute plus-value réalisée s'impute
+    dessus) ; et les **305 € sont une falaise, pas un abattement** (au premier centime au-dessus, la
+    totalité des plus-values de l'année devient imposable). Le constat `tax-year-end` les énonce, au
+    dernier trimestre seulement, et porte une troisième phrase qui vaut peut-être plus que les deux
+    autres : **le choix de l'actif cédé n'y change rien**. Elle existe pour désamorcer la croyance
+    importée, et un test l'exige dans les deux variantes du constat.
+    **Frontière tenue** (n° 43 et 50) : le constat énonce un fait de droit, chiffré sur la situation
+    de l'utilisateur, et dit à quelle date il cesse d'être vrai. Il ne recommande aucune vente, ne
+    classe aucun actif « à céder », ne calcule aucun montant « optimal », et son ton reste `neutral`
+    — `attention` se lirait comme une incitation à agir avant l'échéance. Un test énumère les
+    formulations de conseil interdites.
+    **L'horloge vient de l'appelant**, comme `taxYear` avant lui : le moteur ne devine jamais quel
+    jour on est, et sans `today` aucun constat daté n'est émis.
+    **Deux trous trouvés en chemin, tous deux comblés.** `ALL_CODES`, dans le test de rendu, était
+    une liste **recopiée à la main** : un code nouveau échappait en silence aux règles transversales.
+    Elle est désormais **dérivée** du registre d'échantillons, que le typage rend déjà exhaustif.
+    Et cette dérivation ne suffit pas quand un code a **deux variantes** — elle n'en exerce qu'une,
+    celle de l'échantillon ; la contre-épreuve du tiret cadratin est passée au vert avant qu'on ne
+    rejoue les règles transversales sur la seconde variante.

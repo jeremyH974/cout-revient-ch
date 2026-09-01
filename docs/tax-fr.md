@@ -37,6 +37,23 @@ rien n'est imposable ; au-delà, tout l'est dès le premier euro — ce n'est pa
 sociaux, la CSG patrimoine étant passée à 10,6 %), 30 % avant, et l'imputation des **moins-values
 sur la seule année en cours** — un net annuel négatif est perdu, il ne se reporte pas.
 
+### La « compensation de moins-values » n'existe pas ici
+
+Relisez la formule : le gain ne dépend que du **prix de cession**, du **PTA** et de la **valeur
+globale**. Il ne dépend **pas de l'actif vendu**. Céder 1 000 € de bitcoin ou 1 000 € d'un actif
+tombé de 80 % produit exactement le même résultat imposable.
+
+C'est contre-intuitif, parce que tous les outils étrangers font l'inverse : Koinly, Blockpit et
+leurs semblables proposent une vue « récolter ses moins-values avant la fin de l'année ». Elle est
+juste — **aux États-Unis et en Allemagne**, où la comptabilité est par lot et où chaque position a
+sa propre plus ou moins-value. Sous le 150 VH bis, la méthode est globale : il n'y a **aucune**
+moins-value par actif à récolter.
+
+Ce qui reste vrai au 31 décembre, en revanche, tient en deux faits — le non-report d'un déficit
+annuel, et la falaise des 305 € — que l'application énonce au dernier trimestre, sous
+« Fin d'année fiscale » (décision n° 86). Elle les **énonce** : elle ne recommande aucune cession,
+ne classe aucun actif « à vendre » et ne calcule aucun montant « optimal ».
+
 ## Ce que l'app affiche
 
 - **Simulateur → mode « Vendre » → sortie « Vente en euros »** : un dépliant « Estimation fiscale

@@ -9,96 +9,94 @@ const nbsp = (s: string): string => s.replace(SPACES, ' ');
 
 const EUR = { discreet: false, currency: 'EUR' } as const;
 
+/**
+ * Un echantillon par code, et le type l'exige : `Record<InsightCode, …>` refuse de compiler tant
+ * qu'un code nouveau n'a pas le sien. C'est de LUI que `ALL_CODES` est derive plus bas, pour
+ * qu'aucun constat ne puisse echapper aux regles transversales faute d'avoir ete recopie a la main.
+ */
+const SAMPLES: Record<InsightCode, Insight['values']> = {
+  unqualified: { count: { kind: 'count', value: 3 } },
+  unpriced: {
+    count: { kind: 'count', value: 2 },
+    assets: { kind: 'assets', value: ['bonk', 'wif'] },
+  },
+  'subscription-net': {
+    amount: { kind: 'money', value: '159.97' },
+    rebates: { kind: 'money', value: '278.77' },
+    tier: { kind: 'tier', value: 'investisseur' },
+  },
+  'fees-12m': {
+    amount: { kind: 'money', value: '904.75' },
+    rate: { kind: 'ratio', value: '0.006' },
+  },
+  concentration: {
+    assets: { kind: 'assets', value: ['btc'] },
+    share: { kind: 'ratio', value: '0.72' },
+    amount: { kind: 'money', value: '69415.83' },
+  },
+  'top3-share': {
+    share: { kind: 'ratio', value: '0.85' },
+    assets: { kind: 'assets', value: ['btc', 'eth', 'sol'] },
+  },
+  'max-drawdown': {
+    share: { kind: 'ratio', value: '0.42' },
+    from: { kind: 'day', value: '2025-01-20' },
+    to: { kind: 'day', value: '2025-04-08' },
+    recovered: { kind: 'day', value: '2025-10-02' },
+  },
+  'tax-year': {
+    year: { kind: 'year', value: 2026 },
+    proceeds: { kind: 'money', value: '12000' },
+    net: { kind: 'money', value: '3000' },
+    tax: { kind: 'money', value: '942' },
+    count: { kind: 'count', value: 4 },
+  },
+  'tax-year-end': {
+    year: { kind: 'year', value: 2026 },
+    proceeds: { kind: 'money', value: '12000' },
+    count: { kind: 'count', value: 4 },
+    deadline: { kind: 'day', value: '2026-12-31' },
+    deficit: { kind: 'money', value: '1800' },
+  },
+  xirr: { rate: { kind: 'ratio', value: '0.184' }, since: { kind: 'day', value: '2024-03-12' } },
+  'benchmark-gap': {
+    amount: { kind: 'money', value: '-1234' },
+    assets: { kind: 'assets', value: ['btc'] },
+    since: { kind: 'day', value: '2024-03-12' },
+  },
+  realized: { amount: { kind: 'money', value: '2500' } },
+  'contribution-top': {
+    assets: { kind: 'assets', value: ['eth'] },
+    amount: { kind: 'money', value: '1200' },
+  },
+  'contribution-bottom': {
+    assets: { kind: 'assets', value: ['sol'] },
+    amount: { kind: 'money', value: '-300' },
+  },
+  'capital-recovered': {
+    count: { kind: 'count', value: 2 },
+    assets: { kind: 'assets', value: ['btc', 'eth'] },
+  },
+  'stablecoin-share': {
+    share: { kind: 'ratio', value: '0.12' },
+    amount: { kind: 'money', value: '5000' },
+  },
+};
+
 function insight(code: InsightCode, over: Partial<Insight> = {}): Insight {
-  const values: Record<InsightCode, Insight['values']> = {
-    unqualified: { count: { kind: 'count', value: 3 } },
-    unpriced: {
-      count: { kind: 'count', value: 2 },
-      assets: { kind: 'assets', value: ['bonk', 'wif'] },
-    },
-    'subscription-net': {
-      amount: { kind: 'money', value: '159.97' },
-      rebates: { kind: 'money', value: '278.77' },
-      tier: { kind: 'tier', value: 'investisseur' },
-    },
-    'fees-12m': {
-      amount: { kind: 'money', value: '904.75' },
-      rate: { kind: 'ratio', value: '0.006' },
-    },
-    concentration: {
-      assets: { kind: 'assets', value: ['btc'] },
-      share: { kind: 'ratio', value: '0.72' },
-      amount: { kind: 'money', value: '69415.83' },
-    },
-    'top3-share': {
-      share: { kind: 'ratio', value: '0.85' },
-      assets: { kind: 'assets', value: ['btc', 'eth', 'sol'] },
-    },
-    'max-drawdown': {
-      share: { kind: 'ratio', value: '0.42' },
-      from: { kind: 'day', value: '2025-01-20' },
-      to: { kind: 'day', value: '2025-04-08' },
-      recovered: { kind: 'day', value: '2025-10-02' },
-    },
-    'tax-year': {
-      year: { kind: 'year', value: 2026 },
-      proceeds: { kind: 'money', value: '12000' },
-      net: { kind: 'money', value: '3000' },
-      tax: { kind: 'money', value: '942' },
-      count: { kind: 'count', value: 4 },
-    },
-    xirr: { rate: { kind: 'ratio', value: '0.184' }, since: { kind: 'day', value: '2024-03-12' } },
-    'benchmark-gap': {
-      amount: { kind: 'money', value: '-1234' },
-      assets: { kind: 'assets', value: ['btc'] },
-      since: { kind: 'day', value: '2024-03-12' },
-    },
-    realized: { amount: { kind: 'money', value: '2500' } },
-    'contribution-top': {
-      assets: { kind: 'assets', value: ['eth'] },
-      amount: { kind: 'money', value: '1200' },
-    },
-    'contribution-bottom': {
-      assets: { kind: 'assets', value: ['sol'] },
-      amount: { kind: 'money', value: '-300' },
-    },
-    'capital-recovered': {
-      count: { kind: 'count', value: 2 },
-      assets: { kind: 'assets', value: ['btc', 'eth'] },
-    },
-    'stablecoin-share': {
-      share: { kind: 'ratio', value: '0.12' },
-      amount: { kind: 'money', value: '5000' },
-    },
-  };
   return {
     id: code,
     code,
     tone: 'neutral',
     priority: 50,
-    values: values[code],
+    values: SAMPLES[code],
     link: null,
     ...over,
   };
 }
 
-const ALL_CODES: InsightCode[] = [
-  'unqualified',
-  'unpriced',
-  'subscription-net',
-  'fees-12m',
-  'concentration',
-  'top3-share',
-  'max-drawdown',
-  'tax-year',
-  'xirr',
-  'benchmark-gap',
-  'realized',
-  'contribution-top',
-  'contribution-bottom',
-  'capital-recovered',
-  'stablecoin-share',
-];
+/** Dérivé du registre, jamais recopié : un code nouveau entre ici tout seul. */
+const ALL_CODES = Object.keys(SAMPLES) as InsightCode[];
 
 describe('renderInsight', () => {
   it('donne à chaque code un intitulé et une phrase complète, sans trou de formatage', () => {
@@ -193,5 +191,58 @@ describe('renderInsight', () => {
     const text = insightsToText(list);
     expect(text.split('\n')).toHaveLength(2);
     expect(text.startsWith('- Résultat encaissé : ')).toBe(true);
+  });
+});
+
+/**
+ * La phrase qui vaut la brique (décision n° 86).
+ *
+ * Un utilisateur qui a lu Koinly ou Blockpit croit qu'en cédant un actif en perte il crée une
+ * moins-value déductible. C'est vrai là où la comptabilité est par lot ; ce ne l'est pas sous le
+ * 150 VH bis, dont la méthode est globale. Les deux variantes du constat doivent le dire, faute de
+ * quoi il vaudrait mieux ne rien afficher du tout.
+ */
+describe('constat de fin d’année', () => {
+  const GLOBAL = 'valeur globale du portefeuille';
+
+  it('année perdante : le non-report, et la méthode globale', () => {
+    const detail = renderInsight(insight('tax-year-end'), EUR).detail;
+    expect(detail).toContain('ne se reporte pas');
+    expect(detail).toContain(GLOBAL);
+  });
+
+  it('sous le seuil : la falaise des 305 €, et la méthode globale', () => {
+    const detail = renderInsight(
+      insight('tax-year-end', {
+        values: {
+          year: { kind: 'year', value: 2026 },
+          proceeds: { kind: 'money', value: '200' },
+          count: { kind: 'count', value: 2 },
+          deadline: { kind: 'day', value: '2026-12-31' },
+          headroom: { kind: 'money', value: '105' },
+        },
+      }),
+      EUR,
+    ).detail;
+    expect(detail).toContain('falaise, pas un abattement');
+    expect(detail).toContain(GLOBAL);
+    // `ALL_CODES` n'exerce qu'UNE variante par code — celle de l'échantillon. Les règles
+    // transversales sont donc rejouées ici sur la seconde, sans quoi elle y échapperait.
+    expect(detail.endsWith('.')).toBe(true);
+    expect(detail, 'un « — » signalerait une valeur absente du constat').not.toContain('—');
+  });
+
+  it('aucune formulation de conseil : on décrit, on ne prescrit pas', () => {
+    for (const values of [undefined, { headroom: { kind: 'money' as const, value: '105' } }]) {
+      const detail = renderInsight(
+        insight(
+          'tax-year-end',
+          values ? { values: { ...SAMPLES['tax-year-end'], ...values } } : {},
+        ),
+        EUR,
+      ).detail;
+      for (const verb of ['vendez', 'cédez', 'pensez à', 'vous devriez', 'il faudrait'])
+        expect(detail.toLowerCase(), verb).not.toContain(verb);
+    }
   });
 });

@@ -14,7 +14,7 @@ import { benchmarkGap, type BenchmarkResult } from './benchmark';
 import type { PortfolioReport, PositionReport } from './engine/report';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from './money';
 import type { RiskMetrics } from './risk';
-import type { TaxLedger } from './tax-fr';
+import { EXEMPTION_THRESHOLD, type TaxLedger } from './tax-fr';
 import type { CoinhouseTier, SubscriptionAnalysis } from './subscription';
 import type { AssetCode } from './types';
 import type { XirrResult } from './xirr';
@@ -39,22 +39,33 @@ export type InsightValue =
   | { kind: 'tier'; value: CoinhouseTier }
   | { kind: 'year'; value: number };
 
-export type InsightCode =
-  | 'unqualified'
-  | 'unpriced'
-  | 'subscription-net'
-  | 'fees-12m'
-  | 'concentration'
-  | 'top3-share'
-  | 'max-drawdown'
-  | 'tax-year'
-  | 'xirr'
-  | 'benchmark-gap'
-  | 'realized'
-  | 'contribution-top'
-  | 'contribution-bottom'
-  | 'capital-recovered'
-  | 'stablecoin-share';
+/**
+ * Les codes de constat, en UN SEUL endroit et disponibles À L'EXÉCUTION (décision n° 86).
+ *
+ * Le type en est dérivé, donc les deux ne peuvent pas diverger ; et les tests qui doivent parcourir
+ * TOUS les codes n'ont plus à recopier la liste. Deux d'entre eux le faisaient, et l'un des deux
+ * avait déjà pris du retard sans que rien ne le signale.
+ */
+export const INSIGHT_CODES = [
+  'unqualified',
+  'unpriced',
+  'subscription-net',
+  'fees-12m',
+  'concentration',
+  'top3-share',
+  'max-drawdown',
+  'tax-year',
+  'tax-year-end',
+  'xirr',
+  'benchmark-gap',
+  'realized',
+  'contribution-top',
+  'contribution-bottom',
+  'capital-recovered',
+  'stablecoin-share',
+] as const;
+
+export type InsightCode = (typeof INSIGHT_CODES)[number];
 
 /** Écran vers lequel un constat renvoie ; l'interface le traduit en route (le moteur ignore le routeur). */
 export type InsightLink =
@@ -92,6 +103,11 @@ export interface InsightContext {
   tax?: TaxLedger | null | undefined;
   /** Année de référence du constat fiscal (l'appelant fournit l'horloge, le moteur n'en a pas). */
   taxYear?: number | undefined;
+  /**
+   * Jour civil courant (`AAAA-MM-JJ`), de la même horloge que `taxYear`. Sans lui, aucun constat
+   * daté n'est émis : le moteur ne devine jamais quel jour on est.
+   */
+  today?: string | undefined;
 }
 
 /** Sous une unité de la devise affichée (1 € ou 1 $), un montant ne fait pas un constat. */
@@ -119,6 +135,7 @@ const PRIORITY: Record<InsightCode, number> = {
   'top3-share': 58,
   'max-drawdown': 57,
   'tax-year': 56,
+  'tax-year-end': 62,
   xirr: 55,
   'benchmark-gap': 50,
   realized: 45,
@@ -284,6 +301,70 @@ const taxYearRule: InsightRule = (ctx) => {
   ];
 };
 
+/** Dernier trimestre : avant octobre, le 31 décembre n'est pas une échéance, c'est une date. */
+const YEAR_END_FROM_MONTH = 10;
+
+/**
+ * Ce que le 31 décembre change — et surtout ce qu'il ne change PAS (décision n° 86).
+ *
+ * Deux faits de droit, datés, que l'utilisateur n'a aucun moyen de déduire de ses chiffres :
+ *
+ * 1. une moins-value nette d'année **ne se reporte pas** : au 1er janvier elle est éteinte, et
+ *    d'ici là toute plus-value réalisée s'impute dessus ;
+ * 2. les 305 € sont une **falaise, pas un abattement** : au premier centime au-dessus, la totalité
+ *    des plus-values de l'année devient imposable (`previewCession` : `proceeds.lte(305) ? 0 : …`).
+ *
+ * Et une mise en garde qui vaut plus que les deux : **l'actif cédé n'a aucun effet sur l'impôt**.
+ * L'article 150 VH bis calcule le gain sur la valeur GLOBALE du portefeuille
+ * (`prix de cession − PTA × prix de cession / valeur globale`) ; vendre un actif en perte ne crée
+ * donc aucune moins-value déductible. La « compensation de moins-values » des outils étrangers
+ * suppose une comptabilité par lot, qui n'est pas le droit français. Ce constat existe autant pour
+ * désamorcer cette croyance que pour énoncer les deux faits ci-dessus.
+ *
+ * Ton `neutral` dans les deux cas, délibérément : `attention` se lirait comme une incitation à agir
+ * avant l'échéance, et la règle intangible du module (en-tête) l'interdit. On décrit l'année ; on ne
+ * suggère aucune cession.
+ */
+const taxYearEndRule: InsightRule = (ctx) => {
+  const { tax, taxYear, today } = ctx;
+  if (!tax || taxYear === undefined || today === undefined) return [];
+  // Le constat ne vaut que pour l'année EN COURS, et seulement quand l'échéance approche.
+  if (today.slice(0, 4) !== String(taxYear)) return [];
+  if (Number(today.slice(5, 7)) < YEAR_END_FROM_MONTH) return [];
+  const year = tax.years.find((y) => y.year === taxYear);
+  if (!year || year.cessionCount === 0) return [];
+
+  const net = D(year.netEur);
+  const proceeds = D(year.proceedsEur);
+  const common = {
+    year: yearValue(year.year),
+    proceeds: money(proceeds),
+    count: count(year.cessionCount),
+    deadline: day(`${year.year}-12-31`),
+  };
+  // Une année perdante d'abord : le fait s'éteint à une date, l'exonération non.
+  if (net.lt(ZERO))
+    return [
+      make(
+        'tax-year-end',
+        'neutral',
+        { ...common, deficit: money(net.neg()) },
+        { route: 'report' },
+      ),
+    ];
+  if (year.exempt)
+    return [
+      make(
+        'tax-year-end',
+        'neutral',
+        { ...common, headroom: money(D(EXEMPTION_THRESHOLD).minus(proceeds)) },
+        { route: 'report' },
+      ),
+    ];
+  // Année en plus-value au-dessus du seuil : `tax-year` dit déjà l'essentiel, ne pas le redire.
+  return [];
+};
+
 /** Rendement personnel annualisé (XIRR) : ce que vos versements ont réellement rapporté. */
 const xirrRule: InsightRule = (ctx) => {
   const result = ctx.xirr;
@@ -410,6 +491,7 @@ const RULES: readonly InsightRule[] = [
   top3Rule,
   drawdownRule,
   taxYearRule,
+  taxYearEndRule,
   xirrRule,
   benchmarkRule,
   realizedRule,
