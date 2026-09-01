@@ -267,7 +267,7 @@ pris — décision n° 69).
 | P80 | Test de complétude des sanitizers **au niveau des champs**, pas des conteneurs            |   1    |     5     |    0    |    1     |   6    |
 | P83 | Test de charge à 10 000 et 50 000 opérations : chiffrer le point de rupture               |   1    |     4     |    1    |    1     |   6    |
 | P94 | Vue « compensation de moins-values avant le 31/12 »                                       |   5    |     2     |    5    |    2     |   6    |
-| P75 | `require-trusted-types-for 'script'` — **reclassée urgente**, voir § 3.1 de l'étude       |   0    |     5     |    0    |    1     |   5    |
+| P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`              |   0    |     5     |    0    |    1     |   5    |
 | P89 | Macro européenne : BCE, Eurostat, Frankfurter                                             |   4    |     2     |    4    |    2     |   5    |
 | P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                           |   1    |     3     |    1    |    1     |   5    |
 | P82 | Un échelon de migration de schéma réel, avec son test (`SCHEMA_VERSION` figé à 1)         |   1    |     5     |    0    |   1,5    |   4    |

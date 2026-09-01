@@ -30,4 +30,7 @@ docs/CH_-GrilleTarifaire*.pdf
 
 # Claude Code (réglages locaux)
 .claude/settings.local.json
+# Worktrees Claude : un dépôt complet avec son `node_modules` vit ici. Ils n'étaient protégés que
+# par leur propre fichier `.git` et par `.git/info/exclude`, qui est local et ne se partage pas.
+.claude/worktrees/
 mcp/dist/
