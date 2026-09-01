@@ -1628,3 +1628,40 @@
     exécution, et n'est **commentée que sur changement d'empreinte** — délai et quotas exclus, sans
     quoi chaque exécution paraîtrait nouvelle. La logique vit dans `scripts/contract-state.ts` parce
     qu'`api-contract.mjs` appelle le réseau au chargement et n'est donc pas testable.
+75. **Trusted Types est exigé, parce qu'une XSS a désormais où sortir** (01/09/2026, proposition
+    P75). La directive aurait été du zèle tant que `connect-src` ne listait que des API de prix :
+    elles n'acceptent pas de charge utile arbitraire, et une injection DOM n'aurait eu nulle part où
+    exfiltrer. **La décision n° 69 a changé cela** en inscrivant `api.anthropic.com` en `connect` —
+    et comme la CSP est **statique, injectée au build**, cette origine est autorisée pour _tous_ les
+    visiteurs, y compris ceux qui ne colleront jamais de clé : le consentement par usage vit dans le
+    code applicatif, qu'une XSS contourne par construction. Le puits d'exfiltration est donc réel, et
+    la dernière classe de XSS DOM cesse d'être théorique.
+    Le coût, lui, était déjà payé : **Svelte 5 crée sa propre politique** `svelte-trusted-html` et la
+    traverse avant toute affectation `innerHTML`, et le dépôt n'a ni `{@html}`, ni `innerHTML`, ni
+    `eval`, ni `new Function`. Les seules affectations restantes du bundle sont dans jsPDF, sur des
+    chemins rendus inatteignables par les stubs `canvg`/`html2canvas`/`dompurify` de
+    `vite.config.ts` — ce que le test de génération du PDF vérifie plutôt que de le supposer.
+    **La liste des politiques est fermée** : un seul nom, pas de `*`, pas de politique `default` —
+    qui rendrait passants tous les puits et annulerait la directive. Comme cette politique vient
+    d'une **dépendance** et non de nous, un croisement lit le bundle livré et exige que tout nom
+    passé à `createPolicy` figure dans la liste : le jour où une mise à jour en introduira une
+    autre, la CI le dira au lieu de laisser l'application casser chez l'utilisateur. C'est le patron
+    de la n° 57 appliqué aux politiques.
+    **Le service worker a failli être la victime silencieuse.** `navigator.serviceWorker.register()`
+    est un puits `TrustedScriptURL` — ce que le plan de cette brique affirmait à tort. Sous la
+    directive, lui passer une chaîne est refusé, et comme `registerSW` de `vite-plugin-pwa` **attrape**
+    l'erreur pour la donner à `onRegisterError`, la page se rendait normalement, sans exception ni
+    violation observable : plus de hors-ligne, plus d'installation, plus de mise à jour, sans un mot.
+    Constaté dans un vrai navigateur, pas par les tests — dont aucun n'exigeait alors un **résultat
+    positif**. La leçon vaut au-delà d'ici : _pour attraper une panne que le code avale, il faut
+    exiger que quelque chose marche, pas constater que rien n'a échoué._
+    D'où `trusted-types.ts`, qui **épingle** l'URL au lieu de la laisser passer. Avant la directive,
+    une injection pouvait enregistrer n'importe quel worker de même origine — le pire endroit où en
+    héberger un, puisqu'il survit à la fermeture de l'onglet et intercepte toutes les requêtes. Sur ce
+    point, la directive rend donc le produit **plus sûr qu'avant**, au lieu de simplement ne rien
+    casser.
+    **Vérifié en retirant la politique** : le croisement échoue, _et_ l'application entière cesse de
+    se rendre — la directive mord donc réellement. Sans cette contre-épreuve, on aurait pu livrer une
+    ligne de CSP décorative. Pas de mode « report-only » d'abord : il n'a d'intérêt qu'avec un point
+    de collecte, et le produit n'a pas de serveur ; la suite de bout en bout, qui tourne contre le
+    build réel, est un signal plus fort qu'un rapport que personne ne lirait.

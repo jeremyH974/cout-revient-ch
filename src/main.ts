@@ -3,6 +3,7 @@ import { registerSW } from 'virtual:pwa-register';
 import App from './App.svelte';
 import './app.css';
 import { installGlobalErrorCapture } from './lib/support/errors';
+import { installServiceWorkerUrlPolicy } from './lib/support/trusted-types';
 import { app } from './state/app.svelte';
 import { update } from './state/ui.svelte';
 
@@ -15,6 +16,10 @@ await app.init();
 
 // Crochet de développement (absent du build) : pilotage depuis les outils de test.
 if (import.meta.env.DEV) Object.assign(window, { __crch: app });
+
+// Doit précéder `registerSW` : sous Trusted Types, `register()` refuse une chaîne, et l'échec
+// serait avalé par `onRegisterError` — plus de service worker, sans un mot. Voir DECISIONS n° 75.
+installServiceWorkerUrlPolicy(`${import.meta.env.BASE_URL}sw.js`);
 
 const updateSW = registerSW({
   immediate: false,

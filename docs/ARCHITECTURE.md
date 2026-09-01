@@ -137,7 +137,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   Détail : docs/macro.md, docs/DECISIONS.md n° 59 et n° 60.
 - `src/lib/support` — diagnostic copiable (`diagnostic.ts`, pur : compteurs, statuts, colonnes —
   jamais de montant) et collecte navigateur (`environment.ts`), liens publics (`links.ts`), et la
-  table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57).
+  table des origines externes d'où découle la CSP (`csp.ts`, docs/DECISIONS.md n° 57), qui exige
+  aussi **Trusted Types** (`require-trusted-types-for 'script'`) en n'autorisant qu'une politique,
+  `svelte-trusted-html`, celle que le runtime de Svelte crée lui-même ; un croisement du bundle
+  livré casse la CI si une dépendance en introduit une autre (docs/DECISIONS.md n° 75).
 - `src/lib/ai` — le **harnais d'évaluation des fonctions d'IA** (P70), et rien d'autre : il
   n'existe aucun modèle dans ce code. `numbers.ts` lit les nombres d'un texte français et les
   classe avant de les normaliser (les milliers d'`Intl` fr-FR sont en U+202F, pas en U+00A0) ;

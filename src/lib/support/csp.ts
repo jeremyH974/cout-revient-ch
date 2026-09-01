@@ -29,6 +29,8 @@
  * (`https://${chain}.example.com`) lui échappe — d'où la règle de n'écrire que des URL littérales.
  */
 
+import { SERVICE_WORKER_POLICY } from './trusted-types.ts';
+
 export type OriginUse = 'connect' | 'link' | 'reserved';
 
 export interface KnownOrigin {
@@ -226,10 +228,39 @@ export function connectSrcOrigins(): readonly string[] {
 }
 
 /**
+ * Politiques Trusted Types autorisées — **liste fermée**, croisée avec le bundle livré par
+ * `tests/e2e/csp-build.spec.ts`.
+ *
+ * `svelte-trusted-html` n'est pas de nous : Svelte 5 la crée au chargement de son runtime et la
+ * traverse avant toute affectation `innerHTML` sur ses `<template>`. Le framework était donc prêt
+ * sans qu'on ait rien à adapter.
+ *
+ * La seconde est la nôtre, et elle **épingle** l'URL du service worker — `register()` est un puits
+ * `TrustedScriptURL`, et son échec serait silencieux. Voir `trusted-types.ts`.
+ *
+ * Pas de `*`, qui reviendrait à n'autoriser personne en particulier. Pas de politique `default`, qui
+ * rendrait passants **tous** les puits et annulerait l'intérêt de la directive. Pas de
+ * `allow-duplicates` : Svelte ne la crée qu'une fois.
+ */
+export const TRUSTED_TYPES_POLICIES = ['svelte-trusted-html', SERVICE_WORKER_POLICY] as const;
+
+/**
  * La politique complète, injectée en `<meta>` au build par `vite.config.ts`. En développement, Vite
  * a besoin du websocket HMR et de styles inline : aucune CSP n'y est posée.
  *
  * `style-src 'unsafe-inline'` reste nécessaire aux attributs `style=""` ; aucun script inline.
+ *
+ * **Pourquoi Trusted Types, et pourquoi seulement maintenant.** La directive aurait été du zèle tant
+ * que `connect-src` ne listait que des API de prix : elles n'acceptent pas de charge utile
+ * arbitraire, et une XSS n'aurait eu nulle part où exfiltrer. La décision n° 69 a changé cela en
+ * inscrivant `api.anthropic.com` en `connect` — et comme cette CSP est **statique**, l'origine est
+ * autorisée pour tous les visiteurs, y compris ceux qui ne colleront jamais de clé : le
+ * consentement par usage vit dans le code applicatif, qu'une XSS contourne par construction. Le
+ * puits d'exfiltration existe donc désormais, ce qui rend la dernière classe de XSS DOM concrète.
+ * Ne pas retirer ces deux lignes en les croyant décoratives — voir la décision n° 75.
+ *
+ * Un navigateur qui ignore Trusted Types ignore aussi ces directives : leur ajout ne peut rien
+ * casser chez un visiteur ancien.
  */
 export function buildCsp(): string {
   return [
@@ -244,5 +275,7 @@ export function buildCsp(): string {
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'none'",
+    "require-trusted-types-for 'script'",
+    `trusted-types ${TRUSTED_TYPES_POLICIES.join(' ')}`,
   ].join('; ');
 }
