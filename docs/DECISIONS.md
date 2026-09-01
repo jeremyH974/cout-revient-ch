@@ -1665,3 +1665,25 @@
     ligne de CSP décorative. Pas de mode « report-only » d'abord : il n'a d'intérêt qu'avec un point
     de collecte, et le produit n'a pas de serveur ; la suite de bout en bout, qui tourne contre le
     build réel, est un signal plus fort qu'un rapport que personne ne lirait.
+76. **Un export destiné à un tableur désarme les formules ; un export destiné à une machine ne touche
+    à rien** (01/09/2026, proposition P76). `text()` n'échappait que les guillemets. Or Excel et
+    LibreOffice interprètent comme une **formule** toute cellule commençant par `=`, `+`, `-` ou `@`
+    — et le README dit explicitement d'ouvrir les exports dans Excel. Ce qui transite par cette
+    fonction est précisément ce qui n'est pas sous notre contrôle : libellés de comptes saisis
+    librement, symboles d'actifs venus d'imports tiers, et le journal de trading entier (setup, tags,
+    erreurs, thèse, revue).
+    **La distinction compte plus que la garde.** Tous les CSV du projet ne se valent pas :
+    `csv-export.ts` et `trades-csv.ts` sont lus par un humain dans un tableur, `koinly-csv.ts` est
+    **réimporté** par Koinly ou Waltio. Y préfixer quoi que ce soit corromprait la donnée chez le
+    destinataire et casserait les aller-retours. La séparation existait déjà dans le code — le format
+    pivot a sa propre fonction de mise entre guillemets — si bien que corriger `text()` laisse le
+    portable intact **par construction**. Un test le verrouille néanmoins, parce que c'est le genre
+    d'absence qu'on « corrige » un jour par bonne intention.
+    La règle vit dans `csv-cell.ts` plutôt qu'en double : `=`, `+`, `-`, `@`, plus la **tabulation**
+    et le **retour chariot**, que le tableur traite comme des séparateurs et qui permettent de faire
+    commencer la cellule suivante par `=`. La neutralisation est un **préfixe**, jamais une coupe :
+    une propriété exige que la valeur d'origine reste intégralement récupérable, une autre qu'aucune
+    cellule ne commence jamais par une amorce. **Coût assumé** : l'apostrophe est visible — celle
+    d'un CSV lu par Excel fait partie de la valeur, contrairement à une apostrophe tapée dans une
+    cellule. Elle ne frappe que les valeurs concernées, elle est documentée dans `docs/exports.md`,
+    et n'échapper que `=` laisserait passer trois amorces sur quatre.

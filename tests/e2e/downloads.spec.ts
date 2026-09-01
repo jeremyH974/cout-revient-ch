@@ -70,3 +70,39 @@ test('sauvegarde JSON → effacement → restauration : mêmes totaux', async ({
   await expect(totals).toHaveCount(3);
   expect(await totals.allTextContents()).toEqual(before);
 });
+
+/**
+ * La preuve de bout en bout de la décision n° 76 : le fichier réellement téléchargé, pas la
+ * fonction qui l'écrit.
+ *
+ * Un libellé de compte est du texte que l'utilisateur choisit. S'il commence par `=`, Excel
+ * l'exécute à l'ouverture du CSV. On crée donc un compte nommé `=1+1`, on y rattache une saisie
+ * pour qu'il apparaisse dans l'export des opérations, et on inspecte la cellule produite.
+ */
+test('un libellé de compte en forme de formule ressort désarmé du CSV', async ({ page }) => {
+  await page.goto('#/accounts');
+  await page.getByLabel('Nom du compte', { exact: true }).fill('=1+1');
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+
+  // Une opération rattachée : sans elle, le compte n'a aucune ligne dans l'export.
+  await page.goto('#/invest/add');
+  await page.locator('input[type="datetime-local"]').evaluate((el, value) => {
+    const input = el as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }, '2026-01-01T10:00:00');
+  await page.getByLabel('Actif').fill('trx');
+  await page.getByLabel('Quantité').fill('100');
+  await page.getByLabel(/Total payé en €/).fill('50');
+  await page.getByLabel('Compte').selectOption({ label: '=1+1' });
+  await page.getByRole('button', { name: 'Ajouter', exact: true }).click();
+
+  await page.goto('#/settings');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Opérations avec PRU (CSV)' }).click();
+  const content = readFileSync(await (await download).path(), 'utf8');
+
+  expect(content, 'le libellé n’apparaît pas : le test ne prouverait rien').toContain('1+1');
+  expect(content, 'une cellule commence par « = » : Excel l’exécuterait').not.toContain('"=1+1"');
+  expect(content, 'la garde n’a pas été appliquée').toContain(String.raw`"'=1+1"`);
+});
