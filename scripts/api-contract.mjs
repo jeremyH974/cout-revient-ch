@@ -9,7 +9,23 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { summarise } from './contract-state.ts';
 
-const TIMEOUT_MS = 15_000;
+/**
+ * 30 s, et non 15. Les instances publiques de Blockscout sont lentes et inégales : mesures du
+ * 01/09/2026 sur `arbitrum.blockscout.com`, 6,2 s / 6,6 s / 6,9 s / 7,1 s / 12,2 s / 12,8 s, puis
+ * une coupure à 15 s en CI. Un délai trop court transforme un contrôle de **forme** en contrôle de
+ * **latence**, et fait échouer la surveillance au hasard — exactement le cri au loup que la
+ * décision n° 74 cherche à éteindre.
+ */
+const TIMEOUT_MS = 30_000;
+
+/**
+ * Une erreur de réseau n'est pas un contrat rompu : elle ne dit rien de la forme de la réponse. On
+ * redonne donc **une** chance, une seule, avant de conclure. Deux échecs de suite sur 30 s restent
+ * un vrai signal — un fournisseur qu'un navigateur ne peut pas joindre est inutilisable.
+ */
+const NETWORK_RETRIES = 1;
+const RETRY_PAUSE_MS = 2_000;
+
 const results = [];
 
 /** GET par défaut ; `options.method`/`body`/`headers` pour les fournisseurs interrogés en POST. */
@@ -41,38 +57,48 @@ const isNumericString = (v) => typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v
 
 /**
  * `options.sursis` déclare un écart **connu et accepté** : il n'alarme plus, mais reste surveillé.
- * Voir `contract-state.ts` pour ce que ça implique — notamment qu'un sursis expiré, ou dont le
- * fournisseur s'est rétabli, redevient un échec.
+ * Voir `contract-state.ts` pour ce que ça implique — notamment qu'un sursis **expiré** redevient un
+ * échec, et qu'un fournisseur qui répond de nouveau sous sursis est signalé sans alarmer.
  */
 async function check(name, url, validate, options = {}) {
   const started = Date.now();
   const { sursis } = options;
-  try {
-    const r = await fetchJson(url, options);
-    const problems = r.status === 200 ? validate(r.json, r.headers) : [`HTTP ${r.status}`];
-    results.push({
-      name,
-      url,
-      sursis,
-      ok: problems.length === 0,
-      ms: Date.now() - started,
-      detail: problems.join(' ; ') || 'conforme',
-      rateLimit: [...r.headers.entries()]
-        .filter(([k]) => /ratelimit|retry-after/i.test(k))
-        .map(([k, v]) => `${k}=${v}`)
-        .join(', '),
-    });
-  } catch (error) {
-    results.push({
-      name,
-      url,
-      sursis,
-      ok: false,
-      ms: Date.now() - started,
-      detail: `erreur réseau : ${error instanceof Error ? error.message : String(error)}`,
-      rateLimit: '',
-    });
+  let lastError = null;
+  for (let attempt = 0; attempt <= NETWORK_RETRIES; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+    try {
+      const r = await fetchJson(url, options);
+      const problems = r.status === 200 ? validate(r.json, r.headers) : [`HTTP ${r.status}`];
+      results.push({
+        name,
+        url,
+        sursis,
+        ok: problems.length === 0,
+        ms: Date.now() - started,
+        detail: problems.join(' ; ') || 'conforme',
+        rateLimit: [...r.headers.entries()]
+          .filter(([k]) => /ratelimit|retry-after/i.test(k))
+          .map(([k, v]) => `${k}=${v}`)
+          .join(', '),
+      });
+      return;
+    } catch (error) {
+      // Seule la couche réseau est réessayée : une réponse mal formée est un vrai écart, et la
+      // rejouer ne ferait que retarder le constat.
+      lastError = error;
+    }
   }
+  results.push({
+    name,
+    url,
+    sursis,
+    ok: false,
+    ms: Date.now() - started,
+    detail: `erreur réseau après ${NETWORK_RETRIES + 1} tentatives : ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`,
+    rateLimit: '',
+  });
 }
 
 await check(
@@ -310,7 +336,8 @@ await check(
 // Blockscout a officiellement basculé son trafic vers une Pro API à clé le 1ᵉʳ juillet 2026 ; les
 // instances par chaîne répondaient encore sans clé le 24/08/2026. Ce contrôle est là pour que la
 // CI nous prévienne le jour où elles s'arrêtent — avant que les utilisateurs ne le découvrent.
-// Base est tombée le 30/08/2026 : l'instance entière répond 500, `/stats` compris. Il n'existe pas
+// Base est tombée le 30/08/2026 : l'instance répond 500 — six fois sur sept, mesuré le 01/09/2026,
+// avec de rares succès isolés qui ne valent pas guérison. Il n'existe pas
 // de secours sans clé pour cette chaîne (Routescan : « chain not supported »), et l'application le
 // dit à l'utilisateur en l'invitant à fournir une clé gratuite. Rien à corriger dans le code : on
 // déclare donc un sursis, et le contrôle continue — c'est lui qui dira si Base revient.
