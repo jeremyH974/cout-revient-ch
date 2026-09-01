@@ -261,7 +261,7 @@ pris — décision n° 69).
 | P77 | **Livré (01/09/2026, décision n° 77).** Texte libre neutralisé avant exposition MCP       |   1    |     5     |    0    |   0,5    | **12** |
 | P79 | **Livré (01/09/2026, décision n° 78).** Périmètre de couverture élargi et borné par zone  |   1    |     5     |    0    |   0,5    | **12** |
 | P85 | **Livré (01/09/2026, décision n° 81).** Tri par unités de code, prouvé équivalent         |   1    |     2     |    3    |   0,5    | **12** |
-| P87 | Surveillance étendue aux sources des générateurs (Treasury, Fed, BEA, EIA, BLS)           |   1    |     4     |    0    |   0,5    | **10** |
+| P87 | **Livré (01/09/2026, décision n° 82).** Surveillance étendue aux sources des générateurs  |   1    |     4     |    0    |   0,5    | **10** |
 | P86 | Éviction du cache d'historique de prix, aujourd'hui à croissance monotone                 |   0    |     3     |    1    |   0,5    |   8    |
 | P93 | Régime des perpetuals documenté (art. 150 ter) **et son incertitude nommée**              |   3    |     4     |    1    |    1     |   8    |
 | P80 | Test de complétude des sanitizers **au niveau des champs**, pas des conteneurs            |   1    |     5     |    0    |    1     |   6    |

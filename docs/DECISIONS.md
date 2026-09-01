@@ -1813,3 +1813,19 @@
     correctif, un compteur de version bougé par les mutateurs, appartient à P84 qui rendra ce fichier
     testable. `src/state` n'ayant aucun test unitaire (1,17 %, rendu visible par la n° 78),
     optimiser là sans filet reviendrait à parier sur la persistance.
+82. **La surveillance couvre enfin les sources dont le cron dépend** (01/09/2026, proposition P87).
+    La n° 74 avait refait le **mécanisme** de surveillance sans élargir la **liste** :
+    `api-contract.mjs` couvrait vingt-et-un fournisseurs de prix et de chaînes, et **aucune** des
+    sources des générateurs. Le cron réparé en début de session s'appuie entièrement sur elles, et
+    rien n'aurait prévenu d'un changement de forme avant l'échec.
+    Quatre contrôles ajoutés — Trésor, Fed H.4.1, BEA, page FOMC — vérifiant le **marqueur que le
+    parseur cherche** plutôt que la disponibilité : une page qui répond 200 en ayant renommé son
+    champ casse le générateur tout aussi sûrement qu'une page morte. Le validateur reçoit désormais
+    le texte brut en troisième argument, le Trésor rendant du XML, la Fed du CSV et le FOMC du HTML ;
+    les validateurs plus anciens l'ignorent, donc aucune régression.
+    **Le BLS reste hors de portée, et le script le dit.** Son réseau de diffusion refuse tout client
+    non-navigateur — c'est la raison d'être de sa table tenue à la main (n° 58) — et son garde-fou est
+    la barrière à deux étages de la n° 72. L'écrire à l'endroit du manque évite qu'on croie un jour
+    la couverture complète : quatre sources sur cinq, et la cinquième par un autre moyen.
+    Chaque contrôle a été **vérifié en le faisant échouer** : un marqueur faussé, et la source se
+    nomme.
