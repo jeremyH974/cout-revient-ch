@@ -18,7 +18,8 @@ import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
 import type { Insight } from '../domain/insights';
 import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
 import { MIN_SPREAD_SAMPLES, type SpreadEstimate } from '../domain/spread';
-import { EXEMPTION_THRESHOLD, type Dac8Year, type TaxLedger } from '../domain/tax-fr';
+import { EXEMPTION_THRESHOLD, rateFor, type Dac8Year, type TaxLedger } from '../domain/tax-fr';
+import { taxSourcesNote } from '../format/tax-source';
 import {
   MASK,
   fmtDate,
@@ -748,6 +749,8 @@ function taxSection(
   dac8: Dac8Year | null | undefined,
 ): ReportModel['tax'] {
   if (!tax || tax.years.length === 0) return null;
+  // Le taux du millésime le plus récent du rapport : c'est celui que le lecteur voit en premier.
+  const sourcesNote = taxSourcesNote(rateFor(tax.years[0]!.year));
   const eur = (value: DecimalString | Big, sign = false): string =>
     discreet ? MASK : fmtMoney(D(value), 'EUR', { sign });
   const details: ReportKpi[] = [];
@@ -822,7 +825,13 @@ function taxSection(
       'résultat : ce portefeuille est supposé être VOTRE PORTEFEUILLE ENTIER (des avoirs détenus ' +
       'ailleurs changeraient le calcul), et la valeur globale de chaque jour est reconstituée à ' +
       'partir des cours de clôture. **Ce n’est ni une déclaration, ni un conseil fiscal** : faites ' +
-      'vérifier votre situation par un professionnel.',
+      'vérifier votre situation par un professionnel.' +
+      // D'où viennent le taux et le seuil affichés (décision n° 80). Une fois par section, pas à
+      // chaque millésime : une citation répétée trois lignes de suite cesse d'être lue.
+      (sourcesNote
+        ? ` ${sourcesNote} Le BOFiP applicable, lui, n’a pas été mis à jour depuis le 23/04/2024 et ` +
+          'affiche encore l’ancien taux : l’écart entre la loi et la doctrine est réel.'
+        : ''),
     warnings,
   };
 }

@@ -257,7 +257,7 @@ pris — décision n° 69).
 | P76 | **Livré (01/09/2026, décision n° 76).** Garde anti-injection de formule dans l'export CSV |   0    |     4     |    1    |   0,25   | **20** |
 | P78 | `.gitignore` : `.claude/worktrees/`, aujourd'hui protégé par un exclude local seulement   |   0    |     2     |    0    |   0,1    | **20** |
 | P81 | **Livré (01/09/2026, décision n° 79).** L'échec du miroir remonte aux auto-vérifications  |   1    |     5     |    1    |   0,5    | **14** |
-| P92 | La source du taux fiscal s'affiche **à côté** du chiffre, pas seulement dans la veille    |   2    |     4     |    1    |   0,5    | **14** |
+| P92 | **Livré (01/09/2026, décision n° 80).** La source du taux s'affiche à côté du chiffre     |   2    |     4     |    1    |   0,5    | **14** |
 | P77 | **Livré (01/09/2026, décision n° 77).** Texte libre neutralisé avant exposition MCP       |   1    |     5     |    0    |   0,5    | **12** |
 | P79 | **Livré (01/09/2026, décision n° 78).** Périmètre de couverture élargi et borné par zone  |   1    |     5     |    0    |   0,5    | **12** |
 | P85 | `$state.snapshot` hors du `$effect` ; `localeCompare` de `sortEvents` → comparaison ASCII |   1    |     2     |    3    |   0,5    | **12** |
