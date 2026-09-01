@@ -87,7 +87,7 @@ describe('state-store', () => {
       const state = emptyState();
       state.rawRows['a'] = row('a');
       const saved = await savePersistedState(state, '2026-08-23T10:00:00.000Z', storage);
-      expect(saved).toEqual({ ok: true, error: null, via: 'localstorage' });
+      expect(saved).toEqual({ ok: true, error: null, via: 'localstorage', mirrorError: null });
 
       const loaded = await loadPersistedState(storage);
       expect(loaded.status).toBe('ok');
@@ -146,16 +146,35 @@ describe('state-store', () => {
   });
 
   describe('savePersistedState', () => {
-    it('miroir en échec (quota), IndexedDB ok => ok:true via indexeddb', async () => {
+    /**
+     * Ce cas gravait le silence : son `toEqual` exact exigeait que l'échec du miroir ne laisse
+     * aucune trace. Il exige désormais l'inverse (décision n° 79) — l'enregistrement réussit, et
+     * l'échec du **repli** est rapporté.
+     */
+    it('miroir en échec (quota), IndexedDB ok => ok:true, mais l’échec du miroir est rapporté', async () => {
       const storage = quotaExceededStorage();
       const state = emptyState();
       state.rawRows['a'] = row('a');
 
       const result = await savePersistedState(state, '2026-08-23T10:00:00.000Z', storage);
-      expect(result).toEqual({ ok: true, error: null, via: 'indexeddb' });
+      expect(result.ok, 'IndexedDB a réussi : rien n’est perdu').toBe(true);
+      expect(result.via).toBe('indexeddb');
+      expect(result.error, 'l’enregistrement lui-même n’a pas échoué').toBeNull();
+      expect(result.mirrorError, 'l’échec du miroir doit être visible').toMatch(/enregistrer/i);
 
       const snapshot = await idbLoadSnapshot();
       expect(snapshot?.state).toEqual(state);
+    });
+
+    it('les deux réussissent => aucune erreur de miroir', async () => {
+      const storage = memoryStorage();
+      const state = emptyState();
+      state.rawRows['a'] = row('a');
+
+      const result = await savePersistedState(state, '2026-08-23T10:00:00.000Z', storage);
+      expect(result.ok).toBe(true);
+      // Sans ce cas, un `mirrorError` toujours plein passerait le test précédent sans rien prouver.
+      expect(result.mirrorError).toBeNull();
     });
 
     it("IndexedDB et miroir tous deux en échec => ok:false avec un message d'erreur", async () => {

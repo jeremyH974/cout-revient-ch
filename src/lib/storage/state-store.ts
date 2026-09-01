@@ -62,6 +62,17 @@ export interface PersistResult {
   ok: boolean;
   error: string | null;
   via: PersistedSource | null;
+  /**
+   * Échec du miroir alors que l'enregistrement, lui, a réussi — donc **non bloquant**.
+   *
+   * À ne pas confondre avec `error`, qui dit « rien n'a été enregistré ». Celui-ci dit
+   * « l'enregistrement a réussi, mais le **repli** est hors service » : `loadPersistedState` se
+   * rabat sur le miroir dès qu'`idbLoadSnapshot()` rend `null` — base évincée, navigation privée,
+   * quota IndexedDB — et il ramènerait alors un état d'avant le premier échec. Le jour où il sert,
+   * il ne vaudrait rien. D'où le voyant d'auto-vérification (décision n° 79) : rien n'est perdu, et
+   * c'est précisément pour cela qu'il faut le dire avant que quelque chose le soit.
+   */
+  mirrorError: string | null;
 }
 
 /** IndexedDB puis miroir ; `ok` dès qu'un des deux a réussi. */
@@ -81,9 +92,15 @@ export async function savePersistedState(
     }
   }
   const mirror = mirrorStateSync(state, savedAt, storage);
-  if (viaIdb) return { ok: true, error: null, via: 'indexeddb' };
-  if (mirror.ok) return { ok: true, error: null, via: 'localstorage' };
-  return { ok: false, error: idbError ? `${idbError} ; ${mirror.error}` : mirror.error, via: null };
+  const mirrorError = mirror.ok ? null : mirror.error;
+  if (viaIdb) return { ok: true, error: null, via: 'indexeddb', mirrorError };
+  if (mirror.ok) return { ok: true, error: null, via: 'localstorage', mirrorError: null };
+  return {
+    ok: false,
+    error: idbError ? `${idbError} ; ${mirror.error}` : mirror.error,
+    via: null,
+    mirrorError,
+  };
 }
 
 export async function clearPersistedState(storage: Storage = localStorage): Promise<void> {

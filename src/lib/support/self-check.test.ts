@@ -119,3 +119,36 @@ describe('auto-vérifications', () => {
     expect(checks.every((c) => c.level === 'info')).toBe(true);
   });
 });
+
+/**
+ * Le voyant du repli (décision n° 79). Il ne dit pas la même chose que « Sauvegarde » : l'un
+ * annonce une perte, l'autre annonce qu'il n'y en aura pas de filet le jour où il en faudrait un.
+ */
+describe('copie de secours hors service', () => {
+  const withMirror = (over: Record<string, unknown>) =>
+    Object.fromEntries(
+      runSelfChecks(
+        input(fixture({}), {
+          storage: { lastBackupAt: NOW, persisted: true, saveError: null, ...over },
+        }),
+      ).map((c) => [c.id, c]),
+    );
+
+  it('apparaît en avertissement, sans annoncer de perte', () => {
+    const byId = withMirror({ mirrorError: 'quota' });
+    expect(byId['mirror']?.level, 'un avertissement, pas un échec').toBe('warn');
+    expect(byId['mirror']?.detail).toMatch(/bien enregistrées/);
+    expect(byId['mirror']?.action).toMatch(/sauvegarde JSON/i);
+  });
+
+  it('reste muet quand le miroir va bien', () => {
+    expect(withMirror({ mirrorError: null })['mirror']).toBeUndefined();
+  });
+
+  /** Deux alertes pour une même panne diluent l'information : le `fail` dit déjà tout. */
+  it('s’efface devant l’échec d’enregistrement, qui est plus grave', () => {
+    const byId = withMirror({ saveError: 'quota', mirrorError: 'quota' });
+    expect(byId['backup']?.level).toBe('fail');
+    expect(byId['mirror'], 'le voyant du repli ferait doublon').toBeUndefined();
+  });
+});

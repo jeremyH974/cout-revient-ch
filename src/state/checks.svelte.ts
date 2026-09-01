@@ -36,6 +36,7 @@ class ChecksState {
         lastBackupAt: app.state.ui.lastBackupAt,
         persisted: null,
         saveError: app.saveError,
+        mirrorError: app.mirrorError,
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
       trading: app.tradingChecks,
