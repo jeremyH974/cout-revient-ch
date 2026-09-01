@@ -188,6 +188,7 @@ export default defineConfig({
         functions: 75,
         branches: 65,
         'src/lib/domain/**/*.ts': { lines: 90, statements: 90, functions: 88, branches: 75 },
+        'src/lib/derive/**/*.ts': { lines: 95, statements: 95, functions: 95, branches: 90 },
         // Relevé de 1 à 2 le 01/09/2026 : `ui.svelte.ts` est désormais testé (décision n° 88).
         // Le plancher reste dérisoire — il ne prétend pas mesurer la qualité de `src/state`, il
         // empêche seulement d'y ajouter du code non testé sans que rien ne le dise.

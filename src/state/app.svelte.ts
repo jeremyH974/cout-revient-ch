@@ -48,6 +48,13 @@ import {
   type TraceTarget,
 } from '$lib/domain/engine';
 import { computeDeclarations, type DeclarationReport } from '$lib/domain/declarations-fr';
+import {
+  accountLabels as accountLabelsOf,
+  allAccounts,
+  investAccounts as investAccountsOf,
+} from '$lib/derive/accounts';
+import { qualifiedSummaries, type QualifiedSummary } from '$lib/derive/qualified';
+import { effectiveQuotes } from '$lib/derive/quotes';
 import { eraseHistoryCache } from '$lib/history/erase';
 import { buildInsights, type Insight } from '$lib/domain/insights';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
@@ -65,9 +72,6 @@ import {
 } from '$lib/domain/trading/journal';
 import { buildRoundTrips } from '$lib/domain/trading/round-trips';
 import {
-  COINHOUSE_ACCOUNT_ID,
-  MANUAL_ACCOUNT_ID,
-  MANUAL_TRADING_ACCOUNT_ID,
   type Account,
   type AccountId,
   type AssetCode,
@@ -198,15 +202,8 @@ export interface SyncStatus {
   provider: string | null;
 }
 
-export interface QualifiedSummary {
-  eventId: EventId;
-  qualification: Qualification;
-  at: string | null;
-  rawType: string | null;
-  lineNumbers: number[];
-}
+export type { QualifiedSummary };
 
-const EPOCH = '1970-01-01T00:00:00.000Z';
 const FOLDER_WRITE_DEBOUNCE_MS = 2_000;
 const PRICE_MAX_AGE_MS = 10 * 60_000;
 const SAVE_DEBOUNCE_MS = 300;
@@ -464,24 +461,9 @@ export class AppState {
   });
 
   /** Cotations utilisées par le moteur : prix manuels > cotations fraîches > cache. */
-  quotes = $derived.by((): Record<AssetCode, PriceQuoteInput> => {
-    const result: Record<AssetCode, PriceQuoteInput> = {
-      ...this.state.priceCache,
-      ...this.liveQuotes,
-    };
-    for (const [asset, settings] of Object.entries(this.state.assetSettings)) {
-      if (settings.manualPriceEur) {
-        result[asset] = {
-          asset,
-          priceEur: settings.manualPriceEur,
-          at: settings.manualPriceAt ?? EPOCH,
-          source: 'manuel',
-          stale: false,
-        };
-      }
-    }
-    return result;
-  });
+  quotes = $derived.by((): Record<AssetCode, PriceQuoteInput> =>
+    effectiveQuotes(this.state.priceCache, this.liveQuotes, this.state.assetSettings),
+  );
 
   /** Devise d'affichage effective : l'euro si les taux de la devise choisie manquent. */
   currency = $derived.by((): Currency => {
@@ -630,51 +612,19 @@ export class AppState {
    * Comptes : les deux comptes implicites (Coinhouse dès qu'un export existe, « Saisies manuelles »
    * dès qu'une saisie hors Coinhouse existe) puis les comptes déclarés, par date de création.
    */
-  accounts = $derived.by((): Account[] => {
-    const list: Account[] = [];
-    if (Object.keys(this.state.rawRows).length > 0) {
-      list.push({
-        id: COINHOUSE_ACCOUNT_ID,
-        kind: 'coinhouse',
-        label: 'Coinhouse',
-        space: 'invest',
-        createdAt: '',
-      });
-    }
-    const manual = Object.values(this.state.manualEvents);
-    if (manual.some((m) => manualAccountId(m) === MANUAL_ACCOUNT_ID)) {
-      list.push({
-        id: MANUAL_ACCOUNT_ID,
-        kind: 'manual',
-        label: 'Saisies manuelles (hors Coinhouse)',
-        space: 'invest',
-        createdAt: '',
-      });
-    }
-    const manualTrades = Object.values(this.state.manualTrades);
-    if (manualTrades.some((t) => t.accountId === MANUAL_TRADING_ACCOUNT_ID)) {
-      list.push({
-        id: MANUAL_TRADING_ACCOUNT_ID,
-        kind: 'manual',
-        label: 'Trades manuels',
-        space: 'trading',
-        createdAt: '',
-      });
-    }
-    const declared = Object.values(this.state.accounts).sort((a, b) =>
-      a.createdAt.localeCompare(b.createdAt),
-    );
-    return [...list, ...declared];
-  });
+  accounts = $derived.by((): Account[] =>
+    allAccounts({
+      rawRowKeys: Object.keys(this.state.rawRows),
+      manualEvents: Object.values(this.state.manualEvents),
+      manualTrades: Object.values(this.state.manualTrades),
+      declared: Object.values(this.state.accounts),
+    }),
+  );
 
   /** Comptes de l'espace Investissement (dont les comptes Hyperliquid routés en `spotAsInvestment`). */
-  investAccounts = $derived.by((): Account[] =>
-    this.accounts.filter((a) => a.space === 'invest' || a.spotAsInvestment === true),
-  );
+  investAccounts = $derived.by((): Account[] => investAccountsOf(this.accounts));
 
-  accountLabels = $derived.by((): Record<AccountId, string> =>
-    Object.fromEntries(this.accounts.map((a) => [a.id, a.label])),
-  );
+  accountLabels = $derived.by((): Record<AccountId, string> => accountLabelsOf(this.accounts));
 
   /** Rapport par compte (vue « par plateforme ») ; calculé à la demande. */
   reportsByAccount = $derived.by((): Map<AccountId, PortfolioReport> =>
@@ -1628,30 +1578,9 @@ export class AppState {
    * Qualifications enregistrées, décrites par les lignes brutes qu'elles réinterprètent (date,
    * libellé, numéros de ligne) : permet de les annuler depuis l'écran « À qualifier ».
    */
-  qualified = $derived.by((): QualifiedSummary[] => {
-    const rows = Object.values(this.state.rawRows);
-    return Object.entries(this.state.qualifications).map(([eventId, qualification]) => {
-      const pivotRow = this.state.pivotRows[eventId];
-      if (pivotRow) {
-        return {
-          eventId,
-          qualification,
-          at: pivotRow.at,
-          rawType: pivotRow.label ?? 'ligne pivot',
-          lineNumbers: pivotRow.lineNo > 0 ? [pivotRow.lineNo] : [],
-        };
-      }
-      const own = rows.filter((r) => (r.id ? `ch:${r.id}` === eventId : `ch:${r.key}` === eventId));
-      own.sort((a, b) => a.lineNo - b.lineNo);
-      return {
-        eventId,
-        qualification,
-        at: own[0]?.at ?? null,
-        rawType: own[0]?.type ?? null,
-        lineNumbers: own.map((r) => r.lineNo).filter((n) => n > 0),
-      };
-    });
-  });
+  qualified = $derived.by((): QualifiedSummary[] =>
+    qualifiedSummaries(this.state.qualifications, this.state.pivotRows, this.state.rawRows),
+  );
 
   assetSettings(asset: AssetCode): AssetSettings {
     return (
@@ -1859,25 +1788,16 @@ export class AppState {
   private lastBackgroundWanted: boolean | null = null;
 
   /**
-   * Rapport EN EUROS pour les alertes : les seuils sont stockés en euros (devise des données),
-   * l'évaluation ne doit jamais dépendre de la devise d'affichage. Quand l'affichage est en
-   * euros, c'est le rapport courant ; sinon il est recalculé sur les cotations EUR.
+   * Positions vues par les alertes : PRU et quantité EUR par actif détenu.
+   *
+   * **En euros**, parce que les seuils sont stockés en euros — la devise des données — et que leur
+   * évaluation ne doit jamais dépendre de la devise d'affichage. C'est exactement ce que fait déjà
+   * `eurReport` pour la traçabilité : un second dérivé au corps identique existait ici, qui
+   * recalculait tout le portefeuille une deuxième fois à chaque changement d'état (décision n° 94).
    */
-  private reportEurForAlerts = $derived.by((): PortfolioReport =>
-    this.currency === 'EUR'
-      ? this.report
-      : computePortfolio({
-          events: this.events,
-          prices: this.quotes,
-          settings: this.state.engineSettings,
-          balances: balanceRecords(Object.values(this.state.rawRows)),
-        }),
-  );
-
-  /** Positions vues par les alertes : PRU et quantité EUR par actif détenu. */
   alertPositions = $derived.by((): Record<AssetCode, AlertPositionInput> => {
     const result: Record<AssetCode, AlertPositionInput> = {};
-    const report = this.reportEurForAlerts;
+    const report = this.eurReport;
     for (const p of [...report.positions, ...report.stablecoins])
       result[p.asset] = {
         pruEur: p.pru ? toDecimalString(p.pru) : null,
@@ -1888,7 +1808,7 @@ export class AppState {
 
   /** Position du rapport EN EUROS (simulateur, alertes) ; `null` si l'actif est inconnu. */
   positionEur(asset: AssetCode): PositionReport | null {
-    const report = this.reportEurForAlerts;
+    const report = this.eurReport;
     return (
       [...report.positions, ...report.stablecoins, ...report.closed, ...report.blocked].find(
         (p) => p.asset === asset,

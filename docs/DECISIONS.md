@@ -2141,3 +2141,29 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     directeurs ni les dates. Son point d'entrée `/v1/` a été vérifié comme un simple miroir BCE non
     mélangé, malgré une v2 « multi-fournisseurs » parue en mai 2026 — c'est un risque de dérive à
     surveiller, pas un problème aujourd'hui.
+94. **Extraire ce qui porte une règle, pas ce qui porte un câblage** (01/09/2026, proposition P84).
+    `app.svelte.ts` fait 2 337 lignes, porte **37 dérivés**, et `src/state` est couvert à 1,17 % —
+    le point aveugle du dépôt. Le classement des 37 est net : 12 extractibles sans risque,
+    7 dont la logique est **déjà** déléguée à des fonctions pures testées (ne resterait que
+    l'assemblage, avec trois à six paramètres), 18 de câblage réactif pur. Extraire les 18 dernières
+    déplacerait du code sans rien rendre testable.
+    Trois portaient une **vraie règle métier**, et aucune n'avait de test :
+    — `quotes` : prix manuel > cotation en direct > cache. Cet arbitrage décide de tous les chiffres
+    affichés, et s'en écarter ne casserait rien de visible — cela afficherait de mauvais prix.
+    — `accounts` : trois comptes **existent parce que des données existent**. Cette règle décide de
+    ce que l'utilisateur voit dans chaque sélecteur.
+    — `qualified` : une opération Coinhouse s'étale sur plusieurs lignes qu'il faut retrouver par
+    préfixe puis remettre dans l'ordre du fichier ; une ligne pivot, non. Les rendre dans le
+    désordre ferait pointer l'utilisateur sur la mauvaise ligne de son export.
+    **Un doublon supprimé** : `reportEurForAlerts` avait un corps **strictement identique** à
+    `eurReport` — un second calcul complet du portefeuille à chaque changement d'état, pour le même
+    résultat.
+    **Le clone de sauvegarde n'a pas été touché**, et c'était l'interdit écrit en tête du plan :
+    `$state.snapshot(this.state)` dans l'effet de sauvegarde **est** le traqueur de dépendances
+    (n° 81). Les huit autres appels du fichier sont des copies à la frontière d'une fonction pure —
+    exactement le motif que cette brique généralise.
+    **La couverture de `src/state` n'a pas bougé, et c'est la bonne réponse.** Elle passe de 1,17 %
+    à 1,2 % : les règles extraites ont **quitté** la zone non testée plutôt que de l'améliorer. Le
+    pourcentage était le mauvais indicateur ; le bon est que soixante lignes de règles métier sans
+    aucun test en ont désormais vingt-trois, et que `src/lib/derive` est couvert à **100 %**, tenu
+    par un seuil dédié — vérifié en le portant à 100 % de branches, où il rougit à 95,83 %.
