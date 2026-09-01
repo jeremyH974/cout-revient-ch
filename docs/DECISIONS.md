@@ -1979,3 +1979,12 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     détenu », elle signifie presque toujours « le rapport n'est pas encore calculé ». Purger
     là-dessus effacerait tout au premier démarrage. `assetsToEvict` ne conclut donc rien d'une liste
     vide, et un test nommé l'exige.
+    **Le cliquet de couverture a mordu, et il avait raison.** Ajouter `eraseAll()` à
+    `app.svelte.ts` a fait tomber `src/state` de 1,17 % à **0,99 %** — sous le plancher de la n° 78.
+    Ce n'est pas le plancher qu'il fallait baisser : c'est le signe qu'on ajoutait du code non testé
+    au point aveugle du dépôt. La règle est donc partie dans `history/erase.ts`, où elle a ses
+    tests, et `ui.svelte.ts` — quarante-sept lignes de comportement visible, un toast qui doit
+    disparaître tout seul — a reçu les siens. `src/state` passe à **2,66 %** et le plancher monte à 2.
+    **Ce cliquet a aussi révélé un trou dans ma vérification** : `npm run check` ne lance pas la
+    couverture, la CI si (`npm run test -- --coverage`). Un contrôle qui n'existe qu'en CI se
+    découvre trop tard.

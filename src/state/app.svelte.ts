@@ -48,7 +48,7 @@ import {
   type TraceTarget,
 } from '$lib/domain/engine';
 import { computeDeclarations, type DeclarationReport } from '$lib/domain/declarations-fr';
-import { createHistoryStore } from '$lib/history/cache';
+import { eraseHistoryCache } from '$lib/history/erase';
 import { buildInsights, type Insight } from '$lib/domain/insights';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
@@ -2336,11 +2336,7 @@ export class AppState {
    */
   async eraseAll(): Promise<void> {
     this.clearAll();
-    try {
-      await createHistoryStore().clear();
-    } catch {
-      /* un cache qui refuse de se vider ne doit pas bloquer l'effacement du reste */
-    }
+    await eraseHistoryCache();
   }
 
   clearAll(): void {
