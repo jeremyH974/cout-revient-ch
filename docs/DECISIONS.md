@@ -2011,3 +2011,59 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     jamais lu. Un fichier étranger échouait bien, mais sur sa FORME — message trompeur, et aucune
     garantie qu'une forme voisine soit refusée. Le code s'aligne sur la promesse, en gardant
     l'objet nu (sans enveloppe) accepté : c'est la compatibilité d'avant l'enveloppe.
+90. **Une liste de documentation qu'on ne peut pas confronter au code ne sert à rien** (01/09/2026,
+    proposition P91). `ARCHITECTURE.md` énumérait des choses réelles — hôtes joignables,
+    convertisseurs, contrôles, routes — et rien ne les tenait à jour. Cinq listes avaient dérivé :
+
+    | Énumération                   | Le document disait | Le code dit                                              |
+    | ----------------------------- | ------------------ | -------------------------------------------------------- |
+    | Hôtes de la CSP               | 11                 | **17**, dont `api.anthropic.com` et `api.alternative.me` |
+    | Convertisseurs de plateformes | 5                  | **8** (Binance, Bitpanda, SwissBorg absents)             |
+    | Auto-vérifications            | 6                  | **14**                                                   |
+    | Tests de propriétés           | 1                  | **9**                                                    |
+    | Routes par espace             | —                  | **erreur factuelle**                                     |
+
+    La dernière est la plus grave : l'import, la saisie et le rapport y étaient attribués au menu
+    « Plus » alors qu'ils appartiennent à l'Investissement. Une documentation d'architecture qui se
+    trompe d'espace envoie son lecteur au mauvais endroit — c'est pire que pas de documentation.
+    Deux d'entre elles étaient de mauvais oublis : `api.anthropic.com` est précisément l'origine qui
+    a rendu Trusted Types nécessaire (n° 75), et `api.alternative.me` est celle dont l'oubli avait
+    rendu des alertes muettes en silence (garde-fou de `csp.test.ts`).
+    Patron de la n° 57 appliqué à un document : lire la source de vérité **typée**, scanner le
+    texte, comparer **dans les deux sens**, échouer avec le geste correctif plutôt qu'avec le
+    symptôme.
+    **Le document annonce lui-même ce qui est vérifié.** Deviner les listes par la forme des jetons
+    ramassait tous les noms de fichiers cités alentour ; d'où un marqueur écrit en toutes lettres —
+    `**Liste vérifiée** :`. Le lecteur voit ainsi quelles énumérations sont tenues par un test et
+    lesquelles restent de la prose, ce qui vaut mieux qu'un test qui devine.
+    Seules les énumérations **énumérables à l'exécution** sont couvertes. Une liste qu'on ne peut
+    pas confronter n'a rien à faire dans un tel test : elle y donnerait l'illusion d'être gardée.
+    Vérifié dans les deux sens en retirant puis en inventant une plateforme.
+
+91. **Une source dont la licence interdit la redistribution est abandonnée, pas contournée**
+    (01/09/2026, proposition P88). La proposition voulait committer un instantané de l'historique
+    CoinGecko. Ses CGU (version du 05/09/2025) posent **trois conditions cumulatives** au stockage :
+    rafraîchissement sous 24 h, chiffrement fort, suppression à la demande. Un dépôt Git public
+    échoue sur les trois — il est figé, en clair, et indélébile une fois cloné ou forké. La
+    redistribution de « any part of its raw data » est par ailleurs interdite sur tous les plans
+    accessibles à ce projet ; seule une licence Enterprise sur devis la lèverait. Troisième cas de
+    la n° 59, comme le VIX de Cboe.
+    Aucune source de remplacement n'a été trouvée qui combine une licence permissive et une
+    couverture comparable. Les jeux « CC0 » de Kaggle ne guérissent pas le vice d'origine : un
+    contributeur qui a lui-même moissonné CoinGecko ne peut pas céder des droits qu'il n'a jamais
+    eus.
+    **L'ingénierie condamnait la brique indépendamment du droit**, et c'est le point à retenir : un
+    historique figé au jour du build produirait, dès le lendemain, une **droite plate** via
+    `fillGaps` pour tout actif dépendant de CoinGecko. La volatilité réalisée et le repli maximal
+    calculés sur cette série seraient alors **artificiellement nuls**. Sur un produit dont l'objet
+    est la mesure du risque, c'est la pire panne concevable : une sous-estimation silencieuse. Le
+    poids l'aurait achevée — 0,9 à 2,2 Mo gzippés, vingt à quarante-cinq fois le plus gros fichier
+    engendré actuel.
+    **Un défaut de conformité trouvé en chemin, corrigé aussitôt.** `sources.ts` classait la BCE en
+    `duty: 'unverified'` avec le commentaire « aucune clause d'attribution constatée au
+    26/08/2026 » — c'était faux. Son disclaimer dit : « users of this website may make free use of
+    the information obtained directly from it subject to the following conditions: When such
+    information is distributed or reproduced, it must appear accurately and **the ECB must be cited
+    as the source** ». L'application relayait ses taux via Frankfurter **sans la citer**. Un devoir
+    non constaté et un devoir inexistant ne sont pas la même chose : la table portait le premier en
+    croyant décrire le second.

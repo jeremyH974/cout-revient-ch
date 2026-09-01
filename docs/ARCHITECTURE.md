@@ -61,8 +61,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (`detect.ts`), lignes brutes dédoublonnées par hachage de contenu (`rows.ts`), normalisation vers
   `LedgerEvent[]` avec les mêmes règles de valeur EUR que le reste de l'app (`events.ts`). Détail
   complet : docs/pivot-import.md, docs/DECISIONS.md n° 24.
-- `src/lib/import/platforms` — convertisseurs natifs purs, un module par plateforme (`kraken.ts`,
-  `coinbase.ts`, `bitvavo.ts`, `ledgerlive.ts`, `revolut.ts`) traduisant chacun son export propre en
+- `src/lib/import/platforms` — convertisseurs natifs purs, un module par plateforme. **Liste vérifiée** :
+  `kraken.ts`, `coinbase.ts`, `bitvavo.ts`, `ledgerlive.ts`, `revolut.ts`, `binance.ts`,
+  `bitpanda.ts`, `swissborg.ts`. Chacun traduit son export propre en
   brouillons pivot (`types.ts` : `PlatformDraft`) ; `drafts.ts` (`draftsToPivotRows`) les transforme
   en `RawPivotRow` — clé de dédoublonnage = hachage du **contenu natif**, jamais du résultat calculé
   — et `index.ts` (`importAnyCsv`, `PLATFORM_CONVERTERS`, `FORMAT_LABELS`) orchestre la détection en
@@ -85,10 +86,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   docs/DECISIONS.md n° 18). `live.ts` (`createLiveMids`) : prix « live » Hyperliquid par WebSocket
   (`allMids`), strictement opt-in (interrupteur « Prix en direct » de `routes/Trading.svelte`,
   réglage `ui.liveMids`), jamais écrit dans le cache de prix persisté ci-dessus — un canal
-  d'affichage à part, docs/DECISIONS.md n° 29. Hôtes autorisés par la CSP (`vite.config.ts`) :
-  api.coingecko.com, api.coinbase.com, api.exchange.coinbase.com, api.kraken.com,
-  api.hyperliquid.xyz, wss://api.hyperliquid.xyz, coins.llama.fi, api.frankfurter.dev/.app,
-  mempool.space, eth/arbitrum/base.blockscout.com (ces deux derniers pour `import/onchain`).
+  d'affichage à part, docs/DECISIONS.md n° 29. Hôtes joignables déclarés dans `connect-src`
+  (`src/lib/support/csp.ts`, table `KNOWN_ORIGINS` — **source de vérité**, croisée avec cette liste
+  par `tests/integration/architecture-doc.test.ts`). **Liste vérifiée** : `api.coingecko.com`, `api.coinbase.com`,
+  `api.exchange.coinbase.com`, `api.kraken.com`, `api.hyperliquid.xyz`, `coins.llama.fi`,
+  `api.frankfurter.dev`, `api.frankfurter.app`, `mempool.space`, `blockstream.info`,
+  `eth.blockscout.com`, `arbitrum.blockscout.com`, `base.blockscout.com`, `api.blockscout.com`,
+  `api.etherscan.io`, `api.routescan.io`, `api.alternative.me`, `api.anthropic.com`.
 - `src/lib/history` — séries de prix **quotidiennes en euros** par actif (`DailyPoint.priceEur`),
   socle du TWR, du repère et de la fiche actif. Cache IndexedDB ne comblant que les bords manquants
   (`service.ts` : `probedFrom` mémorise une absence déjà constatée, `fillGaps` reporte la dernière
@@ -165,18 +169,29 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/components/shared/Delta.svelte` — **toute** variance de l'interface passe par lui : couleur,
   triangle, signe et équivalent parlé. Un niveau reste neutre (docs/DECISIONS.md n° 56).
 - `src/routes`, `src/components` — présentation uniquement. Navigation en quatre espaces
-  (`src/lib/spaces.ts`, registre `SPACES`), chacun avec son libellé, sa couleur d'accent et sa cible
-  de retour de barre d'application : `routes/Overview.svelte` (Vue d'ensemble, `#/`, aussi le
-  `start_url` de la PWA — additionne des soldes, jamais des résultats de nature différente),
-  `routes/invest/*.svelte` (Investissement, `#/invest…` : portefeuille, fiche actif, import, saisie
-  manuelle, rapport), `routes/Trading.svelte` (Trading, `#/trading` : état vide tant qu'aucun compte
-  Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par période, positions ouvertes,
-  avoirs spot, derniers fills, réconciliation permanente, interrupteur « Prix en direct » opt-in,
-  `pricing/live.ts`) et `routes/More.svelte` (Plus, `#/more` :
-  import, saisie, rapport, **comptes**
-  (`routes/Accounts.svelte`, `#/accounts` : liste des comptes implicites et déclarés,
-  ajout/suppression d'un compte déclaré ou d'une adresse on-chain BTC/EVM suivie en lecture seule,
-  bouton « Synchroniser »), réglages, aide, nouveautés, confidentialité).
+  (`src/lib/spaces.ts`, registre `SPACES` — **source de vérité**, croisée avec la liste ci-dessous
+  par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et
+  sa cible de retour de barre d'application :
+  - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
+    résultats de nature différente) : `overview`, `welcome`.
+  - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
+    `secondOpinion`, `alerts`.
+  - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`, `fills`.
+    État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
+    période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
+    l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
+  - **Plus** (`#/more`) : `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
+    `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et déclarés,
+    permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM suivie en
+    lecture seule, et porte le bouton « Synchroniser ».
+
+  Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
+  `add`, `report`, `secondOpinion`, `alerts`, `trading`, `trades`, `trade`, `tradeAdd`,
+  `tradeStats`, `fills`, `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
+  `help`, `news`, `privacy`.
+
+  L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu
+  « Plus » — ce document affirmait le contraire jusqu'au 01/09/2026 (décision n° 90).
   `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les hashes v1
   (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge comme alias
   pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
@@ -196,9 +211,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 ## Tests
 
 - **Unitaires** (Vitest, `*.test.ts` colocalisés) : moteur, import, stockage, prix, change,
-  historique, exports, diagnostic. **Propriétés** (fast-check, `engine.property.test.ts`) :
-  séquences aléatoires d'achats/ventes/récompenses → `total = valeur + Σ produits − Σ achats`,
-  PRU invariant à la vente, lots réconciliés, survente bloquée.
+  historique, exports, diagnostic. **Propriétés** (fast-check) : séquences aléatoires
+  d'achats/ventes/récompenses → `total = valeur + Σ produits − Σ achats`, PRU invariant à la vente,
+  lots réconciliés, survente bloquée. Neuf fichiers `*.property.test.ts`, croisés avec le dépôt par
+  `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** : `anchor.property.test.ts`,
+  `engine.property.test.ts`, `sort-order.property.test.ts`, `trace.property.test.ts`,
+  `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
+  `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`.
 - **Bout en bout** (Playwright, `tests/e2e/*.spec.ts`, sur le build servi par `vite preview`) :
   projets Chromium desktop, Chromium mobile (Pixel 7) et WebKit (parcours visuels). Les valeurs
   attendues sont calculées par le moteur à partir de la fixture (`helpers/expected.ts`) ; toutes les
@@ -214,8 +233,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 ## Amélioration continue
 
 - **Auto-vérifications** (`src/lib/support/self-check.ts`, section Réglages + rappel en pied de
-  portefeuille) : invariant comptable par actif, lots ↔ position, soldes Coinhouse, opérations à
-  qualifier, prix (manquants/périmés/anciens), sauvegarde. Compteurs et tickers seulement.
+  portefeuille), quatorze contrôles identifiés — liste croisée avec le code par
+  `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** : `data`, `invariant`, `cashflows`, `lots`,
+  `balances`, `blocked`, `unqualified`, `prices`, `mirror`, `backup`, `install`, `transfers`,
+  `net-worth-parts`, `net-worth-invest`. Compteurs et tickers seulement.
 - **Oracle indépendant** (`tests/integration/independent-oracle.test.ts`) : parseur minimal +
   boucle naïve, comparé au moteur à 1e-9 (fixture et export réel local).
 - **Retours** : diagnostic copiable (`diagnostic.ts`, jamais de montant) + formulaire GitHub
