@@ -56,17 +56,37 @@ jobs:
             const fs = require('node:fs');
             const title = '[monitoring] Surveillance automatique en échec';
             const label = 'monitoring';
-            const failed = process.env.SMOKE !== 'success' || process.env.CONTRACT !== 'success';
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
             let contract = '';
             try { contract = fs.readFileSync('monitor-results/api-contract.md', 'utf8'); } catch {}
+            let state = { signature: 'état-du-contrat-illisible', failed: [], reprieved: [] };
+            try { state = JSON.parse(fs.readFileSync('monitor-results/contract-state.json', 'utf8')); } catch {}
+
+            // Un écart en sursis ne fait plus échouer le contrat : `CONTRACT` suffit donc à dire
+            // s'il reste un vrai problème. L'empreinte, elle, décrit l'état — c'est elle qui
+            // décide de notifier ou non, pour qu'une dégradation permanente ne commente pas
+            // l'issue toutes les six heures (voir DECISIONS.md n° 63).
+            const smokeOk = process.env.SMOKE === 'success';
+            const contractOk = process.env.CONTRACT === 'success';
+            const alarming = !smokeOk || !contractOk;
+            const noteworthy = alarming || state.reprieved.length > 0;
+            const signature = `smoke:${smokeOk ? 'ok' : 'ko'}|${state.signature}`;
+            const MARK = (sig) => `<!-- monitor-state: ${sig} -->`;
+
             const body = [
               `Exécution : ${runUrl}`,
               `- Parcours sur le site en ligne : **${process.env.SMOKE}**`,
               `- Contrat des API tierces : **${process.env.CONTRACT}**`,
               '',
               contract,
+              '',
+              '_Ce corps d’issue est réécrit à chaque exécution ; un commentaire n’est ajouté que',
+              'lorsque l’état change._',
+              '',
+              MARK(signature),
             ].join('\n');
+
             try {
               await github.rest.issues.getLabel({ ...context.repo, name: label });
             } catch {
@@ -74,13 +94,22 @@ jobs:
             }
             const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label, per_page: 5 });
             const existing = open.find((i) => i.title === title);
-            if (failed) {
-              if (existing) {
-                await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Toujours en échec.\n\n${body}` });
-              } else {
+
+            if (noteworthy) {
+              if (!existing) {
                 await github.rest.issues.create({ ...context.repo, title, labels: [label], body: `La surveillance automatique a détecté un problème.\n\n${body}` });
+              } else {
+                const previous = (existing.body || '').match(/<!-- monitor-state: (.*?) -->/)?.[1];
+                await github.rest.issues.update({ ...context.repo, issue_number: existing.number, body });
+                if (previous !== signature) {
+                  await github.rest.issues.createComment({
+                    ...context.repo,
+                    issue_number: existing.number,
+                    body: `L’état a changé.\n\n- Avant : \`${previous ?? 'inconnu'}\`\n- Maintenant : \`${signature}\`\n\n${body}`,
+                  });
+                }
               }
-              core.setFailed('Surveillance en échec : voir l’issue de monitoring.');
+              if (alarming) core.setFailed('Surveillance en échec : voir l’issue de monitoring.');
             } else if (existing) {
               await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Rétabli : tout est de nouveau conforme.\n\n${body}` });
               await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });

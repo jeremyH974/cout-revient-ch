@@ -96,9 +96,9 @@ symétriquement dépôts et retraits. Une clé **privée** étendue (`xprv`, `yp
 ## Secours EVM : l'API publique Blockscout est en sursis
 
 Blockscout a officiellement transféré son trafic vers une **Pro API** à clé le 1ᵉʳ juillet 2026.
-Sondes du 24/08/2026 : les instances par chaîne répondent **encore** 200 sans clé, mais
-`api.blockscout.com` renvoie déjà `402 Proceed with API key`. L'application ne dépend donc plus d'un
-seul chemin :
+Sondes du 24/08/2026 : les instances par chaîne répondaient **encore** 200 sans clé, mais
+`api.blockscout.com` renvoyait déjà `402 Proceed with API key`. L'application ne dépend donc plus
+d'un seul chemin :
 
 | Ordre                     | Fournisseur                    | Clé      | Couverture            |
 | ------------------------- | ------------------------------ | -------- | --------------------- |
@@ -106,8 +106,24 @@ seul chemin :
 | 2                         | Blockscout par instance        | aucune   | eth · arbitrum · base |
 | 3                         | Routescan                      | aucune   | Ethereum seulement    |
 
-Les trois parlent le même dialecte `module`/`action` hérité d'Etherscan, d'où un adaptateur unique
-(`etherscan.ts`). Ce chemin lit en plus les **transactions internes** (`txlistinternal`), donc l'ETH
+### Base est tombée le 30/08/2026
+
+Le sursis s'est refermé sur une chaîne. `base.blockscout.com` renvoie **HTTP 500 sur tous ses
+endpoints**, `/stats` compris — vérifié le 01/09/2026 : ce n'est ni une adresse ni une requête, c'est
+l'instance. Et **Base n'a pas de secours sans clé** : Routescan répond « chain not supported » pour
+la chaîne 8453, ce que le code sait déjà (`flavorSupports`).
+
+Conséquence pour l'utilisateur, et elle est acceptable : une adresse Base **sans clé d'explorateur**
+ne peut plus être lue. L'application ne le cache pas — `evm-sync.ts` lève une erreur qui nomme chaque
+fournisseur en échec et invite à saisir une clé gratuite. Ethereum (Routescan) et Arbitrum
+(Blockscout) ne sont pas touchés.
+
+La surveillance a été ajustée en conséquence : le contrôle **reste en place** — c'est lui qui dira si
+Base revient, et surtout si Arbitrum tombe à son tour — mais il est déclaré **en sursis** jusqu'au
+01/03/2027, donc rapporté sans faire échouer le cron (voir [`DECISIONS.md`](DECISIONS.md) n° 63).
+
+Les trois fournisseurs parlent le même dialecte `module`/`action` hérité d'Etherscan, d'où un
+adaptateur unique (`etherscan.ts`). Ce chemin lit en plus les **transactions internes** (`txlistinternal`), donc l'ETH
 reçu via un contrat — un pont, un DEX, un vault — qui n'apparaît nulle part dans `txlist` et
 manquait jusqu'ici.
 
