@@ -218,9 +218,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - **Retours** : diagnostic copiable (`diagnostic.ts`, jamais de montant) + formulaire GitHub
   pré-rempli par identifiants de champs (`links.ts`) ; erreurs capturées (`errors.ts`,
   `<svelte:boundary>` dans `App.svelte`, `error`/`unhandledrejection`).
-- **Surveillance** (`.github/workflows/monitor.yml`, `tests/monitor/`, `scripts/api-contract.mjs`) :
-  site en ligne + forme des réponses des fournisseurs ; issue unique ouverte/refermée
-  automatiquement ; réactivation du planning à chaque exécution.
+- **Surveillance** (`.github/workflows/monitor.yml`, `tests/monitor/`, `scripts/api-contract.mjs`,
+  `scripts/contract-state.ts`) : site en ligne + forme des réponses des fournisseurs, toutes les 6 h.
+  Trois états et non deux — **conforme**, **en sursis** (écart connu et accepté, avec une date
+  d'expiration : signalé, ne fait pas échouer), **en écart** (échec). Un sursis expiré, ou dont le
+  fournisseur s'est rétabli, **redevient un échec** : il ne peut pas pourrir. L'issue unique porte
+  l'état courant dans son corps, réécrit à chaque exécution, et n'est **commentée que lorsque l'état
+  change** — une dégradation permanente ne notifie donc pas quatre fois par jour. Réactivation du
+  planning à chaque exécution.
 - **Nouveautés** (`src/lib/support/changelog.ts`, `src/routes/News.svelte`) : `CHANGELOG.md`
   rendu dans l'app ; `ui.lastSeenVersion` déclenche un bandeau à chaque mise à jour.
 - **Garde-fous** : seuils de couverture Vitest (`vite.config.ts`), propriétés fast-check, E2E, axe,

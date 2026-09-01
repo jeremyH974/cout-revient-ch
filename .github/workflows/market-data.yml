@@ -152,3 +152,57 @@ jobs:
               await github.rest.issues.createComment({ ...context.repo, issue_number: existing.number, body: `Rétabli.\n\n${body}` });
               await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
             }
+
+      # Un rappel, pas un échec. La table du BLS est courte entre deux publications annuelles, et
+      # personne n'y peut rien : bloquer serait crier au loup. On pose donc une issue distincte de
+      # celle des échecs — cycle de vie différent — et on ne la recommente pas à chaque run, sans
+      # quoi le bruit tuerait le signal.
+      - name: Rappeler que le calendrier du BLS attend la suite
+        if: always() && steps.calendar.outcome == 'success'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          WARNING: ${{ steps.calendar.outputs.bls_warning }}
+          COVERAGE_END: ${{ steps.calendar.outputs.bls_coverage_end }}
+          CHECKED_ON: ${{ steps.calendar.outputs.bls_checked_on }}
+        with:
+          script: |
+            const title = '[données de marché] Le calendrier du BLS attend la suite';
+            const label = 'données de marché';
+            const warning = process.env.WARNING === 'true';
+            const coverageEnd = process.env.COVERAGE_END || 'inconnu';
+            const checkedOn = process.env.CHECKED_ON || 'inconnu';
+            const { data: open } = await github.rest.issues.listForRepo({ ...context.repo, state: 'open', labels: label, per_page: 10 });
+            const existing = open.find((i) => i.title === title);
+            if (warning && !existing) {
+              const body = [
+                `La table du BLS s'arrête au **${coverageEnd}** ; dernière relecture le **${checkedOn}**.`,
+                '',
+                'Ce n’est pas une panne : le BLS ne publie le calendrier de l’année suivante qu’à',
+                'l’automne, et la table est complète jusque-là. Le calendrier continue d’être',
+                'régénéré et publié normalement.',
+                '',
+                'Quand vous passerez par là, rouvrez ces quatre pages **dans un navigateur** (leur',
+                'CDN refuse les autres clients) et regardez si l’année suivante est parue :',
+                '',
+                '- [ ] https://www.bls.gov/schedule/news_release/cpi.htm',
+                '- [ ] https://www.bls.gov/schedule/news_release/empsit.htm',
+                '- [ ] https://www.bls.gov/schedule/news_release/ppi.htm',
+                '- [ ] https://www.bls.gov/schedule/news_release/jolts.htm',
+                '',
+                'Puis reportez les dates dans `src/lib/calendar/bls-schedule.ts` et **mettez',
+                '`BLS_CHECKED_ON` à jour même si rien n’a changé** : c’est cette date qui dit au',
+                'générateur que la table est courte parce que la source s’arrête, et non parce que',
+                'personne n’a regardé. Sans relecture, la barrière redevient bloquante au bout de',
+                '45 jours.',
+                '',
+                'Cette issue se referme toute seule dès que la couverture repasse au-dessus de six mois.',
+              ].join('\n');
+              await github.rest.issues.create({ ...context.repo, title, labels: [label], body });
+            } else if (!warning && existing) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: existing.number,
+                body: `La table du BLS va de nouveau jusqu'au **${coverageEnd}** (relue le ${checkedOn}). Plus rien à surveiller.`,
+              });
+              await github.rest.issues.update({ ...context.repo, issue_number: existing.number, state: 'closed' });
+            }

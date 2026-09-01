@@ -7,6 +7,7 @@
  * Aucune clé, aucune donnée personnelle : seules des requêtes publiques sur BTC/EUR et EUR/USD.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { summarise } from './contract-state.ts';
 
 const TIMEOUT_MS = 15_000;
 const results = [];
@@ -38,14 +39,21 @@ async function fetchJson(url, options = {}) {
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isNumericString = (v) => typeof v === 'string' && /^-?\d+(\.\d+)?$/.test(v);
 
+/**
+ * `options.sursis` déclare un écart **connu et accepté** : il n'alarme plus, mais reste surveillé.
+ * Voir `contract-state.ts` pour ce que ça implique — notamment qu'un sursis expiré, ou dont le
+ * fournisseur s'est rétabli, redevient un échec.
+ */
 async function check(name, url, validate, options = {}) {
   const started = Date.now();
+  const { sursis } = options;
   try {
     const r = await fetchJson(url, options);
     const problems = r.status === 200 ? validate(r.json, r.headers) : [`HTTP ${r.status}`];
     results.push({
       name,
       url,
+      sursis,
       ok: problems.length === 0,
       ms: Date.now() - started,
       detail: problems.join(' ; ') || 'conforme',
@@ -58,6 +66,7 @@ async function check(name, url, validate, options = {}) {
     results.push({
       name,
       url,
+      sursis,
       ok: false,
       ms: Date.now() - started,
       detail: `erreur réseau : ${error instanceof Error ? error.message : String(error)}`,
@@ -301,14 +310,26 @@ await check(
 // Blockscout a officiellement basculé son trafic vers une Pro API à clé le 1ᵉʳ juillet 2026 ; les
 // instances par chaîne répondaient encore sans clé le 24/08/2026. Ce contrôle est là pour que la
 // CI nous prévienne le jour où elles s'arrêtent — avant que les utilisateurs ne le découvrent.
-for (const [chain, host] of [
-  ['arbitrum', 'https://arbitrum.blockscout.com'],
-  ['base', 'https://base.blockscout.com'],
+// Base est tombée le 30/08/2026 : l'instance entière répond 500, `/stats` compris. Il n'existe pas
+// de secours sans clé pour cette chaîne (Routescan : « chain not supported »), et l'application le
+// dit à l'utilisateur en l'invitant à fournir une clé gratuite. Rien à corriger dans le code : on
+// déclare donc un sursis, et le contrôle continue — c'est lui qui dira si Base revient.
+const SURSIS_BASE = {
+  depuis: '2026-08-30',
+  jusquau: '2027-03-01',
+  pourquoi:
+    'instance publique éteinte après la bascule de Blockscout vers sa Pro API à clé (1ᵉʳ juillet 2026)',
+};
+
+for (const [chain, host, sursis] of [
+  ['arbitrum', 'https://arbitrum.blockscout.com', undefined],
+  ['base', 'https://base.blockscout.com', SURSIS_BASE],
 ]) {
   await check(
     `Blockscout ${chain} sans clé (survie de l'API publique)`,
     `${host}/api/v2/addresses/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045/transactions`,
     (json) => (Array.isArray(json?.items) ? [] : ['items absent : instance passée en Pro API ?']),
+    { sursis },
   );
 }
 
@@ -356,22 +377,19 @@ await check(
   },
 );
 
-const failed = results.filter((r) => !r.ok);
-const lines = [
-  `# Contrat des API tierces — ${new Date().toISOString()}`,
-  '',
-  '| Fournisseur | État | Délai | Détail | Limites |',
-  '| --- | --- | --- | --- | --- |',
-  ...results.map(
-    (r) =>
-      `| ${r.name} | ${r.ok ? '✅' : '❌'} | ${r.ms} ms | ${r.detail.replace(/\|/g, '/')} | ${r.rateLimit || '—'} |`,
-  ),
-  '',
-  failed.length === 0
-    ? 'Tous les fournisseurs répondent avec la forme attendue.'
-    : `${failed.length} fournisseur(s) en écart : ${failed.map((r) => r.name).join(', ')}.`,
-];
+const stampedAt = new Date().toISOString();
+const report = summarise(results, stampedAt.slice(0, 10), stampedAt);
+
 mkdirSync('monitor-results', { recursive: true });
-writeFileSync('monitor-results/api-contract.md', lines.join('\n'));
-console.log(lines.join('\n'));
-process.exit(failed.length === 0 ? 0 : 1);
+writeFileSync('monitor-results/api-contract.md', report.markdown);
+// L'empreinte permet au workflow de ne commenter l'issue que lorsque l'état change.
+writeFileSync(
+  'monitor-results/contract-state.json',
+  `${JSON.stringify(
+    { signature: report.signature, failed: report.failed, reprieved: report.reprieved },
+    null,
+    2,
+  )}\n`,
+);
+console.log(report.markdown);
+process.exit(report.ok ? 0 : 1);

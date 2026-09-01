@@ -1575,3 +1575,53 @@
     pourtant l'appariement — la forme d'une colonne en dit assez.
     **Limite nommée, non comblée** : un appariement faux mais arithmétiquement cohérent passe tous
     les contrôles. Un vérificateur vert dit que le fichier **se lit**, pas qu'il se lit juste.
+72. **Une barrière distingue ce qu'un humain peut corriger de ce qu'il ne peut qu'attendre**
+    (01/09/2026). La barrière du BLS refusait d'écrire dès que la table couvrait moins de trois mois,
+    en supposant le mainteneur en retard. Relecture des quatre pages officielles ce jour : le dépôt
+    était **déjà synchronisé avec la source, publication par publication** — c'est le BLS qui s'arrête
+    au 15/12/2026, n'ayant pas publié 2027 (sa navigation n'offre que « ENTIRE YEAR, 2026 » et
+    « PRIOR YEARS »). Le run du 18/09/2026 aurait donc échoué en réclamant la recopie de pages sans
+    rien de nouveau.
+    **Le signal actionnable n'est pas « la couverture est courte », c'est « personne n'a regardé
+    récemment »** — regarder étant la seule action possible. La barrière porte donc sur l'âge de
+    `BLS_CHECKED_ON` : sous six mois de couverture elle **avertit** et laisse écrire, et elle ne
+    **bloque** que sous trois mois _et_ après 45 jours sans relecture. D'où la règle : mettre
+    `BLS_CHECKED_ON` à jour **à chaque relecture, même stérile** — c'est cette date, et rien d'autre
+    dans le dépôt, qui sépare les deux états.
+    C'est la même famille que la barrière de fraîcheur de la veille réglementaire (n° 64,
+    `src/lib/watch/entries.ts`), et le même réflexe : `today` est **passé en paramètre**, jamais lu
+    d'une horloge cachée, pour que les tests puissent jouer n'importe quelle date. Le cron pose un
+    rappel à titre distinct de l'issue d'échec, avec les quatre URL à cocher, et ne le recommente pas
+    à chaque exécution : un garde-fou qui crie au loup finit ignoré, ce que la n° 58 voulait
+    précisément éviter.
+73. **Un générateur écrit ce que le vérificateur accepte, sinon il ne publie jamais** (01/09/2026).
+    Les deux générateurs rendaient leurs littéraux avec `JSON.stringify`, donc en guillemets doubles,
+    que `prettier --check` refuse (`singleQuote: true`). Conséquences en chaîne, invisibles en local :
+    le fichier engendré différait **toujours** de sa version committée, la comparaison « rien n'a
+    changé sauf l'horodatage » ne pouvait jamais être vraie, et `npm run check` — que le cron lance
+    **avant** de committer — échouait à chaque exécution. **Le robot n'a donc jamais publié une seule
+    fois** : run `33398994222` du 31/08/2026 en échec sur « Code style issues found in 2 files »,
+    issue #39 ouverte, et le seul commit du calendrier est celui d'un humain. Le formatage est
+    désormais appliqué **dans** le générateur (`prettify()`, configuration du dépôt résolue par
+    Prettier lui-même) plutôt que laissé au workflow : c'est le seul endroit qui rende la comparaison
+    sincère. Leçon jumelle de celle de `2026-08-28-contexte-de-marche.md` — _une surveillance qui
+    n'exerce pas la contrainte réelle ne surveille rien_ — appliquée au producteur : **un générateur
+    qui n'est pas relu par la même barrière que le dépôt écrit dans le vide.**
+74. **La surveillance distingue le contrat rompu du fournisseur fermé, et un sursis porte une date
+    d'expiration** (01/09/2026). L'instance publique Blockscout de Base répond HTTP 500 depuis le
+    30/08/2026 — l'instance entière, `/stats` compris. Le contrôle de contrat avait raison, mais la
+    surveillance ne savait qu'échouer : elle recommentait « Toujours en échec » **toutes les six
+    heures**, avec un tableau de vingt-trois lignes, pour une cause que personne ne pouvait corriger
+    (issue #38, cinq commentaires en trois jours). **Une alarme qui ne peut pas s'éteindre finit
+    ignorée**, et le vrai écart suivant s'y noierait.
+    Un écart peut donc être déclaré **en sursis** : connu, accepté, rapporté en ⚠️, sans faire
+    échouer. Le mot est déjà celui du projet (`docs/onchain-import.md`). **Mais un sursis ne doit pas
+    pouvoir pourrir** — n° 72 appliquée ici : s'il **expire**, ou si le fournisseur **se rétablit**
+    alors qu'il le couvre encore, il redevient un **échec**. Les deux cas demandent un geste de
+    trente secondes ; ils appartiennent donc à ce qu'un humain peut corriger, et méritent d'alarmer.
+    Le contrôle de Base **n'est pas supprimé** : c'est lui qui dira si Base revient, et surtout si
+    Arbitrum tombe à son tour — Base n'a aucun secours sans clé, Routescan répondant « chain not
+    supported ». L'issue porte l'état courant dans son **corps**, réécrit silencieusement à chaque
+    exécution, et n'est **commentée que sur changement d'empreinte** — délai et quotas exclus, sans
+    quoi chaque exécution paraîtrait nouvelle. La logique vit dans `scripts/contract-state.ts` parce
+    qu'`api-contract.mjs` appelle le réseau au chargement et n'est donc pas testable.

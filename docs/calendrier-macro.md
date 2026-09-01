@@ -47,13 +47,36 @@ BEA, y ajoute la table BLS tenue à la main, et écrit
 TypeScript **committé** et compilé dans l'application. D'où l'absence totale de requête à
 l'exécution, et le fonctionnement hors ligne.
 
-Il **refuse d'écrire** si une source est muette, si le nombre d'événements s'effondre, ou si la
-table BLS couvre moins de trois mois devant nous. Il ne réécrit rien si seuls les horodatages
-changent, pour que le diff hebdomadaire reste relisible.
+Il **refuse d'écrire** si une source est muette ou si le nombre d'événements s'effondre. Il ne
+réécrit rien si seuls les horodatages changent, pour que le diff reste relisible — ce qui suppose
+que sa sortie soit déjà au format de Prettier, d'où le passage par `prettify()` avant comparaison.
 
-Le cron [`.github/workflows/calendar.yml`](../.github/workflows/calendar.yml) le lance chaque lundi,
-lance `npm run check` **avant** de committer, puis appelle `ci.yml` — un push effectué par le robot
-ne déclenche aucun workflow, et c'est la CI qui publie sur Pages.
+Le cron [`.github/workflows/market-data.yml`](../.github/workflows/market-data.yml) le lance chaque
+lundi et chaque vendredi, lance `npm run check` **avant** de committer, puis appelle `ci.yml` — un
+push effectué par le robot ne déclenche aucun workflow, et c'est la CI qui publie sur Pages.
+
+### La barrière du BLS a deux étages, et c'est important
+
+Une couverture qui raccourcit recouvre **deux situations opposées**, et les confondre revient à
+crier au loup :
+
+| État                             | Cause                          | Ce qu'un humain peut faire | Réponse                  |
+| -------------------------------- | ------------------------------ | -------------------------- | ------------------------ |
+| Notre copie est en retard        | personne n'a relu les pages    | recopier                   | refuser d'écrire + issue |
+| **La source elle-même s'arrête** | le BLS n'a pas publié la suite | rien, sinon revenir voir   | écrire + poser un rappel |
+
+Rien dans le dépôt ne permet de distinguer les deux — seule une relecture le peut. C'est pourquoi
+`BLS_CHECKED_ON` porte une **affirmation** et pas seulement une date : « à ce jour, tout ce que le
+BLS publiait était recopié ». La barrière s'appuie dessus :
+
+- couverture sous **six mois** → **avertissement**, le calendrier est écrit et le cron ouvre un
+  rappel (`[données de marché] Le calendrier du BLS attend la suite`), qui se referme tout seul ;
+- couverture sous **trois mois** _et_ relecture vieille de plus de **45 jours** → **blocage**, et
+  l'issue d'échec habituelle.
+
+D'où la règle : **mettre `BLS_CHECKED_ON` à jour à chaque relecture, même quand elle ne change
+rien**. C'est cette date qui dit au générateur que la table est courte parce que la source s'arrête,
+et non parce qu'on a oublié.
 
 ## Entretien annuel : la table du BLS
 
@@ -63,18 +86,21 @@ C'est la **seule** intervention manuelle, et elle revient une fois par an.
 `bls.ics` qu'il publie pourtant pour les agendas. Se faire passer pour un navigateur contournerait
 un contrôle d'accès délibéré ; les dates sont donc recopiées à la main.
 
-Vous n'avez pas à y penser : quand la couverture descend sous trois mois, le cron **ouvre une
-issue** étiquetée `calendrier` qui décrit la marche à suivre. Elle se referme d'elle-même une fois
-la table remise à jour.
+Vous n'avez pas à y penser : quand la couverture descend sous six mois, le cron **ouvre un rappel**
+étiqueté `données de marché`, avec les quatre URL en liste à cocher. Il se referme de lui-même dès
+que la table repasse au-dessus. Rien n'est cassé pendant ce temps : le calendrier continue d'être
+régénéré et publié.
 
 La marche à suivre :
 
 1. Ouvrir dans un navigateur les quatre pages listées dans
    [`src/lib/calendar/bls-schedule.ts`](../src/lib/calendar/bls-schedule.ts) — CPI, emploi, PPI,
-   JOLTS. Le BLS publie l'année suivante en bloc, à la fin de l'année en cours.
+   JOLTS. Le BLS publie l'année suivante en bloc, à l'automne de l'année en cours.
 2. Recopier les couples _mois de référence → jour de publication_ dans `BLS_SERIES`, en conservant
-   l'ordre chronologique.
-3. Mettre `BLS_CHECKED_ON` à la date du jour.
+   l'ordre chronologique. **S'il n'y a rien de nouveau, c'est une réponse valable** : passez à
+   l'étape suivante.
+3. Mettre `BLS_CHECKED_ON` à la date du jour — **même si rien n'a changé**. C'est l'étape qui compte
+   le plus : sans elle, la barrière finira par bloquer un dépôt pourtant à jour.
 4. `npm run check` : `bls-schedule.test.ts` vérifie l'ordre, les doublons, les jours ouvrés, et
    qu'aucune publication ne précède son propre mois de référence — une inversion de lignes est
    attrapée, une simple transposition de chiffres ne l'est pas.
