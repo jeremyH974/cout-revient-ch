@@ -1616,9 +1616,12 @@
     ignorée**, et le vrai écart suivant s'y noierait.
     Un écart peut donc être déclaré **en sursis** : connu, accepté, rapporté en ⚠️, sans faire
     échouer. Le mot est déjà celui du projet (`docs/onchain-import.md`). **Mais un sursis ne doit pas
-    pouvoir pourrir** — n° 72 appliquée ici : s'il **expire**, ou si le fournisseur **se rétablit**
-    alors qu'il le couvre encore, il redevient un **échec**. Les deux cas demandent un geste de
-    trente secondes ; ils appartiennent donc à ce qu'un humain peut corriger, et méritent d'alarmer.
+    pouvoir pourrir** — n° 72 appliquée ici : passé sa date d'expiration, il redevient un **échec**,
+    et c'est là toute la garantie. Corrigé le jour même par l'observation : la première version
+    faisait aussi échouer un fournisseur qui **répond de nouveau** sous sursis. Mesure du 01/09/2026,
+    Base a répondu 500 six fois sur sept, avec un succès isolé — en faire un échec aurait fait
+    échouer la surveillance au hasard, le défaut même qu'on corrige. Un succès isolé est donc un
+    **indice** signalé, jamais un verdict ; seule la date d'expiration force la relecture.
     Le contrôle de Base **n'est pas supprimé** : c'est lui qui dira si Base revient, et surtout si
     Arbitrum tombe à son tour — Base n'a aucun secours sans clé, Routescan répondant « chain not
     supported ». L'issue porte l'état courant dans son **corps**, réécrit silencieusement à chaque

@@ -69,11 +69,17 @@ describe('classement d’un contrôle', () => {
     ).toBe(false);
   });
 
-  it('rétabli alors qu’un sursis le couvre : échec, pour qu’on retire le sursis', () => {
+  /**
+   * Une réponse réussie isolée n'est pas une guérison : mesuré le 01/09/2026, Base répondait 500
+   * six fois sur sept. En faire un échec ferait échouer la surveillance au hasard — le défaut même
+   * qu'on corrige. C'est donc signalé sans alarmer ; l'expiration reste la garantie dure.
+   */
+  it('rétabli alors qu’un sursis le couvre : signalé, mais sans faire échouer', () => {
     const verdict = classify(result({ ok: true, sursis: SURSIS }), '2026-09-01');
-    expect(verdict.state).toBe('écart');
-    expect(verdict.fails).toBe(true);
-    expect(verdict.reason).toContain('retirez-le');
+    expect(verdict.state).toBe('sursis');
+    expect(verdict.fails).toBe(false);
+    expect(verdict.reason).toContain('si cela se confirme, retirez-le');
+    expect(verdict.reason).toContain('2027-03-01');
   });
 });
 

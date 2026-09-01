@@ -58,12 +58,16 @@ export function classify(result: Result, today: string): Verdict {
   if (ok && !sursis) return { state: 'ok', fails: false, reason: '' };
 
   if (ok && sursis) {
+    // Une seule réponse réussie ne prouve pas que la cause a disparu : mesuré le 01/09/2026, Base
+    // répondait 500 six fois sur sept, avec un succès isolé. En faire un échec ferait échouer la
+    // surveillance au hasard — le défaut même qu'on corrige. C'est donc un **indice**, pas un
+    // verdict ; la garantie anti-pourrissement reste la date d'expiration, elle non négociable.
     return {
-      state: 'écart',
-      fails: true,
+      state: 'sursis',
+      fails: false,
       reason:
-        `répond de nouveau alors qu'un sursis le couvre (depuis le ${sursis.depuis}) : ` +
-        'retirez-le de `api-contract.mjs`, sinon il masquera le prochain vrai écart',
+        `a répondu cette fois, alors qu'un sursis le couvre depuis le ${sursis.depuis} : ` +
+        `si cela se confirme, retirez-le de \`api-contract.mjs\` (réexamen dû le ${sursis.jusquau})`,
     };
   }
 
