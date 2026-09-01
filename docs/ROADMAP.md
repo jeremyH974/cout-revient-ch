@@ -258,7 +258,7 @@ pris — décision n° 69).
 | P78 | `.gitignore` : `.claude/worktrees/`, aujourd'hui protégé par un exclude local seulement   |   0    |     2     |    0    |   0,1    | **20** |
 | P81 | L'échec du miroir `localStorage` remonte dans les auto-vérifications au lieu d'être tu    |   1    |     5     |    1    |   0,5    | **14** |
 | P92 | La source du taux fiscal s'affiche **à côté** du chiffre, pas seulement dans la veille    |   2    |     4     |    1    |   0,5    | **14** |
-| P77 | Texte libre neutralisé avant exposition MCP (`note: rule.note`, `tools.ts:237`)           |   1    |     5     |    0    |   0,5    | **12** |
+| P77 | **Livré (01/09/2026, décision n° 77).** Texte libre neutralisé avant exposition MCP       |   1    |     5     |    0    |   0,5    | **12** |
 | P79 | `coverage.include` étendu à `src/state` et `src/components`, seuil bas non nul            |   1    |     5     |    0    |   0,5    | **12** |
 | P85 | `$state.snapshot` hors du `$effect` ; `localeCompare` de `sortEvents` → comparaison ASCII |   1    |     2     |    3    |   0,5    | **12** |
 | P87 | Surveillance étendue aux sources des générateurs (Treasury, Fed, BEA, EIA, BLS)           |   1    |     4     |    0    |   0,5    | **10** |

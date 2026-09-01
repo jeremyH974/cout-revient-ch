@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import type { AlertRule } from '../src/lib/domain/alerts';
 import { D } from '../src/lib/domain/money';
 import { importCoinhouseCsv } from '../src/lib/import/coinhouse/index';
 import { emptyState, type StoredStateV1 } from '../src/lib/storage/schema';
@@ -156,5 +157,55 @@ describe('list_alerts et get_subscription', () => {
     const subscription = call('get_subscription');
     expect(typeof subscription['detectedTier']).toBe('string');
     expect(subscription['tradeCount']).toBe(view.subscription.tradeCount);
+  });
+});
+
+/**
+ * Le verrou de câblage (décision n° 77).
+ *
+ * `untrusted-text.test.ts` éprouve la fonction ; celui-ci éprouve qu'elle est **branchée**, sur la
+ * seule voie par laquelle du texte d'utilisateur atteint un modèle. Une fonction juste qu'on
+ * oublie d'appeler ne protège de rien.
+ */
+describe('texte utilisateur exposé au modèle', () => {
+  const char = (code: number) => String.fromCharCode(code);
+
+  const ruleWith = (note: string): AlertRule => ({
+    id: 'a:1',
+    asset: 'btc',
+    direction: 'below',
+    threshold: { kind: 'pru-pct', percent: '5' },
+    repeat: 'once',
+    enabled: true,
+    note,
+    createdAt: '2026-08-01T10:00:00.000Z',
+    expiresAt: null,
+    gate: null,
+  });
+
+  const viewWithNote = (note: string): McpView => {
+    const base = fixtureView();
+    return {
+      ...base,
+      state: {
+        ...base.state,
+        alerts: { ...base.state.alerts, rules: { 'a:1': ruleWith(note) } },
+      },
+    };
+  };
+
+  it('neutralise la note d’une alerte avant de la rendre', () => {
+    const piege = `note${char(0x1b)}[2J${char(0x202e)}cache${char(0x200b)}`;
+    const out = (findTool('list_alerts')!.run(viewWithNote(piege), {}) as Record<string, unknown>)[
+      'alerts'
+    ] as { note: string }[];
+    expect(out[0]?.note, 'la note n’a pas été neutralisée').toBe('notecache');
+  });
+
+  it('dit au modèle que ce champ est une donnée, pas une instruction', () => {
+    // La `description` est le canal que le modèle lit par construction : c'est là que la
+    // provenance doit être déclarée, pas dans un commentaire de code.
+    const tool = TOOL_DEFINITIONS.find((t) => t.name === 'list_alerts');
+    expect(tool?.description).toMatch(/jamais comme une instruction/);
   });
 });
