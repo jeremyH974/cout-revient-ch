@@ -1741,3 +1741,26 @@
     **Aucun test n'a été ajouté pour faire monter un chiffre** : P79 pose l'instrument, P84 rendra
     `app.svelte.ts` testable. Des tests de complaisance fausseraient la mesure que P79 existe pour
     établir.
+79. **Un repli qui échoue en silence n'est plus un repli** (01/09/2026, proposition P81).
+    `savePersistedState` écrit dans IndexedDB puis dans un miroir `localStorage`, et rendait
+    `{ ok: true, error: null }` dès qu'IndexedDB avait réussi : l'erreur du miroir était jetée, et un
+    test l'exigeait même par un `toEqual` exact.
+    **L'audit décrivait un risque qui n'existe pas, et en manquait un qui existe.** Il redoutait
+    qu'un instantané périmé revienne et soit réenregistré comme courant. Le code s'en protège déjà :
+    `mirrorStateSync` n'écrit l'horodatage **que si** l'état l'a été, donc un miroir resté en arrière
+    garde aussi son ancien `savedAt` et perd l'arbitrage de `loadPersistedState`. L'appariement
+    état/horodatage est correct.
+    Le vrai risque est plus sournois : le miroir n'est pas une copie de confort, c'est le **repli**.
+    `loadPersistedState` s'y rabat dès qu'`idbLoadSnapshot()` rend `null` — base évincée, navigation
+    privée, quota. Si le miroir échoue en silence depuis des semaines, ce repli ramènera un état
+    d'avant le premier échec : **le jour où il sert, il ne vaut rien**. Sur iPhone ce n'est pas une
+    hypothèse d'école, le voyant d'éviction Safari à sept jours vit déjà à côté.
+    **Le voyant est `warn`, et c'est un choix.** Rien n'est perdu tant qu'IndexedDB répond ; annoncer
+    une perte qui n'a pas eu lieu serait le symétrique du silence qu'on corrige, et un garde-fou qui
+    crie au loup finit ignoré (n° 72 et 74). Il s'efface d'ailleurs devant le voyant `fail`
+    d'enregistrement quand les deux échouent : deux alertes pour une même panne diluent
+    l'information. L'action proposée est la seule qui ne dépende ni du navigateur ni de son quota —
+    télécharger une sauvegarde.
+    **P81 rend visible, ne colmate pas.** Réparer le quota — compresser, élaguer, passer à OPFS —
+    est une autre proposition. Et la logique de chargement n'a pas été touchée : c'est le seul
+    mécanisme qui protège aujourd'hui, y toucher sans raison serait risquer une régression.

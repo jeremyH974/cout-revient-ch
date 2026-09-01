@@ -32,6 +32,12 @@ export interface SelfCheckInput {
     lastBackupAt: string | null;
     persisted: boolean | null;
     saveError: string | null;
+    /**
+     * Échec du **miroir** `localStorage` alors que l'enregistrement a réussi (décision n° 79).
+     * Non bloquant : rien n'est perdu tant qu'IndexedDB répond — mais le repli, lui, ne serait plus
+     * à jour le jour où il servirait.
+     */
+    mirrorError?: string | null;
   };
   /** Plateforme (facultatif) : iPhone/iPad non installé = données effaçables par Safari après 7 jours. */
   platform?: { ios: boolean; standalone: boolean };
@@ -303,6 +309,27 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
         });
       }
     }
+  }
+
+  /*
+   * Le repli est hors service, mais l'enregistrement fonctionne (décision n° 79).
+   *
+   * Voyant distinct de « Sauvegarde », et volontairement `warn` : annoncer une perte qui n'a pas eu
+   * lieu serait le symétrique du silence qu'on corrige, et un garde-fou qui crie au loup finit
+   * ignoré (décisions n° 72 et 74). Rendu **seulement** si l'enregistrement va bien : quand les deux
+   * échouent, le voyant `fail` ci-dessous dit déjà tout, et deux alertes pour une même panne
+   * diluent l'information.
+   */
+  if (input.storage.mirrorError && !input.storage.saveError) {
+    checks.push({
+      id: 'mirror',
+      label: 'Copie de secours',
+      level: 'warn',
+      detail:
+        'Vos données sont bien enregistrées, mais la copie de secours du navigateur n’est plus mise à jour (espace insuffisant).',
+      action:
+        'Téléchargez une sauvegarde JSON : c’est la seule copie qui ne dépende ni du navigateur ni de son quota.',
+    });
   }
 
   // 6. Sauvegarde et stockage.

@@ -237,6 +237,11 @@ export class AppState {
   loadStatus = $state<'empty' | 'ok' | 'corrupt'>('empty');
   loadError = $state<string | null>(null);
   saveError = $state<string | null>(null);
+  /**
+   * Le miroir `localStorage` a échoué alors que l'enregistrement a réussi (décision n° 79). Non
+   * bloquant : c'est le **repli** qui n'est plus à jour, pas les données.
+   */
+  mirrorError = $state<string | null>(null);
   priceStatus = $state<PriceStatus>({
     loading: false,
     online: null,
@@ -1047,6 +1052,7 @@ export class AppState {
       pending = null;
       void savePersistedState(snapshot, nowIso()).then((result) => {
         this.saveError = result.ok ? null : result.error;
+        this.mirrorError = result.mirrorError;
         if (result.ok) this.scheduleFolderWrite(snapshot);
       });
     };
@@ -1062,6 +1068,7 @@ export class AppState {
       mirrorStateSync(snapshot, savedAt);
       void savePersistedState(snapshot, savedAt).then((result) => {
         if (!result.ok) this.saveError = result.error;
+        this.mirrorError = result.mirrorError;
       });
     };
     $effect.root(() => {
