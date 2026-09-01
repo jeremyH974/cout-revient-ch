@@ -1849,3 +1849,24 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     Légifrance ici aurait fait passer une incertitude pour une certitude.
     N'étant pas `in-force`, la ligne apparaît dans le bloc « Veille réglementaire » du rapport —
     exactement ce que ce bloc existe pour porter (n° 80).
+84. **Un test de complétude doit se refermer sur le type qu'il surveille, pas seulement sur ses
+    conteneurs** (01/09/2026, proposition P80). Les assainisseurs de `schema.ts` reconstruisent
+    chaque enregistrement **par liste blanche** : tout champ non recopié est perdu en silence à
+    chaque rechargement. Le test existant n'énumérait que les **conteneurs** de `StoredStateV1` — un
+    cran trop haut.
+    Le trou exact n'était pas celui qu'on croit : un champ **obligatoire** oublié fait déjà échouer
+    le typecheck, l'objet reconstruit étant incomplet. Ce qui passait, c'était le champ
+    **facultatif** — `foo?: string` ajouté au type, non recopié, compile et se perd. Exposition
+    réelle au moment du constat : **treize champs facultatifs sur cinq types**, dont les cinq
+    d'`Account`, dont `coingeckoId` — le réglage que `CLAUDE.md` désigne comme la porte de sortie
+    quand deux projets partagent un symbole. Le perdre en silence rend un prix faux.
+    Le correctif tient en une annotation : `Required<T>` sur chaque littéral du jeu d'essai. Le
+    cliquet se referme **des deux côtés** — à la compilation, ajouter un facultatif au type rend le
+    littéral incomplet et `svelte-check` échoue en nommant le champ ; à l'exécution, un champ présent
+    dans le jeu d'essai mais absent de l'assainisseur fait échouer l'égalité stricte déjà en place.
+    Aucun code de production ne change : la brique est un filet.
+    **Vérifié en le faisant rougir, deux fois.** `ImportBatchMeta.format` retiré de l'assainisseur —
+    un champ qui n'avait **aucun** test dédié, donc exactement le cas silencieux — fait échouer le
+    test ; et un `nickname?: string` ajouté à `Account` fait échouer le **typecheck**, avant même que
+    les tests ne tournent. C'est la n° 75 appliquée à la complétude : exiger que quelque chose
+    fonctionne, plutôt que d'observer que rien n'a échoué.
