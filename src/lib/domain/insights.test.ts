@@ -4,6 +4,7 @@ import { computePortfolio, type PortfolioReport, type PriceQuoteInput } from './
 import { buildInsights, type Insight, type InsightCode, type InsightContext } from './insights';
 import { D } from './money';
 import { riskMetrics } from './risk';
+import type { TaxLedger, TaxYear } from './tax-fr';
 import type { SubscriptionAnalysis } from './subscription';
 import {
   DEFAULT_ENGINE_SETTINGS,
@@ -337,5 +338,82 @@ describe('buildInsights', () => {
     // Réalisé = 0,40 € : vrai, mais sans intérêt à afficher comme constat.
     const list = buildInsights({ report: compute(events, { btc: price('btc', '40000') }) });
     expect(find(list, 'realized')).toBeUndefined();
+  });
+});
+
+/**
+ * Le constat de fin d'année (décision n° 86).
+ *
+ * Il énonce deux faits de droit datés, et refuse d'en énoncer un troisième qui n'existe pas en
+ * France : la compensation de moins-values PAR ACTIF. La suite vérifie les deux premiers, les
+ * bornes de date qui les rendent pertinents, et le silence quand rien n'est vrai.
+ */
+describe('fin d’année fiscale', () => {
+  const year = (over: Partial<TaxYear> = {}): TaxYear => ({
+    year: 2026,
+    proceedsEur: '12000',
+    cessionCount: 4,
+    gainsEur: '1000',
+    lossesEur: '2800',
+    netEur: '-1800',
+    exempt: false,
+    rate: '0.314',
+    rateLabel: '31,4 %',
+    taxEur: '0',
+    unknownGlobalValue: 0,
+    ...over,
+  });
+  const ledger = (y: TaxYear): TaxLedger => ({
+    cessions: [],
+    years: [y],
+    ptaAfter: '0',
+    unknownGlobalValue: 0,
+    externalInflows: 0,
+    externalOutflows: 0,
+    rewards: 0,
+  });
+  const at = (today: string, y: TaxYear = year()) =>
+    find(
+      buildInsights({ report: compute([]), tax: ledger(y), taxYear: 2026, today }),
+      'tax-year-end',
+    );
+
+  it('année perdante : le déficit est chiffré, et l’échéance nommée', () => {
+    const insight = at('2026-11-15');
+    expect(raw(insight, 'deficit'), 'la moins-value nette, en positif').toBe('1800');
+    expect(raw(insight, 'deadline')).toBe('2026-12-31');
+    expect(insight?.tone, 'un constat, pas une incitation à agir avant l’échéance').toBe('neutral');
+  });
+
+  it('sous le seuil : la marge restante avant la falaise des 305 €', () => {
+    const insight = at('2026-11-15', year({ proceedsEur: '200', netEur: '50', exempt: true }));
+    expect(raw(insight, 'headroom'), '305 − 200').toBe('105');
+    expect(raw(insight, 'deficit'), 'une année gagnante n’a pas de déficit').toBeUndefined();
+  });
+
+  it('avant octobre, le 31 décembre n’est pas une échéance : rien n’est dit', () => {
+    expect(at('2026-09-30')).toBeUndefined();
+    expect(at('2026-10-01'), 'le 1er octobre, si').toBeDefined();
+  });
+
+  it('une année révolue ne reçoit aucun constat daté', () => {
+    expect(at('2027-11-15')).toBeUndefined();
+  });
+
+  it('sans horloge, le moteur ne devine pas quel jour on est', () => {
+    expect(
+      find(
+        buildInsights({ report: compute([]), tax: ledger(year()), taxYear: 2026 }),
+        'tax-year-end',
+      ),
+    ).toBeUndefined();
+  });
+
+  it('aucune cession dans l’année : rien à constater', () => {
+    expect(at('2026-11-15', year({ cessionCount: 0 }))).toBeUndefined();
+  });
+
+  it('année gagnante au-dessus du seuil : `tax-year` dit déjà l’essentiel, pas de doublon', () => {
+    expect(at('2026-11-15', year({ netEur: '3000', taxEur: '942' }))).toBeUndefined();
   });
 });

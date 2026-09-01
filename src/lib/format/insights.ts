@@ -176,6 +176,25 @@ function textOf(insight: Insight, opts: RenderOptions): { title: string; detail:
           : `${head} : impôt estimé ${money(insight, 'tax', opts)} sur ${money(insight, 'net', opts, true)} de résultat net.`,
       };
     }
+    case 'tax-year-end': {
+      const year = yearOf(insight, 'year');
+      const n = num(insight, 'count');
+      const head = `En ${year}, ${n} ${plural(n, 'cession imposable', 'cessions imposables')} pour ${money(insight, 'proceeds', opts)}`;
+      // La phrase qui compte le plus. Tous les outils étrangers suggèrent l'inverse, parce qu'ils
+      // servent des régimes à comptabilité PAR LOT ; le 150 VH bis est global, et céder un actif en
+      // perte n'y crée aucune moins-value déductible. La dire coûte une ligne et évite une erreur.
+      const global =
+        'Le choix de l’actif cédé n’y change rien : l’impôt se calcule sur la valeur globale du portefeuille, jamais actif par actif.';
+      if (has(insight, 'deficit'))
+        return {
+          title: 'Fin d’année fiscale',
+          detail: `${head} : l’année est perdante de ${money(insight, 'deficit', opts)}. Cette moins-value ne se reporte pas sur l’année suivante. Jusqu’au ${dayOf(insight, 'deadline')}, une plus-value réalisée s’impute dessus ; après, elle est éteinte. ${global}`,
+        };
+      return {
+        title: 'Fin d’année fiscale',
+        detail: `${head} : sous le seuil de 305 €, vos plus-values de l’année sont exonérées. Ce seuil est une falaise, pas un abattement : au-delà, la totalité des plus-values de l’année devient imposable. Il reste ${money(insight, 'headroom', opts)} de cessions avant de l’atteindre, jusqu’au ${dayOf(insight, 'deadline')}. ${global}`,
+      };
+    }
     case 'xirr':
       return {
         title: 'Rendement personnel',

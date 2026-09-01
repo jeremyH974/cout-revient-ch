@@ -15,7 +15,13 @@
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import type { Insight, InsightCode, InsightTone, InsightValue } from '../domain/insights';
+import {
+  INSIGHT_CODES,
+  type Insight,
+  type InsightCode,
+  type InsightTone,
+  type InsightValue,
+} from '../domain/insights';
 import { D, type DecimalString } from '../domain/money';
 import { fmtMoney } from '../format/fr';
 import { insightsToText, renderInsights } from '../format/insights';
@@ -138,6 +144,17 @@ function valuesArb(code: InsightCode): fc.Arbitrary<Insight['values']> {
           count: { kind: 'count', value: count },
           ...(exempt ? { exempt: { kind: 'count', value: 1 } } : {}),
         }));
+    case 'tax-year-end':
+      // Deux variantes exclusives : déficit d'année, ou marge sous le seuil de 305 €.
+      return fc
+        .tuple(fc.integer({ min: 2019, max: 2035 }), decimalArb, decimalArb, countArb, fc.boolean())
+        .map(([year, proceeds, amount, count, deficit]) => ({
+          year: { kind: 'year', value: year },
+          proceeds: money(proceeds),
+          count: { kind: 'count', value: count },
+          deadline: { kind: 'day', value: `${year}-12-31` },
+          ...(deficit ? { deficit: money(amount) } : { headroom: money(amount) }),
+        }));
     case 'xirr':
       return fc.tuple(ratioArb, dayArb).map(([rate, since]) => ({
         rate: ratio(rate),
@@ -174,23 +191,8 @@ function valuesArb(code: InsightCode): fc.Arbitrary<Insight['values']> {
   }
 }
 
-const CODES: readonly InsightCode[] = [
-  'unqualified',
-  'unpriced',
-  'subscription-net',
-  'fees-12m',
-  'concentration',
-  'top3-share',
-  'max-drawdown',
-  'tax-year',
-  'xirr',
-  'benchmark-gap',
-  'realized',
-  'contribution-top',
-  'contribution-bottom',
-  'capital-recovered',
-  'stablecoin-share',
-];
+/** Dérivée du domaine, jamais recopiée : un code nouveau entre ici tout seul. */
+const CODES: readonly InsightCode[] = INSIGHT_CODES;
 
 const insightArb: fc.Arbitrary<Insight> = fc
   .constantFrom(...CODES)

@@ -1,11 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { Account, AccountId } from '../domain/types';
+import type { Account, AccountId, ManualEvent, StoredColumnMapping } from '../domain/types';
+import type { AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
+import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { aiKey } from '../../state/ai-key.svelte';
 import { mergeStates, parseBackup, serializeBackup } from './json-io';
 import { STORAGE_KEY, clearState, loadState, saveState } from './local-storage';
 import { migrateState } from './migrations';
-import { APP_ID, SCHEMA_VERSION, emptyState, sanitizeState, type StoredStateV1 } from './schema';
+import {
+  APP_ID,
+  SCHEMA_VERSION,
+  emptyState,
+  sanitizeState,
+  type ImportBatchMeta,
+  type StoredStateV1,
+} from './schema';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -423,17 +432,37 @@ describe('comptes', () => {
  * le vérifiait. Ces tests énumèrent les clés de l'état : un conteneur oublié fait rougir la CI, et
  * un nouveau conteneur oblige à décider explicitement de son sort à la fusion.
  */
-describe('complétude du schéma (aucun conteneur ne doit être oublié)', () => {
-  /** Un état dont CHAQUE conteneur porte une donnée reconnaissable et valide. */
+/**
+ * La même surveillance, un cran plus bas : au niveau du CHAMP (décision n° 84).
+ *
+ * TypeScript attrape déjà un champ OBLIGATOIRE oublié par un assainisseur — l'objet reconstruit
+ * serait incomplet. Le trou était celui des champs FACULTATIFS : `foo?: string` ajouté au type et
+ * non recopié compile, passe la CI, et se perd à chaque rechargement.
+ *
+ * D'où les annotations `Required<T>` ci-dessous, qui ferment le piège des DEUX côtés :
+ * — à la compilation, ajouter un facultatif au type rend ce littéral incomplet, et le typecheck
+ *   échoue en nommant le champ ;
+ * — à l'exécution, un champ présent ici mais absent de l'assainisseur fait échouer l'égalité
+ *   stricte plus bas.
+ *
+ * Un test ne peut donc plus rester en retard sur le type qu'il surveille.
+ */
+describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié)', () => {
+  /** Un état dont CHAQUE conteneur porte une donnée valide, et CHAQUE champ facultatif une valeur. */
   function populated(): StoredStateV1 {
     const s = emptyState();
-    s.imports.push({
+    const imported: Required<ImportBatchMeta> = {
       id: 'imp',
       at: '2026-01-01T10:00:00',
       fileName: 'x.csv',
       rows: 1,
       newRows: 1,
-    });
+      format: 'coinhouse',
+      accountId: 'man:invest',
+      header: ['Date', 'Type'],
+      unknownColumns: ['Colonne inconnue'],
+    };
+    s.imports.push(imported);
     s.rawRows['r1'] = row('r1');
     s.pivotRows['p1'] = {
       key: 'p1',
@@ -450,7 +479,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       description: null,
       txHash: null,
     };
-    s.manualEvents['m1'] = {
+    const manual: Required<ManualEvent> = {
       id: 'm1',
       at: '2026-01-01T10:00:00',
       kind: 'buy',
@@ -458,8 +487,10 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       qty: '1',
       amountEur: '2000',
       scope: 'coinhouse',
-      note: '',
+      accountId: 'man:invest',
+      note: 'saisie manuelle',
     };
+    s.manualEvents[manual.id] = manual;
     s.qualifications['ch:r1:0'] = { kind: 'reward', fairValueEur: null };
     s.transferOverrides['ch:r1:0'] = 'none';
     s.duplicateOverrides['e1~e2'] = 'confirmed';
@@ -476,18 +507,43 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       label: 'Manuel',
       createdAt: '2026-01-01T10:00:00',
     };
+    // Un compte deliberement peu plausible — un compte on-chain n'a pas d'appariement de colonnes.
+    // Il n'existe que pour porter TOUS les champs facultatifs a la fois : c'est la seule facon
+    // d'exiger que l'assainisseur les recopie, et `Required<Account>` interdit d'en oublier un.
+    const mapping: Required<StoredColumnMapping> = {
+      headerKey: 'fnv1a',
+      columns: { date: 0, sentAmount: 1 },
+      typeLabels: { Echange: 'trade' },
+      impliedCurrencies: { sentCurrency: 'EUR' },
+      confirmedAt: '2026-01-01T10:00:00Z',
+    };
+    const complete: Required<Account> = {
+      id: 'oc:complet',
+      kind: 'onchain',
+      space: 'invest',
+      label: 'Tous champs',
+      createdAt: '2026-01-01T10:00:00',
+      country: 'CH',
+      spotAsInvestment: true,
+      address: '0xabc',
+      chain: 'arbitrum',
+      columnMapping: mapping,
+    };
+    s.accounts[complete.id] = complete;
     s.hyperliquid.spotPairs['@107'] = { base: 'HYPE', quote: 'USDC' };
-    s.journal['man:t1'] = {
+    const plan: Required<TradePlan> = { entry: '100', stop: '90', target: '130', risk: '10' };
+    const journal: Required<JournalEntry> = {
       tradeId: 'man:t1',
       thesis: 'cassure',
-      review: '',
+      review: 'tenue jusqu’à la cible',
       setup: 'Cassure',
-      tags: [],
-      mistakes: [],
-      rating: null,
-      plan: null,
+      tags: ['momentum'],
+      mistakes: ['stop trop serré'],
+      rating: 4,
+      plan,
     };
-    s.manualTrades['t1'] = {
+    s.journal[journal.tradeId] = journal;
+    const trade: Required<ManualTrade> = {
       id: 't1',
       accountId: 'man:trading',
       symbol: 'ETH',
@@ -500,6 +556,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       fees: '1',
       quote: 'EUR',
     };
+    s.manualTrades[trade.id] = trade;
     s.engineSettings.rewardValuation = 'fair-value';
     // `stale: true` : un cours relu d'une sauvegarde est périmé par définition — l'assainissement
     // le marque, et l'égalité stricte plus bas le prouve.
@@ -511,7 +568,7 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       stale: true,
     };
     s.fx.rates.USD = { '2026-01-01': '1.1' };
-    s.alerts.rules['al:1'] = {
+    const rule: Required<AlertRule> = {
       id: 'al:1',
       asset: 'btc',
       direction: 'below',
@@ -520,13 +577,17 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       enabled: true,
       note: 'seuil de renfort',
       createdAt: '2026-01-01T10:00:00Z',
+      expiresAt: '2026-12-31T23:59:59Z',
+      gate: { kind: 'fear-greed', direction: 'below', value: 25 },
     };
-    s.alerts.states['al:1'] = {
+    s.alerts.rules[rule.id] = rule;
+    const ruleState: Required<AlertRuleState> = {
       armed: false,
       lastTriggeredAtMs: 1_700_000_000_000,
       triggerCount: 1,
     };
-    s.alerts.events.push({
+    s.alerts.states[rule.id] = ruleState;
+    const event: Required<AlertEvent> = {
       id: 'al:e1',
       ruleId: 'al:1',
       asset: 'btc',
@@ -536,7 +597,8 @@ describe('complétude du schéma (aucun conteneur ne doit être oublié)', () =>
       pruEur: '50000',
       at: '2026-01-02T10:00:00Z',
       read: false,
-    });
+    };
+    s.alerts.events.push(event);
     s.alerts.settings.watch = true;
     s.ui.theme = 'light';
     return s;

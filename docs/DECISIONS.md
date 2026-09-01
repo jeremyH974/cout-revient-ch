@@ -1849,3 +1849,83 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     Légifrance ici aurait fait passer une incertitude pour une certitude.
     N'étant pas `in-force`, la ligne apparaît dans le bloc « Veille réglementaire » du rapport —
     exactement ce que ce bloc existe pour porter (n° 80).
+84. **Un test de complétude doit se refermer sur le type qu'il surveille, pas seulement sur ses
+    conteneurs** (01/09/2026, proposition P80). Les assainisseurs de `schema.ts` reconstruisent
+    chaque enregistrement **par liste blanche** : tout champ non recopié est perdu en silence à
+    chaque rechargement. Le test existant n'énumérait que les **conteneurs** de `StoredStateV1` — un
+    cran trop haut.
+    Le trou exact n'était pas celui qu'on croit : un champ **obligatoire** oublié fait déjà échouer
+    le typecheck, l'objet reconstruit étant incomplet. Ce qui passait, c'était le champ
+    **facultatif** — `foo?: string` ajouté au type, non recopié, compile et se perd. Exposition
+    réelle au moment du constat : **treize champs facultatifs sur cinq types**, dont les cinq
+    d'`Account`, dont `coingeckoId` — le réglage que `CLAUDE.md` désigne comme la porte de sortie
+    quand deux projets partagent un symbole. Le perdre en silence rend un prix faux.
+    Le correctif tient en une annotation : `Required<T>` sur chaque littéral du jeu d'essai. Le
+    cliquet se referme **des deux côtés** — à la compilation, ajouter un facultatif au type rend le
+    littéral incomplet et `svelte-check` échoue en nommant le champ ; à l'exécution, un champ présent
+    dans le jeu d'essai mais absent de l'assainisseur fait échouer l'égalité stricte déjà en place.
+    Aucun code de production ne change : la brique est un filet.
+    **Vérifié en le faisant rougir, deux fois.** `ImportBatchMeta.format` retiré de l'assainisseur —
+    un champ qui n'avait **aucun** test dédié, donc exactement le cas silencieux — fait échouer le
+    test ; et un `nickname?: string` ajouté à `Account` fait échouer le **typecheck**, avant même que
+    les tests ne tournent. C'est la n° 75 appliquée à la complétude : exiger que quelque chose
+    fonctionne, plutôt que d'observer que rien n'a échoué.
+85. **Le point de rupture n'est pas où on le cherchait, et sa cause non plus** (01/09/2026,
+    proposition P83). La proposition demandait de chiffrer le comportement à 10 000 et 50 000
+    opérations. La mesure répond que la question ne se pose pas dans ces termes : **tout dépend de
+    la forme du portefeuille**, et les deux formes ne relèvent pas de la même complexité.
+    **Accumulation (DCA pur, aucune cession)** — linéaire, et confortable : 1 000 opérations en
+    3,7 ms, 10 000 en 27,5 ms, **50 000 en 229 ms**. Rien à signaler.
+    **Aller-retour (cessions partielles alternées)** — 50 en 18 ms, 100 en 114 ms, 200 en 1,2 s,
+    **400 en 12,3 s**, et **800 épuise le tas** de Node. Doubler la taille multiplie le temps par
+    ~10 : c'est **cubique**. Le point de rupture est donc autour de **300 opérations** — trois ordres
+    de grandeur sous ce que la proposition supposait.
+    **La cause n'est pas celle qu'on croyait.** L'audit accusait la liste de lots jamais purgée
+    (`position.ts` ne connaît que `push` et l'itération) ; c'est vrai, et cela donne un O(n²) sur la
+    trace `lotsConsumed`. Mais il manquait le second facteur : `fraction = qty.div(this.qty)` porte
+    20 décimales, et `lot.qtyRemaining.times(fraction)` est **exact** — les chiffres s'additionnent
+    donc à chaque cession, sans que rien ne les borne. La précision croît en O(n), et O(n²) × O(n)
+    fait le O(n³) mesuré.
+    **Ce n'est pas un risque futur.** Le jeu de démonstration livré — 115 événements, 43 cessions —
+    porte déjà des quantités à **837 décimales** pour des montants qui en demandent huit. Ce ne sont
+    pas des chiffres significatifs, c'est un artefact de division qui alourdit chaque opération
+    ultérieure et gonfle la trace stockée.
+    **Aucune optimisation ici**, et c'est délibéré (même discipline qu'en n° 81) : borner la
+    précision change des nombres calculés, ce qui exige l'oracle indépendant et une brique à soi.
+    P83 chiffrait ; il a chiffré. La suite est la proposition **P95**.
+    Le garde-fou laissé derrière ne chronomètre rien : il compte deux grandeurs **déterministes** —
+    objets de trace produits, décimales portées — dont le produit EST le coût. Identiques sur toutes
+    les machines, donc jamais clignotantes, et l'ensemble tourne en 0,4 s. Le chronomètre, lui, vit
+    dans `npm run bench`, que la CI ne lance pas.
+86. **La brique demandée aurait été fausse : on livre ce qui est vrai à sa place** (01/09/2026,
+    proposition P94). P94 demandait une vue « compensation de moins-values avant le 31/12 ». En
+    relisant la formule appliquée par `previewCession` :
+    `gain = prix de cession − PTA × (prix de cession ÷ valeur globale)`, le gain imposable ne dépend
+    que du **montant encaissé**, du **PTA** et de la **valeur globale du portefeuille**. Il ne dépend
+    **pas de l'actif cédé**. Vendre 1 000 € de bitcoin ou 1 000 € d'un actif effondré produit
+    exactement le même résultat imposable.
+    La récolte de moins-values de Koinly ou Blockpit suppose une comptabilité **par lot** — c'est le
+    droit américain et allemand, pas l'article 150 VH bis, dont la méthode est **globale**. L'écran
+    demandé aurait donc suggéré une optimisation qui n'existe pas, et il aurait été d'autant plus
+    crédible que c'est le comportement de tous les concurrents.
+    **Ce qui est réellement vrai au 31 décembre**, en droit français, tient en deux faits que
+    l'utilisateur ne peut déduire d'aucun de ses chiffres : une **moins-value nette d'année ne se
+    reporte pas** (au 1er janvier elle est éteinte, et d'ici là toute plus-value réalisée s'impute
+    dessus) ; et les **305 € sont une falaise, pas un abattement** (au premier centime au-dessus, la
+    totalité des plus-values de l'année devient imposable). Le constat `tax-year-end` les énonce, au
+    dernier trimestre seulement, et porte une troisième phrase qui vaut peut-être plus que les deux
+    autres : **le choix de l'actif cédé n'y change rien**. Elle existe pour désamorcer la croyance
+    importée, et un test l'exige dans les deux variantes du constat.
+    **Frontière tenue** (n° 43 et 50) : le constat énonce un fait de droit, chiffré sur la situation
+    de l'utilisateur, et dit à quelle date il cesse d'être vrai. Il ne recommande aucune vente, ne
+    classe aucun actif « à céder », ne calcule aucun montant « optimal », et son ton reste `neutral`
+    — `attention` se lirait comme une incitation à agir avant l'échéance. Un test énumère les
+    formulations de conseil interdites.
+    **L'horloge vient de l'appelant**, comme `taxYear` avant lui : le moteur ne devine jamais quel
+    jour on est, et sans `today` aucun constat daté n'est émis.
+    **Deux trous trouvés en chemin, tous deux comblés.** `ALL_CODES`, dans le test de rendu, était
+    une liste **recopiée à la main** : un code nouveau échappait en silence aux règles transversales.
+    Elle est désormais **dérivée** du registre d'échantillons, que le typage rend déjà exhaustif.
+    Et cette dérivation ne suffit pas quand un code a **deux variantes** — elle n'en exerce qu'une,
+    celle de l'échantillon ; la contre-épreuve du tiret cadratin est passée au vert avant qu'on ne
+    rejoue les règles transversales sur la seconde variante.

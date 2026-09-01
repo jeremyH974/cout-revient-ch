@@ -84,6 +84,7 @@
       risk,
       tax,
       taxYear: Number(generatedAt.slice(0, 4)),
+      today: generatedAt.slice(0, 10),
     }),
   );
 
