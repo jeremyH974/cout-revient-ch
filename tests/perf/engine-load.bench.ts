@@ -34,8 +34,7 @@ describe('aller-retour (achats et cessions partielles alternés) — mesuré cub
     const events = roundTrip(n);
     bench(`${n} opérations`, () => void runLedger(events, DEFAULT_ENGINE_SETTINGS), quick);
   }
-  // 800 épuise le tas de Node (worker tué) : la mesure s'arrête à la dernière taille calculable.
-  for (const n of [400]) {
+  for (const n of [400, 800, 1600, 3200]) {
     const events = roundTrip(n);
     bench(`${n} opérations`, () => void runLedger(events, DEFAULT_ENGINE_SETTINGS), once);
   }

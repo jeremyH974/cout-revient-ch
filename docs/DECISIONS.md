@@ -1929,3 +1929,29 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     Et cette dérivation ne suffit pas quand un code a **deux variantes** — elle n'en exerce qu'une,
     celle de l'échantillon ; la contre-épreuve du tiret cadratin est passée au vert avant qu'on ne
     rejoue les règles transversales sur la seconde variante.
+87. **Borner la précision là où elle n'est qu'un artefact de division** (01/09/2026, proposition
+    P95). La n° 85 avait chiffré le O(n³) sans le corriger, faute de savoir ce qu'un arrondi
+    déplacerait. La réponse est : **rien de financier**. `this.qty` et `this.costBasis` sont tenus
+    indépendamment des lots (`position.ts`), le coût de cession et le PRU en dérivent, et les lots
+    ne portent que la trace « quels achats ont payé cette vente ? » et l'affichage par lot. Le
+    risque redouté n'existait pas.
+    `LOT_DP = 18` — la précision du wei, quand le satoshi n'en demande que huit. Au-delà, ce ne sont
+    plus des chiffres significatifs : `fraction` porte les 30 décimales de `Big.DP` et `times` est
+    exact, donc sans borne les chiffres s'additionnent à **chaque** cession.
+    **Le résidu d'arrondi va au plus gros lot consommé**, pour que `Σ takenQty = qty` reste vrai par
+    construction et non par tolérance. Au plus gros et non au dernier : sa part dépasse la somme des
+    arrondis de plusieurs ordres de grandeur, donc il ne peut pas passer sous zéro. Ce n'est pas du
+    zèle — sans lui, la dérive vaut `k × n × 0,5·10⁻¹⁸`, ce qui franchit la tolérance de 10⁻¹² du
+    test de propriété précisément à l'échelle que ce correctif rend atteignable.
+    **Mesure.** 400 opérations aller-retour : **12 291 ms → 90 ms**, soit ×137. Le point de rupture
+    passe de **~300 à ~2 500 opérations**, et 800 n'épuise plus le tas. La courbe est désormais
+    franchement quadratique (×4,1 puis ×4,4 puis ×4,8 par doublement) : 800 en 374 ms, 1 600 en
+    1,65 s, 3 200 en 7,9 s.
+    **Le quadratique restant n'est pas traité, et c'est délibéré.** Sa cause est autre : la liste de
+    lots que `position.ts` ne purge jamais, et que la méthode proportionnelle n'épuise jamais. La
+    corriger toucherait la sémantique de la trace, pas seulement sa précision — c'est une brique à
+    soi, plus risquée, et le chiffre ci-dessus dit qu'elle n'est plus urgente.
+    **Le garde-fou de la n° 85 a fait exactement son travail** : sur les 1 718 tests, les deux seuls
+    à rougir ont été ses deux assertions décrivant le défaut — l'oracle indépendant et l'invariant
+    « Σ lots = qty » (150 tirages) sont restés verts. Un garde-fou qui réclame la mise à jour de son
+    propre constat quand on améliore le code vaut mieux qu'un seuil qu'on relève sans y penser.

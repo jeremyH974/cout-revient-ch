@@ -8,12 +8,18 @@
  * machines, à tous les runs — et qui sont exactement les deux causes du coût observé au banc
  * d'essai (`engine-load.bench.ts`) :
  *
- * 1. le nombre d'objets `LotConsumption` produits, en **O(n²)** ;
- * 2. le nombre de décimales portées par les quantités, en **O(n)**.
+ * 1. le nombre d'objets `LotConsumption` produits, en **O(n²)** — toujours vrai ;
+ * 2. le nombre de décimales portées par les quantités — **borné depuis la décision n° 87**.
  *
- * Leur produit est le O(n³) mesuré. Les chiffres ci-dessous sont un **constat de l'état actuel**,
- * pas une cible : ils doivent changer le jour où quelqu'un s'attaque au sujet, et ce test est là
- * pour l'exiger plutôt que pour le subir.
+ * Leur produit faisait le O(n³) de la décision n° 85 (12,3 s pour 400 opérations). Le second
+ * facteur ayant été borné, il ne reste que le quadratique, et 400 opérations passent en 127 ms.
+ *
+ * Le quadratique restant a sa propre cause, non traitée : `position.ts` ne purge jamais sa liste
+ * de lots, et la méthode proportionnelle n'en épuise aucun. C'est un autre sujet, plus risqué —
+ * il touche la sémantique de la trace, pas seulement sa précision.
+ *
+ * Les chiffres ci-dessous sont un **constat de l'état actuel**, pas une cible : ils doivent changer
+ * le jour où quelqu'un s'attaque au quadratique, et ce test est là pour l'exiger.
  */
 import { describe, expect, it } from 'vitest';
 import { runLedger } from '../../src/lib/domain/engine/compute';
@@ -55,20 +61,21 @@ describe('charge du moteur', () => {
     expect(ratio, 'au-delà, la complexité a empiré').toBeLessThan(4.6);
   });
 
-  it('la précision des quantités croît en O(n) : chaque cession ajoute des chiffres', () => {
-    expect(small.maxDecimals).toBe(692);
-    expect(large.maxDecimals).toBe(1501);
-    // `fraction = qty.div(this.qty)` porte 20 décimales ; `lot.qtyRemaining.times(fraction)` est
-    // exact, donc les chiffres s'ADDITIONNENT à chaque cession. Rien ne les borne.
-    const ratio = large.maxDecimals / small.maxDecimals;
-    expect(ratio, 'linéaire attendu').toBeGreaterThan(1.7);
-    expect(ratio, 'au-delà, la précision s’emballe plus vite qu’avant').toBeLessThan(2.6);
+  it('la précision des quantités est BORNÉE : elle ne dépend plus de la taille', () => {
+    // Avant la décision n° 87, ces deux nombres valaient 692 et 1501 : `fraction` portait les 30
+    // décimales de `Big.DP` et `times` étant exact, les chiffres s'additionnaient à chaque
+    // cession. C'était le facteur O(n) qui, multiplié par l'O(n²) ci-dessus, faisait un O(n³).
+    expect(small.maxDecimals).toBe(18);
+    expect(large.maxDecimals).toBe(18);
+    // Le vrai constat : doubler la taille ne change plus rien. C'est cette égalité, et non une
+    // borne supérieure, qui dit que la croissance a bien disparu.
+    expect(large.maxDecimals).toBe(small.maxDecimals);
   });
 
-  it('mille cinq cents décimales pour une quantité qui en demande huit', () => {
-    // Le constat qui explique tout le reste : ce ne sont pas des chiffres significatifs, c'est un
-    // artefact de division. Le coût arithmétique de chaque opération croît donc avec l'historique.
-    expect(large.maxDecimals).toBeGreaterThan(1000);
+  it('dix-huit décimales, la précision du wei — et pas une de plus', () => {
+    // `LOT_DP` dans `position.ts`. Si quelqu'un remonte cette borne, ce test le dira : au-delà, ce
+    // ne sont plus des chiffres significatifs mais un artefact de division qui coûte cher.
+    expect(large.maxDecimals).toBeLessThanOrEqual(18);
   });
 
   it('sans cession, rien de tout cela : l’accumulation seule reste linéaire', () => {

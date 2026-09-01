@@ -6,6 +6,24 @@ import { D, ZERO, isPositive, isZero, type Big } from '../money';
 import type { AccountId, AssetCode, EventId, NaiveDateTime, QuotePrice, RowKey } from '../types';
 import type { BlockedInfo, HistoryEntry, HistoryKind, LotConsumption, LotOrigin } from './report';
 
+/**
+ * Décimales conservées sur la part prise à un lot (décision n° 87).
+ *
+ * Dix-huit, parce que c'est la précision du wei — l'unité la plus fine de tout l'écosystème, quand
+ * le satoshi n'en demande que huit. Au-delà, ce ne sont plus des chiffres significatifs : c'est un
+ * artefact de division. `fraction` porte les 30 décimales de `Big.DP`, et `times` est **exact**,
+ * donc sans borne les chiffres s'additionnent à CHAQUE cession — la précision croît en O(n), et
+ * c'est elle qui rendait le moteur cubique (décision n° 85, 12,3 s pour 400 opérations).
+ *
+ * Borner ici est sans effet sur le moindre chiffre financier : `this.qty` et `this.costBasis` sont
+ * tenus indépendamment des lots, et le PRU comme le coût de cession en dérivent. Les lots ne
+ * portent que la trace « quels achats ont payé cette vente ? » et l'affichage par lot.
+ */
+const LOT_DP = 18;
+
+/** L'arrondi suit `Big.RM`, réglé une fois pour toutes en banquier dans `money.ts`. */
+const roundLot = (value: Big): Big => value.round(LOT_DP);
+
 export interface Lot {
   id: string;
   eventId: EventId;
@@ -179,10 +197,31 @@ export class PositionState {
     // La part prise à chaque lot est déjà calculée ici : la consigner ne coûte rien et c'est la
     // seule façon de répondre plus tard à « quels achats ont payé cette vente ? ».
     const lotsConsumed: LotConsumption[] = [];
-    for (const lot of this.lots) {
-      if (!isPositive(lot.qtyRemaining)) continue;
-      const takenQty = fraction === null ? lot.qtyRemaining : lot.qtyRemaining.times(fraction);
-      const takenCost = fraction === null ? lot.costRemaining : lot.costRemaining.times(fraction);
+    const eligible = this.lots.filter((lot) => isPositive(lot.qtyRemaining));
+    const taken = eligible.map((lot) =>
+      fraction === null
+        ? { qty: lot.qtyRemaining, cost: lot.costRemaining }
+        : {
+            qty: roundLot(lot.qtyRemaining.times(fraction)),
+            cost: roundLot(lot.costRemaining.times(fraction)),
+          },
+    );
+    // Le résidu d'arrondi va au PLUS GROS lot consommé, pour que les sommes soient exactes par
+    // construction plutôt que par tolérance. Au plus gros et non au dernier : sa part dépasse la
+    // somme des arrondis de plusieurs ordres de grandeur, donc il ne peut pas passer sous zéro.
+    if (fraction !== null && taken.length > 0) {
+      let biggest = 0;
+      for (let i = 1; i < taken.length; i++) if (taken[i]!.qty.gt(taken[biggest]!.qty)) biggest = i;
+      const sumQty = taken.reduce((acc, t) => acc.plus(t.qty), ZERO);
+      const sumCost = taken.reduce((acc, t) => acc.plus(t.cost), ZERO);
+      taken[biggest] = {
+        qty: taken[biggest]!.qty.plus(qty.minus(sumQty)),
+        cost: taken[biggest]!.cost.plus(costOfSale.minus(sumCost)),
+      };
+    }
+    for (let i = 0; i < eligible.length; i++) {
+      const lot = eligible[i]!;
+      const { qty: takenQty, cost: takenCost } = taken[i]!;
       lotsConsumed.push({
         lotId: lot.id,
         eventId: lot.eventId,

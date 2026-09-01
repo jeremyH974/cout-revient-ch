@@ -267,7 +267,7 @@ pris — décision n° 69).
 | P80 | **Livré (01/09/2026, décision n° 84).** Complétude des sanitizers vérifiée au niveau du champ                                                 |   1    |     5     |    0    |    1     |   6    |
 | P83 | **Livré (01/09/2026, décision n° 85).** Point de rupture chiffré : ~300 cessions, pas 10 000                                                  |   1    |     4     |    1    |    1     |   6    |
 | P94 | **Livré autrement (01/09/2026, décision n° 86).** La compensation par actif n'existe pas sous le 150 VH bis ; constat « fin d'année fiscale » |   5    |     2     |    5    |    2     |   6    |
-| P95 | **Née de P83.** Borner la précision décimale des lots : le moteur est cubique au-delà de ~300 cessions                                        |   4    |     3     |    3    |    2     |   5    |
+| P95 | **Livré (01/09/2026, décision n° 87).** Précision des lots bornée : ×137, rupture repoussée à ~2 500 cessions                                 |   4    |     3     |    3    |    2     |   5    |
 | P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`                                                                  |   0    |     5     |    0    |    1     |   5    |
 | P89 | Macro européenne : BCE, Eurostat, Frankfurter                                                                                                 |   4    |     2     |    4    |    2     |   5    |
 | P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                                                                               |   1    |     3     |    1    |    1     |   5    |
