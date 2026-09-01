@@ -23,7 +23,7 @@
  */
 
 /** Institution qui publie. Voir `sources.ts` pour ce que chacune exige en retour. */
-export type MacroSourceId = 'treasury' | 'fed' | 'eia';
+export type MacroSourceId = 'treasury' | 'fed' | 'eia' | 'ecb';
 
 /**
  * Ce qui a été fait à la série avant de la classer.

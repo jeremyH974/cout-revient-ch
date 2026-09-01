@@ -503,6 +503,25 @@ await check(
   },
 );
 
+await check(
+  'BCE, taux de la facilité de dépôt (générateur macro)',
+  'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.LEV?lastNObservations=1&format=csvdata',
+  (_json, _headers, text) => {
+    const problems = [];
+    // La clé de série ET les colonnes nommées : le parseur dépend des deux, et une réponse 200 qui
+    // aurait renommé l'une des deux rendrait une série vide sans rien dire.
+    if (!text.includes('FM.D.U2.EUR.4F.KR.DFR.LEV')) problems.push('clé de série absente');
+    if (!text.includes('TIME_PERIOD')) problems.push('colonne TIME_PERIOD absente');
+    if (!text.includes('OBS_VALUE')) problems.push('colonne OBS_VALUE absente');
+    return problems;
+  },
+  // Le portail de la BCE HONORE la négociation de contenu, contrairement au Trésor et à la Fed :
+  // avec l'`accept: application/json` par défaut du contrôleur, il rend du SDMX-JSON et le contrôle
+  // validerait un document que le générateur ne lit jamais. Demander la même représentation que lui
+  // est la seule façon de vérifier le contrat qui compte.
+  { headers: { accept: 'text/csv' } },
+);
+
 const stampedAt = new Date().toISOString();
 const report = summarise(results, stampedAt.slice(0, 10), stampedAt);
 

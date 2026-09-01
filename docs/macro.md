@@ -33,6 +33,7 @@ transformées **avant** d'être classées, et l'écran annonce la transformation
 | Taux à 10 ans               | niveau                | 1 an, 5 ans       | Trésor | quotidienne  |
 | Pente 10 ans − 2 ans        | niveau                | 1 an, 10 ans      | Trésor | quotidienne  |
 | Pétrole WTI                 | variation sur 12 mois | 1 an, 5 ans       | EIA    | quotidienne  |
+| Taux directeur de la BCE    | niveau                | 1 an, 5 ans       | BCE    | quotidienne  |
 
 Le pétrole n'apparaît que si le secret `EIA_API_KEY` est disponible ; sinon l'écran dit que
 l'indicateur manque et pourquoi, plutôt que de le faire disparaître en silence.
@@ -78,6 +79,19 @@ ligne d'en-tête (`RESH4R_N.WW` pour les réserves), jamais sur le libellé ni s
 identifiant absent **fait échouer la génération** plutôt que de produire un indicateur muet — ou
 pire, de décaler silencieusement sur la mauvaise série.
 
+### La BCE se choisit par nom de colonne, et honore la négociation de contenu
+
+Le portail de données de la BCE rend du SDMX-CSV avec un **en-tête nommé** (`TIME_PERIOD`,
+`OBS_VALUE`) : les colonnes s'y choisissent par leur nom, ce qui est encore plus solide que la
+sélection par identifiant du CSV de la Fed. La colonne `KEY` répète la clé de série complète et le
+parseur la vérifie — si la BCE renommait sa clé, la série serait **vide**, donc arrêtée par la
+barrière, plutôt que remplie par les chiffres d'une série voisine.
+
+Un piège qui a coûté un aller-retour : **la BCE honore la négociation de contenu**, contrairement au
+Trésor et à la Fed. Le contrôleur de contrat envoie `accept: application/json` par défaut, et
+recevait donc du SDMX-JSON — il validait un document que le générateur ne lit jamais. Le contrôle
+demande désormais explicitement `text/csv`.
+
 ### Les barrières
 
 Le générateur refuse d'écrire si un indicateur obligatoire manque, si une observation est trois fois
@@ -113,13 +127,14 @@ pas chargé d'office depuis cet écran.
 C'est la conclusion la plus utile de cette brique : **la licence d'une source choisit son mode de
 transport**, pas la commodité technique.
 
-| Source           | Stockage et redistribution                                                                                            | Mode         |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------- | ------------ |
-| Réserve fédérale | « in the public domain and may be copied and distributed without permission. Please cite to the Board as the source » | instantané   |
-| EIA              | « U.S. government publications are in the public domain » ; mention recommandée                                       | instantané   |
-| Trésor américain | domaine public par défaut (17 U.S.C. § 105) ; aucune clause contraire trouvée, aucune clause explicite lue non plus   | instantané   |
-| DefiLlama        | « republish the data in any form without permission » **interdit** ; usage personnel autorisé                         | appel direct |
-| Cboe (VIX)       | « store … in an electronic retrieval system » **interdit** sans accord écrit                                          | abandonné    |
+| Source           | Stockage et redistribution                                                                                                    | Mode         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| Réserve fédérale | « in the public domain and may be copied and distributed without permission. Please cite to the Board as the source »         | instantané   |
+| BCE              | « users of this website may make free use of the information obtained directly from it… the ECB must be cited as the source » | instantané   |
+| EIA              | « U.S. government publications are in the public domain » ; mention recommandée                                               | instantané   |
+| Trésor américain | domaine public par défaut (17 U.S.C. § 105) ; aucune clause contraire trouvée, aucune clause explicite lue non plus           | instantané   |
+| DefiLlama        | « republish the data in any form without permission » **interdit** ; usage personnel autorisé                                 | appel direct |
+| Cboe (VIX)       | « store … in an electronic retrieval system » **interdit** sans accord écrit                                                  | abandonné    |
 
 Toutes sont inscrites au catalogue d'attributions
 ([`sources.ts`](../src/lib/support/sources.ts)), dont le test croise désormais les instantanés

@@ -10,10 +10,12 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
+  ECB_DFR_ID,
   FED_RESERVES_ID,
   buildIndicator,
   gateProblems,
   parseEia,
+  parseEcbSdmxCsv,
   parseFedCsv,
   parseTreasuryXml,
   ranksOf,
@@ -308,5 +310,41 @@ describe('écriture', () => {
     const b = render({ ...snapshot, generatedAt: '2027-01-01T00:00:00Z' });
     expect(a).not.toBe(b);
     expect(withoutStamp(a)).toBe(withoutStamp(b));
+  });
+});
+
+/**
+ * Le taux directeur de la BCE, au format SDMX-CSV du portail de données (décision n° 93).
+ *
+ * Le fichier porte un en-tête NOMMÉ (`TIME_PERIOD`, `OBS_VALUE`), donc les colonnes se choisissent
+ * par leur nom — encore plus solide que la sélection par identifiant du CSV de la Fed, qui doit
+ * chercher `RESH4R_N.WW` parmi des dizaines de colonnes anonymes.
+ */
+describe('série SDMX de la BCE', () => {
+  const ECB_CSV = readFileSync(join(FIXTURES, 'ecb-deposit-rate.csv'), 'utf8');
+
+  it('lit la série demandée, triée, sans point aberrant', () => {
+    const series = parseEcbSdmxCsv(ECB_CSV, ECB_DFR_ID);
+    expect(series.length).toBeGreaterThan(20);
+    for (const point of series) {
+      expect(point.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(Number.isFinite(point.value)).toBe(true);
+      // Un taux directeur de la zone euro tient largement dans ces bornes depuis 1999.
+      expect(point.value).toBeGreaterThan(-2);
+      expect(point.value).toBeLessThan(10);
+    }
+    const days = series.map((p) => p.day);
+    expect([...days].sort()).toEqual(days);
+  });
+
+  it('une clé de série qui a changé rend une série VIDE, jamais des chiffres d’une autre série', () => {
+    // C'est le point du contrôle sur la colonne `KEY` : si la BCE renomme sa clé, mieux vaut zéro
+    // point — que la barrière du générateur attrapera — qu'un taux pris dans une série voisine.
+    expect(parseEcbSdmxCsv(ECB_CSV, 'FM.D.U2.EUR.4F.KR.CLE.INVENTEE')).toEqual([]);
+  });
+
+  it('un en-tête sans les colonnes attendues ne devine rien', () => {
+    expect(parseEcbSdmxCsv('A,B,C\n1,2,3\n', ECB_DFR_ID)).toEqual([]);
+    expect(parseEcbSdmxCsv('', ECB_DFR_ID)).toEqual([]);
   });
 });

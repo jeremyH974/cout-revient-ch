@@ -2125,6 +2125,18 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     minimum 4 »). Sept cliquets existants ont réclamé leur dû à l'ajout de ces sources — natures,
     rangs, entretien, origines CSP, attributions — ce qui est exactement ce pour quoi ils ont été
     écrits.
+    **Le taux directeur de la BCE entre aussi dans l'instantané macro.** Le portail de données rend
+    du SDMX-CSV avec un en-tête **nommé** (`TIME_PERIOD`, `OBS_VALUE`) : les colonnes s'y choisissent
+    par leur nom, ce qui est plus solide encore que la sélection par identifiant du CSV de la Fed. La
+    colonne `KEY` répète la clé de série et le parseur la vérifie — une clé renommée rend une série
+    **vide**, donc arrêtée par la barrière, plutôt que remplie par les chiffres d'une série voisine.
+    Un test l'exige nommément.
+    **Un piège qui a coûté un aller-retour** : la BCE **honore la négociation de contenu**,
+    contrairement au Trésor et à la Fed. Le contrôleur de contrat envoie `accept: application/json`
+    par défaut et recevait donc du SDMX-JSON — il validait un document que le générateur ne lit
+    jamais, et se déclarait « conforme » sur du vide. Le contrôle demande désormais explicitement
+    `text/csv`. La leçon générale : **un contrôle de contrat doit demander la même représentation que
+    le code qu'il protège**, sans quoi il surveille autre chose.
     **Frankfurter reste hors périmètre** : il ne sert que la conversion de change, jamais les taux
     directeurs ni les dates. Son point d'entrée `/v1/` a été vérifié comme un simple miroir BCE non
     mélangé, malgré une v2 « multi-fournisseurs » parue en mai 2026 — c'est un risque de dérive à

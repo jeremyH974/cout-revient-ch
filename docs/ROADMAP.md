@@ -269,7 +269,7 @@ pris — décision n° 69).
 | P94 | **Livré autrement (01/09/2026, décision n° 86).** La compensation par actif n'existe pas sous le 150 VH bis ; constat « fin d'année fiscale » |   5    |     2     |    5    |    2     |   6    |
 | P95 | **Livré (01/09/2026, décision n° 87).** Précision des lots bornée : ×137, rupture repoussée à ~2 500 cessions                                 |   4    |     3     |    3    |    2     |   5    |
 | P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`                                                                  |   0    |     5     |    0    |    1     |   5    |
-| P89 | Macro européenne : BCE, Eurostat, Frankfurter                                                                                                 |   4    |     2     |    4    |    2     |   5    |
+| P89 | **Livré (01/09/2026, décision n° 93).** Calendrier BCE et Eurostat, taux directeur BCE à l'instantané                                         |   4    |     2     |    4    |    2     |   5    |
 | P90 | **Livré (01/09/2026, décision n° 92).** Deux régimes de protocole en parallèle ; `server/discover` livré                                      |   1    |     3     |    1    |    1     |   5    |
 | P82 | **Livré autrement (01/09/2026, décision n° 89).** Aucun échelon historique n'existe ; la chaîne et son cliquet sont bâtis à froid             |   1    |     5     |    0    |   1,5    |   4    |
 | P88 | **Abandonné (01/09/2026, décision n° 91).** Redistribution interdite par les CGU CoinGecko, et série figée = risque sous-estimé               |   3    |     4     |    1    |    2     |   4    |
