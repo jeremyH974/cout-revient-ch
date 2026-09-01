@@ -244,6 +244,51 @@ Le ROI brut ne fait pas tout : l'ordre ci-dessous tient compte de l'**urgence** 
 staking arrivent), des **dépendances** (P4 avant P5, car P5 réécrit l'import) et du **risque**
 (P13 : juridique → dernier, avec garde-fous).
 
+### 3 quater. Propositions issues du réaudit du 01/09/2026 (état de l'art contre la 2.15.0)
+
+Détail, arbitrage et limites :
+[`proposals/2026-09-01-etat-de-lart-reaudit.md`](proposals/2026-09-01-etat-de-lart-reaudit.md).
+L'étude d'origine (31/08) ayant été écrite contre la 2.12.0 sans voir 49 commits déjà fusionnés, sa
+numérotation P52-P73 est caduque ; ces vingt survivantes sont renumérotées à partir de P75 (P74 est
+pris — décision n° 69).
+
+| #   | Proposition                                                                               | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |
+| --- | ----------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: |
+| P76 | Garde anti-injection de formule dans l'export CSV (`=`, `+`, `-`, `@`)                    |   0    |     4     |    1    |   0,25   | **20** |
+| P78 | `.gitignore` : `.claude/worktrees/`, aujourd'hui protégé par un exclude local seulement   |   0    |     2     |    0    |   0,1    | **20** |
+| P81 | L'échec du miroir `localStorage` remonte dans les auto-vérifications au lieu d'être tu    |   1    |     5     |    1    |   0,5    | **14** |
+| P92 | La source du taux fiscal s'affiche **à côté** du chiffre, pas seulement dans la veille    |   2    |     4     |    1    |   0,5    | **14** |
+| P77 | Texte libre neutralisé avant exposition MCP (`note: rule.note`, `tools.ts:237`)           |   1    |     5     |    0    |   0,5    | **12** |
+| P79 | `coverage.include` étendu à `src/state` et `src/components`, seuil bas non nul            |   1    |     5     |    0    |   0,5    | **12** |
+| P85 | `$state.snapshot` hors du `$effect` ; `localeCompare` de `sortEvents` → comparaison ASCII |   1    |     2     |    3    |   0,5    | **12** |
+| P87 | Surveillance étendue aux sources des générateurs (Treasury, Fed, BEA, EIA, BLS)           |   1    |     4     |    0    |   0,5    | **10** |
+| P86 | Éviction du cache d'historique de prix, aujourd'hui à croissance monotone                 |   0    |     3     |    1    |   0,5    |   8    |
+| P93 | Régime des perpetuals documenté (art. 150 ter) **et son incertitude nommée**              |   3    |     4     |    1    |    1     |   8    |
+| P80 | Test de complétude des sanitizers **au niveau des champs**, pas des conteneurs            |   1    |     5     |    0    |    1     |   6    |
+| P83 | Test de charge à 10 000 et 50 000 opérations : chiffrer le point de rupture               |   1    |     4     |    1    |    1     |   6    |
+| P94 | Vue « compensation de moins-values avant le 31/12 »                                       |   5    |     2     |    5    |    2     |   6    |
+| P75 | `require-trusted-types-for 'script'` — **reclassée urgente**, voir § 3.1 de l'étude       |   0    |     5     |    0    |    1     |   5    |
+| P89 | Macro européenne : BCE, Eurostat, Frankfurter                                             |   4    |     2     |    4    |    2     |   5    |
+| P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                           |   1    |     3     |    1    |    1     |   5    |
+| P82 | Un échelon de migration de schéma réel, avec son test (`SCHEMA_VERSION` figé à 1)         |   1    |     5     |    0    |   1,5    |   4    |
+| P88 | Instantané committé de l'historique long ; CoinGecko réduit au prix du jour               |   3    |     4     |    1    |    2     |   4    |
+| P91 | Listes énumérables d'`ARCHITECTURE.md` adossées à un test (patron de `csp.test.ts`)       |   0    |     3     |    1    |    1     |   4    |
+| P84 | Dérivations restantes extraites d'`app.svelte.ts` vers `src/lib/`, en fonctions testables |   2    |     4     |    1    |   2,5    |  2,8   |
+
+**P79 avant tout le reste** : sans le périmètre de couverture étendu, rien ne mesurera l'effet de
+P84. La zone hors mesure est passée de 17 477 à **20 844 lignes** en 49 commits — l'écart se creuse à
+la vitesse où le produit avance.
+
+**P75 a changé de nature** et ne relève plus du confort : la décision n° 69 a inscrit
+`api.anthropic.com` en `connect` dans une CSP **statique**, donc autorisée pour tous les utilisateurs,
+y compris ceux qui ne colleront jamais de clé. Une XSS dispose désormais d'un point d'entrée
+générique acceptant un POST libre, ce qui n'existait pas le 31/08.
+
+**Deux propositions de l'étude sont livrées** et ne figurent pas ici : la barrière du BLS
+(décision n° 72) et le renvoi 3916-bis avec la note DAC8 (décision n° 62). Quatre autres ont
+**rétréci** plutôt que disparu — P84, P87, P92 et P93 sont leurs versions réduites à ce qui reste
+à faire.
+
 ## 4. Ordre d'exécution recommandé
 
 ### Phase 0 — Socle de confiance (≈ 3 sessions, à faire en premier)
