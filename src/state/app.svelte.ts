@@ -48,6 +48,7 @@ import {
   type TraceTarget,
 } from '$lib/domain/engine';
 import { computeDeclarations, type DeclarationReport } from '$lib/domain/declarations-fr';
+import { createHistoryStore } from '$lib/history/cache';
 import { buildInsights, type Insight } from '$lib/domain/insights';
 import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
@@ -2321,6 +2322,25 @@ export class AppState {
     this.ensureAlertWatch();
     this.updateAppBadge();
     return { ok: true };
+  }
+
+  /**
+   * L'effacement DEMANDÉ par l'utilisateur — à ne pas confondre avec `clearAll()` (décision n° 88).
+   *
+   * `clearAll()` sert aussi à quitter la démo : y loger la purge du cache d'historique viderait
+   * les cours réels de l'utilisateur au retour de la démonstration. L'effacement est donc un geste
+   * à part, et c'est LUI qui doit tenir la promesse faite par la boîte de dialogue — « supprime
+   * l'historique importé, vos saisies et vos réglages ». Sans la ligne ci-dessous, la base
+   * `crch-history` survivait à cet effacement, avec une entrée par actif : la liste complète de
+   * tout ce qui a été détenu, sur une machine peut-être partagée.
+   */
+  async eraseAll(): Promise<void> {
+    this.clearAll();
+    try {
+      await createHistoryStore().clear();
+    } catch {
+      /* un cache qui refuse de se vider ne doit pas bloquer l'effacement du reste */
+    }
   }
 
   clearAll(): void {

@@ -46,6 +46,14 @@ export class MemoryHistoryStore implements HistoryStore {
     this.meta.set(key, structuredClone(value));
   }
 
+  async cachedAssets(): Promise<AssetCode[]> {
+    return [...this.daily.keys()];
+  }
+
+  async deleteDaily(asset: AssetCode): Promise<void> {
+    this.daily.delete(asset);
+  }
+
   async clear(): Promise<void> {
     this.daily.clear();
     this.meta.clear();
@@ -135,6 +143,17 @@ export class IndexedDbHistoryStore implements HistoryStore {
 
   async putMeta(key: string, value: unknown): Promise<void> {
     await this.run([META_STORE], 'readwrite', (tx) => tx.objectStore(META_STORE).put(value, key));
+  }
+
+  async cachedAssets(): Promise<AssetCode[]> {
+    const keys = await this.run<IDBValidKey[]>([DAILY_STORE], 'readonly', (tx) =>
+      tx.objectStore(DAILY_STORE).getAllKeys(),
+    );
+    return (keys ?? []).filter((key): key is AssetCode => typeof key === 'string');
+  }
+
+  async deleteDaily(asset: AssetCode): Promise<void> {
+    await this.run([DAILY_STORE], 'readwrite', (tx) => tx.objectStore(DAILY_STORE).delete(asset));
   }
 
   async clear(): Promise<void> {

@@ -262,7 +262,7 @@ pris — décision n° 69).
 | P79 | **Livré (01/09/2026, décision n° 78).** Périmètre de couverture élargi et borné par zone                                                      |   1    |     5     |    0    |   0,5    | **12** |
 | P85 | **Livré (01/09/2026, décision n° 81).** Tri par unités de code, prouvé équivalent                                                             |   1    |     2     |    3    |   0,5    | **12** |
 | P87 | **Livré (01/09/2026, décision n° 82).** Surveillance étendue aux sources des générateurs                                                      |   1    |     4     |    0    |   0,5    | **10** |
-| P86 | Éviction du cache d'historique de prix, aujourd'hui à croissance monotone                                                                     |   0    |     3     |    1    |   0,5    |   8    |
+| P86 | **Livré (01/09/2026, décision n° 88).** Éviction du cache — et l'effacement total qui n'effaçait pas ce cache                                 |   0    |     3     |    1    |   0,5    |   8    |
 | P93 | **Livré (01/09/2026, décision n° 83).** Régime des perpetuals documenté et son incertitude nommée                                             |   3    |     4     |    1    |    1     |   8    |
 | P80 | **Livré (01/09/2026, décision n° 84).** Complétude des sanitizers vérifiée au niveau du champ                                                 |   1    |     5     |    0    |    1     |   6    |
 | P83 | **Livré (01/09/2026, décision n° 85).** Point de rupture chiffré : ~300 cessions, pas 10 000                                                  |   1    |     4     |    1    |    1     |   6    |

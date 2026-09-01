@@ -33,6 +33,7 @@ import {
   type PriceSource,
   type ValuePoint,
 } from '$lib/history';
+import { pruneHistory } from '$lib/history/evict';
 import { intradayValueSeries, type IntradayValuePoint } from '$lib/history/intraday-series';
 import type { MetricPoint } from '$lib/history/metrics';
 import {
@@ -166,6 +167,10 @@ export class HistoryState {
     // écartés. L'appel est dédoublonné et mis en cache par `ensureRates`.
     await app.ensureRates('USD');
     this.store ??= createHistoryStore();
+    // Le cache ne connaissait que l'ajout (décision n° 88). On purge AVANT de charger, et seulement
+    // ici : `assets` est non vide (garde ligne 158), donc la liste suivie est bien celle d'un
+    // rapport calculé, pas celle d'un démarrage à froid.
+    void pruneHistory(this.store, assets);
     const result = await loadDailyHistory(assets, addDays(from, -1), today, {
       store: this.store,
       providers: this.providers(),

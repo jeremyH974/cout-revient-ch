@@ -1955,3 +1955,27 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     à rougir ont été ses deux assertions décrivant le défaut — l'oracle indépendant et l'invariant
     « Σ lots = qty » (150 tirages) sont restés verts. Un garde-fou qui réclame la mise à jour de son
     propre constat quand on améliore le code vaut mieux qu'un seuil qu'on relève sans y penser.
+88. **« Effacer toutes les données » n'effaçait pas toutes les données** (01/09/2026, proposition
+    P86). La proposition parlait d'éviction — un problème de place. L'exploration a trouvé autre
+    chose : `clearAll()` appelle `clearPersistedState()`, qui ne touche que `crch-state` et son
+    miroir `localStorage`. La base **`crch-history` n'était vidée nulle part en production** —
+    `HISTORY_DB_NAME` n'était référencé que dans `src/lib/history/cache.ts`, et le `clear()` qui
+    existait pourtant n'était appelé que par les tests.
+    Or son magasin `daily` porte **une entrée par actif**. Après un effacement complet, la liste de
+    toutes les cryptos jamais détenues restait sur la machine — avec des années de cours. La boîte
+    de dialogue promet pourtant « supprime l'historique importé, vos saisies et vos réglages de ce
+    navigateur ». Ce n'était pas un problème de place, c'était une promesse non tenue.
+    **La contre-épreuve chiffre le trou** : sur le code d'avant, le test E2E trouve **24 actifs**
+    encore présents après l'effacement.
+    **L'effacement est un geste à part, et c'est le point de conception.** `clearAll()` sert AUSSI à
+    quitter la démonstration (`exitDemo`) : y loger la purge du cache aurait effacé les cours réels
+    de l'utilisateur au retour de la démo. D'où `eraseAll()`, appelé par le seul bouton
+    « Effacer toutes les données ».
+    **L'éviction, elle, ne purge que les actifs qui ne sont plus suivis — jamais la profondeur.** La
+    n° 42 est allée chercher DefiLlama précisément pour remonter à 2013 sur le bitcoin ; tronquer un
+    actif détenu casserait cette profondeur pour gagner quelques kilo-octets. Le gain réel est
+    ailleurs : qui a détenu quarante actifs et n'en garde que cinq n'en cache plus que cinq.
+    **Le garde-fou vaut plus que la règle** : une liste suivie vide ne signifie pas « plus rien n'est
+    détenu », elle signifie presque toujours « le rapport n'est pas encore calculé ». Purger
+    là-dessus effacerait tout au premier démarrage. `assetsToEvict` ne conclut donc rien d'une liste
+    vide, et un test nommé l'exige.
