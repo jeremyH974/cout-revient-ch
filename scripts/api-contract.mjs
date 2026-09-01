@@ -469,6 +469,59 @@ await check(
   },
 );
 
+await check(
+  'BCE, calendrier du Conseil des gouverneurs (générateur calendrier)',
+  'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html',
+  (_json, _headers, text) => {
+    const problems = [];
+    // Ce que le parseur cherche vraiment : le balisage `dt`/`dd`, et le marqueur qui distingue une
+    // décision de taux d'une réunion non monétaire ou d'une conférence de presse isolée.
+    if (!/<dt>\s*\d{2}\/\d{2}\/\d{4}/.test(text)) problems.push('dates <dt> JJ/MM/AAAA absentes');
+    if (!/followed by press conference/i.test(text))
+      problems.push(
+        'marqueur « followed by press conference » absent : le filtre ne trie plus rien',
+      );
+    return problems;
+  },
+);
+
+await check(
+  'BCE, calendrier de publication de l’IPCH (générateur calendrier)',
+  'https://www.ecb.europa.eu/press/calendars/statscal/ges/html/sthicp.en.html',
+  (_json, _headers, text) => {
+    const problems = [];
+    if (!/<dt>\s*\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}/.test(text))
+      problems.push('dates <dt> avec heure absentes');
+    if (!/flash estimate/i.test(text))
+      problems.push(
+        'mention « flash estimate » absente : rapide et définitif ne se distinguent plus',
+      );
+    // Le libellé de fuseau : s'il se met à écrire « CEST », la lecture « heure locale » tombe.
+    if (/CEST/.test(text))
+      problems.push('la page écrit désormais CEST : revoir la conversion de fuseau');
+    return problems;
+  },
+);
+
+await check(
+  'BCE, taux de la facilité de dépôt (générateur macro)',
+  'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.LEV?lastNObservations=1&format=csvdata',
+  (_json, _headers, text) => {
+    const problems = [];
+    // La clé de série ET les colonnes nommées : le parseur dépend des deux, et une réponse 200 qui
+    // aurait renommé l'une des deux rendrait une série vide sans rien dire.
+    if (!text.includes('FM.D.U2.EUR.4F.KR.DFR.LEV')) problems.push('clé de série absente');
+    if (!text.includes('TIME_PERIOD')) problems.push('colonne TIME_PERIOD absente');
+    if (!text.includes('OBS_VALUE')) problems.push('colonne OBS_VALUE absente');
+    return problems;
+  },
+  // Le portail de la BCE HONORE la négociation de contenu, contrairement au Trésor et à la Fed :
+  // avec l'`accept: application/json` par défaut du contrôleur, il rend du SDMX-JSON et le contrôle
+  // validerait un document que le générateur ne lit jamais. Demander la même représentation que lui
+  // est la seule façon de vérifier le contrat qui compte.
+  { headers: { accept: 'text/csv' } },
+);
+
 const stampedAt = new Date().toISOString();
 const report = summarise(results, stampedAt.slice(0, 10), stampedAt);
 

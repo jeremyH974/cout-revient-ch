@@ -77,6 +77,13 @@ const fedH41Url = (): string =>
 /** Réserves des banques auprès de la Fed, niveau du mercredi, en millions de dollars. */
 export const FED_RESERVES_ID = 'RESH4R_N.WW';
 
+/** Clé SDMX du taux de la facilité de dépôt — le taux directeur de référence depuis 2023. */
+export const ECB_DFR_ID = 'FM.D.U2.EUR.4F.KR.DFR.LEV';
+const ECB_DFR_URL =
+  'https://data-api.ecb.europa.eu/service/data/FM/D.U2.EUR.4F.KR.DFR.LEV?format=csvdata&startPeriod=2014-01-01';
+const ECB_RATES_PAGE =
+  'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/key_ecb_interest_rates/html/index.en.html';
+
 // ─── Réseau ──────────────────────────────────────────────────────────────────
 
 async function fetchText(url: string): Promise<string> {
@@ -172,6 +179,36 @@ export function parseFedCsv(csv: string, seriesId: string): DayValue[] {
 // ─── EIA ─────────────────────────────────────────────────────────────────────
 
 /** Prix spot quotidien du WTI. L'API rend `{ response: { data: [{ period, value }] } }`. */
+/**
+ * Taux directeur de la BCE, au format SDMX-CSV du portail de données (décision n° 93).
+ *
+ * Le fichier porte un **en-tête nommé** (`TIME_PERIOD`, `OBS_VALUE`) : les colonnes sont donc
+ * choisies par leur nom, ce qui est encore plus solide que la sélection par identifiant appliquée
+ * au CSV de la Fed. La colonne `KEY` répète la clé de série complète, et on la vérifie : un
+ * changement de clé côté BCE rendrait une série silencieusement vide plutôt qu'une erreur.
+ */
+export function parseEcbSdmxCsv(csv: string, seriesKey: string): DayValue[] {
+  const lines = csv.split(/\r?\n/).filter((line) => line.trim() !== '');
+  const header = lines.shift();
+  if (!header) return [];
+  const columns = splitCsvLine(header);
+  const keyAt = columns.indexOf('KEY');
+  const dayAt = columns.indexOf('TIME_PERIOD');
+  const valueAt = columns.indexOf('OBS_VALUE');
+  if (dayAt < 0 || valueAt < 0) return [];
+
+  const points: DayValue[] = [];
+  for (const line of lines) {
+    const cells = splitCsvLine(line);
+    if (keyAt >= 0 && cells[keyAt] !== seriesKey) continue;
+    const day = cells[dayAt] ?? '';
+    const value = Number(cells[valueAt]);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !Number.isFinite(value)) continue;
+    points.push({ day, value });
+  }
+  return points.sort((a, b) => a.day.localeCompare(b.day));
+}
+
 export function parseEia(payload: unknown): DayValue[] {
   const rows = (payload as { response?: { data?: unknown } } | null)?.response?.data;
   if (!Array.isArray(rows)) throw new Error('EIA : réponse inattendue');
@@ -335,6 +372,22 @@ export const SPECS: Record<string, IndicatorSpec> = {
     url: TREASURY_PAGE,
     staleAfterDays: 5,
   },
+  ecbDeposit: {
+    id: 'ecb-deposit-rate',
+    label: 'Taux directeur de la BCE',
+    detail:
+      'Taux de la facilité de dépôt : ce que rapporte l’argent laissé au jour le jour à la BCE, et le taux directeur de référence de la zone euro depuis 2023.',
+    unit: 'percent',
+    // `level` : un taux directeur est borné et se compare directement à son propre passé — le
+    // transformer en variation masquerait justement ce qu'on veut lire, le niveau atteint.
+    transform: 'level',
+    windows: WINDOWS_1_5,
+    source: 'ecb',
+    url: ECB_RATES_PAGE,
+    // Série quotidienne, mais publiée les seuls jours ouvrés TARGET : un long week-end de Pâques
+    // laisse quatre jours sans point.
+    staleAfterDays: 6,
+  },
   reserves: {
     id: 'bank-reserves',
     label: 'Réserves bancaires à la Fed',
@@ -474,18 +527,20 @@ export async function main(checkOnly: boolean): Promise<number> {
   const currentYear = Number(today.slice(0, 4));
   const years = Array.from({ length: currentYear - FIRST_YEAR + 1 }, (_, i) => FIRST_YEAR + i);
 
-  const [nominalPages, realPages, fedCsv] = await Promise.all([
+  const [nominalPages, realPages, fedCsv, ecbCsv] = await Promise.all([
     Promise.all(years.map((year) => fetchText(treasuryXmlUrl('daily_treasury_yield_curve', year)))),
     Promise.all(
       years.map((year) => fetchText(treasuryXmlUrl('daily_treasury_real_yield_curve', year))),
     ),
     fetchText(fedH41Url()),
+    fetchText(ECB_DFR_URL),
   ]);
 
   const tenYear = nominalPages.flatMap((xml) => parseTreasuryXml(xml, 'BC_10YEAR'));
   const twoYear = nominalPages.flatMap((xml) => parseTreasuryXml(xml, 'BC_2YEAR'));
   const realTenYear = realPages.flatMap((xml) => parseTreasuryXml(xml, 'TC_10YEAR'));
   const reserves = parseFedCsv(fedCsv, FED_RESERVES_ID);
+  const ecbDeposit = parseEcbSdmxCsv(ecbCsv, ECB_DFR_ID);
   for (const series of [tenYear, twoYear, realTenYear]) {
     series.sort((a, b) => a.day.localeCompare(b.day));
   }
@@ -499,6 +554,7 @@ export async function main(checkOnly: boolean): Promise<number> {
   push(SPECS['spread']!, spread(tenYear, twoYear));
   push(SPECS['tenYear']!, tenYear);
   push(SPECS['reserves']!, reserves);
+  push(SPECS['ecbDeposit']!, ecbDeposit);
 
   // Le pétrole est facultatif : sans clé, l'indicateur est absent et la raison est enregistrée,
   // plutôt que de faire échouer une génération que rien n'empêche par ailleurs.

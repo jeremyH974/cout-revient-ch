@@ -2067,3 +2067,77 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     as the source** ». L'application relayait ses taux via Frankfurter **sans la citer**. Un devoir
     non constaté et un devoir inexistant ne sont pas la même chose : la table portait le premier en
     croyant décrire le second.
+92. **Deux régimes de protocole dans le même processus, distingués à la forme de la requête**
+    (01/09/2026, proposition P90). La révision `2026-07-28` du Model Context Protocol **supprime**
+    la poignée de main `initialize` — elle ne la déprécie pas : le schéma ne contient plus ni
+    `InitializeRequest` ni `InitializeResult`. La version voyage désormais dans
+    `_meta["io.modelcontextprotocol/protocolVersion"]`, **obligatoire à chaque requête**, et
+    `server/discover` remplace la découverte. `ping` disparaît, `resultType` devient obligatoire sur
+    tout résultat, et les listes portent `ttlMs`/`cacheScope`.
+    Le serveur en était en retard de **deux** révisions, pas d'une : `2025-11-25` lui manquait aussi.
+    **Vérifié en source primaire, pas sur un résumé.** Le rapport de recherche signalait
+    honnêtement que ses citations étaient passées par un outil d'extraction ; pour une
+    implémentation de protocole, la forme exacte du fil ne se déduit pas. Le schéma brut (3 197
+    lignes) a donc été relu directement, et il a corrigé un point du résumé : `DiscoverResult`
+    hérite de `CacheableResult`, donc `ttlMs` et `cacheScope` y sont **obligatoires** et non
+    facultatifs.
+    **Les deux régimes cohabitent**, distingués à la présence de `_meta` — jamais à un état de
+    session. Ce serveur n'en a jamais eu : `mcp/state.ts` recharge la sauvegarde à chaque appel. Le
+    modèle sans état de la révision moderne ne heurte donc aucune hypothèse de conception ; c'est la
+    forme des messages qui change, pas la logique.
+    **Deux détails qui ne se devinent pas.** `server/discover` répond dans les DEUX régimes : sur
+    stdio il n'existe aucun code de statut HTTP pour guider un repli, si bien qu'un client capable
+    des deux versions envoie cette sonde en premier — ne répondre qu'aux modernes la rendrait
+    inutile. Et le repli d'`initialize` reste **dans l'ancien régime** : il répond `2025-11-25` et
+    non `2026-07-28`, parce qu'annoncer la révision moderne à un client qui vient d'appeler
+    `initialize` serait lui désigner une révision où cette méthode n'existe plus.
+    Le régime moderne ne se replie pas en silence : il refuse par `-32022` en nommant ce qu'il sait
+    parler, et c'est au client de rappeler. Un test l'exige, et un autre exige que l'ancien régime
+    reste **intact** — c'est la moitié qui pourrait casser un client existant.
+    Tout le pan HTTP de la révision (autorisation, en-têtes, `subscriptions/listen`) ne s'applique
+    pas : la spécification écarte explicitement stdio de sa partie autorisation.
+93. **La zone euro entre dans le calendrier, parce que sa licence l'y autorise** (01/09/2026,
+    proposition P89). Les deux textes ont été relus **en source primaire** avant d'écrire quoi que
+    ce soit, parce qu'on inscrivait une affirmation juridique dans du code : la BCE — « users of
+    this website may make free use of the information obtained directly from it… **the ECB must be
+    cited as the source** » — et Eurostat — « Reuse of statistical data […] for commercial or
+    non-commercial purposes is authorised provided the source is acknowledged », sous la décision de
+    la Commission du 12 décembre 2011.
+    Redistribution autorisée avec attribution : **premier mode de la n° 59**, l'instantané committé.
+    C'est l'inverse exact du cas américain, où le BLS refuse tout client non-navigateur et où le VIX
+    a dû être abandonné. Les trois points d'entrée répondent à `curl` sans usurpation d'user-agent.
+    **Un seul parseur pour les deux calendriers de la BCE**, dont le balisage `<dt>`/`<dd>` est plus
+    régulier que celui du FOMC : la date y est complète, sans mois à désambiguïser, et l'heure y
+    figure quand elle est connue.
+    **Trois pièges, un seul marqueur.** « **non**-monetary policy meeting » contient la sous-chaîne
+    « monetary policy meeting » ; le « General Council » est un autre organe ; et la conférence de
+    presse a sa **propre ligne**, qui doublerait chaque réunion. « followed by press conference » les
+    tranche tous les trois d'un coup — il ne figure que sur le second jour d'une réunion de politique
+    monétaire, celui où la décision tombe. C'est l'analogue du « notation vote » du FOMC (n° 58).
+    **« CET » n'est pas UTC+1, et le fichier le prouve.** La BCE écrit « CET » y compris pour des
+    dates d'été. La page de l'IPCH couvre septembre et décembre 2026 **sans jamais écrire
+    « CEST »** — ce qui ne se comprend que si « CET » y désigne l'heure locale de Francfort. Une
+    publication récurrente a d'ailleurs une heure locale constante, pas une heure qui glisse deux
+    fois par an. D'où la conversion par `Europe/Berlin`, et un contrôle de contrat qui **échoue si
+    « CEST » apparaît un jour** : ce serait le signe que la déduction était fausse.
+    Barrières identiques aux sources américaines : `ecb` et `eurostat` ont leur minimum d'événements,
+    et fausser le marqueur fait refuser l'écriture en nommant la source (« ecb : 0 événement(s),
+    minimum 4 »). Sept cliquets existants ont réclamé leur dû à l'ajout de ces sources — natures,
+    rangs, entretien, origines CSP, attributions — ce qui est exactement ce pour quoi ils ont été
+    écrits.
+    **Le taux directeur de la BCE entre aussi dans l'instantané macro.** Le portail de données rend
+    du SDMX-CSV avec un en-tête **nommé** (`TIME_PERIOD`, `OBS_VALUE`) : les colonnes s'y choisissent
+    par leur nom, ce qui est plus solide encore que la sélection par identifiant du CSV de la Fed. La
+    colonne `KEY` répète la clé de série et le parseur la vérifie — une clé renommée rend une série
+    **vide**, donc arrêtée par la barrière, plutôt que remplie par les chiffres d'une série voisine.
+    Un test l'exige nommément.
+    **Un piège qui a coûté un aller-retour** : la BCE **honore la négociation de contenu**,
+    contrairement au Trésor et à la Fed. Le contrôleur de contrat envoie `accept: application/json`
+    par défaut et recevait donc du SDMX-JSON — il validait un document que le générateur ne lit
+    jamais, et se déclarait « conforme » sur du vide. Le contrôle demande désormais explicitement
+    `text/csv`. La leçon générale : **un contrôle de contrat doit demander la même représentation que
+    le code qu'il protège**, sans quoi il surveille autre chose.
+    **Frankfurter reste hors périmètre** : il ne sert que la conversion de change, jamais les taux
+    directeurs ni les dates. Son point d'entrée `/v1/` a été vérifié comme un simple miroir BCE non
+    mélangé, malgré une v2 « multi-fournisseurs » parue en mai 2026 — c'est un risque de dérive à
+    surveiller, pas un problème aujourd'hui.

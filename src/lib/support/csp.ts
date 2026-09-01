@@ -172,11 +172,16 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     why: 'Conditions d’utilisation citées dans la table des sources.',
   },
   { origin: 'https://routescan.io', use: 'link', why: 'Crédit de source affiché.' },
+  {
+    origin: 'https://ec.europa.eu',
+    use: 'link',
+    why: 'Eurostat : conditions de réutilisation citées dans la table des sources.',
+  },
   { origin: 'https://www.blockscout.com', use: 'link', why: 'Crédit de source affiché.' },
   {
     origin: 'https://www.ecb.europa.eu',
     use: 'link',
-    why: 'Origine réelle des taux de change relayés par Frankfurter, citée dans la table des sources.',
+    why: 'Taux de change relayés par Frankfurter, et calendriers officiels du Conseil des gouverneurs et de l’IPCH.',
   },
 
   /*

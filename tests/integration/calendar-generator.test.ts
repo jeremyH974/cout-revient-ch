@@ -18,8 +18,12 @@ import {
   addMonths,
   beaEvents,
   easternToUtc,
+  ecbDecisionEvents,
+  frankfurtToUtc,
   gateProblems,
   gateWarnings,
+  hicpEvents,
+  parseEcbEntries,
   parseFomc,
   referenceLabel,
   render,
@@ -33,6 +37,8 @@ const FOMC_HTML = readFileSync(join(FIXTURES, 'fomccalendars.html'), 'utf8');
 const BEA_JSON: unknown = JSON.parse(
   readFileSync(join(FIXTURES, 'bea-release-dates.json'), 'utf8'),
 );
+const ECB_GC_HTML = readFileSync(join(FIXTURES, 'ecb-governing-council.html'), 'utf8');
+const ECB_HICP_HTML = readFileSync(join(FIXTURES, 'ecb-hicp-calendar.html'), 'utf8');
 
 /** Heure murale à New York pour un instant donné : `['2026-09-30', '08:30']`. */
 function newYorkWallClock(instant: string): [string, string] {
@@ -216,6 +222,8 @@ describe('barrières', () => {
     fomc: many('fomc', 8),
     bea: many('bea', 20),
     bls: many('bls', 40),
+    ecb: many('ecb', 8),
+    eurostat: many('eurostat', 16),
   });
 
   /** État de la table BLS : jusqu'où elle va, et quand on l'a relue pour la dernière fois. */
@@ -403,5 +411,87 @@ describe('décalage de mois', () => {
     expect(addDays('2026-01-10', -20)).toBe('2025-12-21');
     expect(addDays('2028-03-01', -1)).toBe('2028-02-29');
     expect(addDays('2026-08-28', 45)).toBe('2026-10-12');
+  });
+});
+
+/**
+ * Les calendriers de la BCE (décision n° 93).
+ *
+ * Trois pièges y guettent un filtre naïf, et chacun a son test : une réunion « non-monetary
+ * policy » contient la sous-chaîne « monetary policy meeting » ; le « General Council » est un
+ * autre organe ; et la conférence de presse a sa propre ligne, qui doublerait chaque réunion. Ce
+ * sont les analogues du « notation vote » du FOMC, déjà écarté plus haut.
+ */
+describe('calendriers de la BCE', () => {
+  const gc = parseEcbEntries(ECB_GC_HTML);
+  const hicp = parseEcbEntries(ECB_HICP_HTML);
+  const decisions = ecbDecisionEvents(gc);
+  const inflation = hicpEvents(hicp);
+
+  it('lit les entrées des deux pages, dates complètes et heures quand elles sont annoncées', () => {
+    expect(gc.length, 'page du Conseil des gouverneurs vide').toBeGreaterThan(20);
+    expect(hicp.length, 'page de l’IPCH vide').toBeGreaterThan(5);
+    for (const entry of [...gc, ...hicp]) expect(entry.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // Le calendrier des réunions n'annonce pas d'heure ; celui de l'IPCH, si.
+    expect(gc.every((e) => e.time === null)).toBe(true);
+    expect(hicp.some((e) => e.time !== null)).toBe(true);
+  });
+
+  it('ne retient qu’une décision par réunion de politique monétaire', () => {
+    expect(decisions.length).toBeGreaterThan(4);
+    expect(new Set(decisions.map((e) => e.id)).size, 'doublons').toBe(decisions.length);
+    for (const event of decisions) {
+      expect(event.kind).toBe('ecb-decision');
+      expect(event.source).toBe('ecb');
+      expect(event.tier).toBe('major');
+    }
+  });
+
+  it('n’attrape ni les réunions NON monétaires, ni le General Council, ni la conférence seule', () => {
+    const retenus = new Set(decisions.map((e) => e.id.replace('ecb-decision-', '')));
+    const pieges = gc.filter(
+      (e) =>
+        /non-monetary/i.test(e.text) ||
+        /general council/i.test(e.text) ||
+        /^Press conference/i.test(e.text),
+    );
+    expect(
+      pieges.length,
+      'la page doit bien contenir des pièges, sinon on ne prouve rien',
+    ).toBeGreaterThan(2);
+    for (const piege of pieges) {
+      // Un piège peut tomber le même jour qu'une vraie réunion : c'est le cas de la conférence de
+      // presse. Ce qui compte est qu'il n'ait pas créé d'événement à LUI SEUL.
+      if (/non-monetary|general council/i.test(piege.text))
+        expect(retenus.has(piege.day), `retenu à tort : « ${piege.text} »`).toBe(false);
+    }
+  });
+
+  it('sépare l’estimation rapide du chiffre définitif, et les range différemment', () => {
+    const flash = inflation.filter((e) => e.id.includes('flash'));
+    const final = inflation.filter((e) => e.id.includes('final'));
+    expect(flash.length).toBeGreaterThan(2);
+    expect(final.length).toBeGreaterThan(2);
+    expect(flash.every((e) => e.tier === 'major')).toBe(true);
+    expect(final.every((e) => e.tier === 'secondary')).toBe(true);
+    expect(inflation.every((e) => e.precision === 'exact')).toBe(true);
+  });
+
+  it('les instants sont des UTC valides, croissants avec les jours', () => {
+    for (const event of [...decisions, ...inflation]) {
+      expect(event.at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+      expect(event.at.slice(0, 10) >= '2020-01-01').toBe(true);
+    }
+  });
+
+  /**
+   * La conversion de fuseau, éprouvée sur le passage à l'heure d'hiver 2026 (dernier dimanche
+   * d'octobre). Une même heure murale à Francfort ne donne pas le même instant UTC de part et
+   * d'autre — c'est exactement ce que la conversion par nom IANA sait faire et qu'une règle écrite
+   * à la main rate une fois sur deux.
+   */
+  it('l’heure de Francfort suit l’heure d’été, comme celle de New York', () => {
+    expect(frankfurtToUtc('2026-10-20', '14:15')).toBe('2026-10-20T12:15:00Z');
+    expect(frankfurtToUtc('2026-11-20', '14:15')).toBe('2026-11-20T13:15:00Z');
   });
 });

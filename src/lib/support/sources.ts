@@ -3,7 +3,7 @@
  * retour (décision n° 47).
  *
  * Pourquoi une table déclarative plutôt qu'une phrase dans un écran : l'app interroge **douze**
- * sources, dont **quatre** imposent contractuellement une mention. Une attribution écrite à la main
+ * sources, dont **cinq** imposent contractuellement une mention. Une attribution écrite à la main
  * dans un composant se périme au premier fournisseur ajouté, et l'oubli est silencieux — il se
  * découvre à la réclamation. Ici, `sources.test.ts` croise cette table avec les noms que le code
  * produit réellement (`defaultPriceProviders`, `defaultHistoryProviders`, `frankfurterProvider`,
@@ -138,7 +138,27 @@ export const DATA_SOURCES: readonly DataSource[] = [
       clause:
         'Disclaimer & copyright — « the ECB must be cited as the source » lorsque l’information est distribuée ou reproduite',
     },
-    emits: ['BCE via Frankfurter'],
+    // « ecb » est l'identifiant de source du calendrier macro (décision n° 93) ; l'autre nom est
+    // celui que produit le relais Frankfurter. Une même institution, deux chemins de données.
+    emits: ['BCE via Frankfurter', 'ecb'],
+  },
+  {
+    id: 'eurostat',
+    label: 'Eurostat',
+    role: 'Dates de publication de l’inflation de la zone euro (IPCH), estimation rapide et définitif.',
+    url: 'https://ec.europa.eu/eurostat',
+    // « Reuse of statistical data, metadata, publications, and other dissemination tools published
+    // on this website for commercial or non-commercial purposes is authorised provided the source
+    // is acknowledged », sous la décision de la Commission du 12 décembre 2011. Relu le 01/09/2026.
+    notice: 'Source : Eurostat',
+    duty: 'required',
+    terms: {
+      url: 'https://ec.europa.eu/eurostat/help/copyright-notice',
+      checkedOn: '2026-09-01',
+      clause:
+        'Copyright notice — réutilisation commerciale ou non commerciale autorisée sous réserve de citer la source (décision 2011/833/UE)',
+    },
+    emits: ['eurostat'],
   },
   {
     id: 'mempool-space',

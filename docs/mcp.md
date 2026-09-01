@@ -153,9 +153,34 @@ extension de fichier (`./money`), ce que le résolveur ESM de Node refuse. Plut�
 extensions à toute l'app pour le confort d'un outil annexe, `npm run mcp:build` regroupe le tout en
 un fichier autonome avec Vite — déjà une dépendance du projet.
 
-**Version du protocole** : le serveur annonce `2025-06-18` et sait aussi parler `2025-03-26` et
-`2024-11-05`. Si un client demande une version inconnue, le serveur répond la sienne et laisse le
-client décider — c'est la règle de négociation de la spécification.
+**Versions du protocole : deux régimes dans le même processus** (décision n° 92). La révision
+`2026-07-28` **supprime** la poignée de main `initialize` — elle ne la déprécie pas. La version
+voyage désormais dans `_meta` à chaque requête, et `server/discover` remplace la découverte.
+
+|                  | Ancien régime                            | Régime moderne (`2026-07-28`)                                            |
+| ---------------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| Découverte       | `initialize`                             | `server/discover`                                                        |
+| Version          | négociée une fois                        | `_meta["io.modelcontextprotocol/protocolVersion"]`, **à chaque requête** |
+| Version inconnue | repli sur la nôtre, au client de décider | refus explicite `-32022`, au client de rappeler                          |
+| Résultats        | tels quels                               | `resultType` obligatoire ; `ttlMs`/`cacheScope` sur les listes           |
+| `ping`           | pris en charge                           | **supprimé** de la révision                                              |
+
+Versions parlées : `2026-07-28`, `2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`. Le régime
+est déduit de la **forme de la requête**, jamais d'un état de session — ce qui tombe bien, ce
+serveur n'en a jamais eu : `mcp/state.ts` recharge la sauvegarde à chaque appel.
+
+Deux points qui ne se devinent pas :
+
+- **`server/discover` répond dans les deux régimes.** Sur stdio il n'y a pas de code de statut HTTP
+  pour guider un repli, si bien qu'un client capable des deux versions envoie cette sonde en
+  premier pour savoir à qui il parle. Ne répondre qu'aux clients modernes la rendrait inutile.
+- **Le repli d'`initialize` reste dans l'ancien régime** : il répond `2025-11-25`, pas
+  `2026-07-28`. Annoncer la révision moderne à un client qui vient d'appeler `initialize` serait lui
+  désigner une révision où cette méthode n'existe plus.
+
+Tout le pan HTTP de la révision — autorisation, en-têtes obligatoires, `subscriptions/listen` — ne
+s'applique pas : ce serveur est en stdio, et la spécification écarte explicitement stdio de sa
+partie autorisation.
 
 **Publication automatisée** (`.github/workflows/mcp-release.yml`) : à chaque release GitHub
 publiée (ou à la demande), le workflow construit `server.js`, fait rejouer l'épreuve de bout en

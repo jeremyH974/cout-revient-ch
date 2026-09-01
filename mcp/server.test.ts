@@ -159,7 +159,10 @@ describe('serveur MCP — poignée de main réelle sur stdio', () => {
       params: { protocolVersion: '1970-01-01' },
     });
     const result = response['result'] as Record<string, unknown>;
-    expect(result['protocolVersion']).toBe('2025-06-18');
+    // La plus récente des révisions À POIGNÉE DE MAIN, pas la plus récente tout court : répondre
+    // `2026-07-28` à un client qui vient d'appeler `initialize` lui annoncerait une révision où
+    // cette méthode n'existe plus (décision n° 92).
+    expect(result['protocolVersion']).toBe('2025-11-25');
   });
 
   it('rend les 7 outils, tous annotés lecture-seule, à tools/list', async () => {
@@ -230,6 +233,109 @@ describe('serveur MCP — poignée de main réelle sur stdio', () => {
     });
     const error = response['error'] as Record<string, unknown>;
     expect(error['code']).toBe(-32601);
+  });
+
+  /**
+   * Le régime moderne (décision n° 92). La révision `2026-07-28` supprime `initialize` : la version
+   * voyage dans `_meta` à chaque requête, et `server/discover` remplace la découverte. Les deux
+   * régimes cohabitent dans le même processus, et l'ancien doit rester intact — c'est la moitié la
+   * plus importante de ces tests, puisque c'est celle qui pourrait casser un client existant.
+   */
+  const meta = (version = '2026-07-28') => ({
+    _meta: { 'io.modelcontextprotocol/protocolVersion': version },
+  });
+
+  it('« server/discover » annonce les versions, les capacités et sa durée de cache', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'server/discover',
+      params: meta(),
+    });
+    const result = response['result'] as Record<string, unknown>;
+    expect(result['resultType']).toBe('complete');
+    expect(result['supportedVersions']).toContain('2026-07-28');
+    expect(result['supportedVersions']).toContain('2025-11-25');
+    expect(result['capabilities']).toEqual({ tools: { listChanged: false } });
+    // `DiscoverResult` hérite de `CacheableResult` : les deux champs sont OBLIGATOIRES.
+    expect(typeof result['ttlMs']).toBe('number');
+    expect(result['cacheScope']).toBe('private');
+    const resultMeta = result['_meta'] as Record<string, unknown>;
+    expect(resultMeta['io.modelcontextprotocol/serverInfo']).toMatchObject({
+      name: 'cout-revient-ch',
+    });
+  });
+
+  it('répond à la sonde même sans `_meta` : sur stdio, c’est ainsi qu’un client découvre à qui il parle', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'server/discover',
+    });
+    const result = response['result'] as Record<string, unknown>;
+    expect(result['supportedVersions']).toContain('2026-07-28');
+  });
+
+  it('en régime moderne, tout résultat porte `resultType` et la liste sa durée de cache', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'tools/list',
+      params: meta(),
+    });
+    const result = response['result'] as Record<string, unknown>;
+    expect(result['resultType']).toBe('complete');
+    expect(result['cacheScope']).toBe('private');
+    expect((result['tools'] as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  it('un appel d’outil en régime moderne porte aussi `resultType`', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'tools/call',
+      params: { name: 'get_portfolio', arguments: {}, ...meta() },
+    });
+    const result = response['result'] as Record<string, unknown>;
+    expect(result['resultType']).toBe('complete');
+    expect(result['structuredContent']).toBeTruthy();
+  });
+
+  it('une version inconnue est REFUSÉE, en nommant ce qui est parlable — plus de repli silencieux', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'tools/list',
+      params: meta('1900-01-01'),
+    });
+    const error = response['error'] as Record<string, unknown>;
+    expect(error['code']).toBe(-32022);
+    const data = error['data'] as Record<string, unknown>;
+    expect(data['requested']).toBe('1900-01-01');
+    expect(data['supported']).toContain('2026-07-28');
+  });
+
+  it('« initialize » n’existe plus dans la révision moderne, et le serveur le dit', async () => {
+    const response = await proc.request({
+      jsonrpc: '2.0',
+      id: nextId(),
+      method: 'initialize',
+      params: { protocolVersion: '2026-07-28', ...meta() },
+    });
+    const error = response['error'] as Record<string, unknown>;
+    expect(error['code']).toBe(-32601);
+    expect(String(error['message'])).toContain('server/discover');
+  });
+
+  it('le régime ancien reste intact : aucun `resultType` ne s’invite dans ses réponses', async () => {
+    const response = await proc.request({ jsonrpc: '2.0', id: nextId(), method: 'tools/list' });
+    const result = response['result'] as Record<string, unknown>;
+    expect(
+      result['resultType'],
+      'un client ancien ne doit pas voir la forme moderne',
+    ).toBeUndefined();
+    expect(result['ttlMs']).toBeUndefined();
+    expect((result['tools'] as unknown[]).length).toBeGreaterThan(0);
   });
 
   it('du début à la fin : chaque ligne de stdout est un message JSON-RPC valide, rien de plus', () => {

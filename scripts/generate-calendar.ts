@@ -61,7 +61,7 @@ export interface BlsState {
 }
 
 /** Planchers par source : en dessous, la source est cassée, pas calme. */
-const MIN_EVENTS: Record<string, number> = { fomc: 4, bea: 12, bls: 24 };
+const MIN_EVENTS: Record<string, number> = { fomc: 4, bea: 12, bls: 24, ecb: 4, eurostat: 8 };
 
 // ─── Temps ───────────────────────────────────────────────────────────────────
 
@@ -70,21 +70,31 @@ const MIN_EVENTS: Record<string, number> = { fomc: 4, bea: 12, bls: 24 };
  * d'heure d'été écrite à la main. La règle américaine a déjà changé (2007) et sa suppression
  * revient régulièrement au Congrès : une mise à jour de Node doit suffire à garder l'app juste.
  */
-const NEW_YORK = new Intl.DateTimeFormat('en-US', {
-  timeZone: 'America/New_York',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-  hour12: false,
-});
+const FORMATTERS = new Map<string, Intl.DateTimeFormat>();
 
-/** Décalage de New York par rapport à UTC, en millisecondes, à un instant donné. */
-function newYorkOffsetMs(instant: Date): number {
+/** Un formateur par fuseau, construit une fois : `Intl.DateTimeFormat` coûte cher à instancier. */
+function formatterFor(zone: string): Intl.DateTimeFormat {
+  let formatter = FORMATTERS.get(zone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: zone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    FORMATTERS.set(zone, formatter);
+  }
+  return formatter;
+}
+
+/** Décalage d'un fuseau par rapport à UTC, en millisecondes, à un instant donné. */
+function zoneOffsetMs(zone: string, instant: Date): number {
   const parts: Record<string, string> = {};
-  for (const part of NEW_YORK.formatToParts(instant)) parts[part.type] = part.value;
+  for (const part of formatterFor(zone).formatToParts(instant)) parts[part.type] = part.value;
   const asIfUtc = Date.UTC(
     Number(parts['year']),
     Number(parts['month']) - 1,
@@ -105,14 +115,29 @@ function newYorkOffsetMs(instant: Date): number {
  * deux passes suffisent — et les publications ont lieu à 8 h 30, 10 h ou 14 h, jamais aux
  * alentours de 2 h du matin, où la bascule s'opère.
  */
-export function easternToUtc(day: string, hhmm: string): string {
+export function zonedToUtc(zone: string, day: string, hhmm: string): string {
   const [year = 0, month = 1, date = 1] = day.split('-').map(Number);
   const [hour = 0, minute = 0] = hhmm.split(':').map(Number);
   const wall = Date.UTC(year, month - 1, date, hour, minute);
   let ts = wall;
-  for (let pass = 0; pass < 2; pass += 1) ts = wall - newYorkOffsetMs(new Date(ts));
+  for (let pass = 0; pass < 2; pass += 1) ts = wall - zoneOffsetMs(zone, new Date(ts));
   return new Date(ts).toISOString().replace('.000Z', 'Z');
 }
+
+export const easternToUtc = (day: string, hhmm: string): string =>
+  zonedToUtc('America/New_York', day, hhmm);
+
+/**
+ * Heure de Francfort → UTC (décision n° 93).
+ *
+ * La BCE écrit « CET » toute l'année sur ses calendriers, y compris pour des dates d'été. Ce n'est
+ * pas UTC+1 littéral : la page couvre septembre et décembre 2026 sans jamais écrire « CEST », ce
+ * qui ne se comprend que si « CET » y désigne l'heure LOCALE de Francfort. Une publication
+ * récurrente a d'ailleurs une heure locale constante, pas une heure qui glisse d'une heure deux
+ * fois par an. D'où la conversion par fuseau IANA, comme pour New York.
+ */
+export const frankfurtToUtc = (day: string, hhmm: string): string =>
+  zonedToUtc('Europe/Berlin', day, hhmm);
 
 /** Jour UTC d'un instant, `AAAA-MM-JJ`. */
 const dayOf = (instant: string): string => instant.slice(0, 10);
@@ -257,6 +282,105 @@ export function fomcEvents(meetings: readonly FomcMeeting[]): MarketEvent[] {
     source: 'fomc',
     url: FOMC_URL,
   }));
+}
+
+// ─── BCE et Eurostat ─────────────────────────────────────────────────────────
+
+const ECB_GC_URL = 'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html';
+const ECB_HICP_URL = 'https://www.ecb.europa.eu/press/calendars/statscal/ges/html/sthicp.en.html';
+
+export interface EcbEntry {
+  /** Jour civil, `AAAA-MM-JJ`. */
+  day: string;
+  /** `HH:MM` quand la page l'annonce, `null` sinon. */
+  time: string | null;
+  text: string;
+}
+
+/**
+ * Les calendriers de la BCE partagent un balisage `<dt>date</dt><dd>libellé</dd>`, plus régulier
+ * que celui du FOMC : la date y est complète (`10/09/2026`), sans mois à désambiguïser, et l'heure
+ * y figure quand elle est connue. Un seul parseur sert donc les deux pages.
+ */
+export function parseEcbEntries(html: string): EcbEntry[] {
+  const flat = html.replace(/\s+/g, ' ');
+  const entries: EcbEntry[] = [];
+  for (const match of flat.matchAll(
+    /<dt>\s*(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}:\d{2}))?[^<]*<\/dt>\s*<dd>([^<]*)/g,
+  )) {
+    const [, dd = '', mm = '', yyyy = '', time, text = ''] = match;
+    entries.push({
+      day: `${yyyy}-${mm}-${dd}`,
+      time: time ?? null,
+      text: text.replace(/\s+/g, ' ').trim(),
+    });
+  }
+  return entries;
+}
+
+/**
+ * Décisions du Conseil des gouverneurs — trois pièges, tous écartés par le même marqueur.
+ *
+ * 1. « **non**-monetary policy meeting » contient la sous-chaîne « monetary policy meeting » : un
+ *    filtre naïf annoncerait une décision de taux là où aucun taux n'est décidé.
+ * 2. Le « General Council » est un autre organe, qui réunit aussi les pays hors zone euro.
+ * 3. La conférence de presse a sa **propre ligne** (« Press conference following… ») : la compter
+ *    doublerait chaque réunion.
+ *
+ * Le marqueur « followed by press conference » les tranche tous les trois d'un coup — il ne figure
+ * que sur le second jour d'une réunion de politique monétaire, celui où la décision tombe.
+ */
+export function ecbDecisionEvents(entries: readonly EcbEntry[]): MarketEvent[] {
+  return entries
+    .filter(
+      (entry) =>
+        /monetary policy meeting/i.test(entry.text) &&
+        !/non-monetary/i.test(entry.text) &&
+        !/general council/i.test(entry.text) &&
+        /followed by press conference/i.test(entry.text),
+    )
+    .map((entry) => ({
+      id: `ecb-decision-${entry.day}`,
+      kind: 'ecb-decision' as const,
+      // 14 h 15 à Francfort pour le communiqué, 14 h 45 pour la conférence de presse. La page ne
+      // porte pas l'heure des réunions : c'est une convention connue, d'où `precision: 'day'`,
+      // qui empêche l'écran d'afficher une heure que la source n'annonce pas.
+      at: frankfurtToUtc(entry.day, '14:15'),
+      precision: 'day' as const,
+      title: 'Décision de la BCE (Conseil des gouverneurs)',
+      detail: 'Communiqué puis conférence de presse',
+      tier: 'major' as const,
+      source: 'ecb' as const,
+      url: ECB_GC_URL,
+    }));
+}
+
+/**
+ * Inflation de la zone euro. L'estimation **rapide** sort en fin de mois de référence, le chiffre
+ * **définitif** deux à trois semaines plus tard. Seule la première surprend les marchés : la
+ * seconde confirme presque toujours, d'où deux rangs différents.
+ *
+ * La page annonce l'heure, contrairement au calendrier des réunions — d'où `precision: 'exact'`.
+ */
+export function hicpEvents(entries: readonly EcbEntry[]): MarketEvent[] {
+  return entries
+    .filter((entry) => /\bHICP\b/.test(entry.text) && entry.time !== null)
+    .map((entry) => {
+      const flash = /flash estimate/i.test(entry.text);
+      return {
+        id: `eurostat-hicp-${flash ? 'flash' : 'final'}-${entry.day}`,
+        kind: 'hicp' as const,
+        at: frankfurtToUtc(entry.day, entry.time as string),
+        precision: 'exact' as const,
+        title: flash
+          ? 'Inflation zone euro (estimation rapide)'
+          : 'Inflation zone euro (définitif)',
+        detail: flash ? 'IPCH, première estimation' : 'IPCH, chiffre révisé',
+        tier: flash ? ('major' as const) : ('secondary' as const),
+        source: 'eurostat' as const,
+        url: ECB_HICP_URL,
+      };
+    });
 }
 
 // ─── BEA ─────────────────────────────────────────────────────────────────────
@@ -519,7 +643,12 @@ const lastDayOf = (events: readonly MarketEvent[]): string =>
   events.reduce((latest, event) => (dayOf(event.at) > latest ? dayOf(event.at) : latest), '');
 
 export async function main(checkOnly: boolean): Promise<number> {
-  const [fomcHtml, beaJson] = await Promise.all([fetchText(FOMC_URL), fetchText(BEA_URL)]);
+  const [fomcHtml, beaJson, ecbGcHtml, ecbHicpHtml] = await Promise.all([
+    fetchText(FOMC_URL),
+    fetchText(BEA_URL),
+    fetchText(ECB_GC_URL),
+    fetchText(ECB_HICP_URL),
+  ]);
   const today = new Date().toISOString().slice(0, 10);
 
   /**
@@ -535,18 +664,22 @@ export async function main(checkOnly: boolean): Promise<number> {
   const allFomc = fomcEvents(parseFomc(fomcHtml));
   const allBea = beaEvents(JSON.parse(beaJson));
   const allBls = blsEvents();
+  const allEcb = ecbDecisionEvents(parseEcbEntries(ecbGcHtml));
+  const allEurostat = hicpEvents(parseEcbEntries(ecbHicpHtml));
 
   const fomc = inWindow(allFomc);
   const bea = inWindow(allBea);
   const bls = inWindow(allBls);
+  const ecb = inWindow(allEcb);
+  const eurostat = inWindow(allEurostat);
 
-  const events = [...fomc, ...bea, ...bls].sort((a, b) =>
+  const events = [...fomc, ...bea, ...bls, ...ecb, ...eurostat].sort((a, b) =>
     a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at),
   );
 
   const blsState = { coverageEnd: blsCoverageEnd(), checkedOn: BLS_CHECKED_ON };
 
-  const problems = gateProblems(events, { fomc, bea, bls }, today, blsState);
+  const problems = gateProblems(events, { fomc, bea, bls, ecb, eurostat }, today, blsState);
   if (problems.length > 0) {
     console.error('Calendrier NON écrit — barrières non franchies :');
     for (const problem of problems) console.error(`  • ${problem}`);
@@ -584,6 +717,20 @@ export async function main(checkOnly: boolean): Promise<number> {
       count: bls.length,
       coversTo: lastDayOf(allBls),
       upkeep: 'manual',
+    },
+    {
+      source: 'ecb',
+      checkedOn: today,
+      count: ecb.length,
+      coversTo: lastDayOf(allEcb),
+      upkeep: 'auto',
+    },
+    {
+      source: 'eurostat',
+      checkedOn: today,
+      count: eurostat.length,
+      coversTo: lastDayOf(allEurostat),
+      upkeep: 'auto',
     },
   ];
 
@@ -627,7 +774,7 @@ export async function main(checkOnly: boolean): Promise<number> {
   writeFileSync(OUTPUT, next, 'utf8');
   console.log(
     `Calendrier écrit : ${events.length} événements du ${dayOf(first.at)} au ${dayOf(last.at)} ` +
-      `(FOMC ${fomc.length}, BEA ${bea.length}, BLS ${bls.length}).`,
+      `(FOMC ${fomc.length}, BEA ${bea.length}, BLS ${bls.length}, BCE ${ecb.length}, Eurostat ${eurostat.length}).`,
   );
   return 0;
 }

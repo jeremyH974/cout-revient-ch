@@ -20,8 +20,37 @@ import { BACKUP_FILE_NAME } from '../src/lib/storage/backup-folder';
 import { BackupError, loadView, type McpView } from './state';
 import { TOOL_DEFINITIONS, ToolError, findTool } from './tools';
 
-/** Versions du protocole que ce serveur sait parler ; la plus récente en tête. */
-const SUPPORTED_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'] as const;
+/**
+ * Versions du protocole que ce serveur sait parler ; la plus récente en tête (décision n° 92).
+ *
+ * La révision `2026-07-28` **supprime** la poignée de main `initialize` — elle ne la déprécie pas.
+ * La version voyage désormais dans `_meta` à CHAQUE requête, et `server/discover` remplace la
+ * découverte. Deux régimes coexistent donc dans ce même processus, distingués à la forme de la
+ * requête entrante : c'est le chemin de migration que la spécification recommande elle-même, et il
+ * ne casse aucun client existant.
+ */
+const MODERN_PROTOCOL = '2026-07-28';
+/**
+ * Les révisions à poignée de main, la plus récente en tête. Elles sont tenues à part parce que le
+ * repli d'`initialize` doit rester DANS ce régime : répondre `2026-07-28` à un client qui vient
+ * d'appeler `initialize` serait lui annoncer une révision où cette méthode n'existe pas.
+ */
+const LEGACY_PROTOCOLS = ['2025-11-25', '2025-06-18', '2025-03-26', '2024-11-05'] as const;
+const SUPPORTED_PROTOCOLS = [MODERN_PROTOCOL, ...LEGACY_PROTOCOLS] as const;
+
+/** Clés `_meta` normalisées par la révision moderne. */
+const META_VERSION = 'io.modelcontextprotocol/protocolVersion';
+const META_SERVER_INFO = 'io.modelcontextprotocol/serverInfo';
+
+/**
+ * `CacheableResult` de la révision moderne : les deux champs sont **obligatoires**.
+ *
+ * `private` bien que la liste d'outils ne porte aucune donnée personnelle : ce serveur n'existe
+ * qu'attaché à la sauvegarde d'une personne, et sur un canal stdio mono-utilisateur le choix
+ * conservateur ne coûte rien. Une heure : les outils sont compilés dans le binaire, ils ne
+ * changent pas en cours d'exécution.
+ */
+const CACHEABLE = { ttlMs: 3_600_000, cacheScope: 'private' } as const;
 const SERVER_INFO = { name: 'cout-revient-ch', title: 'Coût de revient CH', version: '1.0.0' };
 
 const INSTRUCTIONS =
@@ -42,6 +71,8 @@ const ERROR = {
   invalidRequest: -32600,
   methodNotFound: -32601,
   invalidParams: -32602,
+  /** `UnsupportedProtocolVersionError` de la révision `2026-07-28`. */
+  unsupportedProtocolVersion: -32022,
 };
 
 function write(message: Record<string, unknown>): void {
@@ -49,21 +80,45 @@ function write(message: Record<string, unknown>): void {
   process.stdout.write(`${JSON.stringify(message)}\n`);
 }
 
-const respond = (id: string | number, result: unknown): void =>
-  write({ jsonrpc: '2.0', id, result });
+/**
+ * Répond, en ajoutant `resultType` quand le client parle la révision moderne — elle l'exige sur
+ * TOUT résultat. Un client ancien qui recevrait ce champ l'ignorerait, mais l'ajouter partout
+ * changerait la forme du fil pour des clients qui ne l'ont pas demandé.
+ */
+const respond = (id: string | number, result: unknown, modern = false): void =>
+  write({
+    jsonrpc: '2.0',
+    id,
+    result: modern ? { resultType: 'complete', ...(result as object) } : result,
+  });
 
 const fail = (id: string | number, code: number, message: string): void =>
   write({ jsonrpc: '2.0', id, error: { code, message } });
 
 /**
- * Négociation de version : on répond la version demandée si on sait la parler, sinon la nôtre —
- * au client de décider s'il continue (règle de la spécification).
+ * La version que le client déclare dans `_meta`, ou `undefined` s'il n'en déclare aucune.
+ *
+ * C'est LE discriminant des deux régimes : la révision moderne rend ce champ obligatoire sur
+ * chaque requête, l'ancienne ne le connaît pas. Pas besoin d'état de session pour les distinguer —
+ * ce qui tombe bien, ce serveur n'en a jamais eu.
+ */
+function declaredVersion(message: JsonRpcRequest): string | undefined {
+  const meta = message.params?.['_meta'];
+  if (typeof meta !== 'object' || meta === null) return undefined;
+  const value = (meta as Record<string, unknown>)[META_VERSION];
+  return typeof value === 'string' ? value : undefined;
+}
+
+/**
+ * Négociation de version, régime ANCIEN : on répond la version demandée si on sait la parler,
+ * sinon la nôtre — au client de décider s'il continue (règle de la spécification). Le régime
+ * moderne, lui, ne négocie pas : il refuse explicitement (`-32022`) et laisse le client réessayer.
  */
 function negotiate(requested: unknown): string {
   return typeof requested === 'string' &&
-    (SUPPORTED_PROTOCOLS as readonly string[]).includes(requested)
+    (LEGACY_PROTOCOLS as readonly string[]).includes(requested)
     ? requested
-    : SUPPORTED_PROTOCOLS[0];
+    : LEGACY_PROTOCOLS[0];
 }
 
 /** Résultat d'un appel d'outil : contenu texte ET contenu structuré (compatibilité descendante). */
@@ -87,6 +142,55 @@ export async function handle(message: JsonRpcRequest, handlers: Handlers): Promi
   // Une notification (sans `id`) n'attend aucune réponse : « initialized », « cancelled »…
   if (id === undefined || id === null) return;
 
+  const declared = declaredVersion(message);
+  const modern = declared !== undefined;
+  if (modern && !(SUPPORTED_PROTOCOLS as readonly string[]).includes(declared)) {
+    // Le régime moderne ne se replie pas en silence : il nomme ce qu'il sait parler, et c'est au
+    // client de rappeler avec une version commune.
+    write({
+      jsonrpc: '2.0',
+      id,
+      error: {
+        code: ERROR.unsupportedProtocolVersion,
+        message: 'Unsupported protocol version',
+        data: { supported: [...SUPPORTED_PROTOCOLS], requested: declared },
+      },
+    });
+    return;
+  }
+
+  /**
+   * Répondu dans LES DEUX régimes, et c'est délibéré : sur stdio il n'y a pas de code de statut
+   * HTTP pour guider un repli, si bien qu'un client capable des deux « SHOULD send `server/discover`
+   * first » pour savoir à qui il parle. Refuser de répondre à la sonde à un client ancien la
+   * rendrait inutile.
+   */
+  if (method === 'server/discover') {
+    respond(
+      id,
+      {
+        supportedVersions: [...SUPPORTED_PROTOCOLS],
+        capabilities: { tools: { listChanged: false } },
+        instructions: INSTRUCTIONS,
+        ...CACHEABLE,
+        _meta: { [META_SERVER_INFO]: SERVER_INFO },
+      },
+      true,
+    );
+    return;
+  }
+
+  // `initialize` et `ping` n'existent PLUS dans la révision moderne. Un client qui déclare cette
+  // version et les appelle se trompe : le dire vaut mieux que de répondre à une méthode disparue.
+  if (modern && (method === 'initialize' || method === 'ping')) {
+    fail(
+      id,
+      ERROR.methodNotFound,
+      `« ${method} » n'existe pas dans la révision ${MODERN_PROTOCOL} ; utilisez « server/discover ».`,
+    );
+    return;
+  }
+
   if (method === 'initialize') {
     respond(id, {
       protocolVersion: negotiate(message.params?.['protocolVersion']),
@@ -101,7 +205,7 @@ export async function handle(message: JsonRpcRequest, handlers: Handlers): Promi
     return;
   }
   if (method === 'tools/list') {
-    respond(id, { tools: TOOL_DEFINITIONS });
+    respond(id, { tools: TOOL_DEFINITIONS, ...(modern ? CACHEABLE : {}) }, modern);
     return;
   }
   if (method === 'tools/call') {
@@ -118,7 +222,7 @@ export async function handle(message: JsonRpcRequest, handlers: Handlers): Promi
     const args = (message.params?.['arguments'] ?? {}) as Record<string, unknown>;
     try {
       const view = await handlers.view();
-      respond(id, toolResult(tool.run(view, args)));
+      respond(id, toolResult(tool.run(view, args)), modern);
     } catch (error) {
       // Erreur d'exécution (sauvegarde absente, argument hors bornes) : elle appartient au
       // RÉSULTAT, pas au protocole — le modèle doit pouvoir la lire et se corriger.
@@ -126,7 +230,7 @@ export async function handle(message: JsonRpcRequest, handlers: Handlers): Promi
         error instanceof ToolError || error instanceof BackupError
           ? error.message
           : `Erreur inattendue : ${error instanceof Error ? error.message : String(error)}`;
-      respond(id, toolError(reason));
+      respond(id, toolError(reason), modern);
     }
     return;
   }

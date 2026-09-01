@@ -24,7 +24,7 @@ describe('instantané engendré', () => {
     for (const indicator of MACRO.indicators) {
       expect(UNITS.has(indicator.unit), `${indicator.id} → ${indicator.unit}`).toBe(true);
       expect(TRANSFORMS.has(indicator.transform), indicator.id).toBe(true);
-      expect(['treasury', 'fed', 'eia']).toContain(indicator.source);
+      expect(['treasury', 'fed', 'eia', 'ecb']).toContain(indicator.source);
       expect(indicator.url.startsWith('https://'), indicator.id).toBe(true);
     }
   });
