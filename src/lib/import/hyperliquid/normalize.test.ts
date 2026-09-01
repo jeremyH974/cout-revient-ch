@@ -201,3 +201,51 @@ describe('normalizeHlAccount', () => {
     expect(noFx.fxMissing).toBe(1);
   });
 });
+
+/**
+ * La frontière fiscale, nommée (décision n° 83).
+ *
+ * Le test ci-dessus vérifie la séparation comme un effet de la conversion `spotAsInvestment`.
+ * Celui-ci la nomme pour ce qu'elle est : **aucun perpetual ne devient jamais un événement
+ * d'Investissement**, quel que soit le réglage. C'est ce qui garde l'estimation fiscale hors du
+ * régime des dérivés — vraisemblablement l'article 150 ter du CGI, distinct du 150 VH bis, et dont
+ * la qualification pour un perpetual DeFi n'est tranchée par aucune source primaire trouvée.
+ *
+ * Aujourd'hui c'est vrai par construction. Demain, ce sera vrai parce que ce test le dit.
+ */
+describe('frontière fiscale : les perpetuals restent hors de l’Investissement', () => {
+  const withBothMarkets = () => {
+    const data = emptyHlAccountData(ADDRESS);
+    for (const f of [
+      fill({ tid: 'p1' }), // perp
+      fill({
+        tid: 's1',
+        coin: 'PURR/USDC',
+        px: '0.2',
+        sz: '100',
+        fee: '0.07',
+        feeToken: 'PURR',
+        dir: 'Buy',
+      }), // spot
+    ])
+      data.fills[f.tid] = f;
+    return data;
+  };
+
+  for (const spotAsInvestment of [false, true]) {
+    it(`aucun perpetual dans investEvents (spotAsInvestment: ${spotAsInvestment})`, () => {
+      const out = normalizeHlAccount(withBothMarkets(), {
+        accountId: ACCOUNT,
+        spotPairs: PAIRS,
+        spotAsInvestment,
+        eurUsdRate: () => '1.1',
+      });
+      // Un événement d'Investissement ne peut venir que d'un fill spot : on le prouve par l'origine
+      // de son identifiant, le seul lien qui remonte au fill.
+      for (const event of out.investEvents)
+        expect(event.id, `« ${event.id} » vient d’un perpetual`).not.toContain('p1');
+      // Et les perps restent bien du côté trading, où ils sont comptés mais jamais imposés ici.
+      expect(out.trading.executions.some((x) => x.market === 'perp')).toBe(true);
+    });
+  }
+});

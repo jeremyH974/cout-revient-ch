@@ -225,6 +225,37 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['declaratif'],
   },
   {
+    id: 'perpetuals-150-ter',
+    title: 'Régime fiscal des perpetuals (dérivés)',
+    status: 'doctrine-unsettled',
+    statusDate: '2026-09-01',
+    effect:
+      'Les contrats à terme et CFD relèvent vraisemblablement de l’art. 150 ter du CGI — PFU sans ' +
+      'abattement, pertes imputables sur les seuls gains de même nature, report 10 ans — donc d’un ' +
+      'régime DISTINCT des cessions d’actifs numériques (150 VH bis). La qualification d’un ' +
+      'perpetual DeFi non régulé au regard de ce texte n’est tranchée par AUCUNE source primaire ' +
+      'trouvée. L’estimation fiscale de l’app ne couvre donc que l’espace Investissement ; les ' +
+      'perpetuals en sont exclus, et ce n’est pas un oubli',
+    /*
+     * `official: false` et `url: null` alors que l'art. 150 ter existe bel et bien : ce que cette
+     * ligne affirme n'est pas le texte, c'est **l'absence de qualification** des perpetuals DeFi au
+     * regard de ce texte. Aucune source officielle ne confirme ce point — seules des analyses
+     * secondaires convergentes le suggèrent — et l'invariant du module a raison d'exiger qu'une
+     * source officielle accompagne un fait confirmé. Citer Légifrance ici ferait passer une
+     * incertitude pour une certitude.
+     */
+    source: {
+      label:
+        'Analyses secondaires convergentes rattachant les dérivés à l’art. 150 ter du CGI ; aucune source primaire ne traite le cas des perpetuals DeFi',
+      url: null,
+      official: false,
+      checkedOn: '2026-09-01',
+    },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-09-01',
+    topics: ['cession'],
+  },
+  {
     id: 'nft-regime',
     title: 'Régime propre aux jetons uniques (NFT)',
     status: 'adopted-final',

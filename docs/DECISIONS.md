@@ -1829,3 +1829,23 @@
     la couverture complète : quatre sources sur cinq, et la cinquième par un autre moyen.
     Chaque contrôle a été **vérifié en le faisant échouer** : un marqueur faussé, et la source se
     nomme.
+83. **Sur un point que le droit ne tranche pas, on nomme l'incertitude plutôt que de produire un
+    chiffre** (01/09/2026, proposition P93). L'espace Trading agrège des perpetuals. Les dérivés
+    relèvent vraisemblablement de l'**article 150 ter** du CGI — régime distinct du 150 VH bis,
+    pertes imputables sur les seuls gains de même nature — mais **aucune source primaire trouvée ne
+    qualifie un perpetual DeFi non régulé** au regard de ce texte.
+    L'exclusion existait **de fait** : `computeFrenchTax` ne reçoit que des `LedgerEvent`, et les
+    exécutions de trading sont d'un autre type — l'isolement est donc porté par le typage, plus
+    solide que ce que le réaudit supposait. Le vrai point d'entrée est ailleurs : la conversion
+    `spotAsInvestment` du normaliseur Hyperliquid, qui fait entrer du **spot** dans
+    l'Investissement. Un test nommé l'exige désormais : **aucun perpetual ne devient un événement
+    d'Investissement, quel que soit le réglage**. C'était vrai par construction ; c'est maintenant
+    vrai parce qu'un test le dit.
+    **L'entrée de veille dit « on ne sait pas », et sa source le dit aussi.** Elle porte `official:
+false` et `url: null` alors que l'article 150 ter existe bel et bien — parce que ce qu'elle
+    affirme n'est pas le texte, c'est **l'absence de qualification** des perpetuals au regard de ce
+    texte, qu'aucune source officielle ne confirme. L'invariant du module (« une entrée `confirmed` a
+    toujours une source officielle ») a rejeté la première rédaction, et il avait raison : citer
+    Légifrance ici aurait fait passer une incertitude pour une certitude.
+    N'étant pas `in-force`, la ligne apparaît dans le bloc « Veille réglementaire » du rapport —
+    exactement ce que ce bloc existe pour porter (n° 80).
