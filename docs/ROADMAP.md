@@ -274,7 +274,7 @@ pris — décision n° 69).
 | P82 | **Livré autrement (01/09/2026, décision n° 89).** Aucun échelon historique n'existe ; la chaîne et son cliquet sont bâtis à froid             |   1    |     5     |    0    |   1,5    |   4    |
 | P88 | **Abandonné (01/09/2026, décision n° 91).** Redistribution interdite par les CGU CoinGecko, et série figée = risque sous-estimé               |   3    |     4     |    1    |    2     |   4    |
 | P91 | **Livré (01/09/2026, décision n° 90).** Cinq listes d'`ARCHITECTURE.md` adossées à un test ; cinq dérives corrigées                           |   0    |     3     |    1    |    1     |   4    |
-| P84 | Dérivations restantes extraites d'`app.svelte.ts` vers `src/lib/`, en fonctions testables                                                     |   2    |     4     |    1    |   2,5    |  2,8   |
+| P84 | **Livré (01/09/2026, décision n° 94).** Les trois dérivations qui portent une règle métier extraites et testées                               |   2    |     4     |    1    |   2,5    |  2,8   |
 
 **P79 avant tout le reste** : sans le périmètre de couverture étendu, rien ne mesurera l'effet de
 P84. La zone hors mesure est passée de 17 477 à **20 844 lignes** en 49 commits — l'écart se creuse à
