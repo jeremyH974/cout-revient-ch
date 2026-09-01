@@ -3,7 +3,7 @@
  * retour (décision n° 47).
  *
  * Pourquoi une table déclarative plutôt qu'une phrase dans un écran : l'app interroge **douze**
- * sources, dont **trois** imposent contractuellement une mention. Une attribution écrite à la main
+ * sources, dont **quatre** imposent contractuellement une mention. Une attribution écrite à la main
  * dans un composant se périme au premier fournisseur ajouté, et l'oubli est silencieux — il se
  * découvre à la réclamation. Ici, `sources.test.ts` croise cette table avec les noms que le code
  * produit réellement (`defaultPriceProviders`, `defaultHistoryProviders`, `frankfurterProvider`,
@@ -123,10 +123,21 @@ export const DATA_SOURCES: readonly DataSource[] = [
     label: 'Banque centrale européenne',
     role: 'Taux de change de référence quotidiens, via le relais Frankfurter.',
     url: 'https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.fr.html',
-    notice: null,
-    // Taux publiés à titre d'information ; aucune clause d'attribution constatée au 26/08/2026.
-    duty: 'unverified',
-    terms: null,
+    // Le commentaire précédent affirmait « aucune clause d'attribution constatée au 26/08/2026 ».
+    // C'était faux, et l'application relayait donc de la donnée BCE sans la citer (décision n° 91).
+    // Disclaimer relu le 01/09/2026 : « users of this website may make free use of the information
+    // obtained directly from it subject to the following conditions: When such information is
+    // distributed or reproduced, it must appear accurately and the ECB must be cited as the
+    // source. » La réutilisation est donc libre — mais l'attribution est une CONDITION, pas une
+    // politesse.
+    notice: 'Source : Banque centrale européenne',
+    duty: 'required',
+    terms: {
+      url: 'https://www.ecb.europa.eu/services/using-our-site/disclaimer/html/index.en.html',
+      checkedOn: '2026-09-01',
+      clause:
+        'Disclaimer & copyright — « the ECB must be cited as the source » lorsque l’information est distribuée ou reproduite',
+    },
     emits: ['BCE via Frankfurter'],
   },
   {
