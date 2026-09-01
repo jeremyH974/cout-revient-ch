@@ -120,7 +120,7 @@ fournisseur en échec et invite à saisir une clé gratuite. Ethereum (Routescan
 
 La surveillance a été ajustée en conséquence : le contrôle **reste en place** — c'est lui qui dira si
 Base revient, et surtout si Arbitrum tombe à son tour — mais il est déclaré **en sursis** jusqu'au
-01/03/2027, donc rapporté sans faire échouer le cron (voir [`DECISIONS.md`](DECISIONS.md) n° 63).
+01/03/2027, donc rapporté sans faire échouer le cron (voir [`DECISIONS.md`](DECISIONS.md) n° 74).
 
 Les trois fournisseurs parlent le même dialecte `module`/`action` hérité d'Etherscan, d'où un
 adaptateur unique (`etherscan.ts`). Ce chemin lit en plus les **transactions internes** (`txlistinternal`), donc l'ETH

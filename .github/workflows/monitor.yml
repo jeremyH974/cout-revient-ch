@@ -66,7 +66,7 @@ jobs:
             // Un écart en sursis ne fait plus échouer le contrat : `CONTRACT` suffit donc à dire
             // s'il reste un vrai problème. L'empreinte, elle, décrit l'état — c'est elle qui
             // décide de notifier ou non, pour qu'une dégradation permanente ne commente pas
-            // l'issue toutes les six heures (voir DECISIONS.md n° 63).
+            // l'issue toutes les six heures (voir DECISIONS.md n° 74).
             const smokeOk = process.env.SMOKE === 'success';
             const contractOk = process.env.CONTRACT === 'success';
             const alarming = !smokeOk || !contractOk;
