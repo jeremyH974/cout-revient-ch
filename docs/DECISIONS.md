@@ -1764,3 +1764,31 @@
     **P81 rend visible, ne colmate pas.** Réparer le quota — compresser, élaguer, passer à OPFS —
     est une autre proposition. Et la logique de chargement n'a pas été touchée : c'est le seul
     mécanisme qui protège aujourd'hui, y toucher sans raison serait risquer une régression.
+80. **Un chiffre fiscal affiché porte sa source, par un lien et jamais par une copie** (01/09/2026,
+    proposition P92). `TAX_RATES` ne contenait que `{ from, pfu, label }` : le taux ressortait en
+    clair dans le Rapport et dans le simulateur, sans un mot de son origine ni de sa date. Un
+    utilisateur qui lit « 31,4 % » n'avait aucun moyen de savoir d'où venait ce nombre — d'autant
+    moins tenable que **le BOFiP applicable affiche encore 30 %** et n'a pas bougé depuis le
+    23/04/2024 : l'écart entre la loi et la doctrine est réel, et l'outil le porte désormais plutôt
+    que de le subir.
+    **Un lien, pas une copie.** `TaxRate` gagne un `sourceId` — une chaîne nue, sans import, pour que
+    le domaine reste pur : la couche `watch` dépend déjà de `domain/date`, l'inverse renverserait les
+    couches. La citation, l'URL Légifrance et la date de relecture restent dans
+    `src/lib/watch/entries.ts`, seule table à les porter. Deux tables portant la même citation
+    divergeraient au premier amendement — c'est la dérive que les n° 47 et 57 ont appris à éviter.
+    **Le croisement est le cœur de la brique**, pas l'affichage. `tax-source.test.ts` exige que tout
+    identifiant déclaré existe dans la veille, que le pourcentage du libellé se retrouve dans
+    l'`effect` de l'entrée citée, et que **le taux en vigueur en porte un** — ce dernier point est le
+    cliquet : ajouter un millésime sans le sourcer devient impossible en silence. Vérifié en faisant
+    échouer les deux : un taux modifié d'un seul côté, et une source retirée.
+    **Ce qui n'a pas été touché** : l'exclusion des entrées `in-force` du bloc « Veille
+    réglementaire » du rapport (`report-model.ts`). Le réaudit la présentait comme le défaut ; c'est
+    au contraire une décision saine, et son commentaire le dit — ce bloc porte des **avertissements**,
+    et une loi en vigueur n'en est pas un. Le manque était dans la table des taux, qui ignorait d'où
+    elle venait.
+    **Une citation, pas une répétition** : dans le rapport elle entre dans la `note` de la section,
+    une fois plutôt qu'à chaque millésime — répétée trois lignes de suite, elle cesserait d'être lue.
+    Dans le simulateur elle porte le lien vers le texte officiel, qui a un sens sur un écran
+    interactif et aucun dans un PDF ; et elle vit **hors des branches d'issue**, la source du taux
+    valant que la vente augmente l'impôt, le réduise ou soit exonérée. Le taux d'archive de 30 % n'a
+    pas de source : la veille suit ce qui bouge, pas ce qui est clos.

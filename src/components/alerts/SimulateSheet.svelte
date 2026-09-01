@@ -15,6 +15,8 @@
   import Sheet from '../shared/Sheet.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
+  import { rateFor } from '$lib/domain/tax-fr';
+  import { watchEntryOf } from '$lib/format/tax-source';
 
   type SimulateMode = 'buy' | 'sell' | 'target' | 'plan';
 
@@ -95,6 +97,15 @@
       unknown: taxLedger.unknownGlobalValue,
     };
   });
+
+  /**
+   * Le texte de loi derrière le taux affiché (décision n° 80) — résolu depuis la table de veille,
+   * jamais recopié ici.
+   */
+  const rateSource = $derived(taxPreview ? watchEntryOf(rateFor(taxPreview.year).sourceId) : null);
+
+  /** `AAAA-MM-JJ` → `JJ/MM/AAAA` : une date civile, jamais convertie en fuseau. */
+  const frDate = (iso: string): string => iso.split('-').reverse().join('/');
 
   /** Montant en euros : la fiscalité s'exprime en euros même si l'app affiche en dollars. */
   const moneyEur = (value: Big, sign = false): string =>
@@ -542,6 +553,19 @@
               calcul suppose que cette app contient tous vos actifs numériques. Estimation, ni
               déclaration ni conseil fiscal.
             </p>
+            <!--
+              D'où vient le taux (décision n° 80), hors des branches d'issue : la source vaut que la
+              vente augmente l'impôt, le réduise ou soit exonérée. L'écran étant interactif, le lien
+              vers le texte officiel y a un sens qu'il n'aurait pas dans un PDF.
+            -->
+            {#if rateSource}
+              <p class="muted">
+                Taux fixé par
+                <a href={rateSource.source.url} target="_blank" rel="noreferrer noopener"
+                  >{rateSource.source.label}</a
+                >, relu le {frDate(rateSource.source.checkedOn)}.
+              </p>
+            {/if}
           </details>
         {/if}
         <p class="notice">

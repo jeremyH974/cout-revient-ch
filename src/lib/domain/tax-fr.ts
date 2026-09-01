@@ -34,11 +34,23 @@ export interface TaxRate {
   /** Taux global (impôt sur le revenu + prélèvements sociaux). */
   pfu: DecimalString;
   label: string;
+  /**
+   * Identifiant de l'entrée de veille qui porte le texte de loi (décision n° 80).
+   *
+   * Un **lien**, pas une copie : la citation, l'URL Légifrance et la date de relecture vivent dans
+   * `src/lib/watch/entries.ts`, et deux tables portant la même citation divergeraient au premier
+   * amendement. C'est une chaîne nue plutôt qu'un import, pour que le domaine reste pur — la couche
+   * `watch` dépend déjà de `domain/date`, l'inverse renverserait les couches. La résolution se fait
+   * à l'affichage, et `tax-source.test.ts` croise les deux tables.
+   *
+   * Absent sur les taux d'archive : la veille suit ce qui bouge, pas ce qui est clos.
+   */
+  sourceId?: string;
 }
 
 export const TAX_RATES: readonly TaxRate[] = [
   { from: 0, pfu: '0.30', label: '30 % (12,8 % + 17,2 %)' },
-  { from: 2025, pfu: '0.314', label: '31,4 % (12,8 % + 18,6 %)' },
+  { from: 2025, pfu: '0.314', label: '31,4 % (12,8 % + 18,6 %)', sourceId: 'pfu-31_4' },
 ];
 
 /** Taux applicable aux cessions d'une année (le plus récent qui la couvre). */
@@ -54,6 +66,9 @@ export function rateFor(year: number): TaxRate {
  * premier euro — ce n'est pas un abattement.
  */
 export const EXEMPTION_THRESHOLD: DecimalString = '305';
+
+/** Entrée de veille qui porte le texte du seuil ci-dessus (même principe que `TaxRate.sourceId`). */
+export const EXEMPTION_THRESHOLD_SOURCE_ID = 'seuil-305';
 
 /** Nature fiscale d'un événement du grand livre, telle que ce module la lit. */
 export type TaxEventKind =

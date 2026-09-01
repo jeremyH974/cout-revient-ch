@@ -253,3 +253,37 @@ test('sans données : la page explique et renvoie vers l’import', async ({ pag
   ).toBeVisible();
   await expect(page.getByRole('link', { name: 'Importer un export' })).toBeVisible();
 });
+
+/**
+ * P92 : le taux fiscal affiché porte sa source (décision n° 80).
+ *
+ * L'estimation fiscale du simulateur exige l'historique de prix — d'où le passage par le Rapport,
+ * qui le charge. Sans réseau stubé, ce parcours n'est pas déterministe : c'est précisément pourquoi
+ * il vit ici plutôt que dans une vérification à la main.
+ */
+test('le simulateur de vente cite le texte de loi derrière le taux', async ({ page }) => {
+  await openDemo(page);
+
+  // Le Rapport déclenche le chargement de l'historique quotidien, dont dépend l'estimation.
+  await page.goto('#/invest/report');
+  await expect(page.getByText('Fiscalité française (estimation)')).toBeVisible({ timeout: 30_000 });
+  // La même citation doit d'abord apparaître dans le rapport : c'est le document transmis.
+  await expect(page.getByText(/LOI n° 2025-1403 du 30\/12\/2025/)).toBeVisible();
+
+  await page.goto('#/invest/asset/btc');
+  await page.getByRole('button', { name: 'Simuler' }).click();
+  const sim = page.locator('dialog[open]');
+  await sim.getByRole('button', { name: 'Vendre', exact: true }).click();
+  await sim.getByLabel(/Quantité à vendre/).fill('0.05');
+  // L'estimation fiscale ne concerne que les sorties vers l'euro : un échange crypto-crypto
+  // bénéficie du sursis (art. 150 VH bis) et n'affiche donc rien.
+  await sim.getByRole('combobox').last().selectOption('sell-eur');
+
+  const estimation = sim.locator('details', { hasText: 'Estimation fiscale française' });
+  await estimation.getByText('Estimation fiscale française (avant de vendre)').click();
+  await expect(estimation.getByText(/Taux fixé par/)).toBeVisible();
+  await expect(estimation.getByRole('link', { name: /LOI n° 2025-1403/ })).toHaveAttribute(
+    'href',
+    /legifrance\.gouv\.fr/,
+  );
+});
