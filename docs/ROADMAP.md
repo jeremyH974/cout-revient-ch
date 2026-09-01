@@ -254,7 +254,7 @@ pris — décision n° 69).
 
 | #   | Proposition                                                                               | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |
 | --- | ----------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: |
-| P76 | Garde anti-injection de formule dans l'export CSV (`=`, `+`, `-`, `@`)                    |   0    |     4     |    1    |   0,25   | **20** |
+| P76 | **Livré (01/09/2026, décision n° 76).** Garde anti-injection de formule dans l'export CSV |   0    |     4     |    1    |   0,25   | **20** |
 | P78 | `.gitignore` : `.claude/worktrees/`, aujourd'hui protégé par un exclude local seulement   |   0    |     2     |    0    |   0,1    | **20** |
 | P81 | L'échec du miroir `localStorage` remonte dans les auto-vérifications au lieu d'être tu    |   1    |     5     |    1    |   0,5    | **14** |
 | P92 | La source du taux fiscal s'affiche **à côté** du chiffre, pas seulement dans la veille    |   2    |     4     |    1    |   0,5    | **14** |

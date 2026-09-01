@@ -11,6 +11,7 @@ import { countryName, STATUS_LABELS } from '../format/declarations-fr';
 import { roundHalfUp } from '../format/fr';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
 import type { MetricPoint } from '../history/metrics';
+import { textCell } from './csv-cell';
 
 const BOM = '﻿';
 const EOL = '\r\n';
@@ -25,7 +26,7 @@ const num = (value: Big | null | undefined, dp = 9): string =>
         .replace(/\.?0+$/, '')
         .replace(/^-0$/, '0')
         .replace('.', ',');
-const text = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+const text = textCell;
 const join = (cells: string[]): string => cells.join(';');
 const file = (header: string[], rows: string[][]): string =>
   BOM + [join(header), ...rows.map(join)].join(EOL) + EOL;

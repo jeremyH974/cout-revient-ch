@@ -87,4 +87,22 @@ describe('eventsToKoinlyCsv', () => {
     expect(rows).toBe(1);
     expect(skipped).toBe(1);
   });
+
+  /**
+   * Le verrou de frontière (décision n° 76).
+   *
+   * Les exports tableur désarment les amorces de formule en les préfixant d'une apostrophe
+   * (`csv-cell.ts`). **Celui-ci ne doit surtout pas le faire** : son fichier est réimporté par
+   * Koinly ou Waltio, jamais lu dans un tableur, et une apostrophe ajoutée corromprait le symbole
+   * chez le destinataire. Ce test existe pour le jour où quelqu'un verra l'absence de garde comme
+   * un oubli.
+   */
+  it('ne désarme rien : un symbole commençant par « = » ressort intact', () => {
+    // L'identifiant part dans la colonne `TxHash` : un vecteur de texte libre qui ne dépend
+    // d'aucune validation d'actif.
+    const { csv } = eventsToKoinlyCsv([{ ...trade, id: '=1+1' }]);
+    // `quote()` est à guillemets minimaux : la valeur ressort nue, en dernière colonne.
+    expect(csv).toContain(',=1+1');
+    expect(csv, 'une apostrophe de garde a fuité dans le format pivot').not.toContain("'=1+1");
+  });
 });

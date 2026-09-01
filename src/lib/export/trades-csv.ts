@@ -6,6 +6,7 @@
  */
 import type { Big } from '../domain/money';
 import type { JournaledTrip } from '../domain/trading/journal';
+import { textCell } from './csv-cell';
 
 const BOM = '﻿';
 const EOL = '\r\n';
@@ -18,7 +19,7 @@ const num = (value: Big | null, dp = 9): string =>
         .replace(/\.?0+$/, '')
         .replace(/^-0$/, '0')
         .replace('.', ',');
-const text = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+const text = textCell;
 const naive = (value: string | null): string =>
   value === null
     ? ''

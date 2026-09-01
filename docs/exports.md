@@ -7,6 +7,20 @@ font exception à ce format (deux dernières lignes du tableau) : la sauvegarde 
 tableur, et l'export portable suit les exigences de Koinly, pas celles d'Excel FR — détail des deux
 dans `docs/backup-format.md`.
 
+## Pourquoi une apostrophe apparaît parfois
+
+Excel et LibreOffice interprètent comme une **formule** toute cellule dont la valeur commence par
+`=`, `+`, `-` ou `@`. Un libellé de compte, un symbole venu d'un import tiers ou une note de journal
+qui commencerait ainsi serait donc exécuté à l'ouverture du fichier, sans que rien ne le demande.
+
+Les exports tableur préfixent ces valeurs d'une **apostrophe** pour les désarmer : une note saisie
+« - premier point » ressort « '- premier point ». Rien n'est tronqué ni réécrit, et seules les
+valeurs commençant par l'un de ces caractères sont concernées.
+
+**L'export portable (Koinly / Waltio) ne le fait pas**, délibérément : son fichier est réimporté par
+une machine, jamais lu dans un tableur, et une apostrophe ajoutée y corromprait la donnée chez le
+destinataire. Voir `docs/DECISIONS.md` n° 76.
+
 | Export                                | Où                                            | Contenu                                                                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Positions                             | Réglages → Données                            | Une ligne par actif : quantité, PRU, investi, prix, valeur, latent (€/%), réalisé, total, ROI, net investi, frais, remises.                                                                                                                                                                                                                                                       |
