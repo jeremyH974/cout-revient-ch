@@ -75,7 +75,7 @@ describe('catalogue des sources de données', () => {
     }
   });
 
-  it('reprend les quatre obligations constatées', () => {
+  it('reprend les cinq obligations constatées', () => {
     // La BCE s'est ajoutée le 01/09/2026 : la table affirmait « aucune clause d'attribution
     // constatée » alors que le disclaimer en porte une, et l'app relayait ses taux sans la citer
     // (décision n° 91). Un devoir non constaté et un devoir inexistant ne sont pas la même chose.
@@ -83,12 +83,13 @@ describe('catalogue des sources de données', () => {
       requiredAttributions()
         .map((s) => s.id)
         .sort(),
-    ).toEqual(['alternative-me', 'coingecko', 'ecb', 'etherscan']);
+    ).toEqual(['alternative-me', 'coingecko', 'ecb', 'etherscan', 'eurostat']);
     expect(sourceEmitting('CoinGecko')?.notice).toBe('Powered by CoinGecko');
     expect(sourceEmitting('Etherscan V2')?.notice).toBe('Powered by Etherscan.io APIs');
     expect(sourceEmitting('BCE via Frankfurter')?.notice).toBe(
       'Source : Banque centrale européenne',
     );
+    expect(sourceEmitting('eurostat')?.notice).toBe('Source : Eurostat');
   });
 
   it('donne à chaque source un lien et un rôle lisibles', () => {

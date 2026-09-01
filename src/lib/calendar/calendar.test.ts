@@ -13,7 +13,17 @@ import type { Calendar, MarketEvent } from './types';
  * semaine, on ne bâtit donc aucune attente dessus.
  */
 
-const KINDS = new Set(['fomc-decision', 'cpi', 'ppi', 'employment', 'jolts', 'pce', 'gdp']);
+const KINDS = new Set([
+  'fomc-decision',
+  'cpi',
+  'ppi',
+  'employment',
+  'jolts',
+  'pce',
+  'gdp',
+  'ecb-decision',
+  'hicp',
+]);
 
 describe('calendrier engendré', () => {
   it('est trié par instant puis par identifiant', () => {
@@ -37,7 +47,7 @@ describe('calendrier engendré', () => {
     for (const event of CALENDAR.events) {
       expect(KINDS.has(event.kind), `${event.id} → ${event.kind}`).toBe(true);
       expect(['major', 'secondary']).toContain(event.tier);
-      expect(['fomc', 'bls', 'bea']).toContain(event.source);
+      expect(['fomc', 'bls', 'bea', 'ecb', 'eurostat']).toContain(event.source);
       expect(['exact', 'day']).toContain(event.precision);
     }
   });
@@ -71,9 +81,17 @@ describe('calendrier engendré', () => {
     expect(CALENDAR.completeTo <= CALENDAR.coversTo).toBe(true);
   });
 
-  it('déclare le BLS comme tenu à la main, et les deux autres comme automatiques', () => {
+  it('déclare le BLS comme tenu à la main, et toutes les autres comme automatiques', () => {
+    // Le BLS est le seul dont le réseau de diffusion refuse les clients non-navigateurs
+    // (décision n° 58) ; la BCE et Eurostat répondent à `curl`, comme la Fed et le BEA.
     const upkeep = Object.fromEntries(CALENDAR.sources.map((s) => [s.source, s.upkeep]));
-    expect(upkeep).toEqual({ fomc: 'auto', bea: 'auto', bls: 'manual' });
+    expect(upkeep).toEqual({
+      fomc: 'auto',
+      bea: 'auto',
+      bls: 'manual',
+      ecb: 'auto',
+      eurostat: 'auto',
+    });
   });
 });
 

@@ -17,6 +17,18 @@ document est le mode d'emploi.
 | Prix à la production (PPI) | BLS    | 8 h 30            | secondaire |
 | Postes vacants (JOLTS)     | BLS    | 10 h 00           | secondaire |
 
+Et depuis le 01/09/2026 (décision n° 93), la zone euro — **heures de Francfort**, pas de New York :
+
+| Publication                       | Source   | Heure de Francfort   | Rang       |
+| --------------------------------- | -------- | -------------------- | ---------- |
+| Décision de la BCE                | BCE      | 14 h 15              | majeure    |
+| Inflation IPCH, estimation rapide | Eurostat | annoncée par la page | majeure    |
+| Inflation IPCH, définitif         | Eurostat | annoncée par la page | secondaire |
+
+L'estimation rapide sort en fin de mois de référence, le chiffre définitif deux à trois semaines
+plus tard. Seule la première surprend les marchés : la seconde confirme presque toujours, d'où deux
+rangs différents.
+
 Le rang est un **choix de rédaction**, pas une mesure : aucune volatilité n'a été calculée pour
 l'établir, et l'écran l'annonce.
 
@@ -62,6 +74,11 @@ de chaque source — pas sa simple disponibilité : une page qui répond 200 en 
 casse le générateur tout aussi sûrement qu'une page morte. Sont contrôlés le flux XML du Trésor
 (`<entry>`, `d:NEW_DATE`, `d:BC_10YEAR`), le CSV H.4.1 de la Fed (identifiant `RESH4R_N.WW`), les
 dates de publication du BEA et la page du calendrier FOMC (`fomc-meeting__month`).
+
+Depuis le 01/09/2026 s'y ajoutent les deux calendriers de la BCE : le balisage `<dt>`/`<dd>` avec
+date complète, et le marqueur « followed by press conference » qui distingue une décision de taux
+d'une réunion non monétaire — plus un contrôle qui **échoue si la page se met à écrire « CEST »**,
+ce qui invaliderait la lecture « heure locale » (voir ci-dessous).
 
 **Le BLS en est absent, et ce n'est pas un oubli** : son réseau de diffusion refuse tout client
 non-navigateur, ce qui est précisément la raison d'être de sa table tenue à la main. Son garde-fou
@@ -121,7 +138,8 @@ La marche à suivre :
 ## Les heures
 
 Un événement macro est un **instant**, pas une date naïve : « 8 h 30 à New York » se convertit en
-UTC à la génération, par le fuseau IANA `America/New_York`. C'est l'inverse de la règle appliquée
+UTC à la génération, par le fuseau IANA `America/New_York` — et « 14 h 15 à Francfort » par
+`Europe/Berlin`. C'est l'inverse de la règle appliquée
 aux dates Coinhouse, qui n'ont pas de fuseau et ne doivent jamais être converties.
 
 La conversion est vérifiée par un **oracle indépendant** : le BEA publie ses dates déjà en UTC
@@ -131,3 +149,13 @@ des couples certifiés par une agence fédérale, couvrant les deux régimes d'h
 
 Conséquence visible : les États-Unis et l'Europe ne changent pas d'heure le même week-end. Une
 réunion de la Fed s'affiche à 20 h à Paris en septembre, et à 19 h fin octobre.
+
+### « CET » toute l'année, et pourquoi ce n'est pas UTC+1
+
+La BCE écrit « CET » sur ses calendriers **y compris pour des dates d'été**. Ce n'est pas le fuseau
+littéral UTC+1 : la page de l'IPCH couvre septembre et décembre 2026 sans jamais écrire « CEST », ce
+qui ne se comprend que si « CET » y désigne l'heure **locale** de Francfort. Une publication
+récurrente a d'ailleurs une heure locale constante, pas une heure qui glisse deux fois par an.
+
+C'est une déduction, pas une affirmation de la source — d'où le contrôle de contrat qui échoue si
+« CEST » apparaît un jour sur cette page : ce serait le signe que la lecture était fausse.

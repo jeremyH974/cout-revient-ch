@@ -31,7 +31,7 @@
  * crypto, et les annonces de refinancement trimestriel méritent leur propre traitement. Mieux vaut
  * trois sources tenues que quatre dont une décorative.
  */
-export type SourceId = 'fomc' | 'bls' | 'bea';
+export type SourceId = 'fomc' | 'bls' | 'bea' | 'ecb' | 'eurostat';
 
 /**
  * Nature de la publication. Volontairement fermée : un type inconnu doit casser la compilation
@@ -46,7 +46,22 @@ export type EventKind =
    * semaines après, mais n'annonce la date qu'une fois la réunion tenue. La déduire de sa règle
    * serait une prévision présentée comme un fait — exactement ce que ce module s'interdit.
    */
-  'fomc-decision' | 'cpi' | 'ppi' | 'employment' | 'jolts' | 'pce' | 'gdp';
+  | 'fomc-decision'
+  | 'cpi'
+  | 'ppi'
+  | 'employment'
+  | 'jolts'
+  | 'pce'
+  | 'gdp'
+  /**
+   * Décision du Conseil des gouverneurs de la BCE (décision n° 93). Trois pièges sur la page
+   * officielle, tous écartés par le parseur : une réunion « **non**-monetary policy » contient la
+   * sous-chaîne « monetary policy meeting » ; le « General Council » est un autre organe ; et la
+   * conférence de presse a sa propre ligne, qui doublerait la réunion.
+   */
+  | 'ecb-decision'
+  /** Inflation de la zone euro (IPCH), estimation rapide puis chiffre définitif. */
+  | 'hicp';
 
 /**
  * `exact` — l'heure de publication est officiellement annoncée (le cas courant : 8 h 30 ou

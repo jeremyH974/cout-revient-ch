@@ -2096,3 +2096,36 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     reste **intact** — c'est la moitié qui pourrait casser un client existant.
     Tout le pan HTTP de la révision (autorisation, en-têtes, `subscriptions/listen`) ne s'applique
     pas : la spécification écarte explicitement stdio de sa partie autorisation.
+93. **La zone euro entre dans le calendrier, parce que sa licence l'y autorise** (01/09/2026,
+    proposition P89). Les deux textes ont été relus **en source primaire** avant d'écrire quoi que
+    ce soit, parce qu'on inscrivait une affirmation juridique dans du code : la BCE — « users of
+    this website may make free use of the information obtained directly from it… **the ECB must be
+    cited as the source** » — et Eurostat — « Reuse of statistical data […] for commercial or
+    non-commercial purposes is authorised provided the source is acknowledged », sous la décision de
+    la Commission du 12 décembre 2011.
+    Redistribution autorisée avec attribution : **premier mode de la n° 59**, l'instantané committé.
+    C'est l'inverse exact du cas américain, où le BLS refuse tout client non-navigateur et où le VIX
+    a dû être abandonné. Les trois points d'entrée répondent à `curl` sans usurpation d'user-agent.
+    **Un seul parseur pour les deux calendriers de la BCE**, dont le balisage `<dt>`/`<dd>` est plus
+    régulier que celui du FOMC : la date y est complète, sans mois à désambiguïser, et l'heure y
+    figure quand elle est connue.
+    **Trois pièges, un seul marqueur.** « **non**-monetary policy meeting » contient la sous-chaîne
+    « monetary policy meeting » ; le « General Council » est un autre organe ; et la conférence de
+    presse a sa **propre ligne**, qui doublerait chaque réunion. « followed by press conference » les
+    tranche tous les trois d'un coup — il ne figure que sur le second jour d'une réunion de politique
+    monétaire, celui où la décision tombe. C'est l'analogue du « notation vote » du FOMC (n° 58).
+    **« CET » n'est pas UTC+1, et le fichier le prouve.** La BCE écrit « CET » y compris pour des
+    dates d'été. La page de l'IPCH couvre septembre et décembre 2026 **sans jamais écrire
+    « CEST »** — ce qui ne se comprend que si « CET » y désigne l'heure locale de Francfort. Une
+    publication récurrente a d'ailleurs une heure locale constante, pas une heure qui glisse deux
+    fois par an. D'où la conversion par `Europe/Berlin`, et un contrôle de contrat qui **échoue si
+    « CEST » apparaît un jour** : ce serait le signe que la déduction était fausse.
+    Barrières identiques aux sources américaines : `ecb` et `eurostat` ont leur minimum d'événements,
+    et fausser le marqueur fait refuser l'écriture en nommant la source (« ecb : 0 événement(s),
+    minimum 4 »). Sept cliquets existants ont réclamé leur dû à l'ajout de ces sources — natures,
+    rangs, entretien, origines CSP, attributions — ce qui est exactement ce pour quoi ils ont été
+    écrits.
+    **Frankfurter reste hors périmètre** : il ne sert que la conversion de change, jamais les taux
+    directeurs ni les dates. Son point d'entrée `/v1/` a été vérifié comme un simple miroir BCE non
+    mélangé, malgré une v2 « multi-fournisseurs » parue en mai 2026 — c'est un risque de dérive à
+    surveiller, pas un problème aujourd'hui.
