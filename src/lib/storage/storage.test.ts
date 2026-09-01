@@ -740,3 +740,35 @@ describe('clé Anthropic : hors de la sauvegarde, par construction', () => {
     expect(aiKey.consentCount).toBe(0);
   });
 });
+
+/**
+ * Le refus que la documentation annonçait sans que le code le fasse (décision n° 89).
+ *
+ * `backup-format.md` décrit le champ `app` comme refusant « un fichier d'une autre app avant même
+ * de regarder `state` ». `parseBackup` ne l'avait jamais lu : un fichier étranger échouait bien,
+ * mais sur sa FORME — donc avec un message trompeur, et sans garantie qu'une forme voisine soit
+ * refusée.
+ */
+describe('enveloppe de sauvegarde', () => {
+  const wrap = (app: unknown): string =>
+    JSON.stringify({
+      app,
+      schemaVersion: SCHEMA_VERSION,
+      exportedAt: '2026-01-01',
+      state: emptyState(),
+    });
+
+  it('refuse un fichier d’une autre application, et le dit', () => {
+    const result = parseBackup(wrap('autre-app'));
+    expect(result.ok).toBe(false);
+    expect(result.ok ? '' : result.error).toContain('autre application');
+  });
+
+  it('accepte le nôtre', () => {
+    expect(parseBackup(wrap(APP_ID)).ok).toBe(true);
+  });
+
+  it('accepte un objet nu : c’est la compatibilité d’avant l’enveloppe', () => {
+    expect(parseBackup(JSON.stringify(emptyState())).ok).toBe(true);
+  });
+});

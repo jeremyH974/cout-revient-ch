@@ -271,7 +271,7 @@ pris — décision n° 69).
 | P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`                                                                  |   0    |     5     |    0    |    1     |   5    |
 | P89 | Macro européenne : BCE, Eurostat, Frankfurter                                                                                                 |   4    |     2     |    4    |    2     |   5    |
 | P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                                                                               |   1    |     3     |    1    |    1     |   5    |
-| P82 | Un échelon de migration de schéma réel, avec son test (`SCHEMA_VERSION` figé à 1)                                                             |   1    |     5     |    0    |   1,5    |   4    |
+| P82 | **Livré autrement (01/09/2026, décision n° 89).** Aucun échelon historique n'existe ; la chaîne et son cliquet sont bâtis à froid             |   1    |     5     |    0    |   1,5    |   4    |
 | P88 | Instantané committé de l'historique long ; CoinGecko réduit au prix du jour                                                                   |   3    |     4     |    1    |    2     |   4    |
 | P91 | Listes énumérables d'`ARCHITECTURE.md` adossées à un test (patron de `csp.test.ts`)                                                           |   0    |     3     |    1    |    1     |   4    |
 | P84 | Dérivations restantes extraites d'`app.svelte.ts` vers `src/lib/`, en fonctions testables                                                     |   2    |     4     |    1    |   2,5    |  2,8   |

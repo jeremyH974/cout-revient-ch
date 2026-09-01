@@ -1988,3 +1988,26 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     **Ce cliquet a aussi révélé un trou dans ma vérification** : `npm run check` ne lance pas la
     couverture, la CI si (`npm run test -- --coverage`). Un contrôle qui n'existe qu'en CI se
     découvre trop tard.
+89. **On ne casse pas des sauvegardes réelles pour avoir un test** (01/09/2026, proposition P82).
+    La proposition demandait « un échelon de migration réel, avec son test ». La recherche dans
+    l'historique complet de `schema.ts` et `types.ts` répond qu'**il n'y en a aucun à exhumer** :
+    depuis le premier commit, aucun champ n'a jamais été supprimé ni renommé. Toutes les évolutions
+    ont été rendues additives par construction — politique déjà écrite dans `docs/backup-format.md`.
+    Inventer un changement cassant pour justifier un échelon aurait mis la charrue avant les bœufs.
+    Le manque est ailleurs : `migrations.ts` s'annonçait « chaîne » et n'implémentait qu'un
+    aiguillage à deux branches. Le jour du premier bump, quelqu'un aurait dû bâtir la mécanique
+    dans l'urgence, avec des sauvegardes d'utilisateur en jeu. Elle est bâtie **à froid** : des
+    échelons indexés par version de départ, appliqués en boucle, et une table `MIGRATIONS` **vide —
+    ce qui est la vérité**.
+    **Le cliquet est la vraie livraison.** Monter `SCHEMA_VERSION` sans écrire l'échelon _et_ sans
+    geler une fixture `backup-v<n>.json` fait désormais rougir la CI, en nommant lequel des deux
+    manque. Vérifié en montant la version à 2 : « échelon 1 → 2 absent de MIGRATIONS ».
+    **La mécanique est exercée, pas seulement écrite.** `runChainForTest` rejoue la boucle sur des
+    échelons fictifs — ordre d'application, départ à la version lue, échelon manquant nommé par son
+    numéro. Un mécanisme qu'aucun test n'a jamais exécuté n'est pas un mécanisme, c'est une
+    intention.
+    **Un écart doc ↔ code corrigé au passage** : `backup-format.md` annonçait que le champ `app`
+    refusait « un fichier d'une autre app avant même de regarder `state` ». `parseBackup` ne l'avait
+    jamais lu. Un fichier étranger échouait bien, mais sur sa FORME — message trompeur, et aucune
+    garantie qu'une forme voisine soit refusée. Le code s'aligne sur la promesse, en gardant
+    l'objet nu (sans enveloppe) accepté : c'est la compatibilité d'avant l'enveloppe.

@@ -26,8 +26,17 @@ export function parseBackup(text: string): ParseBackupResult {
     return { ok: false, error: "Ce fichier n'est pas un JSON valide." };
   }
   const envelope = parsed as Partial<BackupFile> | null;
-  const candidate =
-    envelope && typeof envelope === 'object' && 'state' in envelope ? envelope.state : parsed;
+  const wrapped = envelope !== null && typeof envelope === 'object' && 'state' in envelope;
+  // `docs/backup-format.md` annonçait ce refus depuis toujours ; le code ne le faisait pas
+  // (décision n° 89). Sans lui, un fichier d'une autre application échouait bien, mais sur sa
+  // FORME — message trompeur, et rien ne garantissait qu'une forme voisine soit refusée.
+  // Un objet nu, sans enveloppe, reste accepté : c'est la compatibilité d'avant l'enveloppe.
+  if (wrapped && envelope.app !== undefined && envelope.app !== APP_ID)
+    return {
+      ok: false,
+      error: `Ce fichier vient d’une autre application (${String(envelope.app)}).`,
+    };
+  const candidate = wrapped ? envelope.state : parsed;
   const migrated = migrateState(candidate);
   if (!migrated.ok) return { ok: false, error: `Sauvegarde non reconnue : ${migrated.error}` };
   const exportedAt =
