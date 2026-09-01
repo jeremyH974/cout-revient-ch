@@ -1870,3 +1870,30 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     test ; et un `nickname?: string` ajouté à `Account` fait échouer le **typecheck**, avant même que
     les tests ne tournent. C'est la n° 75 appliquée à la complétude : exiger que quelque chose
     fonctionne, plutôt que d'observer que rien n'a échoué.
+85. **Le point de rupture n'est pas où on le cherchait, et sa cause non plus** (01/09/2026,
+    proposition P83). La proposition demandait de chiffrer le comportement à 10 000 et 50 000
+    opérations. La mesure répond que la question ne se pose pas dans ces termes : **tout dépend de
+    la forme du portefeuille**, et les deux formes ne relèvent pas de la même complexité.
+    **Accumulation (DCA pur, aucune cession)** — linéaire, et confortable : 1 000 opérations en
+    3,7 ms, 10 000 en 27,5 ms, **50 000 en 229 ms**. Rien à signaler.
+    **Aller-retour (cessions partielles alternées)** — 50 en 18 ms, 100 en 114 ms, 200 en 1,2 s,
+    **400 en 12,3 s**, et **800 épuise le tas** de Node. Doubler la taille multiplie le temps par
+    ~10 : c'est **cubique**. Le point de rupture est donc autour de **300 opérations** — trois ordres
+    de grandeur sous ce que la proposition supposait.
+    **La cause n'est pas celle qu'on croyait.** L'audit accusait la liste de lots jamais purgée
+    (`position.ts` ne connaît que `push` et l'itération) ; c'est vrai, et cela donne un O(n²) sur la
+    trace `lotsConsumed`. Mais il manquait le second facteur : `fraction = qty.div(this.qty)` porte
+    20 décimales, et `lot.qtyRemaining.times(fraction)` est **exact** — les chiffres s'additionnent
+    donc à chaque cession, sans que rien ne les borne. La précision croît en O(n), et O(n²) × O(n)
+    fait le O(n³) mesuré.
+    **Ce n'est pas un risque futur.** Le jeu de démonstration livré — 115 événements, 43 cessions —
+    porte déjà des quantités à **837 décimales** pour des montants qui en demandent huit. Ce ne sont
+    pas des chiffres significatifs, c'est un artefact de division qui alourdit chaque opération
+    ultérieure et gonfle la trace stockée.
+    **Aucune optimisation ici**, et c'est délibéré (même discipline qu'en n° 81) : borner la
+    précision change des nombres calculés, ce qui exige l'oracle indépendant et une brique à soi.
+    P83 chiffrait ; il a chiffré. La suite est la proposition **P95**.
+    Le garde-fou laissé derrière ne chronomètre rien : il compte deux grandeurs **déterministes** —
+    objets de trace produits, décimales portées — dont le produit EST le coût. Identiques sur toutes
+    les machines, donc jamais clignotantes, et l'ensemble tourne en 0,4 s. Le chronomètre, lui, vit
+    dans `npm run bench`, que la CI ne lance pas.
