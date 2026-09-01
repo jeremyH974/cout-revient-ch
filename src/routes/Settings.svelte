@@ -129,8 +129,10 @@
     void app.refreshPrices();
     router.navigate({ name: 'overview' });
   }
-  function clearAll(): void {
-    app.clearAll();
+  async function clearAll(): Promise<void> {
+    // `eraseAll` et non `clearAll` : le second sert aussi à quitter la démo et ne touche pas au
+    // cache d'historique de prix (décision n° 88).
+    await app.eraseAll();
     confirmClear = false;
     toasts.push('Toutes les données locales ont été effacées.');
     router.navigate({ name: 'welcome' });
@@ -482,7 +484,7 @@
   <div class="row">
     <button class="secondary" type="button" onclick={() => void backup()}
       >Télécharger d'abord</button
-    ><button class="primary danger" type="button" onclick={clearAll}>Effacer</button>
+    ><button class="primary danger" type="button" onclick={() => void clearAll()}>Effacer</button>
   </div>
 </Sheet>
 

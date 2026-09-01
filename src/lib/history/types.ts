@@ -68,6 +68,13 @@ export interface HistoryStore {
   putDaily(history: PriceHistory): Promise<void>;
   getMeta(key: string): Promise<unknown>;
   putMeta(key: string, value: unknown): Promise<void>;
+  /**
+   * Actifs présents dans le cache — la seule façon de savoir ce qui s'y est accumulé.
+   * Sans elle, l'éviction ne peut purger que ce qu'elle sait déjà détenu (décision n° 88).
+   */
+  cachedAssets(): Promise<AssetCode[]>;
+  /** Oublie l'historique d'UN actif. */
+  deleteDaily(asset: AssetCode): Promise<void>;
   /** Vide intégralement le cache (historiques et métadonnées). */
   clear(): Promise<void>;
 }

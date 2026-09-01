@@ -262,12 +262,12 @@ pris — décision n° 69).
 | P79 | **Livré (01/09/2026, décision n° 78).** Périmètre de couverture élargi et borné par zone                                                      |   1    |     5     |    0    |   0,5    | **12** |
 | P85 | **Livré (01/09/2026, décision n° 81).** Tri par unités de code, prouvé équivalent                                                             |   1    |     2     |    3    |   0,5    | **12** |
 | P87 | **Livré (01/09/2026, décision n° 82).** Surveillance étendue aux sources des générateurs                                                      |   1    |     4     |    0    |   0,5    | **10** |
-| P86 | Éviction du cache d'historique de prix, aujourd'hui à croissance monotone                                                                     |   0    |     3     |    1    |   0,5    |   8    |
+| P86 | **Livré (01/09/2026, décision n° 88).** Éviction du cache — et l'effacement total qui n'effaçait pas ce cache                                 |   0    |     3     |    1    |   0,5    |   8    |
 | P93 | **Livré (01/09/2026, décision n° 83).** Régime des perpetuals documenté et son incertitude nommée                                             |   3    |     4     |    1    |    1     |   8    |
 | P80 | **Livré (01/09/2026, décision n° 84).** Complétude des sanitizers vérifiée au niveau du champ                                                 |   1    |     5     |    0    |    1     |   6    |
 | P83 | **Livré (01/09/2026, décision n° 85).** Point de rupture chiffré : ~300 cessions, pas 10 000                                                  |   1    |     4     |    1    |    1     |   6    |
 | P94 | **Livré autrement (01/09/2026, décision n° 86).** La compensation par actif n'existe pas sous le 150 VH bis ; constat « fin d'année fiscale » |   5    |     2     |    5    |    2     |   6    |
-| P95 | **Née de P83.** Borner la précision décimale des lots : le moteur est cubique au-delà de ~300 cessions                                        |   4    |     3     |    3    |    2     |   5    |
+| P95 | **Livré (01/09/2026, décision n° 87).** Précision des lots bornée : ×137, rupture repoussée à ~2 500 cessions                                 |   4    |     3     |    3    |    2     |   5    |
 | P75 | **Livré (01/09/2026, décision n° 75).** `require-trusted-types-for 'script'`                                                                  |   0    |     5     |    0    |    1     |   5    |
 | P89 | Macro européenne : BCE, Eurostat, Frankfurter                                                                                                 |   4    |     2     |    4    |    2     |   5    |
 | P90 | Serveur MCP aligné sur la spec `2026-07-28` (`server/discover`)                                                                               |   1    |     3     |    1    |    1     |   5    |
