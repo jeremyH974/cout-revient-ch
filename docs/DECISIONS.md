@@ -1792,3 +1792,24 @@
     interactif et aucun dans un PDF ; et elle vit **hors des branches d'issue**, la source du taux
     valant que la vente augmente l'impôt, le réduise ou soit exonérée. Le taux d'archive de 30 % n'a
     pas de source : la veille suit ce qui bouge, pas ce qui est clos.
+81. **On optimise ce qu'on peut prouver, on documente ce qu'on ne peut pas** (01/09/2026,
+    proposition P85). L'audit relevait deux coûts dans le chemin chaud, tous deux **déduits du code,
+    jamais mesurés**. La mesure a séparé nettement les deux moitiés.
+    **Le tri est optimisé, et l'équivalence est prouvée.** Sur 200 000 horodatages, `localeCompare`
+    met 250 ms contre 39 ms pour une comparaison par unités de code — **6,4×** — pour un ordre
+    strictement identique. Mais l'équivalence n'est **pas générale** : `'ch:a'.localeCompare('ch:A')`
+    rend -1 quand `'ch:a' < 'ch:A'` est faux, les deux ordres divergeant sur la casse. Seul le champ
+    `at` est donc converti — un `AAAA-MM-JJTHH:mm:ss` n'a aucune lettre variable — et une propriété
+    fast-check l'exige. **Le départage par identifiant garde `localeCompare`** : les identifiants
+    portent des lettres, cet ultime critère décide de l'ordre de consommation des lots donc du PRU,
+    et on ne l'atteint qu'après égalité sur quatre critères. Le contre-exemple est gravé dans un
+    test, pour que l'extension paraisse aussi risquée qu'elle l'est.
+    **Le clone n'est pas touché, et c'est le point le plus important.** L'audit proposait de sortir
+    `$state.snapshot` de l'effet de sauvegarde. Or ce clone **est le traqueur de dépendances** : en
+    parcourant le proxy il lit chaque propriété et l'enregistre comme dépendance, ce qui fait qu'une
+    mutation profonde réveille la sauvegarde. Le déplacer ferait cesser **silencieusement**
+    d'enregistrer les modifications imbriquées — la pire classe de bogue ici. Le raisonnement est
+    inscrit dans le code pour que personne ne « corrige » cet appel en le croyant maladroit ; le vrai
+    correctif, un compteur de version bougé par les mutateurs, appartient à P84 qui rendra ce fichier
+    testable. `src/state` n'ayant aucun test unitaire (1,17 %, rendu visible par la n° 78),
+    optimiser là sans filet reviendrait à parier sur la persistance.
