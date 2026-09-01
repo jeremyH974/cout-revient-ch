@@ -232,4 +232,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - **Nouveautés** (`src/lib/support/changelog.ts`, `src/routes/News.svelte`) : `CHANGELOG.md`
   rendu dans l'app ; `ui.lastSeenVersion` déclenche un bandeau à chaque mise à jour.
 - **Garde-fous** : seuils de couverture Vitest (`vite.config.ts`), propriétés fast-check, E2E, axe,
-  Lighthouse CI, Dependabot (délai), CodeQL, Scorecard.
+  Lighthouse CI, Dependabot (délai), CodeQL, Scorecard. **Ce que la couverture mesure, et ce qu'elle
+  ne mesure pas** (décision n° 78) : le périmètre couvre `src/lib`, `src/state` et les `.ts` de
+  `src/components` — soit tout ce qu'un test Vitest peut exécuter. Restent dehors les `.svelte` et
+  la totalité de `src/routes`, qui n'a aucun `.ts` : sans test de composant, ils afficheraient 0 % à
+  perpétuité. « Couverture » ne veut donc pas dire « tout est mesuré », et l'écart est nommé plutôt
+  que masqué.

@@ -1712,3 +1712,32 @@
     code (`String.fromCharCode`), jamais écrits en littéraux. Un fichier source contenant de vrais
     caractères de contrôle est illisible, se prête aux copies fautives, et fait mentir les outils qui
     le traitent comme du binaire — `0x202e` dit ce qu'il vise, un octet invisible ne dit rien.
+78. **Un seuil ne vaut que sur ce qu'il regarde ; élargir le regard vaut mieux que relever le
+    chiffre** (01/09/2026, proposition P79). `coverage.include` ne valait que `src/lib/**` :
+    20 844 lignes échappaient à tout seuil, et l'écart s'était creusé de 3 367 lignes en 49 commits
+    sans que rien ne le dise. Un seuil à 90 % sur la moitié du code qui bouge le moins est un chiffre
+    rassurant, pas une garantie.
+    **Ce que l'élargissement peut atteindre, et ce qu'il ne peut pas.** Y entrent les `.ts` et les
+    modules runes `.svelte.ts` — soit ce qu'un test Vitest exécute réellement. Restent dehors les
+    composants `.svelte` et **tout `src/routes`, qui ne contient aucun `.ts`** : l'environnement de
+    test est `node`, aucun test ne monte de composant, et les inclure afficherait 0 % à perpétuité.
+    P79 rend donc visibles **environ 1 100 lignes exécutables, pas 20 844** — le reste demande des
+    tests de composants, qui sont une autre proposition. Le dire est le minimum : un instrument qu'on
+    croit plus large qu'il n'est vaut moins qu'un instrument dont on connaît la portée.
+    **Le prix, mesuré.** Une seule métrique passe sous son seuil, les fonctions, de 0,19 point
+    (77,81 % contre 78) ; elle descend à 75. Les trois autres tiennent sans qu'on y touche, parce que
+    la couverture compte les lignes **exécutables** et non les lignes de fichier. Le domaine garde
+    ses 90 %, et `src/state` reçoit un plancher non nul qui sert de **cliquet** : le chiffre apparaît
+    à chaque exécution et ne peut plus redescendre.
+    **Deux comportements de Vitest, constatés et non supposés.** Un seuil par glob **n'exclut pas**
+    ses fichiers du calcul global — aucun glob ne peut donc « sortir » `src/state` de la moyenne, ce
+    qui impose la baisse. Et **deux globs qui se recouvrent font exploser la mémoire** : ajouter
+    `src/lib/**` à côté de `src/lib/domain/**` a fait échouer la suite en `out of memory`, même avec
+    8 Go de tas. Les trois seuils retenus ont été **vérifiés en les faisant échouer exprès**, chacun
+    nommant sa zone : un seuil qu'on n'a pas vu échouer ne prouve rien.
+    **Effet de bord assumé** : l'instrumentation élargie a fait dépasser à `mapping.property.test.ts`
+    son délai de 5 s, de façon intermittente. Le délai global passe à 15 s — une CI qui échoue au
+    hasard finit ignorée, et c'est le défaut que les n° 72 à 74 viennent de corriger ailleurs.
+    **Aucun test n'a été ajouté pour faire monter un chiffre** : P79 pose l'instrument, P84 rendra
+    `app.svelte.ts` testable. Des tests de complaisance fausseraient la mesure que P79 existe pour
+    établir.

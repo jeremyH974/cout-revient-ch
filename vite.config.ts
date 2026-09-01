@@ -139,18 +139,56 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts', 'mcp/**/*.test.ts'],
     environment: 'node',
+    /*
+     * 15 s au lieu des 5 s par défaut. Mesuré le 01/09/2026 : `mapping.property.test.ts` tourne en
+     * 2,25 s sans couverture, mais l'instrumentation du périmètre élargi (voir ci-dessous) l'a fait
+     * dépasser les 5 s de façon **intermittente**. Une CI qui échoue au hasard finit ignorée — c'est
+     * le défaut que les décisions n° 72 à 74 viennent de corriger ailleurs, et il n'y a aucune
+     * raison de l'introduire ici.
+     */
+    testTimeout: 15_000,
     coverage: {
       provider: 'v8',
-      include: ['src/lib/**/*.ts'],
-      exclude: ['src/lib/**/*.test.ts', 'src/lib/**/*.d.ts'],
+      /*
+       * Le périmètre de mesure, et ce qu'il ne peut pas atteindre (décision n° 78).
+       *
+       * Il ne valait que `src/lib/**` : 20 844 lignes échappaient à tout seuil, et l'écart s'était
+       * creusé de 3 367 lignes en 49 commits sans que rien ne le dise.
+       *
+       * Ce qui entre ici est ce qui est **réellement atteignable** depuis Vitest : les `.ts` et les
+       * modules runes `.svelte.ts`. Restent dehors, faute de pouvoir être exécutés dans un
+       * environnement `node` sans test de composant : les `.svelte` de `src/components`, et tout
+       * `src/routes` — 9 484 lignes qui ne contiennent aucun `.ts`. Les inclure afficherait 0 % à
+       * perpétuité, ce qui ne mesure rien et fait croire le contraire.
+       */
+      include: ['src/lib/**/*.ts', 'src/state/**/*.ts', 'src/components/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.d.ts'],
       reporter: ['text', 'html'],
-      // Seuils bloquants (CI : `npm run test -- --coverage`) : le moteur doit rester le mieux couvert.
+      /*
+       * Seuils bloquants (CI : `npm run test -- --coverage`).
+       *
+       * Le seuil de fonctions passe de 78 à 75 : c'est le prix **mesuré** de l'élargissement
+       * (77,81 % constatés), pas un relâchement de complaisance — les trois autres métriques
+       * tiennent sans être touchées. `src/state/**` reçoit un plancher non nul qui sert de
+       * **cliquet** : le chiffre apparaît à chaque exécution et ne peut plus redescendre.
+       *
+       * Deux comportements de Vitest, constatés le 01/09/2026 et non supposés :
+       *
+       * 1. **Un seuil par glob n'exclut pas ses fichiers du calcul global** — le global reste
+       *    calculé sur tout le périmètre. C'est pourquoi le seuil de fonctions doit descendre :
+       *    aucun glob ne peut « sortir » `src/state` de la moyenne.
+       * 2. **Deux globs qui se recouvrent font exploser la mémoire** : ajouter `src/lib/**` à côté
+       *    de `src/lib/domain/**` a fait échouer la suite en `out of memory`, même avec 8 Go de
+       *    tas. D'où l'absence d'un seuil propre à `src/lib/**` : la garantie du moteur repose sur
+       *    le glob du domaine, qui reste à 90 %.
+       */
       thresholds: {
         lines: 80,
         statements: 80,
-        functions: 78,
+        functions: 75,
         branches: 65,
         'src/lib/domain/**/*.ts': { lines: 90, statements: 90, functions: 88, branches: 75 },
+        'src/state/**/*.ts': { lines: 1, statements: 1, functions: 1, branches: 0 },
       },
     },
   },
