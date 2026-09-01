@@ -75,6 +75,25 @@ le périmètre de P13 dans la feuille de route.
 
 **Faites vérifier votre situation par un professionnel avant toute déclaration.**
 
+### Les perpetuals sont exclus, et ce n'est pas un oubli
+
+L'estimation ne couvre que l'espace **Investissement**. Les perpetuals de l'espace Trading en sont
+absents, pour une raison de droit et non de commodité : les contrats à terme et CFD relèvent
+vraisemblablement de l'**article 150 ter du CGI** — prélèvement forfaitaire sans abattement, pertes
+imputables sur les seuls gains de même nature, report sur dix ans — soit un régime **distinct** de
+celui des cessions d'actifs numériques. Les agréger dans un même chiffre mélangerait deux régimes.
+
+Et il faut dire le reste : **la qualification d'un perpetual DeFi non régulé au regard de ce texte
+n'est tranchée par aucune source primaire trouvée**. Ce n'est pas une réserve de prudence, c'est
+l'état du droit tel qu'il a pu être établi — voir la ligne « Régime fiscal des perpetuals » de
+l'écran Veille réglementaire.
+
+Sur un point que le droit ne tranche pas, produire un chiffre serait pire que n'en produire aucun.
+L'exclusion est donc **verrouillée par un test** (`normalize.test.ts`) plutôt que laissée à la
+construction : aucun perpetual ne devient un événement d'Investissement, quel que soit le réglage
+« traiter le spot comme de l'investissement ». Le spot vendu contre euros, lui, est bien une cession
+imposable et entre normalement dans le calcul.
+
 ## Ce qui est vérifié
 
 - `src/lib/domain/tax-fr.test.ts` — classement des opérations (cession, acquisition, sursis), taux

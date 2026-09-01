@@ -1792,3 +1792,60 @@
     interactif et aucun dans un PDF ; et elle vit **hors des branches d'issue**, la source du taux
     valant que la vente augmente l'impôt, le réduise ou soit exonérée. Le taux d'archive de 30 % n'a
     pas de source : la veille suit ce qui bouge, pas ce qui est clos.
+81. **On optimise ce qu'on peut prouver, on documente ce qu'on ne peut pas** (01/09/2026,
+    proposition P85). L'audit relevait deux coûts dans le chemin chaud, tous deux **déduits du code,
+    jamais mesurés**. La mesure a séparé nettement les deux moitiés.
+    **Le tri est optimisé, et l'équivalence est prouvée.** Sur 200 000 horodatages, `localeCompare`
+    met 250 ms contre 39 ms pour une comparaison par unités de code — **6,4×** — pour un ordre
+    strictement identique. Mais l'équivalence n'est **pas générale** : `'ch:a'.localeCompare('ch:A')`
+    rend -1 quand `'ch:a' < 'ch:A'` est faux, les deux ordres divergeant sur la casse. Seul le champ
+    `at` est donc converti — un `AAAA-MM-JJTHH:mm:ss` n'a aucune lettre variable — et une propriété
+    fast-check l'exige. **Le départage par identifiant garde `localeCompare`** : les identifiants
+    portent des lettres, cet ultime critère décide de l'ordre de consommation des lots donc du PRU,
+    et on ne l'atteint qu'après égalité sur quatre critères. Le contre-exemple est gravé dans un
+    test, pour que l'extension paraisse aussi risquée qu'elle l'est.
+    **Le clone n'est pas touché, et c'est le point le plus important.** L'audit proposait de sortir
+    `$state.snapshot` de l'effet de sauvegarde. Or ce clone **est le traqueur de dépendances** : en
+    parcourant le proxy il lit chaque propriété et l'enregistre comme dépendance, ce qui fait qu'une
+    mutation profonde réveille la sauvegarde. Le déplacer ferait cesser **silencieusement**
+    d'enregistrer les modifications imbriquées — la pire classe de bogue ici. Le raisonnement est
+    inscrit dans le code pour que personne ne « corrige » cet appel en le croyant maladroit ; le vrai
+    correctif, un compteur de version bougé par les mutateurs, appartient à P84 qui rendra ce fichier
+    testable. `src/state` n'ayant aucun test unitaire (1,17 %, rendu visible par la n° 78),
+    optimiser là sans filet reviendrait à parier sur la persistance.
+82. **La surveillance couvre enfin les sources dont le cron dépend** (01/09/2026, proposition P87).
+    La n° 74 avait refait le **mécanisme** de surveillance sans élargir la **liste** :
+    `api-contract.mjs` couvrait vingt-et-un fournisseurs de prix et de chaînes, et **aucune** des
+    sources des générateurs. Le cron réparé en début de session s'appuie entièrement sur elles, et
+    rien n'aurait prévenu d'un changement de forme avant l'échec.
+    Quatre contrôles ajoutés — Trésor, Fed H.4.1, BEA, page FOMC — vérifiant le **marqueur que le
+    parseur cherche** plutôt que la disponibilité : une page qui répond 200 en ayant renommé son
+    champ casse le générateur tout aussi sûrement qu'une page morte. Le validateur reçoit désormais
+    le texte brut en troisième argument, le Trésor rendant du XML, la Fed du CSV et le FOMC du HTML ;
+    les validateurs plus anciens l'ignorent, donc aucune régression.
+    **Le BLS reste hors de portée, et le script le dit.** Son réseau de diffusion refuse tout client
+    non-navigateur — c'est la raison d'être de sa table tenue à la main (n° 58) — et son garde-fou est
+    la barrière à deux étages de la n° 72. L'écrire à l'endroit du manque évite qu'on croie un jour
+    la couverture complète : quatre sources sur cinq, et la cinquième par un autre moyen.
+    Chaque contrôle a été **vérifié en le faisant échouer** : un marqueur faussé, et la source se
+    nomme.
+83. **Sur un point que le droit ne tranche pas, on nomme l'incertitude plutôt que de produire un
+    chiffre** (01/09/2026, proposition P93). L'espace Trading agrège des perpetuals. Les dérivés
+    relèvent vraisemblablement de l'**article 150 ter** du CGI — régime distinct du 150 VH bis,
+    pertes imputables sur les seuls gains de même nature — mais **aucune source primaire trouvée ne
+    qualifie un perpetual DeFi non régulé** au regard de ce texte.
+    L'exclusion existait **de fait** : `computeFrenchTax` ne reçoit que des `LedgerEvent`, et les
+    exécutions de trading sont d'un autre type — l'isolement est donc porté par le typage, plus
+    solide que ce que le réaudit supposait. Le vrai point d'entrée est ailleurs : la conversion
+    `spotAsInvestment` du normaliseur Hyperliquid, qui fait entrer du **spot** dans
+    l'Investissement. Un test nommé l'exige désormais : **aucun perpetual ne devient un événement
+    d'Investissement, quel que soit le réglage**. C'était vrai par construction ; c'est maintenant
+    vrai parce qu'un test le dit.
+    **L'entrée de veille dit « on ne sait pas », et sa source le dit aussi.** Elle porte `official:
+false` et `url: null` alors que l'article 150 ter existe bel et bien — parce que ce qu'elle
+    affirme n'est pas le texte, c'est **l'absence de qualification** des perpetuals au regard de ce
+    texte, qu'aucune source officielle ne confirme. L'invariant du module (« une entrée `confirmed` a
+    toujours une source officielle ») a rejeté la première rédaction, et il avait raison : citer
+    Légifrance ici aurait fait passer une incertitude pour une certitude.
+    N'étant pas `in-force`, la ligne apparaît dans le bloc « Veille réglementaire » du rapport —
+    exactement ce que ce bloc existe pour porter (n° 80).

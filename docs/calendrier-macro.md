@@ -55,6 +55,18 @@ Le cron [`.github/workflows/market-data.yml`](../.github/workflows/market-data.y
 lundi et chaque vendredi, lance `npm run check` **avant** de committer, puis appelle `ci.yml` — un
 push effectué par le robot ne déclenche aucun workflow, et c'est la CI qui publie sur Pages.
 
+### Les sources sont surveillées, sauf une
+
+`scripts/api-contract.mjs`, lancé toutes les six heures, vérifie la **forme réellement consommée**
+de chaque source — pas sa simple disponibilité : une page qui répond 200 en ayant renommé son champ
+casse le générateur tout aussi sûrement qu'une page morte. Sont contrôlés le flux XML du Trésor
+(`<entry>`, `d:NEW_DATE`, `d:BC_10YEAR`), le CSV H.4.1 de la Fed (identifiant `RESH4R_N.WW`), les
+dates de publication du BEA et la page du calendrier FOMC (`fomc-meeting__month`).
+
+**Le BLS en est absent, et ce n'est pas un oubli** : son réseau de diffusion refuse tout client
+non-navigateur, ce qui est précisément la raison d'être de sa table tenue à la main. Son garde-fou
+n'est pas ce contrôle, c'est la barrière à deux étages décrite ci-dessous.
+
 ### La barrière du BLS a deux étages, et c'est important
 
 Une couverture qui raccourcit recouvre **deux situations opposées**, et les confondre revient à

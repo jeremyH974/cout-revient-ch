@@ -1073,6 +1073,21 @@ export class AppState {
     };
     $effect.root(() => {
       $effect(() => {
+        /*
+         * NE PAS déplacer ce clone au `flush` (décision n° 81).
+         *
+         * `$state.snapshot` **est le traqueur de dépendances** : en parcourant le proxy, il lit
+         * chaque propriété et enregistre chacune comme dépendance de cet effet. C'est ce qui fait
+         * qu'une mutation profonde — une note d'alerte, un réglage imbriqué — réveille la
+         * sauvegarde. Ne lire que `this.state` ne suivrait que la référence de tête, et les
+         * modifications imbriquées cesseraient **silencieusement** d'être enregistrées : la pire
+         * classe de bogue pour cette application.
+         *
+         * Son coût est réel — un clone profond par mutation, que le debounce de 300 ms ne couvre
+         * pas — mais le supprimer demande de remplacer le suivi par un compteur de version bougé
+         * par les mutateurs, ce qui appartient à l'extraction de ce fichier (P84). `src/state` n'a
+         * aucun test unitaire : optimiser ici sans filet reviendrait à parier sur la persistance.
+         */
         pending = $state.snapshot(this.state);
         if (timer) clearTimeout(timer);
         timer = setTimeout(flush, SAVE_DEBOUNCE_MS);

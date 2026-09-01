@@ -68,7 +68,10 @@ async function check(name, url, validate, options = {}) {
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
     try {
       const r = await fetchJson(url, options);
-      const problems = r.status === 200 ? validate(r.json, r.headers) : [`HTTP ${r.status}`];
+      // Troisième argument : le texte brut. Le Trésor rend du XML, la Fed du CSV, le FOMC du
+      // HTML — `JSON.parse` n'en tire rien. Les validateurs plus anciens l'ignorent.
+      const problems =
+        r.status === 200 ? validate(r.json, r.headers, r.text) : [`HTTP ${r.status}`];
       results.push({
         name,
         url,
@@ -400,6 +403,68 @@ await check(
     if (typeof first.value_classification !== 'string')
       problems.push('`value_classification` absent');
     if (!isNumericString(String(first.timestamp))) problems.push('`timestamp` non numérique');
+    return problems;
+  },
+);
+
+/*
+ * ── Sources des générateurs (décision n° 82) ────────────────────────────────
+ *
+ * Le calendrier macro et l'instantané des indicateurs sont compilés dans le bundle par
+ * `scripts/generate-*.ts`, qui interrogent ces pages depuis la CI. Elles n'étaient couvertes par
+ * AUCUN contrôle : un changement de forme ne se serait vu qu'à l'échec du cron.
+ *
+ * On vérifie ici la **forme réellement consommée** — le marqueur que le parseur cherche — et non la
+ * simple disponibilité : une page qui répond 200 en ayant renommé son champ casse le générateur
+ * tout aussi sûrement qu'une page morte.
+ *
+ * **Le BLS est absent, et ce n'est pas un oubli** : son réseau de diffusion refuse tout client
+ * non-navigateur, ce qui est précisément la raison d'être de sa table tenue à la main (décision
+ * n° 58). Son garde-fou est la barrière à deux étages de la décision n° 72, pas ce fichier.
+ */
+
+await check(
+  'Trésor US, XML des taux (générateur macro)',
+  'https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml?data=daily_treasury_yield_curve&field_tdr_date_value=2026',
+  (_json, _headers, text) => {
+    const problems = [];
+    if (!text.includes('<entry')) problems.push('aucun <entry> : le flux Atom a changé de forme');
+    if (!/<d:NEW_DATE[^>]*>\d{4}-\d{2}-\d{2}/.test(text))
+      problems.push('d:NEW_DATE absent ou de format inattendu');
+    // Le champ que `parseTreasuryXml` extrait pour le taux nominal à 10 ans.
+    if (!/<d:BC_10YEAR[^>]*>/.test(text)) problems.push('d:BC_10YEAR absent');
+    return problems;
+  },
+);
+
+await check(
+  'Fed, H.4.1 en CSV (générateur macro)',
+  'https://www.federalreserve.gov/datadownload/Output.aspx?rel=H41&series=cc73dc54904678a485aa7d87a81c786f&from=01/01/2015&to=12/31/2035&filetype=csv&label=include&layout=seriescolumn',
+  (_json, _headers, text) => {
+    // Les colonnes sont choisies par identifiant stable, jamais par libellé (voir generate-macro).
+    return text.includes('RESH4R_N.WW')
+      ? []
+      : ['identifiant de série RESH4R_N.WW absent : la sélection a-t-elle changé ?'];
+  },
+);
+
+await check(
+  'BEA, dates de publication (générateur calendrier)',
+  'https://apps.bea.gov/API/signup/release_dates.json',
+  (json) => {
+    const serie = json?.['Personal Income and Outlays']?.release_dates;
+    if (!Array.isArray(serie)) return ['série « Personal Income and Outlays » absente'];
+    return serie.length > 0 ? [] : ['série présente mais vide'];
+  },
+);
+
+await check(
+  'Fed, page du calendrier FOMC (générateur calendrier)',
+  'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
+  (_json, _headers, text) => {
+    const problems = [];
+    if (!text.includes('fomc-meeting__month')) problems.push('classe fomc-meeting__month absente');
+    if (!text.includes('fomc-meeting__date')) problems.push('classe fomc-meeting__date absente');
     return problems;
   },
 );
