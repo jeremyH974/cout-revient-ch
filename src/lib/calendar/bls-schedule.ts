@@ -11,10 +11,26 @@
  * est publique et du domaine public (œuvre du gouvernement fédéral, 17 U.S.C. § 105) : elle est
  * donc **relue dans un vrai navigateur, une fois par an**, et recopiée ici.
  *
- * Ce que ça coûte, et comment on évite que ça pourrisse : le générateur refuse d'écrire un
- * calendrier dont la couverture BLS descend sous trois mois, et le cron hebdomadaire ouvre alors
- * une issue. Une table périmée en silence serait pire que pas de table du tout — l'écran
- * affirmerait qu'il n'y a pas de CPI le mois prochain.
+ * Ce que ça coûte, et comment on évite que ça pourrisse. Une table périmée en silence serait pire
+ * que pas de table du tout — l'écran affirmerait qu'il n'y a pas de CPI le mois prochain. Mais la
+ * couverture qui raccourcit recouvre **deux situations opposées**, et les confondre revient à
+ * crier au loup :
+ *
+ * - **notre copie est en retard** : le BLS a publié plus loin, personne n'a relu. Un humain peut
+ *   corriger — le générateur refuse d'écrire et le cron ouvre une issue ;
+ * - **la source elle-même s'arrête** : le BLS n'a pas encore publié l'année suivante. Personne ne
+ *   peut rien, sinon revenir voir. Bloquer serait absurde ; le générateur écrit et le cron pose un
+ *   rappel.
+ *
+ * Rien ici ne permet de distinguer les deux — seule une relecture le peut. C'est pourquoi
+ * `BLS_CHECKED_ON` porte une **affirmation** et pas seulement une date : « à ce jour, tout ce que
+ * le BLS publiait était recopié ci-dessous ». La barrière du générateur s'appuie dessus : elle ne
+ * bloque que si la couverture est courte **et** que cette affirmation a vieilli.
+ *
+ * Constaté le 01/09/2026, les quatre pages relues : le BLS s'arrête au 15/12/2026 et n'a pas encore
+ * publié son calendrier 2027 — sa navigation n'offre que « ENTIRE YEAR, 2026 » et « PRIOR YEARS ».
+ * Les dates ci-dessous sont donc complètes, et le resteront jusqu'à cette publication (à l'automne,
+ * sans date annoncée).
  *
  * Les heures sont celles de New York, telles que le BLS les publie (« All times on calendar are
  * Eastern Time »). Leur conversion en UTC est faite à la génération, jamais ici.
@@ -22,8 +38,13 @@
 
 import type { EventKind, EventTier } from './types';
 
-/** Jour de lecture des pages officielles, `AAAA-MM-JJ`. Sert aussi de date d'arrêt affichée. */
-export const BLS_CHECKED_ON = '2026-08-28';
+/**
+ * Jour de lecture des pages officielles, `AAAA-MM-JJ`. Sert aussi de date d'arrêt affichée.
+ *
+ * À mettre à jour **à chaque relecture, même quand elle ne change rien** : c'est ce qui dit au
+ * générateur que la table est courte parce que le BLS s'arrête là, et non parce qu'on a oublié.
+ */
+export const BLS_CHECKED_ON = '2026-09-01';
 
 /** Une publication : le jour où elle sort, et le mois sur lequel elle porte. */
 export interface BlsRelease {

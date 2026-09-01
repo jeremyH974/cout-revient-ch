@@ -14,15 +14,18 @@ import { join } from 'node:path';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
   addMonths,
   beaEvents,
   easternToUtc,
   gateProblems,
+  gateWarnings,
   parseFomc,
   referenceLabel,
   render,
   withoutStamp,
 } from '../../scripts/generate-calendar.ts';
+import { BLS_CHECKED_ON, blsCoverageEnd } from '../../src/lib/calendar/bls-schedule';
 import type { MarketEvent } from '../../src/lib/calendar/types';
 
 const FIXTURES = join(process.cwd(), 'tests', 'fixtures', 'calendar');
@@ -215,10 +218,13 @@ describe('barrières', () => {
     bls: many('bls', 40),
   });
 
+  /** État de la table BLS : jusqu'où elle va, et quand on l'a relue pour la dernière fois. */
+  const bls = (coverageEnd: string, checkedOn = '2026-08-28') => ({ coverageEnd, checkedOn });
+
   it('laisse passer un calendrier sain', () => {
     const bySource = healthy();
     const events = Object.values(bySource).flat();
-    expect(gateProblems(events, bySource, '2026-08-28', '2027-06-30')).toEqual([]);
+    expect(gateProblems(events, bySource, '2026-08-28', bls('2027-06-30'))).toEqual([]);
   });
 
   it('refuse une source appauvrie', () => {
@@ -227,7 +233,7 @@ describe('barrières', () => {
       Object.values(bySource).flat(),
       bySource,
       '2026-08-28',
-      '2027-06-30',
+      bls('2027-06-30'),
     );
     expect(problems.join(' ')).toMatch(/bea : 2 événement/);
   });
@@ -242,28 +248,94 @@ describe('barrières', () => {
       Object.values(bySource).flat(),
       bySource,
       '2026-08-28',
-      '2027-06-30',
+      bls('2027-06-30'),
     );
     expect(problems.join(' ')).toMatch(/réunion\(s\) à venir/);
   });
 
-  it('réclame une relecture quand la table BLS s’épuise', () => {
+  /**
+   * Le cœur de la barrière BLS : une table courte ne prouve rien à elle seule. Entre deux
+   * publications annuelles du BLS, elle est courte **parce qu'elle est à jour**. Ce qui doit
+   * bloquer, c'est le doute — une table courte que personne n'a regardée depuis longtemps.
+   */
+  it('laisse passer une table courte qui vient d’être relue — le BLS n’a pas encore publié', () => {
     const bySource = healthy();
     const problems = gateProblems(
       Object.values(bySource).flat(),
       bySource,
-      '2026-08-28',
       '2026-09-30',
+      bls('2026-12-15', '2026-09-28'),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it('réclame une relecture quand la table est courte et n’a pas été regardée depuis longtemps', () => {
+    const bySource = healthy();
+    const problems = gateProblems(
+      Object.values(bySource).flat(),
+      bySource,
+      '2026-11-15',
+      bls('2026-12-15', '2026-08-28'),
     );
     expect(problems.join(' ')).toMatch(/bls-schedule\.ts/);
+    expect(problems.join(' ')).toMatch(/2026-08-28/);
+  });
+
+  it('ne dit rien d’une table large, même relue il y a longtemps', () => {
+    const bySource = healthy();
+    const problems = gateProblems(
+      Object.values(bySource).flat(),
+      bySource,
+      '2026-12-01',
+      bls('2027-12-15', '2026-01-01'),
+    );
+    expect(problems).toEqual([]);
   });
 
   it('détecte un identifiant en double', () => {
     const bySource = healthy();
     const events = [...Object.values(bySource).flat(), event('fomc-0', '2027-03-01T12:30:00Z')];
-    expect(gateProblems(events, bySource, '2026-08-28', '2027-06-30').join(' ')).toMatch(
+    expect(gateProblems(events, bySource, '2026-08-28', bls('2027-06-30')).join(' ')).toMatch(
       /en double/,
     );
+  });
+
+  /**
+   * L'état réel du dépôt, joué au 18/09/2026 : la table s'arrête au 15/12/2026 parce que le BLS
+   * n'a pas encore publié 2027, et elle vient d'être relue. C'est **exactement** le run qui aurait
+   * échoué avant cette correction. Il doit passer, et seulement avertir.
+   */
+  it('laisse passer l’état réel du dépôt au 18/09/2026, en se contentant d’avertir', () => {
+    const state = { coverageEnd: blsCoverageEnd(), checkedOn: BLS_CHECKED_ON };
+    const bySource = healthy();
+    expect(gateProblems(Object.values(bySource).flat(), bySource, '2026-09-18', state)).toEqual([]);
+    expect(gateWarnings('2026-09-18', state)).toHaveLength(1);
+  });
+});
+
+describe('avertissements', () => {
+  it('se tait quand la table du BLS a plus de six mois devant elle', () => {
+    const warnings = gateWarnings('2026-09-01', {
+      coverageEnd: '2027-06-30',
+      checkedOn: '2026-09-01',
+    });
+    expect(warnings).toEqual([]);
+  });
+
+  it('prévient quand la table se vide, sans jamais bloquer', () => {
+    const warnings = gateWarnings('2026-09-01', {
+      coverageEnd: '2026-12-15',
+      checkedOn: '2026-09-01',
+    });
+    expect(warnings).toHaveLength(1);
+    expect(warnings.join(' ')).toMatch(/2026-12-15/);
+    expect(warnings.join(' ')).toMatch(/BLS_CHECKED_ON/);
+  });
+
+  it('prévient aussi quand la relecture est ancienne — l’avertissement double alors la barrière', () => {
+    expect(
+      gateWarnings('2026-11-15', { coverageEnd: '2026-12-15', checkedOn: '2026-08-28' }),
+    ).toHaveLength(1);
   });
 });
 
@@ -324,5 +396,12 @@ describe('décalage de mois', () => {
     expect(addMonths('2026-08-28', -3)).toBe('2026-05-28');
     expect(addMonths('2026-01-15', -1)).toBe('2025-12-15');
     expect(addMonths('2026-12-15', 1)).toBe('2027-01-15');
+  });
+
+  it('recule de jours en franchissant les mois, les années et le 29 février', () => {
+    expect(addDays('2026-09-18', -45)).toBe('2026-08-04');
+    expect(addDays('2026-01-10', -20)).toBe('2025-12-21');
+    expect(addDays('2028-03-01', -1)).toBe('2028-02-29');
+    expect(addDays('2026-08-28', 45)).toBe('2026-10-12');
   });
 });

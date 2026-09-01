@@ -20,7 +20,8 @@
  *
  * `--check` n'écrit rien et sort en erreur si le fichier committé n'est pas à jour.
  */
-import { readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, readFileSync, writeFileSync } from 'node:fs';
+import { format, resolveConfig } from 'prettier';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { BLS_CHECKED_ON, BLS_SERIES, blsCoverageEnd } from '../src/lib/calendar/bls-schedule.ts';
@@ -33,8 +34,31 @@ export const FOMC_URL = 'https://www.federalreserve.gov/monetarypolicy/fomccalen
 export const BEA_URL = 'https://apps.bea.gov/API/signup/release_dates.json';
 const TIMEOUT_MS = 30_000;
 
-/** Horizon minimal exigé de la table BLS avant de crier au secours. */
+/**
+ * Horizon minimal exigé de la table BLS avant de crier au secours — mais seulement si la relecture
+ * a vieilli (voir `BLS_CHECK_STALE_DAYS`). Une couverture courte ne prouve rien à elle seule : le
+ * BLS ne publie l'année suivante qu'à l'automne, et le reste du temps la table est courte **parce
+ * qu'elle est à jour**.
+ */
 const BLS_MIN_MONTHS_AHEAD = 3;
+
+/** En dessous de cet horizon, on prévient — sans bloquer. */
+const BLS_WARN_MONTHS_AHEAD = 6;
+
+/**
+ * Au-delà de cet âge, l'affirmation portée par `BLS_CHECKED_ON` ne vaut plus : on ne sait plus si
+ * la table est courte parce que le BLS s'arrête là, ou parce que personne n'a regardé. Le doute
+ * redevient bloquant.
+ */
+const BLS_CHECK_STALE_DAYS = 45;
+
+/** État de la table BLS au moment de la génération. */
+export interface BlsState {
+  /** Dernier jour couvert par la table, `AAAA-MM-JJ`. */
+  coverageEnd: string;
+  /** Jour de la dernière relecture des pages officielles, `AAAA-MM-JJ`. */
+  checkedOn: string;
+}
 
 /** Planchers par source : en dessous, la source est cassée, pas calme. */
 const MIN_EVENTS: Record<string, number> = { fomc: 4, bea: 12, bls: 24 };
@@ -97,6 +121,12 @@ const dayOf = (instant: string): string => instant.slice(0, 10);
 export function addMonths(day: string, months: number): string {
   const [year = 0, month = 1, date = 1] = day.split('-').map(Number);
   return new Date(Date.UTC(year, month - 1 + months, date)).toISOString().slice(0, 10);
+}
+
+/** `AAAA-MM-JJ` décalé de `days` jours, en UTC. */
+export function addDays(day: string, days: number): string {
+  const [year = 0, month = 1, date = 1] = day.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, date + days)).toISOString().slice(0, 10);
 }
 
 // ─── Réseau ──────────────────────────────────────────────────────────────────
@@ -338,7 +368,7 @@ export function gateProblems(
   events: readonly MarketEvent[],
   bySource: Record<string, readonly MarketEvent[]>,
   today: string,
-  blsEnd: string,
+  bls: BlsState,
 ): string[] {
   const problems: string[] = [];
 
@@ -354,11 +384,19 @@ export function gateProblems(
     );
   }
 
-  const horizon = addMonths(today, BLS_MIN_MONTHS_AHEAD);
-  if (blsEnd < horizon) {
+  /**
+   * Le doute, pas la brièveté. Une table courte est normale entre deux publications annuelles du
+   * BLS ; ce qui n'est pas normal, c'est qu'elle soit courte sans que personne ne l'ait regardée
+   * depuis longtemps — là, on ne sait plus si elle est complète, et on refuse d'écrire.
+   */
+  const tooShort = bls.coverageEnd < addMonths(today, BLS_MIN_MONTHS_AHEAD);
+  const checkIsStale = bls.checkedOn < addDays(today, -BLS_CHECK_STALE_DAYS);
+  if (tooShort && checkIsStale) {
     problems.push(
-      `BLS : la table s'arrête au ${blsEnd}, soit moins de ${BLS_MIN_MONTHS_AHEAD} mois devant nous. ` +
-        'Relisez les pages officielles dans un navigateur et mettez à jour src/lib/calendar/bls-schedule.ts.',
+      `BLS : la table s'arrête au ${bls.coverageEnd}, soit moins de ${BLS_MIN_MONTHS_AHEAD} mois ` +
+        `devant nous, et sa dernière relecture date du ${bls.checkedOn}. Rouvrez les quatre pages ` +
+        'officielles dans un navigateur (leurs URL sont dans src/lib/calendar/bls-schedule.ts), ' +
+        'reportez les dates, et mettez BLS_CHECKED_ON à jour même si rien n’a changé.',
     );
   }
 
@@ -374,9 +412,59 @@ export function gateProblems(
   return problems;
 }
 
+/**
+ * Rend la liste des avertissements : des choses à surveiller, **jamais** des raisons de ne pas
+ * écrire. Vide = rien à signaler.
+ *
+ * Le seul cas aujourd'hui est la table du BLS qui se vide sans que ce soit la faute de personne.
+ * L'avertissement sert à ce qu'on revienne voir, pas à punir.
+ */
+export function gateWarnings(today: string, bls: BlsState): string[] {
+  if (bls.coverageEnd >= addMonths(today, BLS_WARN_MONTHS_AHEAD)) return [];
+  return [
+    `La table du BLS s'arrête au ${bls.coverageEnd} et a été relue le ${bls.checkedOn} : elle est ` +
+      'donc complète, mais courte. Le BLS ne publie son calendrier de l’année suivante qu’à ' +
+      'l’automne — vérifiez s’il est paru, et mettez BLS_CHECKED_ON à jour dans tous les cas.',
+  ];
+}
+
+/**
+ * Restitue les avertissements à GitHub Actions : une annotation visible sur le run, et deux sorties
+ * d'étape dont le workflow fait un rappel. Hors Actions, seule l'annotation part sur la sortie
+ * standard, où elle se lit comme une ligne ordinaire.
+ */
+function reportWarnings(warnings: readonly string[], bls: BlsState): void {
+  for (const warning of warnings) {
+    console.warn(`Avertissement — ${warning}`);
+    console.log(`::warning file=src/lib/calendar/bls-schedule.ts::${warning}`);
+  }
+  const outputFile = process.env['GITHUB_OUTPUT'];
+  if (!outputFile) return;
+  const lines = [
+    `bls_warning=${warnings.length > 0 ? 'true' : 'false'}`,
+    `bls_coverage_end=${bls.coverageEnd}`,
+    `bls_checked_on=${bls.checkedOn}`,
+  ];
+  appendFileSync(outputFile, `${lines.join('\n')}\n`, 'utf8');
+}
+
 // ─── Rendu ───────────────────────────────────────────────────────────────────
 
 const literal = (value: string): string => JSON.stringify(value);
+
+/**
+ * Passe le rendu par Prettier, avec la configuration du dépôt.
+ *
+ * Sans cela, `literal` engendre des guillemets doubles que `prettier --check` refuse : le fichier
+ * engendré différait donc **toujours** de sa version committée, le générateur le réécrivait à
+ * chaque fois, et `npm run check` échouait dans le cron — qui n'a ainsi jamais réussi à publier
+ * (constaté le 01/09/2026 : run 33398994222 en échec, issue #39). Formater ici plutôt que dans le
+ * workflow garde la comparaison « rien n'a changé sauf l'horodatage » vraie.
+ */
+async function prettify(source: string, filepath: string): Promise<string> {
+  const options = await resolveConfig(filepath);
+  return format(source, { ...options, filepath });
+}
 
 export function render(calendar: Calendar): string {
   return [
@@ -456,12 +544,17 @@ export async function main(checkOnly: boolean): Promise<number> {
     a.at === b.at ? a.id.localeCompare(b.id) : a.at.localeCompare(b.at),
   );
 
-  const problems = gateProblems(events, { fomc, bea, bls }, today, blsCoverageEnd());
+  const blsState = { coverageEnd: blsCoverageEnd(), checkedOn: BLS_CHECKED_ON };
+
+  const problems = gateProblems(events, { fomc, bea, bls }, today, blsState);
   if (problems.length > 0) {
     console.error('Calendrier NON écrit — barrières non franchies :');
     for (const problem of problems) console.error(`  • ${problem}`);
     return 1;
   }
+
+  // Les barrières sont franchies : ce qui suit se signale, mais n'empêche jamais d'écrire.
+  reportWarnings(gateWarnings(today, blsState), blsState);
 
   const first = events[0];
   const last = events[events.length - 1];
@@ -500,14 +593,17 @@ export async function main(checkOnly: boolean): Promise<number> {
     sources[0]?.coversTo ?? today,
   );
 
-  const next = render({
-    generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
-    coversFrom: dayOf(first.at),
-    coversTo: dayOf(last.at),
-    completeTo,
-    sources,
-    events,
-  });
+  const next = await prettify(
+    render({
+      generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      coversFrom: dayOf(first.at),
+      coversTo: dayOf(last.at),
+      completeTo,
+      sources,
+      events,
+    }),
+    OUTPUT,
+  );
 
   let previous = '';
   try {

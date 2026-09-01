@@ -22,6 +22,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { format, resolveConfig } from 'prettier';
 import {
   asOf,
   msToDay,
@@ -400,6 +401,16 @@ export function gateProblems(indicators: readonly MacroIndicator[], today: strin
 
 const literal = (value: unknown): string => JSON.stringify(value);
 
+/**
+ * Passe le rendu par Prettier, avec la configuration du dépôt. Même raison que dans
+ * `generate-calendar.ts` : `literal` engendre des guillemets doubles que `prettier --check`
+ * refuse, ce qui faisait échouer `npm run check` dans le cron et empêchait toute publication.
+ */
+async function prettify(source: string, filepath: string): Promise<string> {
+  const options = await resolveConfig(filepath);
+  return format(source, { ...options, filepath });
+}
+
 export function render(snapshot: MacroSnapshot): string {
   const lines = [
     '// @generated par `node scripts/generate-macro.ts` — NE PAS MODIFIER À LA MAIN.',
@@ -529,11 +540,14 @@ export async function main(checkOnly: boolean): Promise<number> {
     },
   ];
 
-  const next = render({
-    generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
-    sources,
-    indicators,
-  });
+  const next = await prettify(
+    render({
+      generatedAt: new Date().toISOString().replace(/\.\d{3}Z$/, 'Z'),
+      sources,
+      indicators,
+    }),
+    OUTPUT,
+  );
 
   let previous = '';
   try {
