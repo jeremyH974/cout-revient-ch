@@ -119,7 +119,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
   (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
   `json-io.ts`, jamais remplacé en bloc.
-- `src/lib/calendar` — calendrier macroéconomique américain, **compilé dans le bundle et jamais
+- `src/lib/calendar` — calendrier macroéconomique américain **et de la zone euro**, **compilé dans le bundle et jamais
   récupéré au vol** : `events.generated.ts` est engendré et committé par
   `scripts/generate-calendar.ts` (Fed et BEA relus par le cron hebdomadaire ; BLS recopié à la main
   dans `bls-schedule.ts`, son CDN refusant les clients non-navigateurs). D'où : aucune origine à
@@ -128,7 +128,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   une seule fois, à la génération — contrairement aux dates Coinhouse, naïves et jamais converties.
   `index.ts` ne fait que sélectionner et regrouper par jour local. Détail : docs/calendrier-macro.md,
   docs/DECISIONS.md n° 58.
-- `src/lib/macro` — indicateurs macroéconomiques américains, **compilés dans le bundle** comme le
+- `src/lib/macro` — indicateurs macroéconomiques américains **et européens**, **compilés dans le bundle** comme le
   calendrier : `snapshot.generated.ts` est engendré par `scripts/generate-macro.ts` (Trésor et Fed
   en CI, pétrole si la clé EIA est fournie). `stats.ts` porte les seules décisions statistiques du
   projet — rang percentile à rangs moyens, transformations des séries non stationnaires,
@@ -160,7 +160,15 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+- `src/lib/derive` — les dérivations qui portaient une **règle** et vivaient dans `src/state`, sorties
+  en fonctions pures testables (décision n° 94) : priorité des cotations (prix manuel > direct >
+  cache), comptes implicites (trois comptes existent parce que des données existent), rattachement
+  d'une qualification à ses lignes brutes. Le câblage réactif, lui, reste dans `src/state` : l'y
+  extraire déplacerait du code sans rien rendre testable.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
+  **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
+  traqueur de dépendances, et l'en sortir ferait cesser silencieusement l'enregistrement des
+  mutations profondes (décision n° 81).
 - `src/state/history.svelte.ts` — historique des prix et **séries** : `dailySeries`, `flows` (les
   apports, au sens des flux externes) et la courbe consolidée `netWorth`, définie **ici** et non
   dans un composant pour que le bandeau, la réconciliation et le graphique lisent le même objet.
@@ -218,6 +226,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `engine.property.test.ts`, `sort-order.property.test.ts`, `trace.property.test.ts`,
   `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
   `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`.
+- **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
+  rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
+  clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits
+  (O(n²)) et décimales portées par les quantités (bornées à 18 depuis la décision n° 87). Le
+  chronomètre vit dans `engine-load.bench.ts`, lancé à la demande par `npm run bench`.
 - **Bout en bout** (Playwright, `tests/e2e/*.spec.ts`, sur le build servi par `vite preview`) :
   projets Chromium desktop, Chromium mobile (Pixel 7) et WebKit (parcours visuels). Les valeurs
   attendues sont calculées par le moteur à partir de la fixture (`helpers/expected.ts`) ; toutes les
