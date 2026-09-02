@@ -7,8 +7,14 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 ## Commandes
 
 - `npm run dev` — serveur de dev (http://localhost:5173/cout-revient-ch/)
-- `npm run check` — lint + typecheck (svelte-check) + tests ; **doit être vert avant tout commit**
+- `npm run check` — lint + typecheck (svelte-check) + tests ; **doit être vert avant tout commit**.
+  Attention : il ne lance **pas** la couverture, alors que la CI si (`npm test -- --coverage`) — un
+  seuil franchi ne se voit donc qu'en CI. Lancez `npm run test:coverage` avant de pousser du code
+  dans une zone à seuil (`src/lib/domain`, `src/lib/derive`, `src/state`).
 - `npm test` / `npm run test:watch` / `npm run test:coverage`
+- `npm run bench` — mesure le coût du moteur (`tests/perf/*.bench.ts`), **hors CI** : Vitest ne
+  ramasse que `*.test.ts`. Le garde-fou qui tourne, lui, ne chronomètre rien — il compte des
+  grandeurs déterministes (décisions n° 85 et 87).
 - `npm run build` / `npm run preview`
 - `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
 - `node scripts/generate-tickers.mjs [top]` — régénère `src/lib/pricing/tickers.generated.ts` (top N
@@ -88,3 +94,8 @@ Un changement du moteur n'est terminé que si : exemple canonique OK, invariant
 et **oracle indépendant concordant** (`tests/integration/independent-oracle.test.ts`, recalcul
 from scratch à 1e-9 près sur la fixture et sur l'export réel). Tout chiffre affiché doit rester
 cohérent avec les auto-vérifications (`src/lib/support/self-check.ts`).
+
+**Une contre-épreuve par garde-fou** (décision n° 75) : un test vert ne prouve rien tant qu'on ne
+l'a pas vu rougir. Faussez la chose qu'il surveille, vérifiez qu'il échoue en la nommant, puis
+restaurez. Cette règle a attrapé, en deux sessions, un contrôle de contrat qui validait un document
+que le générateur ne lit jamais, et un garde-fou de couverture qui n'existait qu'en CI.
