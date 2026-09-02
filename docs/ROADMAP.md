@@ -255,7 +255,7 @@ pris — décision n° 69).
 | #   | Proposition                                                                                                                                   | Valeur | Fiabilité | Satisf. | Sessions |  ROI   |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :----: |
 | P76 | **Livré (01/09/2026, décision n° 76).** Garde anti-injection de formule dans l'export CSV                                                     |   0    |     4     |    1    |   0,25   | **20** |
-| P78 | `.gitignore` : `.claude/worktrees/`, aujourd'hui protégé par un exclude local seulement                                                       |   0    |     2     |    0    |   0,1    | **20** |
+| P78 | **Livré (01/09/2026, commit `deb5cf1`).** `.claude/worktrees/` ajouté au `.gitignore`                                                         |   0    |     2     |    0    |   0,1    | **20** |
 | P81 | **Livré (01/09/2026, décision n° 79).** L'échec du miroir remonte aux auto-vérifications                                                      |   1    |     5     |    1    |   0,5    | **14** |
 | P92 | **Livré (01/09/2026, décision n° 80).** La source du taux s'affiche à côté du chiffre                                                         |   2    |     4     |    1    |   0,5    | **14** |
 | P77 | **Livré (01/09/2026, décision n° 77).** Texte libre neutralisé avant exposition MCP                                                           |   1    |     5     |    0    |   0,5    | **12** |
@@ -275,6 +275,15 @@ pris — décision n° 69).
 | P88 | **Abandonné (01/09/2026, décision n° 91).** Redistribution interdite par les CGU CoinGecko, et série figée = risque sous-estimé               |   3    |     4     |    1    |    2     |   4    |
 | P91 | **Livré (01/09/2026, décision n° 90).** Cinq listes d'`ARCHITECTURE.md` adossées à un test ; cinq dérives corrigées                           |   0    |     3     |    1    |    1     |   4    |
 | P84 | **Livré (01/09/2026, décision n° 94).** Les trois dérivations qui portent une règle métier extraites et testées                               |   2    |     4     |    1    |   2,5    |  2,8   |
+
+**Toutes les propositions de ce tableau sont closes** au 02/09/2026 — livrées, livrées autrement,
+ou abandonnées avec leur motif.
+
+P78 avait échappé au décompte : livré le 01/09 en passager du commit de P75, il est resté marqué
+« à faire » jusqu'au lendemain. Un changement qui voyage avec une autre brique n'a pas de commit à
+lui, donc rien ne rappelle de cocher sa ligne. C'est la limite du dispositif de la décision n° 90 :
+il adosse `ARCHITECTURE.md` au code, mais l'état d'une proposition n'est vérifiable par aucun test —
+seulement par une relecture.
 
 **P79 avant tout le reste** : sans le périmètre de couverture étendu, rien ne mesurera l'effet de
 P84. La zone hors mesure est passée de 17 477 à **20 844 lignes** en 49 commits — l'écart se creuse à
