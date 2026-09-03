@@ -434,6 +434,20 @@ test('Trading : la somme du calendrier = le réalisé net du tableau de bord', a
   }
   expect(weeks).toBeGreaterThan(0);
   expect(Math.abs(calendar - realized)).toBeLessThanOrEqual(tol(weeks));
+
+  // Maille année (décision n° 95) : la même addition, vue d'un cran plus haut. Une maille qui
+  // regrouperait autrement (ou qui oublierait un mois) donnerait ici un autre total.
+  await page
+    .getByRole('radiogroup', { name: 'Maille du calendrier' })
+    .getByRole('radio', { name: 'Année', exact: true })
+    .click();
+  const yearCells = (await page.locator('.tiles .num').allInnerTexts()).map(toNumber);
+  expect(yearCells.length).toBeGreaterThan(0);
+  const byYear = yearCells.reduce((sum, value) => sum + value, 0);
+  expect(Math.abs(byYear - realized)).toBeLessThanOrEqual(tol(yearCells.length));
+  // Et le total affiché sous la grille = la somme de ses cases, telles qu'elles s'affichent.
+  const gridTotal = toNumber(await page.locator('.grid-total .num').innerText());
+  expect(Math.abs(gridTotal - byYear)).toBeLessThanOrEqual(tol(yearCells.length));
 });
 
 /**

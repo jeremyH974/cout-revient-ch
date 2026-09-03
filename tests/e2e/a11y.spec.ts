@@ -92,6 +92,23 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     await expectNoViolations(page, 'feuille « Pourquoi ce chiffre ? »');
   });
 
+  /**
+   * Les mailles mois et année du calendrier de P&L (décision n° 95) ne sont pas le tableau de la
+   * maille jour mais une grille de tuiles cliquables, et elles n'apparaissent qu'après un clic —
+   * donc jamais dans la liste de routes ci-dessus.
+   */
+  test('avec la démo : le calendrier de P&L aux mailles mois et année', async ({ page }) => {
+    await openDemo(page);
+    await page.goto('#/trading/stats');
+    const grains = page.getByRole('radiogroup', { name: 'Maille du calendrier' });
+    await grains.getByRole('radio', { name: 'Mois', exact: true }).click();
+    await expect(page.getByRole('list', { name: /^Mois de \d{4}$/ })).toBeVisible();
+    await expectNoViolations(page, 'calendrier de P&L — maille mois');
+    await grains.getByRole('radio', { name: 'Année', exact: true }).click();
+    await expect(page.getByRole('list', { name: 'Années' })).toBeVisible();
+    await expectNoViolations(page, 'calendrier de P&L — maille année');
+  });
+
   test('avec la démo : #/trading/trade/<id> (détail et journal)', async ({ page }) => {
     await openDemo(page);
     await page.goto('#/trading/trades');
