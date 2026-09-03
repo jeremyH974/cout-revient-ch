@@ -2167,3 +2167,29 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     pourcentage était le mauvais indicateur ; le bon est que soixante lignes de règles métier sans
     aucun test en ont désormais vingt-trois, et que `src/lib/derive` est couvert à **100 %**, tenu
     par un seuil dédié — vérifié en le portant à 100 % de branches, où il rougit à 95,83 %.
+95. **La période filtre les statistiques ; le calendrier, lui, garde sa propre maille**
+    (03/09/2026). L'écran Statistiques portait sur tout l'historique, sans moyen de regarder un
+    mois. Il reçoit le même sélecteur de période que la Vue d'ensemble (1S / 1M / 3M / 1A / Tout,
+    `periodWindow` de `$lib/history`), et le calendrier de P&L reçoit trois mailles : **jour**
+    (inchangée), **mois** (les douze mois d'une année) et **année** (une case par année), qui
+    redescendent d'un cran au clic.
+    **Deux mailles de temps qui ne veulent pas dire la même chose, et c'est assumé.** Le filtre
+    retient les aller-retours **clos dans la fenêtre**, datés de leur jour de clôture ; le
+    calendrier date chaque montant **du jour où la plateforme l'a réalisé** (décision n° 35). Sur
+    une fenêtre courte, les deux totaux diffèrent donc légitimement : les frais et le funding d'une
+    position encore ouverte comptent dans le calendrier, jamais dans « P&L net des trades clos ».
+    Faire suivre le calendrier au filtre aurait mélangé les deux définitions dans un seul chiffre ;
+    il garde sa navigation, et l'écran le dit dès qu'une période est active.
+    **Un aller-retour est indivisible : il est daté de sa clôture, pas éclaté.** C'est la seule
+    maille sur laquelle un taux de réussite, un payoff ou une série veulent dire quelque chose — et
+    le titre de la carte le répète (« 4 trades clos sur 1 mois »). Une position encore ouverte n'a
+    pas de jour de clôture : elle n'entre dans aucune fenêtre bornée, et « Tout » est la seule à la
+    garder. Le défaut reste « Tout » : l'écran ne change pas tant qu'on ne le lui demande pas.
+    **Les trois mailles partagent une seule addition** (`groupEvents`), paramétrée par la tranche à
+    laquelle un montant appartient. Deux additions parallèles auraient pu diverger sans que rien ne
+    le signale ; une propriété vérifie que la somme des jours d'un mois égale sa case, et que la
+    somme des douze mois égale la case de l'année. Vue rougir en oubliant un mois (la grille passe à
+    onze cases) et en ne comptant que les clôtures — cas où l'E2E de cohérence, qui compare la maille
+    année au « réalisé net » du tableau de bord, tombe exactement comme il l'avait fait pour la
+    décision n° 35. Le filtre a été vu rougir rendu inerte : la semaine et l'historique complet
+    annonçaient alors le même nombre de trades.
