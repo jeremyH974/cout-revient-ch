@@ -146,12 +146,61 @@ export interface CalendarMonth {
   excluded: number;
 }
 
-interface DayAccumulator {
+interface Accumulator {
   pnl: Big;
   tripIds: string[];
   seen: Set<string>;
   closed: number;
   excluded: Set<string>;
+}
+
+interface Grouping {
+  /** Tranche → cumul, dans l'ordre de première apparition. */
+  byKey: Map<string, Accumulator>;
+  /** Aller-retours clos, sans doublon, toutes tranches confondues. */
+  closed: Set<string>;
+  /** Aller-retours non convertibles, sans doublon. */
+  excluded: Set<string>;
+}
+
+/**
+ * Cumule les montants réalisés par tranche de temps — la seule addition du module, partagée par
+ * les trois mailles (jour, mois, année) pour qu'elles ne puissent pas diverger. `keyOf` rend la
+ * tranche d'un événement, ou `null` pour l'écarter (hors du mois ou de l'année affichés).
+ */
+function groupEvents(
+  events: readonly RealizedEvent[],
+  keyOf: (event: RealizedEvent) => string | null,
+  toDisplay: QuoteToDisplay,
+): Grouping {
+  const byKey = new Map<string, Accumulator>();
+  const closed = new Set<string>();
+  const excluded = new Set<string>();
+  for (const e of events) {
+    const slot = keyOf(e);
+    if (slot === null) continue;
+    let acc = byKey.get(slot);
+    if (!acc) {
+      acc = { pnl: ZERO, tripIds: [], seen: new Set(), closed: 0, excluded: new Set() };
+      byKey.set(slot, acc);
+    }
+    // Un même aller-retour peut réaliser plusieurs fois dans la tranche : il n'est listé qu'une fois.
+    const trip = e.tripId ?? `?${e.quote}`;
+    if (!acc.seen.has(trip)) {
+      acc.seen.add(trip);
+      acc.tripIds.push(trip);
+    }
+    if (e.closes) {
+      acc.closed++;
+      closed.add(trip);
+    }
+    const converted = toDisplay(e.quote, e.amount);
+    if (converted === null) {
+      acc.excluded.add(trip);
+      excluded.add(trip);
+    } else acc.pnl = acc.pnl.plus(converted);
+  }
+  return { byKey, closed, excluded };
 }
 
 /** Additionne les jours d'une semaine (les cases `null`, hors mois, ne comptent pas). */
@@ -181,38 +230,17 @@ export function calendarMonth(
   const year = Number(yearPart);
   const monthNum = Number(monthPart);
 
-  const byDay = new Map<string, DayAccumulator>();
-  const closedTrips = new Set<string>();
-  const excludedTrips = new Set<string>();
-  for (const e of events) {
-    if (e.day.slice(0, 7) !== month) continue;
-    let acc = byDay.get(e.day);
-    if (!acc) {
-      acc = { pnl: ZERO, tripIds: [], seen: new Set(), closed: 0, excluded: new Set() };
-      byDay.set(e.day, acc);
-    }
-    // Un même aller-retour peut réaliser plusieurs fois dans la journée : il n'est listé qu'une fois.
-    const key = e.tripId ?? `?${e.quote}`;
-    if (!acc.seen.has(key)) {
-      acc.seen.add(key);
-      acc.tripIds.push(key);
-    }
-    if (e.closes) {
-      acc.closed++;
-      closedTrips.add(key);
-    }
-    const converted = toDisplay(e.quote, e.amount);
-    if (converted === null) {
-      acc.excluded.add(key);
-      excludedTrips.add(key);
-    } else acc.pnl = acc.pnl.plus(converted);
-  }
+  const grouped = groupEvents(
+    events,
+    (e) => (e.day.slice(0, 7) === month ? e.day : null),
+    toDisplay,
+  );
 
   const numDays = daysInMonth(year, monthNum);
   const days: CalendarDay[] = [];
   for (let d = 1; d <= numDays; d++) {
     const dayStr = `${yearPart}-${monthPart}-${String(d).padStart(2, '0')}`;
-    const acc = byDay.get(dayStr);
+    const acc = grouped.byKey.get(dayStr);
     days.push({
       day: dayStr,
       pnl: acc?.pnl ?? ZERO,
@@ -241,5 +269,95 @@ export function calendarMonth(
   let total = ZERO;
   for (const day of days) total = total.plus(day.pnl);
 
-  return { month, weeks, total, closed: closedTrips.size, excluded: excludedTrips.size };
+  return { month, weeks, total, closed: grouped.closed.size, excluded: grouped.excluded.size };
+}
+
+/** Maille du calendrier : une case par jour, par mois, ou par année. */
+export type CalendarGrain = 'day' | 'month' | 'year';
+
+/** Une case du calendrier aux mailles mois et année. */
+export interface CalendarBucket {
+  /** `YYYY-MM` (mois) ou `YYYY` (année). */
+  key: string;
+  /** P&L réalisé net de la tranche (devise d'affichage), montants convertibles seulement. */
+  pnl: Big;
+  /** Aller-retours ayant réalisé quelque chose dans la tranche (gain, perte, frais ou funding). */
+  count: number;
+  /** Sous-ensemble de `count` : aller-retours clos dans la tranche. */
+  closed: number;
+  /** Aller-retours de la tranche dont la devise de cotation n'est pas convertible. */
+  excluded: number;
+}
+
+/** Une grille de tranches : les 12 mois d'une année, ou toutes les années atteignables. */
+export interface CalendarGrid {
+  buckets: CalendarBucket[];
+  total: Big;
+  /** Aller-retours clos dans la grille (sans doublon, contrairement à la somme des `closed`). */
+  closed: number;
+  /** Aller-retours de la grille dont la devise de cotation n'est pas convertible. */
+  excluded: number;
+}
+
+/** Assemble une grille à partir des tranches attendues, celles sans montant comprises. */
+function buildGrid(keys: readonly string[], grouped: Grouping): CalendarGrid {
+  let total = ZERO;
+  const buckets = keys.map((key): CalendarBucket => {
+    const acc = grouped.byKey.get(key);
+    const pnl = acc?.pnl ?? ZERO;
+    total = total.plus(pnl);
+    return {
+      key,
+      pnl,
+      count: acc?.tripIds.length ?? 0,
+      closed: acc?.closed ?? 0,
+      excluded: acc?.excluded.size ?? 0,
+    };
+  });
+  return { buckets, total, closed: grouped.closed.size, excluded: grouped.excluded.size };
+}
+
+/**
+ * Les 12 mois de `year` (`YYYY`), y compris ceux sans le moindre montant : la grille annuelle est
+ * une année complète, comme la grille mensuelle est un mois complet. La somme des 12 mois égale la
+ * somme des jours de chacun d'eux — même addition, même écartement des devises non convertibles.
+ */
+export function calendarMonths(
+  events: readonly RealizedEvent[],
+  year: string,
+  toDisplay: QuoteToDisplay,
+): CalendarGrid {
+  const grouped = groupEvents(
+    events,
+    (e) => (e.day.slice(0, 4) === year ? e.day.slice(0, 7) : null),
+    toDisplay,
+  );
+  const keys: string[] = [];
+  for (let m = 1; m <= 12; m++) keys.push(`${year}-${String(m).padStart(2, '0')}`);
+  return buildGrid(keys, grouped);
+}
+
+/** Années (`YYYY`) distinctes ayant au moins un montant réalisé, triées croissant. */
+export function activeYears(events: readonly RealizedEvent[]): string[] {
+  const years = new Set<string>();
+  for (const e of events) years.add(e.day.slice(0, 4));
+  return [...years].sort();
+}
+
+/**
+ * Une case par année, de la première à la dernière année active — les années creuses comprises,
+ * pour que la frise reste continue. Grille vide si aucun montant n'a jamais été réalisé.
+ */
+export function calendarYears(
+  events: readonly RealizedEvent[],
+  toDisplay: QuoteToDisplay,
+): CalendarGrid {
+  const grouped = groupEvents(events, (e) => e.day.slice(0, 4), toDisplay);
+  const years = activeYears(events);
+  const first = years[0];
+  const last = years.at(-1);
+  const keys: string[] = [];
+  if (first !== undefined && last !== undefined)
+    for (let y = Number(first); y <= Number(last); y++) keys.push(String(y));
+  return buildGrid(keys, grouped);
 }

@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../money';
 import { emptyJournalEntry, type JournaledTrip } from './journal';
 import type { RoundTrip } from './round-trips';
-import { computeStats, statsBuckets, weekdayOf, type ToDisplay } from './stats';
+import { computeStats, statsBuckets, tripsClosedIn, weekdayOf, type ToDisplay } from './stats';
 
 let seq = 0;
 const rt = (over: Partial<RoundTrip> = {}): RoundTrip => {
@@ -181,6 +181,72 @@ describe('propriété', () => {
           expect(s.netTotal.eq(total)).toBe(true);
           expect(s.maxDrawdown === null || s.maxDrawdown.gte(ZERO)).toBe(true);
           expect(s.wins + s.losses + s.breakeven).toBe(s.closed);
+        },
+      ),
+    );
+  });
+});
+
+describe('tripsClosedIn — le filtre de période des statistiques', () => {
+  const closedOn = (day: string): JournaledTrip =>
+    jt({ closedAt: `${day}T12:00:00`, closedTime: Date.parse(`${day}T12:00:00Z`) });
+
+  it('bornes incluses des deux côtés', () => {
+    const trips = [
+      closedOn('2026-07-31'),
+      closedOn('2026-08-01'),
+      closedOn('2026-08-15'),
+      closedOn('2026-08-31'),
+      closedOn('2026-09-01'),
+    ];
+    const kept = tripsClosedIn(trips, { from: '2026-08-01', to: '2026-08-31' });
+    expect(kept.map((t) => t.trip.closedAt?.slice(0, 10))).toEqual([
+      '2026-08-01',
+      '2026-08-15',
+      '2026-08-31',
+    ]);
+  });
+
+  it('une position encore ouverte n’entre dans aucune fenêtre bornée', () => {
+    const open = jt({ status: 'open', closedAt: null, closedTime: null });
+    const trips = [open, closedOn('2026-08-15')];
+    expect(tripsClosedIn(trips, { from: '2026-08-01', to: '2026-08-31' })).toHaveLength(1);
+    // « Tout » (fenêtre ouverte à gauche) ne filtre rien : c'est la seule qui la garde.
+    expect(tripsClosedIn(trips, { from: null, to: '2026-08-31' })).toHaveLength(2);
+  });
+
+  it('les statistiques d’une fenêtre ne portent que sur ses trades', () => {
+    const trips = [
+      jt({ closedAt: '2026-07-10T12:00:00', closedTime: 1, netPnl: D('100') }),
+      jt({ closedAt: '2026-08-10T12:00:00', closedTime: 2, netPnl: D('-30') }),
+      jt({ closedAt: '2026-08-20T12:00:00', closedTime: 3, netPnl: D('50') }),
+    ];
+    const august = computeStats(tripsClosedIn(trips, { from: '2026-08-01', to: '2026-08-31' }));
+    expect(august.closed).toBe(2);
+    expect(august.netTotal.eq(D('20'))).toBe(true);
+    expect(august.wins).toBe(1);
+    expect(august.losses).toBe(1);
+    const everything = computeStats(tripsClosedIn(trips, { from: null, to: '2026-08-31' }));
+    expect(everything.closed).toBe(3);
+    expect(everything.netTotal.eq(D('120'))).toBe(true);
+  });
+
+  it('propriété : une fenêtre plus large ne retient jamais moins de trades', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.integer({ min: 1, max: 28 }), { maxLength: 30 }),
+        fc.integer({ min: 1, max: 28 }),
+        (days, start) => {
+          const trips = days.map((d, i) =>
+            jt({ closedAt: `2026-08-${String(d).padStart(2, '0')}T12:00:00`, closedTime: i }),
+          );
+          const from = `2026-08-${String(start).padStart(2, '0')}`;
+          const narrow = tripsClosedIn(trips, { from, to: '2026-08-20' });
+          const wide = tripsClosedIn(trips, { from, to: '2026-08-28' });
+          expect(narrow.length).toBeLessThanOrEqual(wide.length);
+          expect(wide.length).toBeLessThanOrEqual(
+            tripsClosedIn(trips, { from: null, to: '2026-08-28' }).length,
+          );
         },
       ),
     );
