@@ -481,6 +481,8 @@ Toutes ces étapes sont livrées au 24/08/2026.
 - **P22 — Statistiques (2,5 sessions)** : espérance (€ et R), profit factor, taux de réussite,
   drawdown, ventilations par setup/actif/sens/jour/durée, calendrier, avertissement si n < 30,
   export CSV/JSON du journal. **P27** (0,5 session) : résumé anonymisé à coller dans une IA.
+  Complété le 03/09/2026 (décision n° 95) : sélecteur de période sur tout l'écran (trades clos dans
+  la fenêtre) et calendrier lisible au jour, au mois ou à l'année.
 - **P24 — Format pivot (3 sessions).** **Livré (v2, 23/08/2026 ; convertisseurs natifs et JSON
   Ghostfolio livrés le 24/08/2026).** CSV Universal Koinly (lu aussi par Waltio) et export interne
   Koinly (Bulk edit → Export), virements internes appariés (report de coût), export au même format,

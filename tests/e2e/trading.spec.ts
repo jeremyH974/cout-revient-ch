@@ -119,3 +119,68 @@ test('quitter la démo retire le compte Hyperliquid fictif', async ({ page }) =>
   await page.goto('#/trading');
   await expect(page.getByRole('heading', { name: 'Vos trades, bientôt ici' })).toBeVisible();
 });
+
+/**
+ * Statistiques (décision n° 95) : le sélecteur de période gouverne tout l'écran SAUF le calendrier,
+ * qui garde sa navigation et ses trois mailles. Le test ne fixe aucune date — la fixture de démo
+ * vieillit — mais l'emboîtement des fenêtres, lui, ne peut pas mentir : une semaine ⊆ un mois ⊆
+ * trois mois ⊆ tout. Un filtre qui ne filtrerait rien (ou qui écraserait l'écran) le romprait.
+ */
+test('démo : la période restreint les statistiques, le calendrier garde sa maille', async ({
+  page,
+}) => {
+  await openDemo(page);
+  await page.goto('#/trading/stats');
+  const periods = page.getByRole('radiogroup', { name: 'Période' });
+  const grains = page.getByRole('radiogroup', { name: 'Maille du calendrier' });
+  await expect(periods).toBeVisible();
+
+  /** Trades clos annoncés par le titre ; 0 quand la carte cède la place au message de période vide. */
+  const closedOn = async (label: string): Promise<number> => {
+    await periods.getByRole('radio', { name: label, exact: true }).click();
+    // Le calendrier est là quelle que soit la fenêtre : il ne suit pas le filtre.
+    await expect(grains).toBeVisible();
+    await expect(page.getByText(/Le calendrier ne suit pas le filtre de période/)).toHaveCount(
+      label === 'Tout' ? 0 : 1,
+    );
+    const heading = page.getByRole('heading', { level: 2, name: /Vue d'ensemble/ });
+    if ((await heading.count()) === 0) {
+      await expect(page.getByText(/^Aucun trade clos sur /)).toBeVisible();
+      return 0;
+    }
+    const text = await heading.innerText();
+    // Le titre dit sur quoi il porte : la période, sauf « Tout » qui est le défaut.
+    expect(text).toMatch(label === 'Tout' ? /\d+ trades? clos\)/ : /\d+ trades? clos sur /);
+    return Number(/\((\d+) trade/.exec(text)![1]);
+  };
+
+  const week = await closedOn('1S');
+  const month = await closedOn('1M');
+  const quarter = await closedOn('3M');
+  const all = await closedOn('Tout');
+  expect(week).toBeLessThanOrEqual(month);
+  expect(month).toBeLessThanOrEqual(quarter);
+  expect(quarter).toBeLessThanOrEqual(all);
+  expect(all).toBeGreaterThan(0);
+  // Et le filtre mord vraiment : la fixture couvre une vingtaine de jours, donc au moins un trade
+  // tombe hors de la dernière semaine. Un filtre inerte rendrait ces deux nombres égaux.
+  expect(week).toBeLessThan(all);
+
+  // Maille année : une case par année, et le clic redescend sur les mois de l'année choisie.
+  await grains.getByRole('radio', { name: 'Année', exact: true }).click();
+  const yearList = page.getByRole('list', { name: 'Années' });
+  await expect(yearList).toBeVisible();
+  await yearList.getByRole('button').first().click();
+  await expect(page.getByRole('list', { name: /^Mois de \d{4}$/ })).toBeVisible();
+  // Puis d'un cran encore : le mois choisi ouvre sa grille de jours.
+  await page
+    .getByRole('list', { name: /^Mois de \d{4}$/ })
+    .getByRole('button')
+    .first()
+    .click();
+  await expect(page.getByRole('region', { name: /tableau défilant/ }).first()).toBeVisible();
+  await expect(grains.getByRole('radio', { name: 'Jour', exact: true })).toHaveAttribute(
+    'aria-checked',
+    'true',
+  );
+});

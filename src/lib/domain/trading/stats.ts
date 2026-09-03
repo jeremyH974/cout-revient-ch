@@ -16,6 +16,39 @@ export const MIN_SAMPLE = 30;
 export type ToDisplay = (trip: JournaledTrip, value: Big) => Big | null;
 const identity: ToDisplay = (_trip, value) => value;
 
+/**
+ * Fenêtre de jours (`YYYY-MM-DD`), bornes incluses ; `from: null` = depuis le début. Même forme
+ * que le `DayWindow` de `$lib/history`, redéclarée ici parce que le moteur ne dépend d'aucune
+ * autre couche : c'est l'écran qui produit la fenêtre depuis le sélecteur de période.
+ */
+export interface DayWindow {
+  from: string | null;
+  to: string;
+}
+
+/**
+ * Restreint les aller-retours à une fenêtre : seuls sont retenus ceux **clos dans la fenêtre**,
+ * datés de leur jour de clôture (heure de Paris). Une fenêtre ouverte à gauche (`from: null`,
+ * période « Tout ») ne filtre rien — les positions encore ouvertes, qui n'ont pas de jour de
+ * clôture, ne sont donc retenues que par elle.
+ *
+ * Dater un aller-retour de sa clôture ne contredit pas la décision n° 35 (un montant réalisé est
+ * daté du jour où il l'a été) : l'unité mesurée ici est l'aller-retour, indivisible, et les écrans
+ * le disent — « trades clos ». Le calendrier garde sa maille d'événements ; les deux totaux
+ * peuvent donc légitimement différer sur une fenêtre courte (décision n° 95).
+ */
+export function tripsClosedIn(
+  trips: readonly JournaledTrip[],
+  window: DayWindow,
+): readonly JournaledTrip[] {
+  const { from, to } = window;
+  if (from === null) return trips;
+  return trips.filter((t) => {
+    const day = t.trip.closedAt?.slice(0, 10) ?? null;
+    return day !== null && day >= from && day <= to;
+  });
+}
+
 export interface TradingStats {
   total: number;
   closed: number;

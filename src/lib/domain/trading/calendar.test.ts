@@ -12,7 +12,10 @@ import { journaledTrips, type JournaledTrip } from './journal';
 import { buildRoundTrips } from './round-trips';
 import {
   activeMonths,
+  activeYears,
   calendarMonth,
+  calendarMonths,
+  calendarYears,
   realizedEvents,
   type CalendarDay,
   type QuoteToDisplay,
@@ -293,6 +296,129 @@ describe('propriété', () => {
           expect(weeklyCount).toBe(events.length); // un aller-retour distinct par événement
           const direct = events.reduce((acc, e) => acc.plus(e.amount), ZERO);
           expect(month.total.eq(direct)).toBe(true);
+        },
+      ),
+    );
+  });
+});
+
+const pad = (n: number): string => String(n).padStart(2, '0');
+
+describe('calendarMonths — les 12 mois d’une année', () => {
+  it('une case par mois, même sans trade, dans l’ordre du calendrier', () => {
+    const grid = calendarMonths([ev('2026-03-04', '10'), ev('2026-11-20', '-4')], '2026', identity);
+    expect(grid.buckets).toHaveLength(12);
+    expect(grid.buckets.map((b) => b.key)).toEqual([
+      '2026-01',
+      '2026-02',
+      '2026-03',
+      '2026-04',
+      '2026-05',
+      '2026-06',
+      '2026-07',
+      '2026-08',
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+    ]);
+    expect(grid.buckets[2]!.pnl.eq(D('10'))).toBe(true);
+    expect(grid.buckets[2]!.count).toBe(1);
+    expect(grid.buckets[10]!.pnl.eq(D('-4'))).toBe(true);
+    expect(grid.buckets[0]!.count).toBe(0);
+    expect(grid.buckets[0]!.pnl.eq(ZERO)).toBe(true);
+    expect(grid.total.eq(D('6'))).toBe(true);
+  });
+
+  it('les montants des autres années sont écartés', () => {
+    const events = [ev('2025-03-04', '100'), ev('2026-03-04', '10')];
+    expect(calendarMonths(events, '2026', identity).total.eq(D('10'))).toBe(true);
+    expect(calendarMonths(events, '2025', identity).total.eq(D('100'))).toBe(true);
+  });
+
+  it('un aller-retour qui réalise deux fois dans le mois n’y est compté qu’une fois', () => {
+    const events = [
+      ev('2026-03-04', '10', { tripId: 't1' }),
+      ev('2026-03-20', '5', { tripId: 't1' }),
+    ];
+    const grid = calendarMonths(events, '2026', identity);
+    expect(grid.buckets[2]!.count).toBe(1);
+    expect(grid.buckets[2]!.pnl.eq(D('15'))).toBe(true);
+  });
+
+  it('clôtures sans doublon, et devise non convertible signalée plutôt que sommée', () => {
+    const usdcOnly: QuoteToDisplay = (quote, v) => (quote === 'USDC' ? v : null);
+    const events = [
+      ev('2026-03-04', '10', { tripId: 't1', closes: true }),
+      ev('2026-03-28', '2', { tripId: 't1', closes: false }),
+      ev('2026-04-04', '7', { tripId: 't2', quote: 'BTC' }),
+    ];
+    const grid = calendarMonths(events, '2026', usdcOnly);
+    expect(grid.closed).toBe(1);
+    expect(grid.excluded).toBe(1);
+    expect(grid.total.eq(D('12'))).toBe(true);
+    expect(grid.buckets[3]!.excluded).toBe(1);
+    expect(grid.buckets[3]!.pnl.eq(ZERO)).toBe(true);
+  });
+});
+
+describe('calendarYears — une case par année', () => {
+  it('de la première à la dernière année active, les années creuses comprises', () => {
+    const grid = calendarYears([ev('2024-05-02', '3'), ev('2026-01-02', '4')], identity);
+    expect(grid.buckets.map((b) => b.key)).toEqual(['2024', '2025', '2026']);
+    expect(grid.buckets[1]!.count).toBe(0);
+    expect(grid.buckets[1]!.pnl.eq(ZERO)).toBe(true);
+    expect(grid.total.eq(D('7'))).toBe(true);
+  });
+
+  it('aucun montant réalisé : grille vide, total nul', () => {
+    const grid = calendarYears([], identity);
+    expect(grid.buckets).toEqual([]);
+    expect(grid.total.eq(ZERO)).toBe(true);
+  });
+});
+
+describe('activeYears', () => {
+  it('années distinctes, triées croissant', () => {
+    const events = [ev('2026-08-05', '1'), ev('2024-06-01', '2'), ev('2026-01-20', '3')];
+    expect(activeYears(events)).toEqual(['2024', '2026']);
+  });
+
+  it('aucun montant réalisé : liste vide', () => {
+    expect(activeYears([])).toEqual([]);
+  });
+});
+
+describe('propriété — les trois mailles ne peuvent pas diverger', () => {
+  it('Σ jours d’un mois = case du mois, et Σ des 12 mois = case de l’année', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            month: fc.integer({ min: 1, max: 12 }),
+            day: fc.integer({ min: 1, max: 28 }),
+            amount: fc.integer({ min: -5_000, max: 5_000 }),
+          }),
+          { maxLength: 60 },
+        ),
+        (entries) => {
+          const events = entries.map((e, i) =>
+            ev(`2026-${pad(e.month)}-${pad(e.day)}`, String(e.amount), {
+              tripId: `t${i}`,
+              time: i,
+            }),
+          );
+          const monthGrid = calendarMonths(events, '2026', identity);
+          for (const bucket of monthGrid.buckets) {
+            const dayGrid = calendarMonth(events, bucket.key, identity);
+            expect(bucket.pnl.eq(dayGrid.total)).toBe(true);
+            expect(bucket.count).toBeLessThanOrEqual(
+              dayGrid.weeks.reduce((n, w) => n + w.count, 0),
+            );
+          }
+          const yearCell = calendarYears(events, identity).buckets.find((b) => b.key === '2026');
+          if (events.length === 0) expect(yearCell).toBeUndefined();
+          else expect(yearCell!.pnl.eq(monthGrid.total)).toBe(true);
         },
       ),
     );

@@ -5,6 +5,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Les statistiques de trading se regardent maintenant sur une période** : le même sélecteur
+  qu'à la Vue d'ensemble (1S, 1M, 3M, 1A, Tout) restreint tous les chiffres de l'écran — espérance,
+  profit factor, drawdown, séries, « Ce qui marche » et le résumé anonymisé — aux trades **clos**
+  dans la fenêtre. « Tout » reste le défaut.
+- **Le calendrier de P&L se lit au jour, au mois ou à l'année.** Un clic sur une année ouvre ses
+  douze mois, un clic sur un mois ouvre ses jours. Il garde sa propre navigation : il ne suit pas
+  le filtre de période, et l'écran le dit — un montant y est daté du jour où il a été réalisé,
+  quand une statistique date un aller-retour de sa clôture.
+
 ## [2.15.0] - 2026-08-30
 
 ### Added

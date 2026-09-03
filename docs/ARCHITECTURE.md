@@ -44,9 +44,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   réconciliation `accountValue ≈ Σ flux + Σ closedPnl − Σ frais perps + Σ funding + latent` —
   auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
   plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (`realizedEvents` : un montant par
-  événement daté — `closedPnl − frais` au jour du fill, funding au jour du paiement — puis grille
-  mensuelle, carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte`. La somme de la
-  grille sur tout l'historique **est** `totals.net`, docs/DECISIONS.md n° 35).
+  événement daté — `closedPnl − frais` au jour du fill, funding au jour du paiement — puis les
+  trois mailles de la carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte` :
+  `calendarMonth` (jours d'un mois), `calendarMonths` (douze mois d'une année) et `calendarYears`,
+  toutes trois bâties sur la **même** addition interne `groupEvents` pour qu'elles ne puissent pas
+  diverger. La somme de la grille sur tout l'historique **est** `totals.net`, docs/DECISIONS.md
+  n° 35 et n° 95), `stats.ts` (`computeStats`, `statsBuckets` et `tripsClosedIn` : le filtre de
+  période de l'écran Statistiques, qui retient les aller-retours **clos** dans une fenêtre de jours
+  — le calendrier, lui, ne suit pas ce filtre, docs/DECISIONS.md n° 95).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
