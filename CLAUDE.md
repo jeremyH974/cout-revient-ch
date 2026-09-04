@@ -12,6 +12,9 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   seuil franchi ne se voit donc qu'en CI. Lancez `npm run test:coverage` avant de pousser du code
   dans une zone à seuil (`src/lib/domain`, `src/lib/derive`, `src/state`).
 - `npm test` / `npm run test:watch` / `npm run test:coverage`
+- `npm run audit:prod` — `npm audit` des dépendances de production, **avec la distinction qui
+  manque à npm** : un verdict de vulnérabilité échoue tout de suite, une panne du registre se
+  réessaie puis se nomme (décision n° 99). C'est cette commande que la CI exécute.
 - `npm run bench` — mesure le coût du moteur (`tests/perf/*.bench.ts`), **hors CI** : Vitest ne
   ramasse que `*.test.ts`. Le garde-fou qui tourne, lui, ne chronomètre rien — il compte des
   grandeurs déterministes (décisions n° 85 et 87).

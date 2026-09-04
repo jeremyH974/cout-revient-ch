@@ -2267,3 +2267,27 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     serait tombé de la même façon. La barrière de fond ne bouge pas — un fichier appauvri n'est
     jamais écrit. Contre-épreuve : refus du corps vide retiré, deux tests rougissent, dont celui qui
     vérifie que le message nomme le vide et non la série.
+99. **La CI lit ce que le service a répondu, pas seulement qu'il a échoué** (04/09/2026).
+    `npm audit --omit=dev --audit-level=high` a fait échouer trois exécutions en trois heures — la
+    PR #61, puis deux fois `main`, **bloquant un déploiement déjà fusionné** — sans qu'aucune
+    vulnérabilité soit en cause : le point d'entrée `security/advisories/bulk` du registre npm a
+    rendu un délai dépassé, puis un `503`. Vérifié à la main depuis le poste : la requête `POST`
+    expire à 45 s alors que le reste du registre répond.
+    **`npm audit` sort en 1 dans les deux cas**, et son code de sortie ne les distingue pas. C'est
+    la confusion de la décision n° 98, une couche plus haut : _une non-réponse n'est pas un
+    verdict_. `scripts/audit-deps.mjs` la lève en lisant la **sortie JSON** — `{ "error": … }`, ou
+    pas de compteurs, c'est une panne : on réessaie trois fois, puis on échoue en **nommant la
+    panne** ; `metadata.vulnerabilities` avec une sortie non nulle, c'est un verdict : on échoue
+    **immédiatement**, sans le rejouer.
+    **`continue-on-error` a été écarté**, et c'est le cœur du choix : il aurait rendu l'audit
+    décoratif — vert le jour où il aurait dû crier. Un garde-fou de sécurité qu'on absorbe est pire
+    que pas de garde-fou, parce qu'il inspire confiance. Le prix assumé : si le registre reste muet
+    des heures, la CI reste rouge — c'est le comportement correct d'une barrière, et la relance du
+    job est le seul remède.
+    Deux réglages qui ne se devinent pas : `--fetch-timeout=60000` (défaut npm : 300 s, soit cinq
+    minutes d'attente par essai) et `--fetch-retries=1`, pour ne pas empiler deux boucles de
+    réessai. Contre-épreuve : la classification remise sur le seul code de sortie — deux tests
+    rougissent, dont celui qui exige qu'un audit **muet** ne passe pas pour un audit **vert**.
+    Piste pour plus tard, non retenue aujourd'hui : `osv-scanner` interroge une autre base
+    (OSV.dev) et rendrait la barrière indépendante de l'infrastructure npm — au prix d'un outil
+    tiers de plus dans la chaîne, ce qui se décide séparément.

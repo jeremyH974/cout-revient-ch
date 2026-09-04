@@ -39,7 +39,9 @@ jobs:
       # de main JSON-RPC réelle sur stdio) et échouerait sur un bundle absent.
       - run: npm run mcp:build
       - run: npm run test -- --coverage
-      - run: npm audit --omit=dev --audit-level=high
+      # Un verdict de sécurité échoue tout de suite ; une panne du registre npm se réessaie
+      # puis se nomme (décision n° 99). `npm audit` sort en 1 dans les deux cas.
+      - run: npm run audit:prod
       - run: npm run build
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
