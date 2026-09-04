@@ -6,35 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-01T16:21:27Z',
-  coversFrom: '2026-06-02',
+  generatedAt: '2026-09-04T11:17:50Z',
+  coversFrom: '2026-06-05',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-01', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-01', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
-    { source: 'bls', checkedOn: '2026-09-01', count: 28, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-01', count: 19, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-04', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-04', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'bls', checkedOn: '2026-09-01', count: 27, coversTo: '2026-12-15', upkeep: 'manual' },
+    { source: 'ecb', checkedOn: '2026-09-04', count: 19, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-01',
-      count: 10,
+      checkedOn: '2026-09-04',
+      count: 9,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'bls-jolts-2026-06-02',
-      kind: 'jolts',
-      at: '2026-06-02T14:00:00Z',
-      precision: 'exact',
-      title: 'Postes vacants (JOLTS)',
-      detail: 'Données d’avril 2026',
-      tier: 'secondary',
-      source: 'bls',
-      url: 'https://www.bls.gov/schedule/news_release/jolts.htm',
-    },
     {
       id: 'bls-employment-2026-06-05',
       kind: 'employment',
@@ -240,17 +229,6 @@ export const CALENDAR: Calendar = {
       tier: 'major',
       source: 'bea',
       url: 'https://www.bea.gov/data/income-saving/personal-income',
-    },
-    {
-      id: 'eurostat-hicp-flash-2026-09-01',
-      kind: 'hicp',
-      at: '2026-09-01T13:00:00Z',
-      precision: 'exact',
-      title: 'Inflation zone euro (estimation rapide)',
-      detail: 'IPCH, première estimation',
-      tier: 'major',
-      source: 'eurostat',
-      url: 'https://www.ecb.europa.eu/press/calendars/statscal/ges/html/sthicp.en.html',
     },
     {
       id: 'bls-jolts-2026-09-01',
