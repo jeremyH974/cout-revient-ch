@@ -5,6 +5,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **Un compte de trading dont la valeur n'a pas été récupérée n'est plus affiché comme un compte
+  vidé.** Il apparaissait à 0,00 € pour la totalité de ses apports — soit une perte de 100 % qui
+  n'a jamais eu lieu. Sa ligne dit maintenant « non valorisé », le patrimoine se déclare incomplet,
+  et « À vérifier » vous dit quoi relancer. Même règle quand la valeur annoncée par la plateforme
+  contredit votre historique : elle s'affiche, mais aucun résultat n'en est déduit tant que les
+  deux ne se recoupent pas.
+
 ### Added
 
 - **Chaque espace dit enfin où vous en êtes par rapport à vos apports**, en pourcentage : dans

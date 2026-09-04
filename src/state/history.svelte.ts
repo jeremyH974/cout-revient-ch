@@ -346,8 +346,14 @@ export class HistoryState {
     for (const account of app.hlAccounts) {
       const data = app.state.hyperliquid.accounts[account.id];
       const series = data?.portfolio?.['allTime'];
-      if (!series || series.accountValueHistory.length === 0) continue;
       const equity = data?.snapshot?.perps.accountValue ?? null;
+      /*
+       * Un compte sans série ET sans instantané reste dans la liste (décision n° 97). Il en
+       * sortait, et c'était la disparition la plus trompeuse de l'écran : ses apports quittaient
+       * le total avec lui, sans un mot. Sa contribution rend désormais `null` chaque jour, ce qui
+       * la marque `unavailable` : la ligne existe, dit « non valorisé », et le total se déclare
+       * incomplet.
+       */
       const cash = app.hlNormalized[account.id]?.trading.cashFlows ?? [];
       /*
        * TOUS les mouvements de trésorerie, et pas seulement les dépôts et retraits : la
@@ -366,13 +372,16 @@ export class HistoryState {
         amountEur: D(c.amount),
       }));
       const cumulativeUsd = cumulativeContributions(flows);
+      const reconciliationGap =
+        app.tradingReport.accounts.find((a) => a.accountId === account.id)?.reconciliation?.gap ??
+        null;
       list.push(
         tradingEquityContribution({
           id: account.id,
           // Préfixé par l'espace : sans lui, une ligne « Investissement » côtoie une ligne portant
           // un nom de compte, et le lecteur compare deux niveaux différents sans le savoir.
           label: `Trading · ${account.label}`,
-          history: series.accountValueHistory,
+          history: series?.accountValueHistory ?? [],
           dayOfMs: msToParisDay,
           usdPerDisplay,
           contributedAt: (day) => {
@@ -383,6 +392,12 @@ export class HistoryState {
           // L'instantané est plus frais que la dernière clôture servie par `portfolio` : sans ce
           // remplacement, le dernier point divergerait du total affiché dans le bandeau.
           live: equity === null ? null : { day: today, usd: equity },
+          // L'écart que le moteur calcule déjà pour ce compte : au-delà du résultat lui-même, il
+          // interdit d'en déduire un (décision n° 97).
+          gap:
+            reconciliationGap === null
+              ? null
+              : { day: today, usd: toDecimalString(reconciliationGap) },
         }),
       );
     }

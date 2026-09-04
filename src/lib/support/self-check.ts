@@ -62,6 +62,8 @@ export interface TradingCheckInput {
   syncError: string | null;
   unknownLedgerTypes: string[];
   fxMissing: number;
+  /** Exécutions connues du compte : un compte qui en a mais pas d'instantané a perdu sa VALEUR. */
+  fills: number;
 }
 
 /** Tolérance de réconciliation d'un compte perps (USDC) : arrondis de la plateforme. */
@@ -392,11 +394,20 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
         action: 'Relancez « Actualiser » dans l’espace Trading.',
       });
     } else if (account.gap === null) {
+      /*
+       * Sans instantané, la VALEUR du compte est inconnue — et la Vue d'ensemble ne l'affiche donc
+       * plus comme un zéro (décision n° 97). Un compte qui a de l'historique doit alors le dire à
+       * voix haute : `info` n'apparaît nulle part (seuls `warn` et `fail` sont « actionnables »),
+       * et c'est ce silence qui a laissé passer un espace entier valorisé à zéro.
+       */
       checks.push({
         id,
         label: `Trading · ${account.label}`,
-        level: 'info',
-        detail: 'Pas encore synchronisé.',
+        level: account.fills > 0 ? 'warn' : 'info',
+        detail:
+          account.fills > 0
+            ? 'L’état du compte n’a pas été récupéré : sa valeur est inconnue — elle ne vaut pas zéro — et le patrimoine affiché est incomplet.'
+            : 'Pas encore synchronisé.',
         action: 'Lancez « Actualiser » dans l’espace Trading.',
       });
     } else if (!account.gap.abs().lte(TRADING_TOLERANCE)) {
@@ -501,7 +512,7 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       report.totals.unrealized === null
         ? null
         : report.totals.unrealized.plus(report.totals.realized);
-    if (invest && !invest.unavailable && engineResult !== null) {
+    if (invest && invest.gain !== null && engineResult !== null) {
       const gap = invest.gain.minus(engineResult).abs();
       checks.push(
         gap.lte(RECONCILIATION_TOLERANCE)

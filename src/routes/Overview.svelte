@@ -61,8 +61,14 @@
   };
 
   const trading = $derived(app.tradingReport);
-  /** Équité de trading dans la devise d'affichage ; `null` tant qu'aucun taux USD n'est connu. */
-  const tradingEquity = $derived(app.hasTrading ? app.usdcToDisplay(trading.equity) : null);
+  /**
+   * Équité de trading dans la devise d'affichage ; `null` tant qu'aucun taux USD n'est connu —
+   * et `null` aussi quand un compte n'a pas d'instantané : son solde est alors **inconnu**, pas
+   * nul (décision n° 97). Le patrimoine affiché ne le compte donc pas, et le dit.
+   */
+  const tradingEquity = $derived(
+    app.hasTrading && trading.equity !== null ? app.usdcToDisplay(trading.equity) : null,
+  );
   /** Patrimoine = valeur des positions + équité de trading (des soldes, jamais des P&L). */
   const netWorth = $derived(
     tradingEquity === null ? t.value : (t.value?.plus(tradingEquity) ?? tradingEquity),
@@ -251,6 +257,20 @@
       répond à une autre question.
     </p>
 
+    {#if reconciliation.incomplete || reconciliation.unreconciled}
+      <p class="warn" role="status">
+        {#if reconciliation.incomplete}
+          Un espace n'a <strong>pas pu être valorisé</strong> : ni sa valeur ni ses apports n'entrent
+          dans ce total, qui est donc incomplet — pas approché.
+        {/if}
+        {#if reconciliation.unreconciled}
+          Un espace annonce une valeur qui <strong>ne se recoupe pas</strong> avec son grand livre : son
+          résultat n'est pas établi, et celui du total en hérite. Relancez une synchronisation depuis
+          l'espace concerné.
+        {/if}
+      </p>
+    {/if}
+
     {#if reconciliation.lines.length > 1}
       <details>
         <summary>Détail par espace</summary>
@@ -268,12 +288,23 @@
               {#each reconciliation.lines as line (line.id)}
                 <tr>
                   <th scope="row">{line.label}</th>
-                  <td><Money value={line.contributed} /></td>
+                  <!-- Une part non valorisée n'a ni valeur ni apports dans le total : « — »,
+                       jamais « 0,00 € », qui se lirait comme un solde mesuré. -->
+                  <td><Money value={line.unavailable ? null : line.contributed} /></td>
                   <td>
-                    <Money value={line.value} />
-                    {#if line.unavailable}<span class="muted small">non valorisé</span>{/if}
+                    <Money value={line.unavailable ? null : line.value} />
+                    {#if line.unavailable}<span class="muted small">non valorisé</span>
+                    {:else if line.unreconciled}<span class="muted small">ne se recoupe pas</span>
+                    {/if}
                   </td>
-                  <td><Delta value={displayGap(line.value, line.contributed)} pct={line.roi} /></td>
+                  <!-- Aucun résultat n'est déduit d'une valeur non mesurée ou contredite par le
+                       grand livre : `line.gain` vaut alors `null` (décision n° 97). -->
+                  <td
+                    ><Delta
+                      value={line.gain === null ? null : displayGap(line.value, line.contributed)}
+                      pct={line.roi}
+                    /></td
+                  >
                 </tr>
               {/each}
             </tbody>

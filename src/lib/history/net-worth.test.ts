@@ -479,7 +479,7 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
     expect(r.net.toString()).toBe('21339.46');
     expect(r.contributed.toString()).toBe('23000');
     expect(r.gain.toString()).toBe('-1660.54');
-    expect(r.lines.map((l) => [l.id, l.gain.toString()])).toEqual([
+    expect(r.lines.map((l) => [l.id, l.gain?.toString() ?? null])).toEqual([
       // 23 000 versés, 5 570,31 partis au trading : 17 429,69 apportés à l'investissement pour
       // 16 167,76 de valeur. Le capital envoyé au trading n'est pas un retrait du patrimoine —
       // il réapparaît en apport de l'autre côté, et les deux lignes se recoupent au centime.
@@ -492,7 +492,7 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
     const r = reconcileNetWorth(latestNetWorth(twoSpaces()))!;
     const sumValue = r.lines.reduce((acc, l) => acc.plus(l.value), ZERO);
     const sumContributed = r.lines.reduce((acc, l) => acc.plus(l.contributed), ZERO);
-    const sumGain = r.lines.reduce((acc, l) => acc.plus(l.gain), ZERO);
+    const sumGain = r.lines.reduce((acc, l) => acc.plus(l.gain ?? ZERO), ZERO);
     expect(sumValue.toString()).toBe(r.net.toString());
     expect(sumContributed.toString()).toBe(r.contributed.toString());
     expect(sumGain.toString()).toBe(r.gain.toString());
@@ -668,5 +668,75 @@ describe('le pourcentage : rapporté aux apports pour le bilan, à la Dietz pour
       ['invest', '0'],
       ['hl', '0.3'],
     ]);
+  });
+});
+
+describe('une valeur non établie ne produit aucun résultat (décision n° 97)', () => {
+  it('part non valorisable : ni gain ni pourcentage, et le total se déclare incomplet', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('ok', '120', '100'),
+        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+      ],
+      days: days('2026-08-01'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    const ko = r.lines.find((l) => l.id === 'ko')!;
+    expect(ko.unavailable).toBe(true);
+    expect(ko.gain).toBeNull();
+    expect(ko.roi).toBeNull();
+    expect(r.incomplete).toBe(true);
+    // La part valorisée, elle, garde son résultat : une absence n'en contamine pas une autre.
+    expect(r.lines.find((l) => l.id === 'ok')!.gain?.toString()).toBe('20');
+  });
+
+  it('part servie mais non recoupée : la valeur s’affiche, le résultat non', () => {
+    const points = netWorthSeries({
+      contributions: [
+        {
+          id: 'hl',
+          label: 'Trading',
+          firstDay: null,
+          valueAt: () => ({
+            value: ZERO,
+            contributed: D('23685'),
+            estimated: false,
+            unreconciled: true,
+          }),
+        },
+      ],
+      days: days('2026-09-03'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    const line = r.lines[0]!;
+    expect(line.value.toString()).toBe('0');
+    expect(line.contributed.toString()).toBe('23685');
+    // Sans ce garde-fou, l'écran annonçait « −23 685 € » : une perte qui n'a jamais eu lieu.
+    expect(line.gain).toBeNull();
+    expect(line.roi).toBeNull();
+    expect(r.unreconciled).toBe(true);
+    expect(r.incomplete).toBe(false);
+  });
+
+  it('l’écart de réconciliation marque la part quand il dépasse le résultat lui-même', () => {
+    const contribution = (gapUsd: string) =>
+      tradingEquityContribution({
+        id: 'hl',
+        label: 'Trading',
+        history: [
+          [at('2026-09-01T00:00:00Z'), '100'],
+          [at('2026-09-03T00:00:00Z'), '100'],
+        ],
+        dayOfMs,
+        usdPerDisplay: () => '1',
+        contributedAt: () => D('1000'),
+        gap: { day: '2026-09-03' as DayString, usd: gapUsd },
+      });
+    // Résultat attendu : 100 − 1 000 = −900. Un écart de 950 le dépasse : rien n'est établi.
+    expect(contribution('-950').valueAt('2026-09-03' as DayString)?.unreconciled).toBe(true);
+    // Un écart de 10 ne remet pas en cause le signe : le résultat reste affichable.
+    expect(contribution('-10').valueAt('2026-09-03' as DayString)?.unreconciled).toBe(false);
+    // Avant le jour de l'instantané, l'écart ne dit rien de la valeur servie ce jour-là.
+    expect(contribution('-950').valueAt('2026-09-02' as DayString)?.unreconciled).toBe(false);
   });
 });

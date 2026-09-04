@@ -7,7 +7,12 @@ import { DEFAULT_ENGINE_SETTINGS } from '../domain/types';
 import { balanceRecords } from '../import/coinhouse/balances';
 import { importCoinhouseCsv } from '../import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../import/coinhouse/normalize';
-import { runSelfChecks, summarize, type SelfCheckInput } from './self-check';
+import {
+  runSelfChecks,
+  summarize,
+  type SelfCheckInput,
+  type TradingCheckInput,
+} from './self-check';
 
 const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 const NOW = '2026-08-23T12:00:00.000Z';
@@ -150,5 +155,41 @@ describe('copie de secours hors service', () => {
     const byId = withMirror({ saveError: 'quota', mirrorError: 'quota' });
     expect(byId['backup']?.level).toBe('fail');
     expect(byId['mirror'], 'le voyant du repli ferait doublon').toBeUndefined();
+  });
+});
+
+describe('compte de trading sans instantané : la valeur manque, et ça doit s’entendre', () => {
+  const account = (over: Partial<TradingCheckInput> = {}): TradingCheckInput => ({
+    label: 'Hyperliquid',
+    gap: null,
+    lastSyncAt: NOW,
+    syncError: null,
+    unknownLedgerTypes: [],
+    fxMissing: 0,
+    fills: 0,
+    ...over,
+  });
+  const tradingCheck = (over: Partial<TradingCheckInput>) =>
+    runSelfChecks(input(null, { trading: [account(over)] })).find((c) =>
+      c.id.startsWith('trading:'),
+    )!;
+
+  it('avec de l’historique : un avertissement, pas un « info » que personne ne lit', () => {
+    const check = tradingCheck({ fills: 42 });
+    // `info` n'apparaît nulle part : `actionable` ne retient que `warn` et `fail`. C'est ce
+    // silence qui laissait un espace entier valorisé à zéro sans un mot.
+    expect(check.level).toBe('warn');
+    expect(check.detail).toContain('elle ne vaut pas zéro');
+  });
+
+  it('sans aucune exécution : rien à signaler, le compte vient d’être ajouté', () => {
+    const check = tradingCheck({ fills: 0 });
+    expect(check.level).toBe('info');
+    expect(check.detail).toBe('Pas encore synchronisé.');
+  });
+
+  it('un instantané qui se recoupe ne déclenche rien', () => {
+    const check = tradingCheck({ fills: 42, gap: D('0') });
+    expect(check.level).toBe('ok');
   });
 });
