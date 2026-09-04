@@ -180,7 +180,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/state/checks.svelte.ts` — les auto-vérifications, montées **une seule fois** : les réglages et
   le tableau de bord affichaient auparavant deux listes qui avaient déjà divergé.
 - `src/components/shared/Delta.svelte` — **toute** variance de l'interface passe par lui : couleur,
-  triangle, signe et équivalent parlé. Un niveau reste neutre (docs/DECISIONS.md n° 56).
+  triangle, signe, pourcentage facultatif et équivalent parlé. Un niveau reste neutre
+  (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
+  (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
+  carte nomme le sien (docs/DECISIONS.md n° 96).
 - `src/routes`, `src/components` — présentation uniquement. Navigation en quatre espaces
   (`src/lib/spaces.ts`, registre `SPACES` — **source de vérité**, croisée avec la liste ci-dessous
   par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et

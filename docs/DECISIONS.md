@@ -2193,3 +2193,30 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     année au « réalisé net » du tableau de bord, tombe exactement comme il l'avait fait pour la
     décision n° 35. Le filtre a été vu rougir rendu inerte : la semaine et l'historique complet
     annonçaient alors le même nombre de trades.
+96. **Deux pourcentages, deux questions — et l'écran dit laquelle** (04/09/2026). Chaque espace
+    affichait un montant de résultat sans jamais le rapporter à quoi que ce soit : « −2 804,77 € »
+    ne dit pas si c'est beaucoup. Le pourcentage manquait aux deux endroits où il se lit, et ces
+    deux endroits ne posent pas la même question.
+    — « D'où vient ce chiffre » est un **bilan** à la date du jour : son pourcentage est le
+    résultat rapporté aux **apports** (`roiOf`, `gain ÷ apports`), la même base que la ligne
+    « Résultat total » qui le surplombe. Il répond à « combien ai-je gagné ou perdu sur ce que
+    j'ai versé ».
+    — « Répartition » suit le **sélecteur de période** : son pourcentage est celui de la fenêtre,
+    apports neutralisés (Dietz modifié), la même mesure que le bandeau. Sur « 1 mois », rapporter
+    le gain du mois aux apports de toute la vie du compte n'aurait aucun sens.
+    Les deux nombres diffèrent donc pour un même espace (−14,7 % contre −22,9 % sur le jeu de
+    démonstration), exactement comme le bandeau et le bilan différaient déjà au niveau du total.
+    **La réponse n'est pas d'en cacher un, c'est de nommer la base** : chaque carte porte une
+    phrase qui dit la sienne.
+    **Aucune arithmétique parallèle** : le pourcentage par espace vient de `periodPerformance`, la
+    fonction qui calcule déjà celui du total — appliquée à la série de la part, dont les flux sont
+    la marche de ses propres apports. Un test l'exige nommément : sur un patrimoine à un seul
+    espace, le pourcentage de la part **est** celui du total. Vu rougir en le remplaçant par un
+    `gain ÷ apports` naïf — trois tests tombent, dont celui-là.
+    Un apport reçu le dernier jour de la fenêtre ne pèse rien : la base vaut zéro, et le
+    pourcentage est **absent** plutôt que faux. Même règle que `roiOf` sans apport (`null`, vu
+    rougir en le faisant répondre zéro).
+    **Une violation d'accessibilité est tombée avec** : l'`opacity: 0.85` du pourcentage tenait en
+    taille `md` et `lg`, mais le vert atténué en taille `sm` — celle de la Répartition — passe sous
+    4,5:1. Une atténuation qui ne survit pas à la plus petite taille où on l'emploie n'est pas une
+    atténuation, c'est un défaut de contraste : elle est supprimée, la graisse suffit.
