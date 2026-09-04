@@ -1,6 +1,6 @@
-# Feuille de route — **livré (29/08/2026)**s classées par ROI (23 août 2026)
+# Feuille de route — propositions classées par ROI (23 août 2026)
 
-> Question traitée : « Comment améliorer le produit ? Recherches en ligne sourcées et à jour, **livré (29/08/2026)**s
+> Question traitée : « Comment améliorer le produit ? Recherches en ligne sourcées et à jour, propositions
 > classées par ROI (qualité, fiabilité, satisfaction des utilisateurs), ordre d'exécution, pour un
 > commanditaire non développeur. »
 >
