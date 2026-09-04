@@ -2247,3 +2247,23 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     Contre-épreuves (décision n° 75) : consolidation resommée à zéro, résultat redéduit d'une part
     non établie, seuil d'écart rendu inerte, et alerte remise en `info` — chacune vue rougir sur le
     test qui la nomme.
+98. **Une non-réponse n'est pas une rupture de contrat** (04/09/2026). La surveillance a annoncé,
+    le 03/09, que la série `RESH4R_N.WW` avait disparu du H.4.1 — « la sélection a-t-elle changé ? ».
+    Vérification faite à la source : le CSV fait 540 Ko, contient la série, et va jusqu'au 02/09.
+    Rien n'avait changé chez la Fed.
+    **L'expérience qui tranche** : interrogé avec une sélection inconnue, le Data Download Program
+    répond `HTTP 200`, `content-type: text/html`, **zéro octet**. Une sélection retirée et un hoquet
+    passager sont donc **indistinguables sur une seule requête** — et le contrôle, qui ne testait que
+    `text.includes('RESH4R_N.WW')`, a pris l'absence de document pour l'absence d'une série.
+    Le contrôleur réessayait déjà les erreurs _levées_, en le documentant : « une réponse mal formée
+    est un vrai écart, et la rejouer ne ferait que retarder le constat ». Un corps vide échappait à
+    ce raisonnement parce que ce **n'est pas un document mal formé, c'est l'absence de document**.
+    Trois réponses, désormais distinguées : erreur réseau (réessayée), **non-réponse** — corps vide
+    ou type inattendu — (réessayée, puis rapportée comme telle), et document servi mais non conforme
+    (écart immédiat, sans réessai). Les sources textuelles déclarent le type qu'elles doivent rendre
+    (`expect: 'csv' | 'xml' | 'json'`), chacun **vérifié à la source** avant d'être inscrit — la BCE,
+    elle, honore la négociation de contenu et rend du SDMX-JSON à qui demande du JSON (n° 93).
+    Les deux générateurs, qui ne réessayaient **rien**, appliquent la même règle : le cron du lundi
+    serait tombé de la même façon. La barrière de fond ne bouge pas — un fichier appauvri n'est
+    jamais écrit. Contre-épreuve : refus du corps vide retiré, deux tests rougissent, dont celui qui
+    vérifie que le message nomme le vide et non la série.

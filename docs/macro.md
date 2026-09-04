@@ -79,6 +79,13 @@ ligne d'en-tête (`RESH4R_N.WW` pour les réserves), jamais sur le libellé ni s
 identifiant absent **fait échouer la génération** plutôt que de produire un indicateur muet — ou
 pire, de décaler silencieusement sur la mauvaise série.
 
+Encore faut-il avoir reçu le fichier. Le Data Download Program répond **`200 text/html` de zéro
+octet** aussi bien pour une sélection retirée que pour un hoquet passager : sur une seule requête,
+les deux sont indistinguables. Le générateur et le contrôleur de contrat réessaient donc une fois,
+puis rapportent **le vide pour ce qu'il est** au lieu de conclure à la disparition d'une série
+(décision n° 98). C'est cette conclusion hâtive qui a fait échouer la surveillance le 03/09/2026,
+sur une série que la Fed servait encore.
+
 ### La BCE se choisit par nom de colonne, et honore la négociation de contenu
 
 Le portail de données de la BCE rend du SDMX-CSV avec un **en-tête nommé** (`TIME_PERIOD`,

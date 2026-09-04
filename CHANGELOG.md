@@ -7,6 +7,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **La surveillance des sources ne crie plus à la disparition d'une donnée quand le serveur n'a
+  rien répondu.** Une réponse vide est réessayée, puis rapportée pour ce qu'elle est ; les deux
+  générateurs (macro, calendrier) suivent la même règle et ne s'arrêtent plus au premier hoquet.
+
 - **Un compte de trading dont la valeur n'a pas été récupérée n'est plus affiché comme un compte
   vidé.** Il apparaissait à 0,00 € pour la totalité de ses apports — soit une perte de 100 % qui
   n'a jamais eu lieu. Sa ligne dit maintenant « non valorisé », le patrimoine se déclare incomplet,
