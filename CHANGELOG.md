@@ -5,8 +5,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.16.0] - 2026-09-04
+
 ### Fixed
 
+- **La CI ne bloque plus un déploiement parce que le registre npm n'a pas répondu.** L'audit des
+  dépendances distingue désormais une vulnérabilité — qui échoue immédiatement, comme avant — d'une
+  panne du service, qui se réessaie puis se nomme. Il n'est pas devenu tolérant aux vulnérabilités :
+  il a cessé de confondre les deux.
 - **La surveillance des sources ne crie plus à la disparition d'une donnée quand le serveur n'a
   rien répondu.** Une réponse vide est réessayée, puis rapportée pour ce qu'elle est ; les deux
   générateurs (macro, calendrier) suivent la même règle et ne s'arrêtent plus au premier hoquet.

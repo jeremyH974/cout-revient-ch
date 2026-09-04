@@ -1,6 +1,6 @@
 {
   "name": "cout-revient-ch",
-  "version": "2.15.0",
+  "version": "2.16.0",
   "private": true,
   "type": "module",
   "description": "PRU et plus/moins-values par crypto à partir de l'export Coinhouse — 100 % dans votre navigateur",
@@ -22,6 +22,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
+    "audit:prod": "node scripts/audit-deps.ts",
     "lint": "eslint . && prettier --check . && node scripts/check-no-personal-csv.js",
     "format": "prettier --write .",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
