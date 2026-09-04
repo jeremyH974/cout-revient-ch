@@ -7,6 +7,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Chaque espace dit enfin où vous en êtes par rapport à vos apports**, en pourcentage : dans
+  « D'où vient ce chiffre », le résultat de l'Investissement et celui du Trading sont rapportés à
+  ce que vous y avez versé ; dans « Répartition », le pourcentage suit la période choisie, apports
+  neutralisés, comme le chiffre du bandeau. Chaque carte dit désormais laquelle des deux mesures
+  elle emploie.
 - **Les statistiques de trading se regardent maintenant sur une période** : le même sélecteur
   qu'à la Vue d'ensemble (1S, 1M, 3M, 1A, Tout) restreint tous les chiffres de l'écran — espérance,
   profit factor, drawdown, séries, « Ce qui marche » et le résumé anonymisé — aux trades **clos**

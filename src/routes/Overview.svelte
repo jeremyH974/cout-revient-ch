@@ -87,14 +87,12 @@
   /** Photo du dernier jour : apports nets, patrimoine et l'écart entre les deux, par espace. */
   const reconciliation = $derived(selfChecks.reconciliation);
   /**
-   * Résultat rapporté aux apports : le seul « ROI » qui ait un sens sur le périmètre entier, parce
-   * que son dénominateur est l'argent réellement versé et non l'assiette de coût du moment. `null`
-   * si rien n'a été apporté (division impossible, jamais un zéro de complaisance).
+   * Résultat rapporté aux apports (`roiOf`), pour le total comme pour chaque espace : le seul
+   * « ROI » qui ait un sens ici, parce que son dénominateur est l'argent réellement versé et non
+   * l'assiette de coût du moment. `null` si rien n'a été apporté — division impossible, jamais un
+   * zéro de complaisance. Le calcul vit dans `reconcileNetWorth` : une seule règle, testée.
    */
-  const gainRatio = $derived.by((): Big | null => {
-    if (!reconciliation || !reconciliation.contributed.gt(ZERO)) return null;
-    return reconciliation.gain.div(reconciliation.contributed);
-  });
+  const gainRatio = $derived(reconciliation?.roi ?? null);
 
   const insights = $derived(
     renderInsights(app.insights, {
@@ -248,7 +246,9 @@
     <p class="muted small">
       Vos apports nets sont l'argent <strong>entré dans le périmètre</strong> moins celui qui en est
       sorti — pas le coût de vos positions. L'écart avec le patrimoine est donc votre résultat
-      complet, réalisé et latent confondus, au {fmtDate(reconciliation.day)}.
+      complet, réalisé et latent confondus, au {fmtDate(reconciliation.day)}. Le pourcentage
+      rapporte ce résultat aux apports ; celui du bandeau, lui, neutralise la date des versements et
+      répond à une autre question.
     </p>
 
     {#if reconciliation.lines.length > 1}
@@ -273,7 +273,7 @@
                     <Money value={line.value} />
                     {#if line.unavailable}<span class="muted small">non valorisé</span>{/if}
                   </td>
-                  <td><Delta value={displayGap(line.value, line.contributed)} /></td>
+                  <td><Delta value={displayGap(line.value, line.contributed)} pct={line.roi} /></td>
                 </tr>
               {/each}
             </tbody>
@@ -282,7 +282,11 @@
                 <th scope="row">Total</th>
                 <td><Money value={reconciliation.contributed} /></td>
                 <td><Money value={reconciliation.net} strong /></td>
-                <td><Delta value={displayGap(reconciliation.net, reconciliation.contributed)} /></td
+                <td
+                  ><Delta
+                    value={displayGap(reconciliation.net, reconciliation.contributed)}
+                    pct={gainRatio}
+                  /></td
                 >
               </tr>
             </tfoot>
@@ -334,7 +338,12 @@
               >{share === null ? '—' : `${share.toLocaleString('fr-FR')} %`}</span
             >
             <span class="moved">
-              {#if moved}<Delta value={moved.gain} suffix={PERIOD_LABEL[period]} size="sm" />{/if}
+              {#if moved}<Delta
+                  value={moved.gain}
+                  pct={moved.pct}
+                  suffix={PERIOD_LABEL[period]}
+                  size="sm"
+                />{/if}
             </span>
             <span class="go" aria-hidden="true">→</span>
           </a>
@@ -355,7 +364,9 @@
     {#if reconciliation.lines.length > 1}
       <p class="muted small">
         Un virement d'un espace vers l'autre déplace les deux valeurs sans rien produire : il
-        apparaît en apports, jamais en résultat.
+        apparaît en apports, jamais en résultat. Le pourcentage est celui de la période, apports
+        neutralisés — la même mesure que le bandeau ; celui de « D'où vient ce chiffre » rapporte,
+        lui, le résultat total aux apports.
       </p>
     {/if}
   </section>

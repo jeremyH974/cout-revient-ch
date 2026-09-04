@@ -336,6 +336,19 @@ export function hasUnavailable(points: readonly NetWorthPoint[]): boolean {
 export interface ReconciliationLine extends NetWorthPart {
   /** `value − contributed` : le résultat total du producteur, réalisé et latent confondus. */
   gain: Big;
+  /**
+   * `gain ÷ contributed` : le résultat rapporté à ce qui a été versé (ratio, 0,1 = +10 %).
+   * `null` si rien n'a été versé — une division impossible ne devient jamais un zéro de complaisance.
+   */
+  roi: Big | null;
+}
+
+/**
+ * Résultat rapporté aux apports. Dénominateur : l'argent réellement versé, jamais l'assiette de
+ * coût du moment — c'est le seul « ROI » qui ait un sens sur un périmètre où l'on verse et retire.
+ */
+export function roiOf(gain: Big, contributed: Big): Big | null {
+  return contributed.gt(ZERO) ? gain.div(contributed) : null;
 }
 
 /**
@@ -351,6 +364,8 @@ export interface NetWorthReconciliation {
   net: Big;
   contributed: Big;
   gain: Big;
+  /** `gain ÷ contributed` sur le périmètre entier ; `null` si rien n'a été versé. */
+  roi: Big | null;
   lines: readonly ReconciliationLine[];
   /** Une part au moins n'a pas pu être valorisée : le total est incomplet, pas approché. */
   incomplete: boolean;
@@ -358,12 +373,17 @@ export interface NetWorthReconciliation {
 
 export function reconcileNetWorth(point: NetWorthPoint | null): NetWorthReconciliation | null {
   if (point === null) return null;
+  const gain = point.net.minus(point.contributed);
   return {
     day: point.day,
     net: point.net,
     contributed: point.contributed,
-    gain: point.net.minus(point.contributed),
-    lines: point.parts.map((part) => ({ ...part, gain: part.value.minus(part.contributed) })),
+    gain,
+    roi: roiOf(gain, point.contributed),
+    lines: point.parts.map((part) => {
+      const partGain = part.value.minus(part.contributed);
+      return { ...part, gain: partGain, roi: roiOf(partGain, part.contributed) };
+    }),
     incomplete: point.unavailable.length > 0,
   };
 }
@@ -448,6 +468,12 @@ export interface PartChange {
   contributions: Big;
   /** `endValue − startValue − contributions` : ce que l'espace a réellement produit. */
   gain: Big;
+  /**
+   * `gain` rapporté au capital moyen de la fenêtre (Dietz modifié), ratio ; `null` si la base est
+   * nulle. Même méthode et même fonction que le bandeau (`periodPerformance`) : le pourcentage d'un
+   * espace et celui du total se lisent donc sur la même échelle.
+   */
+  pct: Big | null;
   unavailable: boolean;
 }
 
@@ -465,11 +491,33 @@ export function netWorthPartChanges(
   const first = points[0];
   const last = points[points.length - 1];
   if (!first || !last) return [];
-  const before = options.fromInception === true ? new Map<string, NetWorthPart>() : partsOf(first);
+  const inception = options.fromInception === true;
+  const before = inception ? new Map<string, NetWorthPart>() : partsOf(first);
+  // Même fenêtre que `netWorthChange` : la veille du premier jour, à zéro, quand on part de
+  // l'origine — sinon les apports du premier jour manqueraient au dénominateur.
+  const window: { day: DayString; parts: Map<string, NetWorthPart> }[] = [];
+  if (inception) window.push({ day: addDays(first.day, -1), parts: new Map() });
+  for (const point of points) window.push({ day: point.day, parts: partsOf(point) });
+
   return last.parts.map((part): PartChange => {
     const start = before.get(part.id);
     const startValue = start?.value ?? ZERO;
     const contributions = part.contributed.minus(start?.contributed ?? ZERO);
+    // La série de CETTE part, et les flux qui sont la marche de ses apports : `periodPerformance`
+    // en tire le même pourcentage que pour le total, sans seconde arithmétique.
+    const values: ValuePoint[] = [];
+    const flows: FlowPoint[] = [];
+    let previous = ZERO;
+    for (const [index, step] of window.entries()) {
+      const at = step.parts.get(part.id);
+      const contributed = at?.contributed ?? ZERO;
+      values.push({ day: step.day, value: at?.value ?? ZERO, cost: contributed, missing: [] });
+      if (index > 0) {
+        const amount = contributed.minus(previous);
+        if (!amount.eq(ZERO)) flows.push({ day: step.day, amountEur: amount });
+      }
+      previous = contributed;
+    }
     return {
       id: part.id,
       label: part.label,
@@ -477,6 +525,7 @@ export function netWorthPartChanges(
       endValue: part.value,
       contributions,
       gain: part.value.minus(startValue).minus(contributions),
+      pct: periodPerformance(values, flows)?.pct ?? null,
       unavailable: part.unavailable,
     };
   });

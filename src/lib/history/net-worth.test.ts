@@ -9,6 +9,7 @@ import {
   netWorthPartChanges,
   netWorthSeries,
   reconcileNetWorth,
+  roiOf,
   tradingEquityContribution,
   valueSeriesContribution,
   type Contribution,
@@ -570,5 +571,102 @@ describe('variation par espace : recevoir du capital n’est pas en produire', (
 
   it('rend une liste vide sur une série vide', () => {
     expect(netWorthPartChanges([])).toEqual([]);
+  });
+});
+
+describe('le pourcentage : rapporté aux apports pour le bilan, à la Dietz pour la fenêtre', () => {
+  it('chaque ligne de la réconciliation porte son ROI, et le total le sien', () => {
+    const points = netWorthSeries({
+      contributions: [flat('a', '120', '100'), flat('b', '40', '100')],
+      days: days('2026-08-31'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    // a : +20 sur 100 versés = +20 % ; b : −60 sur 100 = −60 % ; total : −40 sur 200 = −20 %.
+    expect(r.lines.map((l) => [l.id, l.roi?.toString() ?? null])).toEqual([
+      ['a', '0.2'],
+      ['b', '-0.6'],
+    ]);
+    expect(r.roi?.toString()).toBe('-0.2');
+  });
+
+  it('rien de versé : pas de pourcentage plutôt qu’une division de complaisance', () => {
+    const points = netWorthSeries({
+      contributions: [flat('don', '500', '0')],
+      days: days('2026-08-31'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    expect(r.roi).toBeNull();
+    expect(r.lines[0]!.roi).toBeNull();
+    expect(roiOf(D('10'), ZERO)).toBeNull();
+    expect(roiOf(D('10'), D('-5'))).toBeNull();
+  });
+
+  it('un espace seul : son pourcentage EST celui du total, pas une seconde arithmétique', () => {
+    const points = netWorthSeries({
+      contributions: [
+        {
+          id: 'seul',
+          label: 'Seul',
+          firstDay: null,
+          valueAt: (day) =>
+            day === '2026-08-01'
+              ? { value: D('1000'), contributed: D('1000'), estimated: false }
+              : day === '2026-08-15'
+                ? { value: D('1400'), contributed: D('1200'), estimated: false }
+                : { value: D('1300'), contributed: D('1200'), estimated: false },
+        },
+      ],
+      days: days('2026-08-01', '2026-08-15', '2026-08-31'),
+    });
+    for (const fromInception of [false, true]) {
+      const total = netWorthChange(points, { fromInception })!;
+      const [part] = netWorthPartChanges(points, { fromInception });
+      expect(part!.gain.toString()).toBe(total.gain.toString());
+      expect(part!.pct?.toString() ?? null).toBe(total.pct?.toString() ?? null);
+    }
+  });
+
+  it('un apport le dernier jour ne pèse rien : base nulle, donc pas de pourcentage', () => {
+    const points = netWorthSeries({
+      contributions: [
+        {
+          id: 'tardif',
+          label: 'Tardif',
+          firstDay: null,
+          valueAt: (day) =>
+            day === '2026-08-31'
+              ? { value: D('450'), contributed: D('500'), estimated: false }
+              : { value: ZERO, contributed: ZERO, estimated: false },
+        },
+      ],
+      days: days('2026-08-01', '2026-08-31'),
+    });
+    const [part] = netWorthPartChanges(points);
+    expect(part!.gain.toString()).toBe('-50');
+    expect(part!.pct).toBeNull();
+  });
+
+  it('deux espaces : chacun son pourcentage, sur son propre capital moyen', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('invest', '900', '1000'),
+        {
+          id: 'hl',
+          label: 'Trading',
+          firstDay: null,
+          valueAt: (day) =>
+            day === '2026-08-01'
+              ? { value: D('200'), contributed: D('200'), estimated: false }
+              : { value: D('260'), contributed: D('200'), estimated: false },
+        },
+      ],
+      days: days('2026-08-01', '2026-08-31'),
+    });
+    const changes = netWorthPartChanges(points);
+    // L'investissement ne bouge pas (0 sur 1 000 de base) ; le trading gagne 60 sur 200 = +30 %.
+    expect(changes.map((c) => [c.id, c.pct?.toString() ?? null])).toEqual([
+      ['invest', '0'],
+      ['hl', '0.3'],
+    ]);
   });
 });

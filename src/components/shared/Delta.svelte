@@ -91,10 +91,15 @@
   .lg {
     font-size: var(--fs-md);
   }
-  /* Le relatif et le contexte accompagnent le montant sans lui disputer l'attention. */
+  /*
+   * Le relatif accompagne le montant sans lui disputer l'attention — par la graisse seulement.
+   * L'`opacity: 0.85` d'origine tenait tant que le pourcentage ne servait qu'en `md` et `lg` ;
+   * en `sm` (répartition par espace), le vert atténué tombe sous 4,5:1 et axe le refuse. Une
+   * atténuation qui ne survit pas à la plus petite taille où on l'emploie n'est pas une
+   * atténuation, c'est un défaut de contraste (WCAG 2.2 AA).
+   */
   .rel {
     font-weight: 500;
-    opacity: 0.85;
   }
   .suffix {
     color: var(--fg-muted);

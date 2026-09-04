@@ -486,15 +486,30 @@ test('le tableau de bord se recoupe avec lui-même et avec les deux espaces', as
   await details.locator('summary').click();
   const rows = recon.locator('tbody tr');
   await expect(rows).toHaveCount(2);
-  const cells = async (row: Locator): Promise<number[]> => nums(row);
+  // `:not(.rel)` écarte les pourcentages : cette première lecture ne veut que des montants.
+  const cells = async (row: Locator): Promise<number[]> =>
+    (await row.locator('.num:not(.rel)').allInnerTexts()).map(toNumber);
   const [investRow, tradingRow] = await Promise.all([cells(rows.nth(0)), cells(rows.nth(1))]);
-  const foot = await nums(recon.locator('tfoot tr'));
+  const foot = await cells(recon.locator('tfoot tr'));
   for (const column of [0, 1, 2]) {
     expect(investRow[column]! + tradingRow[column]!).toBeCloseTo(foot[column]!, 2);
   }
   // Et chaque ligne se recoupe elle-même : valeur − apports = résultat.
   for (const row of [investRow, tradingRow, foot]) {
     expect(row[1]! - row[0]!).toBeCloseTo(row[2]!, 2);
+  }
+
+  // Et le pourcentage affiché est ce résultat rapporté aux apports, ligne par ligne (décision
+  // n° 96) : un pourcentage calculé sur une autre base se verrait ici immédiatement.
+  const ratio = async (row: Locator): Promise<number> =>
+    toNumber(plain(await row.locator('.num.rel').innerText()).replace(/[()]/g, ''));
+  for (const [row, locator] of [
+    [investRow, rows.nth(0)],
+    [tradingRow, rows.nth(1)],
+    [foot, recon.locator('tfoot tr')],
+  ] as [number[], Locator][]) {
+    // Une décimale à l'affichage : la tolérance est celle de l'arrondi, pas un à-peu-près.
+    expect(await ratio(locator)).toBeCloseTo((100 * row[2]!) / row[0]!, 1);
   }
 
   // 3. Chaque espace, lu sur son propre écran.
@@ -524,8 +539,9 @@ test('la variation de période se répartit exactement entre les espaces', async
   await page.goto('#/');
 
   const total = toNumber(await page.locator('section.hero .variance .num').first().innerText());
-  const perSpace = await page.locator('section.spaces .rows .moved .num').allInnerTexts();
-  // Une variation par espace (le « (+x %) » n'existe pas sur ces lignes).
+  const perSpace = await page.locator('section.spaces .rows .moved .num:not(.rel)').allInnerTexts();
+  // Une variation par espace. `:not(.rel)` écarte le pourcentage qui l'accompagne depuis la
+  // décision n° 96 : des ratios ne s'additionnent pas, seuls les montants doivent refaire le total.
   expect(perSpace.length).toBe(2);
   // Trois montants arrondis au centime chacun : l'égalité est exacte dans le moteur
   // (`net-worth.test.ts`), au centime près à l'écran.
