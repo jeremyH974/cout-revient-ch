@@ -54,8 +54,15 @@ export interface TradingAccountReport extends TradingAccountInput {
 
 export interface TradingReport {
   accounts: TradingAccountReport[];
-  /** Équité totale des comptes synchronisés (les comptes sans instantané comptent 0). */
-  equity: Big;
+  /**
+   * Équité totale des comptes, `null` dès qu'un seul n'a pas d'instantané : **un solde qu'on n'a
+   * pas mesuré n'est pas un solde nul** (décision n° 97). La version précédente sommait les
+   * comptes muets à zéro, ce qui présentait un compte non synchronisé comme un compte vidé — et
+   * transformait ses apports en perte sèche sur la Vue d'ensemble.
+   */
+  equity: Big | null;
+  /** Comptes sans instantané, ceux qui rendent `equity` nulle. */
+  unvalued: string[];
   unrealized: Big;
   totals: TradingTotals;
 }
@@ -167,12 +174,21 @@ function mergeTotals(list: readonly TradingTotals[]): TradingTotals {
   return t;
 }
 
-/** Consolidation : les équités s'additionnent (soldes), les P&L restent ceux du trading seul. */
+/**
+ * Consolidation : les équités s'additionnent (soldes), les P&L restent ceux du trading seul.
+ *
+ * Un compte sans instantané ne compte pas pour zéro — il rend le total **inconnu**, et se nomme
+ * dans `unvalued` pour que l'écran dise lequel plutôt que d'afficher un chiffre incomplet comme
+ * s'il était entier (décision n° 97).
+ */
 export function computeTrading(inputs: readonly TradingAccountInput[]): TradingReport {
   const accounts = inputs.map(computeTradingAccount);
+  const unvalued = accounts.filter((a) => a.equity === null).map((a) => a.accountId);
   return {
     accounts,
-    equity: accounts.reduce((acc, a) => acc.plus(a.equity ?? ZERO), ZERO),
+    unvalued,
+    equity:
+      unvalued.length > 0 ? null : accounts.reduce((acc, a) => acc.plus(a.equity ?? ZERO), ZERO),
     unrealized: accounts.reduce((acc, a) => acc.plus(a.unrealized), ZERO),
     totals: mergeTotals(accounts.map((a) => a.totals)),
   };

@@ -26,6 +26,24 @@ const TIMEOUT_MS = 30_000;
 const NETWORK_RETRIES = 1;
 const RETRY_PAUSE_MS = 2_000;
 
+/**
+ * Une réponse 200 au corps vide — ou d'un type que le validateur ne sait pas lire — n'est pas
+ * davantage un contrat rompu : c'est une NON-RÉPONSE (décision n° 98). Le Data Download Program de
+ * la Fed rend `200 text/html` de zéro octet aussi bien pour une sélection retirée que pour un
+ * hoquet passager : sur une seule requête, les deux sont indistinguables. On la réessaie donc
+ * comme une panne réseau, et si le vide persiste on le rapporte POUR CE QU'IL EST, sans conclure
+ * à la place de l'observation — c'est ce qui a fait dire à la surveillance, le 03/09/2026, qu'une
+ * série de la Fed avait disparu alors qu'elle était là.
+ */
+function unusable(response, expect) {
+  if (response.text.trim() === '') return 'réponse vide (0 octet)';
+  if (!expect) return null;
+  const type = response.headers.get('content-type') ?? '';
+  return type.toLowerCase().includes(expect)
+    ? null
+    : `type inattendu : « ${type || 'aucun'} » au lieu de « ${expect} »`;
+}
+
 const results = [];
 
 /** GET par défaut ; `options.method`/`body`/`headers` pour les fournisseurs interrogés en POST. */
@@ -64,10 +82,18 @@ async function check(name, url, validate, options = {}) {
   const started = Date.now();
   const { sursis } = options;
   let lastError = null;
+  let lastKind = 'erreur réseau';
   for (let attempt = 0; attempt <= NETWORK_RETRIES; attempt++) {
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
     try {
       const r = await fetchJson(url, options);
+      // Rien à valider : on réessaie, on ne conclut pas (voir `unusable`).
+      const nothing = r.status === 200 ? unusable(r, options.expect) : null;
+      if (nothing !== null) {
+        lastError = new Error(nothing);
+        lastKind = 'aucune réponse exploitable';
+        continue;
+      }
       // Troisième argument : le texte brut. Le Trésor rend du XML, la Fed du CSV, le FOMC du
       // HTML — `JSON.parse` n'en tire rien. Les validateurs plus anciens l'ignorent.
       const problems =
@@ -97,7 +123,7 @@ async function check(name, url, validate, options = {}) {
     sursis,
     ok: false,
     ms: Date.now() - started,
-    detail: `erreur réseau après ${NETWORK_RETRIES + 1} tentatives : ${
+    detail: `${lastKind} après ${NETWORK_RETRIES + 1} tentatives : ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`,
     rateLimit: '',
@@ -435,6 +461,7 @@ await check(
     if (!/<d:BC_10YEAR[^>]*>/.test(text)) problems.push('d:BC_10YEAR absent');
     return problems;
   },
+  { expect: 'xml' },
 );
 
 await check(
@@ -442,10 +469,13 @@ await check(
   'https://www.federalreserve.gov/datadownload/Output.aspx?rel=H41&series=cc73dc54904678a485aa7d87a81c786f&from=01/01/2015&to=12/31/2035&filetype=csv&label=include&layout=seriescolumn',
   (_json, _headers, text) => {
     // Les colonnes sont choisies par identifiant stable, jamais par libellé (voir generate-macro).
+    // On n'arrive ici qu'avec un vrai CSV : une réponse vide est traitée en amont comme une
+    // non-réponse, et ne se déguise donc plus en série disparue (décision n° 98).
     return text.includes('RESH4R_N.WW')
       ? []
-      : ['identifiant de série RESH4R_N.WW absent : la sélection a-t-elle changé ?'];
+      : ['CSV servi, mais sans la série RESH4R_N.WW : la sélection a changé de contenu'];
   },
+  { expect: 'csv' },
 );
 
 await check(
@@ -456,6 +486,7 @@ await check(
     if (!Array.isArray(serie)) return ['série « Personal Income and Outlays » absente'];
     return serie.length > 0 ? [] : ['série présente mais vide'];
   },
+  { expect: 'json' },
 );
 
 await check(
@@ -519,7 +550,7 @@ await check(
   // avec l'`accept: application/json` par défaut du contrôleur, il rend du SDMX-JSON et le contrôle
   // validerait un document que le générateur ne lit jamais. Demander la même représentation que lui
   // est la seule façon de vérifier le contrat qui compte.
-  { headers: { accept: 'text/csv' } },
+  { headers: { accept: 'text/csv' }, expect: 'csv' },
 );
 
 const stampedAt = new Date().toISOString();

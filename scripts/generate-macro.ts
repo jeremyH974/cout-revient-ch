@@ -86,23 +86,56 @@ const ECB_RATES_PAGE =
 
 // ─── Réseau ──────────────────────────────────────────────────────────────────
 
-async function fetchText(url: string): Promise<string> {
+const HEADERS = {
+  'user-agent': 'cout-revient-ch macro generator (+https://github.com/jeremyH974/cout-revient-ch)',
+  accept: 'application/xml,text/csv,application/json',
+};
+
+/**
+ * Une réponse **vide** n'est pas une source qui a changé : c'est une source qui n'a rien rendu
+ * (décision n° 98). Le Data Download Program de la Fed répond `200 text/html` de zéro octet aussi
+ * bien pour une sélection retirée que pour un hoquet passager — indistinguables sur une requête.
+ * On réessaie donc, une fois, avant de conclure, et le message nomme le symptôme au lieu
+ * d'accuser la source d'avoir retiré ce qu'elle sert encore. Le générateur, lui, refuse toujours
+ * d'écrire : mieux vaut une génération qui échoue qu'un indicateur muet.
+ */
+const FETCH_RETRIES = 1;
+const FETCH_PAUSE_MS = 2_000;
+
+async function fetchOnce(url: string): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       signal: controller.signal,
-      headers: {
-        'user-agent':
-          'cout-revient-ch macro generator (+https://github.com/jeremyH974/cout-revient-ch)',
-        accept: 'application/xml,text/csv,application/json',
-      },
+      headers: HEADERS,
     });
     if (!response.ok) throw new Error(`${url} → HTTP ${response.status}`);
-    return await response.text();
+    const text = await response.text();
+    if (text.trim() === '') throw new Error(`${url} → réponse vide (0 octet), rien à lire`);
+    return text;
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function fetchText(
+  url: string,
+  {
+    retries = FETCH_RETRIES,
+    pauseMs = FETCH_PAUSE_MS,
+  }: { retries?: number; pauseMs?: number } = {},
+): Promise<string> {
+  let last: unknown = null;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, pauseMs));
+    try {
+      return await fetchOnce(url);
+    } catch (error) {
+      last = error;
+    }
+  }
+  throw last instanceof Error ? last : new Error(String(last));
 }
 
 // ─── Trésor ──────────────────────────────────────────────────────────────────

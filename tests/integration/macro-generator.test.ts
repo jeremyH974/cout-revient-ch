@@ -8,11 +8,12 @@
  */
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   ECB_DFR_ID,
   FED_RESERVES_ID,
   buildIndicator,
+  fetchText,
   gateProblems,
   parseEia,
   parseEcbSdmxCsv,
@@ -346,5 +347,52 @@ describe('série SDMX de la BCE', () => {
   it('un en-tête sans les colonnes attendues ne devine rien', () => {
     expect(parseEcbSdmxCsv('A,B,C\n1,2,3\n', ECB_DFR_ID)).toEqual([]);
     expect(parseEcbSdmxCsv('', ECB_DFR_ID)).toEqual([]);
+  });
+});
+
+/**
+ * Une réponse vide n'est pas une source qui a changé (décision n° 98). Le Data Download Program
+ * de la Fed rend `200 text/html` de zéro octet aussi bien pour une sélection retirée que pour un
+ * hoquet passager : le générateur réessaie, et s'il persiste il nomme le vide au lieu d'accuser
+ * la source d'avoir retiré une série qu'elle sert encore.
+ */
+describe('téléchargement : une non-réponse se réessaie, puis se nomme', () => {
+  const respond = (body: string) =>
+    ({ ok: true, status: 200, text: () => Promise.resolve(body) }) as unknown as Response;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('un corps vide déclenche un nouvel essai, et le second sert le document', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(respond(''))
+      .mockResolvedValueOnce(respond('"Time Period","RESH4R_N.WW"'));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchText('https://example.test/h41.csv', { pauseMs: 0 })).resolves.toContain(
+      'RESH4R_N.WW',
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('un vide qui persiste échoue en nommant le vide, jamais la série', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(respond('   '));
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchText('https://example.test/h41.csv', { pauseMs: 0 })).rejects.toThrow(
+      /réponse vide/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('un HTTP en erreur reste un échec, réessayé lui aussi', async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue({ ok: false, status: 503 } as unknown as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    await expect(fetchText('https://example.test/h41.csv', { pauseMs: 0 })).rejects.toThrow(
+      /HTTP 503/,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

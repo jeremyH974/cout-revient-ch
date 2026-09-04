@@ -42,11 +42,13 @@
   });
   const totals: TradingTotals = $derived(totalsSince(scoped, since));
   const allTotals: TradingTotals = $derived(totalsSince(scoped, 0));
-  const equity = $derived(current ? (current.equity ?? ZERO) : report.equity);
+  /** `null` = pas d'instantané : l'équité est **inconnue**, pas nulle (décision n° 97). */
+  const equity = $derived(current ? current.equity : report.equity);
   const unrealized = $derived(current ? current.unrealized : report.unrealized);
   /** P&L total = réalisé net (tout l'historique) + latent des positions ouvertes. */
   const totalPnl = $derived(allTotals.net.plus(unrealized));
-  const money = (value: Big): Big | null => app.usdcToDisplay(value);
+  const money = (value: Big | null): Big | null =>
+    value === null ? null : app.usdcToDisplay(value);
   const positions = $derived(scoped.accounts.flatMap((a) => a.snapshot?.positions ?? []));
   const holdings = $derived(scoped.accounts.flatMap((a) => a.snapshot?.spot ?? []));
   /** Au moins un des deux flux est demandé : la pastille d'état n'a de sens que dans ce cas. */
@@ -236,6 +238,10 @@
       <div>
         <p class="label">Équité</p>
         <p class="big"><Money value={money(equity)} compact strong /></p>
+        {#if equity === null}
+          <!-- « — » plutôt qu'un zéro : l'auto-vérification, plus bas, dit quel compte est muet. -->
+          <p class="muted small">Pas encore d'instantané : équité inconnue, pas nulle.</p>
+        {/if}
       </div>
       <div>
         <p class="label">

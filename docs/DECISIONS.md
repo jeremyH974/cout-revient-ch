@@ -2220,3 +2220,50 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     taille `md` et `lg`, mais le vert atténué en taille `sm` — celle de la Répartition — passe sous
     4,5:1. Une atténuation qui ne survit pas à la plus petite taille où on l'emploie n'est pas une
     atténuation, c'est un défaut de contraste : elle est supprimée, la graisse suffit.
+97. **Un zéro qui n'a pas été mesuré n'est pas un zéro** (04/09/2026). La Vue d'ensemble a affiché
+    un espace Trading à **0,00 $ pour 27 451 $ d'apports**, soit une perte de 100 % — alors que le
+    compte n'était pas vide : sa valeur manquait. Trois endroits transformaient une absence en
+    mesure : `computeTrading` sommait les comptes sans instantané **à zéro** ; `history.svelte.ts`
+    **écartait** un compte sans série `portfolio`, emportant ses apports hors du total sans un mot ;
+    et `reconcileNetWorth` calculait `valeur − apports` même quand la valeur n'était pas établie.
+    **Trois états, trois traitements**, alignés sur ce que font les normes du domaine :
+    — _jamais mesuré_ → la part est `unavailable`, la ligne dit « non valorisé », ni valeur ni
+    apports n'entrent dans le total, et l'écran déclare celui-ci **incomplet, pas approché**. C'est
+    la règle du statut d'observation SDMX (`CL_OBS_STATUS`, code `M` : impossibilité de collecter),
+    la norme d'échange de données statistiques que ce dépôt consomme déjà côté BCE ;
+    — _périmé_ → la valeur reste affichée, avec son âge, et un contrôle le dit. Wealthfolio tient
+    le même registre (« stale price » : avertissement à 24 h, critique à 72 h) ;
+    — _contredit par le grand livre_ → la valeur s'affiche — c'est ce que la plateforme répond —
+    mais **aucun résultat n'en est déduit** (`gain` et `%` valent `null`, l'écran montre « — »).
+    Les GIPS 2020 posent que la qualité d'un rendement est celle des valorisations qui le
+    composent ; on ne publie pas un rendement bâti sur une valorisation qu'on ne soutient pas.
+    **Le seuil de contradiction n'est pas arbitraire** : la part est marquée `unreconciled` quand
+    l'écart de réconciliation du compte — que `computeTradingAccount` calculait déjà, et que seul
+    l'écran Trading montrait — **dépasse le résultat qu'on s'apprêtait à afficher**. Au-delà, le
+    signe même de ce résultat n'est plus établi. En deçà, il reste affiché.
+    **Le silence venait aussi d'un niveau d'alerte** : un compte sans instantané produisait un
+    contrôle `info`, or « À vérifier » ne retient que `warn` et `fail` — personne ne le voyait
+    jamais. Un compte qui a de l'historique mais pas d'instantané avertit désormais.
+    Contre-épreuves (décision n° 75) : consolidation resommée à zéro, résultat redéduit d'une part
+    non établie, seuil d'écart rendu inerte, et alerte remise en `info` — chacune vue rougir sur le
+    test qui la nomme.
+98. **Une non-réponse n'est pas une rupture de contrat** (04/09/2026). La surveillance a annoncé,
+    le 03/09, que la série `RESH4R_N.WW` avait disparu du H.4.1 — « la sélection a-t-elle changé ? ».
+    Vérification faite à la source : le CSV fait 540 Ko, contient la série, et va jusqu'au 02/09.
+    Rien n'avait changé chez la Fed.
+    **L'expérience qui tranche** : interrogé avec une sélection inconnue, le Data Download Program
+    répond `HTTP 200`, `content-type: text/html`, **zéro octet**. Une sélection retirée et un hoquet
+    passager sont donc **indistinguables sur une seule requête** — et le contrôle, qui ne testait que
+    `text.includes('RESH4R_N.WW')`, a pris l'absence de document pour l'absence d'une série.
+    Le contrôleur réessayait déjà les erreurs _levées_, en le documentant : « une réponse mal formée
+    est un vrai écart, et la rejouer ne ferait que retarder le constat ». Un corps vide échappait à
+    ce raisonnement parce que ce **n'est pas un document mal formé, c'est l'absence de document**.
+    Trois réponses, désormais distinguées : erreur réseau (réessayée), **non-réponse** — corps vide
+    ou type inattendu — (réessayée, puis rapportée comme telle), et document servi mais non conforme
+    (écart immédiat, sans réessai). Les sources textuelles déclarent le type qu'elles doivent rendre
+    (`expect: 'csv' | 'xml' | 'json'`), chacun **vérifié à la source** avant d'être inscrit — la BCE,
+    elle, honore la négociation de contenu et rend du SDMX-JSON à qui demande du JSON (n° 93).
+    Les deux générateurs, qui ne réessayaient **rien**, appliquent la même règle : le cron du lundi
+    serait tombé de la même façon. La barrière de fond ne bouge pas — un fichier appauvri n'est
+    jamais écrit. Contre-épreuve : refus du corps vide retiré, deux tests rougissent, dont celui qui
+    vérifie que le message nomme le vide et non la série.

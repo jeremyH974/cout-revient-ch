@@ -153,7 +153,7 @@ describe('computeTradingAccount', () => {
     expect(report.reconciliation).toBeNull();
   });
 
-  it('consolide : équités sommées, totaux additifs, période sur tous les comptes', () => {
+  it('consolide : équités sommées, totaux additifs, et un compte muet rend le total inconnu', () => {
     const a = {
       accountId: 'hl:a',
       executions: [exec({ id: 'a', closedPnl: '10' })],
@@ -169,9 +169,16 @@ describe('computeTradingAccount', () => {
       snapshot: null,
     };
     const report = computeTrading([a, b]);
-    expect(report.equity.toString()).toBe('100');
+    // Un compte sans instantané ne compte pas pour zéro : le total devient INCONNU, et se nomme.
+    expect(report.equity).toBeNull();
+    expect(report.unvalued).toEqual(['hl:b']);
     expect(report.totals.realized.toString()).toBe('15');
     expect(totalsSince(report, Date.UTC(2026, 3, 1)).realized.toString()).toBe('10');
+
+    // Les deux instantanés présents, les équités s'additionnent comme des soldes.
+    const valued = computeTrading([a, { ...b, snapshot: { ...snapshot, accountValue: '20' } }]);
+    expect(valued.equity?.toString()).toBe('120');
+    expect(valued.unvalued).toEqual([]);
   });
 
   it('propriété : net = réalisé − frais perps + funding, quelles que soient les exécutions', () => {

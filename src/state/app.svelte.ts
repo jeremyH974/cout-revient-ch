@@ -432,6 +432,9 @@ export class AppState {
         syncError: this.syncStatus[account.id]?.error ?? null,
         unknownLedgerTypes: normalized?.unknownLedgerTypes ?? [],
         fxMissing: normalized?.fxMissing ?? 0,
+        // Un compte qui a de l'historique mais pas d'instantané n'est pas « pas encore
+        // synchronisé » : c'est un compte dont la VALEUR manque, et l'écran s'en ressent.
+        fills: report?.totals.fills ?? 0,
       };
     }),
   );

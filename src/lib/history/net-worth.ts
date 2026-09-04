@@ -33,7 +33,10 @@
  *   comparable aux apports, il est seulement approché ;
  * - `unavailable` : une contribution n'a **pas pu** être valorisée. Le total est alors
  *   **incomplet, donc trop bas** — pas approché. Il doit se signaler, jamais se fondre dans la
- *   courbe.
+ *   courbe ;
+ * - `unreconciled` : la valeur est bien servie, mais elle contredit le grand livre du producteur.
+ *   On l'affiche — c'est ce que la plateforme répond — et on n'en déduit **aucun résultat**
+ *   (décision n° 97).
  */
 import { Big, D, ZERO } from '../domain/money';
 import type { DecimalString } from '../domain/types';
@@ -54,6 +57,13 @@ export interface ContributionValue {
   contributed: Big;
   /** Portée à son coût faute de cotation : comparable aux apports, mais approchée. */
   estimated: boolean;
+  /**
+   * La valeur est servie, mais elle **ne se recoupe pas** avec le grand livre dont elle sort :
+   * on l'affiche, on n'en déduit aucun résultat (décision n° 97). Cas typique : une plateforme
+   * annonce un solde nul alors qu'aucune sortie n'a été enregistrée — l'écart n'est pas un
+   * résultat, c'est un symptôme.
+   */
+  unreconciled?: boolean;
 }
 
 /**
@@ -94,6 +104,8 @@ export interface NetWorthPart {
   estimated: boolean;
   /** `true` : non valorisable — la part vaut zéro et le total est incomplet. */
   unavailable: boolean;
+  /** `true` : valeur servie mais non recoupée avec son grand livre — aucun résultat n'en sort. */
+  unreconciled: boolean;
 }
 
 export interface NetWorthPoint {
@@ -145,6 +157,7 @@ export function netWorthSeries({
           contributed: ZERO,
           estimated: false,
           unavailable: true,
+          unreconciled: false,
         });
         continue;
       }
@@ -158,6 +171,7 @@ export function netWorthSeries({
         contributed: at.contributed,
         estimated: at.estimated,
         unavailable: false,
+        unreconciled: at.unreconciled === true,
       });
     }
 
@@ -276,6 +290,14 @@ export interface TradingEquityInput {
    * dernier point de la courbe ne pourrait pas égaler le total de la Vue d'ensemble.
    */
   live?: { day: DayString; usd: DecimalString } | null;
+  /**
+   * Écart de réconciliation du compte, dans sa devise de cotation, tel que `computeTradingAccount`
+   * le calcule : `équité − (flux + réalisé − frais + funding + latent)`. À partir de `day`, quand
+   * cet écart **dépasse le résultat lui-même**, le signe de ce résultat n'est plus établi : la part
+   * est marquée `unreconciled` et l'écran n'en déduit aucun résultat (décision n° 97). Pas de seuil
+   * arbitraire — la comparaison se fait au résultat qu'on s'apprêtait à afficher.
+   */
+  gap?: { day: DayString; usd: DecimalString } | null;
 }
 
 /**
@@ -291,6 +313,7 @@ export function tradingEquityContribution({
   usdPerDisplay,
   contributedAt,
   live,
+  gap = null,
 }: TradingEquityInput): Contribution {
   // Un point par jour civil : le DERNIER de la journée, c'est-à-dire sa clôture.
   const closes = new Map<DayString, DecimalString>();
@@ -313,10 +336,16 @@ export function tradingEquityContribution({
       if (rate === null) return null;
       const divisor = D(rate);
       if (!divisor.gt(ZERO)) return null;
+      const value = D(point.usd).div(divisor);
+      const contributed = contributedAt?.(day) ?? ZERO;
       return {
-        value: D(point.usd).div(divisor),
-        contributed: contributedAt?.(day) ?? ZERO,
+        value,
+        contributed,
         estimated: false,
+        unreconciled:
+          gap !== null &&
+          day >= gap.day &&
+          D(gap.usd).div(divisor).abs().gte(value.minus(contributed).abs()),
       };
     },
   };
@@ -334,8 +363,12 @@ export function hasUnavailable(points: readonly NetWorthPoint[]): boolean {
 
 /** Une ligne de la réconciliation : ce qu'un producteur a reçu, ce qu'il vaut, l'écart. */
 export interface ReconciliationLine extends NetWorthPart {
-  /** `value − contributed` : le résultat total du producteur, réalisé et latent confondus. */
-  gain: Big;
+  /**
+   * `value − contributed` : le résultat total du producteur, réalisé et latent confondus.
+   * `null` quand la valeur n'a pas été mesurée (`unavailable`) ou qu'elle ne se recoupe pas avec
+   * son grand livre (`unreconciled`) : on ne soustrait pas d'une valeur qu'on n'a pas établie.
+   */
+  gain: Big | null;
   /**
    * `gain ÷ contributed` : le résultat rapporté à ce qui a été versé (ratio, 0,1 = +10 %).
    * `null` si rien n'a été versé — une division impossible ne devient jamais un zéro de complaisance.
@@ -369,22 +402,33 @@ export interface NetWorthReconciliation {
   lines: readonly ReconciliationLine[];
   /** Une part au moins n'a pas pu être valorisée : le total est incomplet, pas approché. */
   incomplete: boolean;
+  /** Une part au moins ne se recoupe pas avec son grand livre : le résultat total en hérite. */
+  unreconciled: boolean;
 }
 
 export function reconcileNetWorth(point: NetWorthPoint | null): NetWorthReconciliation | null {
   if (point === null) return null;
   const gain = point.net.minus(point.contributed);
+  const lines = point.parts.map((part): ReconciliationLine => {
+    // On ne déduit pas de résultat d'une valeur qu'on n'a pas mesurée, ni d'une valeur qui
+    // contredit le grand livre dont elle sort (décision n° 97).
+    const derivable = !part.unavailable && !part.unreconciled;
+    const partGain = derivable ? part.value.minus(part.contributed) : null;
+    return {
+      ...part,
+      gain: partGain,
+      roi: partGain === null ? null : roiOf(partGain, part.contributed),
+    };
+  });
   return {
     day: point.day,
     net: point.net,
     contributed: point.contributed,
     gain,
     roi: roiOf(gain, point.contributed),
-    lines: point.parts.map((part) => {
-      const partGain = part.value.minus(part.contributed);
-      return { ...part, gain: partGain, roi: roiOf(partGain, part.contributed) };
-    }),
+    lines,
     incomplete: point.unavailable.length > 0,
+    unreconciled: lines.some((line) => line.unreconciled),
   };
 }
 
