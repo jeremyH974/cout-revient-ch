@@ -26,6 +26,33 @@ La **période choisie en haut gouverne tout l'écran**. Deux fenêtres de temps 
 deux réponses à la même question : le bandeau, la courbe et la répartition parlent toujours de la
 même période.
 
+### Deux pourcentages, deux questions
+
+Chaque résultat par espace est rapporté à une base — et les deux cartes ne posent pas la même
+question, ce que chacune écrit noir sur blanc (décision n° 96) :
+
+- **« D'où vient ce chiffre »** est un **bilan** à la date du jour : le pourcentage est le résultat
+  rapporté aux **apports** (`roiOf`), la base de la ligne « Résultat total » juste au-dessus ;
+- **« Répartition »** suit le **sélecteur de période** : le pourcentage est celui de la fenêtre,
+  apports neutralisés (Dietz modifié, `periodPerformance`) — la mesure du bandeau. Rapporter le gain
+  d'un mois aux apports de toute la vie d'un compte n'aurait aucun sens.
+
+Le pourcentage d'un espace sort de la **même fonction** que celui du total, appliquée à la série de
+la part : un test exige que, sur un patrimoine à un seul espace, les deux soient égaux.
+
+### Ce qui n'a pas été mesuré ne s'affiche pas comme un zéro
+
+Un espace dont la valeur manque **ne vaut pas zéro** (décision n° 97, statut d'observation SDMX) :
+
+| État                         | Valeur                          | Résultat | Ce que dit l'écran                                         |
+| ---------------------------- | ------------------------------- | -------- | ---------------------------------------------------------- |
+| Jamais mesuré                | « — », mention « non valorisé » | « — »    | le total se déclare **incomplet, pas approché**            |
+| Contredit par le grand livre | affichée telle quelle           | « — »    | « ne se recoupe pas », et « À vérifier » dit quoi relancer |
+
+La deuxième ligne se déclenche quand l'écart de réconciliation du compte — celui que le moteur
+Trading calcule déjà — **dépasse le résultat qu'on s'apprêtait à afficher** : au-delà, le signe de
+ce résultat n'est plus établi. Aucun seuil arbitraire n'intervient.
+
 ## Les apports nets : la définition qui commande tout
 
 > Les apports nets sont l'argent **entré dans le périmètre** moins celui qui en est sorti. Ce n'est
