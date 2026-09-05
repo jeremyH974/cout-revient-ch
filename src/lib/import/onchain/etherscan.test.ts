@@ -201,3 +201,52 @@ describe('ordre de repli', () => {
     );
   });
 });
+
+/**
+ * Un `500` d'une instance publique n'est pas un refus : c'est une non-réponse (décisions n° 98 et
+ * 99, portées ici par la n° 102). Mesuré le 05/09/2026 sur `base.blockscout.com` : 8 succès sur 8,
+ * alors que la même instance rendait `500` une heure plus tôt et une fois sur sept le 30/08. Sans
+ * réessai, un seul de ces hoquets épuisait le chemin sans clé — et Base n'a aucun autre secours
+ * gratuit (Routescan : « chain not supported », vérifié le 05/09/2026).
+ */
+describe('réessai d’un fournisseur qui ne répond pas', () => {
+  const page = JSON.stringify({ items: [], next_page_params: null });
+  const compteur = (reponses: Response[]) => {
+    let appels = 0;
+    return {
+      appels: () => appels,
+      fetch: (): Promise<Response> => {
+        const reponse = reponses[Math.min(appels, reponses.length - 1)]!;
+        appels++;
+        return Promise.resolve(reponse.clone());
+      },
+    };
+  };
+
+  it('un 500 puis un succès : le même fournisseur répond, sans réclamer de clé', async () => {
+    const stub = compteur([new Response('boom', { status: 500 }), new Response(page)]);
+    const outcome = await syncEvmWithFallback('base', ME, {
+      fetch: stub.fetch,
+      retryPauseMs: 0,
+    });
+    expect(outcome.provider).toBe('Blockscout');
+    expect(stub.appels()).toBeGreaterThanOrEqual(2);
+  });
+
+  it('un 429 ne se rejoue pas : le fournisseur a répondu, et il dit d’attendre', async () => {
+    const stub = compteur([new Response('slow down', { status: 429 })]);
+    await expect(
+      syncEvmWithFallback('base', ME, { fetch: stub.fetch, retryPauseMs: 0 }),
+    ).rejects.toThrow(/clé d’explorateur gratuite/);
+    // Un seul appel : ni réessai, ni autre fournisseur (Base n'en a pas sans clé).
+    expect(stub.appels()).toBe(1);
+  });
+
+  it('un 404 ne se rejoue pas non plus : c’est un refus, pas un hoquet', async () => {
+    const stub = compteur([new Response('nope', { status: 404 })]);
+    await expect(
+      syncEvmWithFallback('base', ME, { fetch: stub.fetch, retryPauseMs: 0 }),
+    ).rejects.toThrow(/Aucun explorateur/);
+    expect(stub.appels()).toBe(1);
+  });
+});

@@ -135,6 +135,16 @@ test('avec un portefeuille, elle propose le calcul sans le lancer d’elle-même
     const url = new URL(request.url());
     if (url.hostname !== '127.0.0.1' && url.hostname !== 'localhost') external.push(request.url());
   });
+  /*
+   * L'ouverture de la démo lance le chargement de l'historique des prix, dont les requêtes
+   * retombent de façon asynchrone : sans ce délai, l'une d'elles se fait passer pour une requête
+   * de CET écran (échec observé en CI le 05/09/2026 sur des chandelles Coinbase demandées par
+   * l'écran précédent). On les laisse atterrir, puis on remet le compteur à zéro — attendre
+   * `networkidle` ne convient pas : l'historique finirait de charger et la section n'afficherait
+   * plus son bouton, ce que le test veut précisément voir.
+   */
+  await page.waitForTimeout(1_500);
+  external.length = 0;
   await page.goto('#/market');
 
   const lens = page.locator('.lens');

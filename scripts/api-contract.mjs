@@ -87,8 +87,14 @@ async function check(name, url, validate, options = {}) {
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
     try {
       const r = await fetchJson(url, options);
-      // Rien à valider : on réessaie, on ne conclut pas (voir `unusable`).
-      const nothing = r.status === 200 ? unusable(r, options.expect) : null;
+      // Rien à valider : on réessaie, on ne conclut pas (voir `unusable`). Un 5xx entre dans la
+      // même famille — le serveur n'a pas répondu, il a déclaré ne pas pouvoir (décision n° 102).
+      const nothing =
+        r.status >= 500
+          ? `HTTP ${r.status}`
+          : r.status === 200
+            ? unusable(r, options.expect)
+            : null;
       if (nothing !== null) {
         lastError = new Error(nothing);
         lastKind = 'aucune réponse exploitable';
@@ -362,30 +368,29 @@ await check(
   },
 );
 
-// Blockscout a officiellement basculé son trafic vers une Pro API à clé le 1ᵉʳ juillet 2026 ; les
-// instances par chaîne répondaient encore sans clé le 24/08/2026. Ce contrôle est là pour que la
-// CI nous prévienne le jour où elles s'arrêtent — avant que les utilisateurs ne le découvrent.
-// Base est tombée le 30/08/2026 : l'instance répond 500 — six fois sur sept, mesuré le 01/09/2026,
-// avec de rares succès isolés qui ne valent pas guérison. Il n'existe pas
-// de secours sans clé pour cette chaîne (Routescan : « chain not supported »), et l'application le
-// dit à l'utilisateur en l'invitant à fournir une clé gratuite. Rien à corriger dans le code : on
-// déclare donc un sursis, et le contrôle continue — c'est lui qui dira si Base revient.
-const SURSIS_BASE = {
-  depuis: '2026-08-30',
-  jusquau: '2027-03-01',
-  pourquoi:
-    'instance publique éteinte après la bascule de Blockscout vers sa Pro API à clé (1ᵉʳ juillet 2026)',
-};
-
-for (const [chain, host, sursis] of [
-  ['arbitrum', 'https://arbitrum.blockscout.com', undefined],
-  ['base', 'https://base.blockscout.com', SURSIS_BASE],
+/*
+ * Blockscout a basculé son trafic vers une Pro API à clé le 1ᵉʳ juillet 2026 ; les instances par
+ * chaîne répondent encore sans clé. Ce contrôle existe pour que la CI nous prévienne le jour où
+ * elles s'arrêtent — avant que les utilisateurs ne le découvrent.
+ *
+ * Base est **instable, pas éteinte**. Chronologie mesurée : un succès sur sept le 01/09/2026, un
+ * `500` le 05/09 à 09 h 15 UTC, puis **huit succès sur huit** une heure plus tard. Le sursis
+ * déclaré le 30/08 a donc été LEVÉ (décision n° 102) : le laisser courir jusqu'en mars aurait
+ * masqué une vraie panne pendant six mois, ce que la doctrine de `contract-state.ts` interdit
+ * (« un sursis qui pourrit serait pire que pas de sursis du tout »).
+ *
+ * Ce qui remplace le sursis : le réessai. Un 5xx est traité comme une non-réponse, ici comme dans
+ * l'application (`evm-sync.ts`), donc l'intermittence de Base ne déclenche plus d'alarme — mais
+ * une extinction, elle, en déclenchera une.
+ */
+for (const [chain, host] of [
+  ['arbitrum', 'https://arbitrum.blockscout.com'],
+  ['base', 'https://base.blockscout.com'],
 ]) {
   await check(
     `Blockscout ${chain} sans clé (survie de l'API publique)`,
     `${host}/api/v2/addresses/0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045/transactions`,
     (json) => (Array.isArray(json?.items) ? [] : ['items absent : instance passée en Pro API ?']),
-    { sursis },
   );
 }
 
