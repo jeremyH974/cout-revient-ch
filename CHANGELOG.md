@@ -5,8 +5,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+## [2.17.0] - 2026-09-05
+
 ### Fixed
 
+- **Un explorateur qui hoquette ne vous réclame plus une clé.** L'import d'une adresse EVM
+  réessaie une fois un fournisseur qui ne répond pas (panne réseau ou erreur serveur) avant de
+  passer au suivant. Un seul `500` de Blockscout suffisait à épuiser le chemin sans clé — sur Base,
+  qui n'a aucun autre explorateur gratuit, cela vous envoyait chercher une clé pour rien.
 - **Votre compte de trading ne vaut plus zéro dès que vous n'êtes pas en position.** La valeur de
   l'espace Trading, c'est désormais le compte entier — équité perps **et** avoirs spot — comme la
   plateforme la calcule. Un compte à plat sur les perps, argent au repos sur le spot, s'affichait
