@@ -502,6 +502,16 @@ export class AppState {
   );
 
   /**
+   * Dernier jour connu de la série BCE EUR→USD — c'est-à-dire **le taux réellement appliqué** à
+   * tout montant libellé en dollars, y compris quand l'écran est en euros. La série n'est
+   * rafraîchie que si elle a plus de quatre jours (week-ends et fériés BCE) : ce jour-là doit donc
+   * être visible, sans quoi « Prix il y a 2 min » laisse croire que tout est frais (décision n° 101).
+   */
+  usdRateDay = $derived.by(
+    (): string | null => rateLookup(this.state.fx.rates.USD ?? {}).latestDay,
+  );
+
+  /**
    * Montant EUR → devise d'affichage, au taux BCE du jour demandé (aujourd'hui par défaut) :
    * identité en euros, `null` si le taux manque. Frontière d'affichage uniquement — l'évaluation
    * des alertes et le simulateur travaillent en euros.

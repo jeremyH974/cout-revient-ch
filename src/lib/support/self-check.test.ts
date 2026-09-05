@@ -193,3 +193,33 @@ describe('compte de trading sans instantané : la valeur manque, et ça doit s�
     expect(check.level).toBe('ok');
   });
 });
+
+describe('fraîcheur du taux de change (décision n° 101)', () => {
+  const fxCheck = (over: Partial<NonNullable<SelfCheckInput['fx']>>) =>
+    runSelfChecks(
+      input(null, {
+        fx: { latestDay: '2026-08-01', error: null, usesUsd: true, ...over },
+      }),
+    ).find((c) => c.id === 'fx');
+
+  it('au-delà d’une semaine : un avertissement, avec la date et l’âge', () => {
+    // NOW = 2026-08-23 : le taux du 1ᵉʳ août a 22 jours, plus rien de calendaire ne l'explique.
+    const check = fxCheck({});
+    expect(check?.level).toBe('warn');
+    expect(check?.detail).toContain('2026-08-01');
+    expect(check?.detail).toContain('22 jours');
+  });
+
+  it('quatre jours : c’est le week-end, on ne dit rien (l’en-tête porte la date)', () => {
+    expect(fxCheck({ latestDay: '2026-08-19' })).toBeUndefined();
+  });
+
+  it('aucun montant en dollars : le taux ne pèse sur rien', () => {
+    expect(fxCheck({ usesUsd: false })).toBeUndefined();
+  });
+
+  it('quand le rafraîchissement échoue, l’action nomme l’erreur plutôt que d’envoyer actualiser', () => {
+    const check = fxCheck({ error: 'HTTP 503' });
+    expect(check?.action).toContain('HTTP 503');
+  });
+});

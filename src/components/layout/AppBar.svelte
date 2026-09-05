@@ -30,11 +30,19 @@
    */
   const fxNote = $derived.by((): string => {
     const wanted = app.state.ui.displayCurrency;
-    if (wanted === 'EUR') return '';
-    if (app.currency === 'EUR') return ` · taux ${wanted} indisponibles : montants en €`;
-    const day = app.fxLookup.latestDay;
+    if (wanted !== 'EUR' && app.currency === 'EUR')
+      return ` · taux ${wanted} indisponibles : montants en €`;
+    /*
+     * Le taux BCE s'applique AUSSI quand l'écran est en euros, dès qu'un montant est libellé en
+     * dollars — tout l'espace Trading l'est (USDC assimilé USD, décision n° 18). Le taire laissait
+     * croire que « Prix il y a 2 min » couvrait l'ensemble, alors que la série de taux n'est
+     * rafraîchie qu'au-delà de quatre jours : sur un compte réel, les montants en dollars étaient
+     * convertis au taux d'il y a trois jours, sans un mot (décision n° 101).
+     */
+    const day = wanted === 'EUR' ? app.usdRateDay : app.fxLookup.latestDay;
+    if (day === null || (wanted === 'EUR' && !app.hasTrading)) return '';
     const stale = app.fxStatus.error ? ' (mise à jour impossible)' : '';
-    return day ? ` · taux BCE du ${fmtDate(day)}${stale}` : '';
+    return ` · taux BCE du ${fmtDate(day)}${stale}`;
   });
 
   const freshness = $derived.by((): string => {

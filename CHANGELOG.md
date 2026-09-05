@@ -17,6 +17,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   chiffres de la plateforme.
 - La ligne « Avoirs spot » convertissait l'USDC au cours de marché du jeton au lieu du taux BCE :
   elle ne s'additionnait pas tout à fait avec la valeur du compte.
+- **L'âge du taux de change se voit enfin.** Vos montants en dollars sont convertis au taux BCE,
+  qui n'est rafraîchi qu'au-delà de quatre jours (la BCE ne publie pas le week-end) : l'en-tête
+  affiche désormais sa date dès qu'un montant en dollars est à l'écran — il ne le faisait qu'en
+  devise d'affichage étrangère — et « À vérifier » avertit au-delà d'une semaine.
 
 ## [2.16.0] - 2026-09-04
 

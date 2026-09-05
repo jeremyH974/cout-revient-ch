@@ -2325,3 +2325,27 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      Contre-épreuves : valeur ramenée aux seuls perps (trois tests rougissent, dont celui qui exige
      qu'un compte à plat vaille son solde spot), et `usdcValue` remis à zéro (le flux entrant
      redevient nul).
+101. **Le taux de change a un âge, et il doit se voir** (05/09/2026). Audit demandé des règles de
+     conversion, après qu'une ligne eut valorisé l'USDC au cours de marché au lieu du taux BCE
+     (n° 100). Les règles, elles, sont cohérentes — trois questions, trois réponses :
+     — **espace Trading** : tout au taux **du jour**, parce que le compte est libellé en dollars et
+     que convertir les deux côtés au même taux donne un résultat sans artefact de change ;
+     — **courbes** : chaque point au taux **de son jour**, « ce que ça valait alors » ;
+     — **espace Investissement** : chaque opération au taux **de sa date**, parce qu'un coût de
+     revient se fige à l'achat ;
+     — et l'**USDC au pair** (n° 18), jamais au cours du jeton — la convention d'Hyperliquid.
+     **Ce que l'audit a trouvé** : sur un compte réel, les montants en dollars étaient convertis au
+     taux du 1ᵉʳ septembre alors que la BCE avait publié le 4. Ce n'est pas un défaut de calcul mais
+     un réglage — `refreshRates` ne redemande la queue de série qu'au-delà de **quatre jours**
+     (`SLACK_DAYS`), pour ne pas rappeler l'API un lundi matin alors que la BCE ne publie pas le
+     week-end. Défendable, mais **invisible** : l'en-tête annonçait « Prix il y a 2 min » et taisait
+     l'âge du taux, qui pèse pourtant sur _tous_ les montants en dollars — 0,3 % sur ce compte.
+     La note « taux BCE du … » existait déjà, mais **seulement si la devise d'affichage n'était pas
+     l'euro**. Or c'est précisément en euros qu'un montant en dollars se fait convertir : la
+     condition était l'inverse de ce qu'elle aurait dû être. Elle s'affiche désormais dès qu'un
+     montant en dollars est à l'écran, et une auto-vérification avertit au-delà d'**une semaine** —
+     la limite où « week-end plus jour férié » n'explique plus rien.
+     **Un terme écarté après mesure** : compter les frais des mouvements du grand livre dans la
+     réconciliation semblait combler le résidu de 2,16 USDC observé. Vérification faite sur l'API,
+     ces mouvements ne portent aucun frais — le terme n'aurait mordu que sur la fixture synthétique,
+     en aggravant son écart. Retiré. Le résidu de 0,008 % reste nommé, non maquillé.
