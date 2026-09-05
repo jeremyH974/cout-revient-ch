@@ -2291,3 +2291,61 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
     Piste pour plus tard, non retenue aujourd'hui : `osv-scanner` interroge une autre base
     (OSV.dev) et rendrait la barrière indépendante de l'infrastructure npm — au prix d'un outil
     tiers de plus dans la chaîne, ce qui se décide séparément.
+100. **Le périmètre d'un compte de trading, c'est le compte — perps ET spot** (05/09/2026).
+     La Vue d'ensemble affichait un compte Hyperliquid à **0,00 € pour 23 685 € d'apports**, soit
+     une perte de 100 %. Le compte n'était pas vide : il contenait **27 577,69 USDC**, que l'app
+     connaissait — elle les affichait même sous « Avoirs spot ».
+     **Deux défauts, une seule cause : le périmètre.**
+     — La **valeur** de l'espace était l'`accountValue` du compte **perps** seul. Or un compte sans
+     position ouverte a une équité perps **nulle** et tout son argent du côté spot : ce n'est pas un
+     cas limite, c'est l'état normal d'un compte entre deux trades. L'app affichait donc zéro pour
+     n'importe qui n'était pas en position à l'instant où il regardait.
+     — Les **apports** comptaient un virement perps → spot comme une sortie, et ignoraient les
+     entrées typées `send` ou `spotTransfer` — 3 227,35 USDC manquants sur le compte réel, en cinq
+     mouvements. Le code s'en méfiait pourtant : _« sens et classe de compte non documentés — un
+     écart de réconciliation le signalerait »_. Il avait raison sur le symptôme et tort sur la
+     difficulté : l'API sert `usdcValue` (la valeur en dollars) et `user`/`destination` (le sens).
+     **La règle** : la valeur = équité perps + avoirs spot (l'USDC au pair, comme Hyperliquid ;
+     les autres jetons via une cotation fournie par l'appelant, **jamais devinée**) ; les apports =
+     les mouvements **externes** seulement, un virement d'une poche à l'autre ne faisant rien entrer
+     ni sortir — exactement la règle que l'app applique déjà entre ses deux espaces.
+     **Vérifié sur le compte réel, par l'API publique** : apports 30 678,34 USDC (l'export de la
+     plateforme dit 30 678,34), valeur 27 577,69 (Hyperliquid affiche 27 577,69), résultat
+     **−3 100,65** — le PNL que Hyperliquid affiche, au centime. L'ancien écran annonçait −23 685 €.
+     **Une limite nommée plutôt que maquillée** : la plus-value **réalisée** sur des ventes spot
+     demanderait un coût de revient par jeton, que ce moteur ne tient pas — c'est le travail de
+     l'espace Investissement, via l'option « traiter le spot comme de l'investissement ». La
+     réconciliation compte donc les ventes spot (`spotSales`) et dit que l'écart les contient, au
+     lieu de crier à l'anomalie. Aucun chiffre affiché n'en dépend : `valeur − apports` n'a pas
+     besoin de cette décomposition.
+     **Un troisième défaut est tombé avec** : la ligne « Avoirs spot » valorisait l'USDC au **cours
+     de marché** du jeton (0,92 €) quand tout le reste de l'app le convertit au taux BCE (n° 18).
+     La ligne ne s'additionnait donc pas avec la valeur du compte, à 7 € près sur le jeu de
+     démonstration — et un test l'exige désormais.
+     Contre-épreuves : valeur ramenée aux seuls perps (trois tests rougissent, dont celui qui exige
+     qu'un compte à plat vaille son solde spot), et `usdcValue` remis à zéro (le flux entrant
+     redevient nul).
+101. **Le taux de change a un âge, et il doit se voir** (05/09/2026). Audit demandé des règles de
+     conversion, après qu'une ligne eut valorisé l'USDC au cours de marché au lieu du taux BCE
+     (n° 100). Les règles, elles, sont cohérentes — trois questions, trois réponses :
+     — **espace Trading** : tout au taux **du jour**, parce que le compte est libellé en dollars et
+     que convertir les deux côtés au même taux donne un résultat sans artefact de change ;
+     — **courbes** : chaque point au taux **de son jour**, « ce que ça valait alors » ;
+     — **espace Investissement** : chaque opération au taux **de sa date**, parce qu'un coût de
+     revient se fige à l'achat ;
+     — et l'**USDC au pair** (n° 18), jamais au cours du jeton — la convention d'Hyperliquid.
+     **Ce que l'audit a trouvé** : sur un compte réel, les montants en dollars étaient convertis au
+     taux du 1ᵉʳ septembre alors que la BCE avait publié le 4. Ce n'est pas un défaut de calcul mais
+     un réglage — `refreshRates` ne redemande la queue de série qu'au-delà de **quatre jours**
+     (`SLACK_DAYS`), pour ne pas rappeler l'API un lundi matin alors que la BCE ne publie pas le
+     week-end. Défendable, mais **invisible** : l'en-tête annonçait « Prix il y a 2 min » et taisait
+     l'âge du taux, qui pèse pourtant sur _tous_ les montants en dollars — 0,3 % sur ce compte.
+     La note « taux BCE du … » existait déjà, mais **seulement si la devise d'affichage n'était pas
+     l'euro**. Or c'est précisément en euros qu'un montant en dollars se fait convertir : la
+     condition était l'inverse de ce qu'elle aurait dû être. Elle s'affiche désormais dès qu'un
+     montant en dollars est à l'écran, et une auto-vérification avertit au-delà d'**une semaine** —
+     la limite où « week-end plus jour férié » n'explique plus rien.
+     **Un terme écarté après mesure** : compter les frais des mouvements du grand livre dans la
+     réconciliation semblait combler le résidu de 2,16 USDC observé. Vérification faite sur l'API,
+     ces mouvements ne portent aucun frais — le terme n'aurait mordu que sur la fixture synthétique,
+     en aggravant son écart. Retiré. Le résidu de 0,008 % reste nommé, non maquillé.

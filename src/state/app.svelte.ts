@@ -57,7 +57,7 @@ import { qualifiedSummaries, type QualifiedSummary } from '$lib/derive/qualified
 import { effectiveQuotes } from '$lib/derive/quotes';
 import { eraseHistoryCache } from '$lib/history/erase';
 import { buildInsights, type Insight } from '$lib/domain/insights';
-import { D, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
+import { D, ZERO, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subscription';
 import { xirrEur, type XirrResult } from '$lib/domain/xirr';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
@@ -343,8 +343,26 @@ export class AppState {
   });
 
   /** Rapport Trading (USDC) : équités sommées, P&L séparés de l'Investissement. */
+  /**
+   * Prix d'un jeton spot **dans la devise de cotation** (USDC), pour valoriser les avoirs spot du
+   * compte : les cotations vivent ici, jamais dans le moteur (décision n° 100). L'USDC lui-même
+   * n'a pas besoin de prix — le moteur le compte au pair.
+   */
+  spotPriceInUsdc = $derived.by((): ((asset: string) => Big | null) => {
+    const perUsdc = this.usdcToDisplay(D('1'));
+    const quotes = this.displayQuotes;
+    if (perUsdc === null || !perUsdc.gt(ZERO)) return () => null;
+    return (asset) => {
+      const quote = quotes[asset];
+      return quote ? D(quote.priceEur).div(perUsdc) : null;
+    };
+  });
+
   tradingReport = $derived.by((): TradingReport =>
-    computeTrading(Object.values(this.hlNormalized).map((n) => n.trading)),
+    computeTrading(
+      Object.values(this.hlNormalized).map((n) => n.trading),
+      this.spotPriceInUsdc,
+    ),
   );
 
   hasTrading = $derived(this.hlAccounts.length > 0);
@@ -481,6 +499,16 @@ export class AppState {
   /** Taux BCE EUR→USD du jour (dernier connu) ; `null` tant que la série n'est pas chargée. */
   usdPerEurToday = $derived.by((): DecimalString | null =>
     rateLookup(this.state.fx.rates.USD ?? {}).rate(nowIso().slice(0, 10)),
+  );
+
+  /**
+   * Dernier jour connu de la série BCE EUR→USD — c'est-à-dire **le taux réellement appliqué** à
+   * tout montant libellé en dollars, y compris quand l'écran est en euros. La série n'est
+   * rafraîchie que si elle a plus de quatre jours (week-ends et fériés BCE) : ce jour-là doit donc
+   * être visible, sans quoi « Prix il y a 2 min » laisse croire que tout est frais (décision n° 101).
+   */
+  usdRateDay = $derived.by(
+    (): string | null => rateLookup(this.state.fx.rates.USD ?? {}).latestDay,
   );
 
   /**

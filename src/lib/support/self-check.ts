@@ -43,6 +43,12 @@ export interface SelfCheckInput {
   platform?: { ios: boolean; standalone: boolean };
   /** Comptes de trading (Hyperliquid) : réconciliation d'équité et fraîcheur de synchronisation. */
   trading?: TradingCheckInput[];
+  /**
+   * Taux de change BCE : dernier jour connu de la série EUR→USD, et l'erreur du dernier
+   * rafraîchissement. C'est ce taux qui convertit **tout montant en dollars**, y compris quand
+   * l'écran est en euros (décision n° 101).
+   */
+  fx?: { latestDay: string | null; error: string | null; usesUsd: boolean };
   /** Virements internes (décision n° 25) : paires appariées et candidats restés orphelins. */
   transfers?: { pairs: number; unpairedWithdrawals: number; unpairedDeposits: number };
   /**
@@ -331,6 +337,26 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
         'Vos données sont bien enregistrées, mais la copie de secours du navigateur n’est plus mise à jour (espace insuffisant).',
       action:
         'Téléchargez une sauvegarde JSON : c’est la seule copie qui ne dépende ni du navigateur ni de son quota.',
+    });
+  }
+
+  /*
+   * 5 bis. Taux de change. La série n'est rafraîchie qu'au-delà de quatre jours (week-ends et
+   * fériés BCE) : jusque-là, l'écart est normal et l'en-tête affiche la date. Au-delà d'une
+   * semaine, ce n'est plus le calendrier qui l'explique — et chaque montant en dollars s'en
+   * ressent en silence (décision n° 101).
+   */
+  const fx = input.fx;
+  if (fx?.usesUsd && fx.latestDay !== null && ageDays(`${fx.latestDay}T12:00:00Z`, input.now) > 7) {
+    checks.push({
+      id: 'fx',
+      label: 'Taux de change',
+      level: 'warn',
+      detail: `Vos montants en dollars sont convertis au taux BCE du ${fx.latestDay}, vieux de ${Math.floor(ageDays(`${fx.latestDay}T12:00:00Z`, input.now))} jours.`,
+      action:
+        fx.error === null
+          ? 'Actualisez les prix : la série de taux se met à jour avec eux.'
+          : `Dernier rafraîchissement en échec (${fx.error}) : réessayez quand le réseau revient.`,
     });
   }
 

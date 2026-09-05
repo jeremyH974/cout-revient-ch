@@ -40,6 +40,12 @@ class ChecksState {
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
       trading: app.tradingChecks,
+      fx: {
+        latestDay: app.usdRateDay,
+        error: app.fxStatus.error,
+        // Le taux ne pèse que s'il y a des montants en dollars à convertir.
+        usesUsd: app.hasTrading || app.currency !== 'EUR',
+      },
       transfers: {
         pairs: app.transferPairing.pairs.length,
         unpairedWithdrawals: app.transferPairing.unpairedWithdrawals.length,

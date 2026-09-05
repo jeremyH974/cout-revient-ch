@@ -5,6 +5,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **Votre compte de trading ne vaut plus zéro dès que vous n'êtes pas en position.** La valeur de
+  l'espace Trading, c'est désormais le compte entier — équité perps **et** avoirs spot — comme la
+  plateforme la calcule. Un compte à plat sur les perps, argent au repos sur le spot, s'affichait
+  à 0 € et présentait la totalité de vos apports comme une perte.
+- **Les entrées d'argent reçues d'une autre adresse comptent enfin comme des apports**, et un
+  virement d'une poche à l'autre du même compte ne compte plus ni comme un retrait ni comme un
+  apport. Vérifié sur un compte réel : apports, valeur et résultat retombent au centime sur les
+  chiffres de la plateforme.
+- La ligne « Avoirs spot » convertissait l'USDC au cours de marché du jeton au lieu du taux BCE :
+  elle ne s'additionnait pas tout à fait avec la valeur du compte.
+- **L'âge du taux de change se voit enfin.** Vos montants en dollars sont convertis au taux BCE,
+  qui n'est rafraîchi qu'au-delà de quatre jours (la BCE ne publie pas le week-end) : l'en-tête
+  affiche désormais sa date dès qu'un montant en dollars est à l'écran — il ne le faisait qu'en
+  devise d'affichage étrangère — et « À vérifier » avertit au-delà d'une semaine.
+
 ## [2.16.0] - 2026-09-04
 
 ### Fixed

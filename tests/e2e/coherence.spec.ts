@@ -525,8 +525,22 @@ test('le tableau de bord se recoupe avec lui-même et avec les deux espaces', as
   );
   const [deposits, equity, pnl] = tradingTrio as [number, number, number];
   expect(Math.abs(tradingRow[0]! - deposits)).toBeLessThanOrEqual(tol(1));
+  // La valeur du compte, elle, doit coïncider exactement : perps + spot des deux côtés (n° 100).
   expect(Math.abs(tradingRow[1]! - equity)).toBeLessThanOrEqual(tol(1));
-  expect(Math.abs(tradingRow[2]! - pnl)).toBeLessThanOrEqual(tol(2));
+  /*
+   * Les deux « résultats » ne mesurent pas la même chose depuis la décision n° 100, et c'est
+   * assumé : la Vue d'ensemble montre `valeur − apports`, qui contient TOUT ce que le compte a
+   * produit — y compris la plus-value réalisée sur le spot, que l'espace Trading ne sait pas
+   * isoler faute de coût de revient. L'écart entre les deux est donc borné par ce que pèse le
+   * spot, et sur un compte sans spot la borne se referme sur la tolérance d'arrondi.
+   */
+  const spotAffiche = (
+    await page.getByRole('list', { name: 'Avoirs spot' }).locator('.side').allInnerTexts()
+  )
+    .filter((t) => /\d/.test(t))
+    .map(toNumber)
+    .reduce((a, b) => a + b, 0);
+  expect(Math.abs(tradingRow[2]! - pnl)).toBeLessThanOrEqual(Math.abs(spotAffiche) + tol(2));
 });
 
 /**

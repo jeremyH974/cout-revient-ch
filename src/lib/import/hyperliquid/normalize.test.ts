@@ -81,12 +81,17 @@ describe('fillToExecution', () => {
 });
 
 describe('ledgerToCashFlow', () => {
-  it('signe les flux vus du compte perps', () => {
+  it('signe les flux vus du COMPTE ENTIER, perps et spot réunis', () => {
     const cases: [HlLedgerUpdate, string, string][] = [
       [ledger('deposit', { usdc: '5000' }), 'deposit', '5000'],
       [ledger('withdraw', { usdc: '1500', fee: '1', nonce: 1 }), 'withdrawal', '-1500'],
-      [ledger('accountClassTransfer', { usdc: '800', toPerp: false }), 'perp-to-spot', '-800'],
-      [ledger('accountClassTransfer', { usdc: '200', toPerp: true }), 'spot-to-perp', '200'],
+      /*
+       * Virements internes : montant NUL depuis la décision n° 100. Les deux poches sont dans le
+       * périmètre — déplacer de l'argent de l'une à l'autre ne fait rien entrer ni sortir. La
+       * règle précédente comptait un virement vers le spot comme un retrait.
+       */
+      [ledger('accountClassTransfer', { usdc: '800', toPerp: false }), 'perp-to-spot', '0'],
+      [ledger('accountClassTransfer', { usdc: '200', toPerp: true }), 'spot-to-perp', '0'],
       [
         ledger('internalTransfer', { usdc: '50', user: ADDRESS, destination: '0x1' }),
         'transfer-out',
@@ -98,12 +103,39 @@ describe('ledgerToCashFlow', () => {
         '50',
       ],
       [ledger('vaultDeposit', { usdc: '100', vault: '0xv' }), 'vault-deposit', '-100'],
+      /*
+       * Transferts entre ADRESSES : de l'argent entre ou sort vraiment. Ils valaient zéro « faute
+       * de sens documenté » ; l'API sert pourtant `usdcValue` et `user`/`destination`. Sur un
+       * compte réel, cinq `send` entrants manquaient aux apports et l'écran annonçait une perte
+       * de 100 % qui n'existait pas.
+       */
       [
-        ledger('spotTransfer', { token: 'HYPE', amount: '20', user: '0x1', destination: ADDRESS }),
+        ledger('spotTransfer', {
+          token: 'HYPE',
+          amount: '20',
+          usdcValue: '640',
+          user: '0x1',
+          destination: ADDRESS,
+        }),
         'transfer-in',
-        '0',
+        '640',
       ],
-      [ledger('send', { token: 'USDC', amount: '10', user: ADDRESS }), 'other', '0'],
+      [
+        ledger('send', {
+          token: 'USDC',
+          amount: '901.48',
+          usdcValue: '901.48',
+          user: '0x1',
+          destination: ADDRESS,
+        }),
+        'transfer-in',
+        '901.48',
+      ],
+      [
+        ledger('send', { token: 'USDC', amount: '10', usdcValue: '10', user: ADDRESS }),
+        'transfer-out',
+        '-10',
+      ],
     ];
     for (const [entry, kind, amount] of cases) {
       const { flow, known } = ledgerToCashFlow(entry, ACCOUNT, ADDRESS);

@@ -4,7 +4,6 @@ import {
   computeTradingAccount,
   type TradingAccountReport,
 } from '../../src/lib/domain/trading/compute';
-import { D } from '../../src/lib/domain/money';
 import { fmtMoney } from '../../src/lib/format/fr';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
@@ -38,15 +37,40 @@ async function expectedReport(): Promise<{ fixture: HlFixture; report: TradingAc
   return { fixture, report: computeTradingAccount(normalized.trading) };
 }
 
-const eur = (usdc: ReturnType<typeof D>): string =>
-  normalize(fmtMoney(usdc.div(EUR_USD), 'EUR', { compact: true }));
+/** « 1 234,56 € » → 1234.56, en tolérant les espaces insécables et le signe moins typographique. */
+const toNumber = (raw: string): number =>
+  Number(
+    raw
+      .replace(/[\u202f\u00a0\s]/g, '')
+      .replace('−', '-')
+      .replace(',', '.')
+      .replace(/[€$]/g, ''),
+  );
 
 async function expectDashboard(page: Page, report: TradingAccountReport): Promise<void> {
   await expect(page.getByRole('heading', { level: 1, name: 'Trading' })).toBeVisible();
-  // Équité en euros (2e colonne de la synthèse) : accountValue USDC ÷ taux BCE stubé.
-  await expect(page.locator('section.summary .trio .big').nth(1)).toHaveText(
-    eur(report.equity ?? D('0')),
-  );
+  /*
+   * Valeur du compte = équité perps + avoirs spot (décision n° 100). Les jetons spot sont cotés
+   * par l'application, jamais par le moteur : on ne peut donc pas l'attendre depuis un
+   * `computeTradingAccount` sans prix. On vérifie l'ADDITION telle qu'elle s'affiche — l'équité
+   * perps venant du moteur, chaque avoir spot venant de l'écran. Un périmètre qui se remettrait à
+   * ignorer le spot casserait cette égalité immédiatement.
+   */
+  const perps = Number(report.snapshot?.accountValue ?? '0') / Number(EUR_USD);
+  const avoirs = await page
+    .getByRole('list', { name: 'Avoirs spot' })
+    .locator('.side')
+    .allInnerTexts();
+  // Un avoir sans cotation s'affiche « — » : le moteur l'écarte aussi (`spotUnpriced`), et les
+  // deux côtés de l'égalité restent alignés.
+  const attendu =
+    perps +
+    avoirs
+      .filter((t) => /\d/.test(t))
+      .map(toNumber)
+      .reduce((a, b) => a + b, 0);
+  const affiche = toNumber(await page.locator('section.summary .trio .big').nth(1).innerText());
+  expect(Math.abs(affiche - attendu)).toBeLessThanOrEqual(0.02);
   // Positions ouvertes de l'instantané, avec leur latent.
   const positions = page.getByRole('list', { name: 'Positions ouvertes' });
   for (const p of report.snapshot?.positions ?? []) {
@@ -58,9 +82,11 @@ async function expectDashboard(page: Page, report: TradingAccountReport): Promis
       h.asset.toUpperCase(),
     );
   }
-  // Réconciliation verte : équité = dépôts nets + réalisé − frais + funding + latent.
+  // Réconciliation : soit elle se ferme, soit elle nomme la plus-value spot qu'elle ne calcule pas.
   await expect(
-    page.getByText(/équité = dépôts nets \+ réalisé − frais \+ funding \+ latent/),
+    page.getByText(
+      /valeur du compte = apports \+ réalisé − frais \+ funding \+ latent|contient la plus-value réalisée/,
+    ),
   ).toBeVisible();
   // La courbe d'évolution (portfolio) est rendue : un SVG avec la légende Équité.
   await expect(page.locator('.evolution svg').first()).toBeVisible();
@@ -102,11 +128,9 @@ test('ajouter une adresse : synchronisation réelle (stub), persistance après r
   await page.getByRole('button', { name: 'Ajouter et synchroniser' }).click();
   await expect(page).toHaveURL(/#\/trading$/);
   await expectDashboard(page, report);
-  // Persistance (IndexedDB + miroir) : l'équité revient sans nouvelle synchronisation.
+  // Persistance (IndexedDB + miroir) : la valeur du compte revient sans nouvelle synchronisation.
   await page.reload();
-  await expect(page.locator('section.summary .trio .big').nth(1)).toHaveText(
-    eur(report.equity ?? D('0')),
-  );
+  await expectDashboard(page, report);
   await expect(page.getByText(/Synchronisé :/)).toBeVisible();
 });
 

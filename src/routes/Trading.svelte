@@ -8,7 +8,12 @@
    */
   import { nowMs } from '$lib/clock';
   import { D, ZERO, type Big } from '$lib/domain/money';
-  import { accountReport, totalsSince, type TradingTotals } from '$lib/domain/trading/compute';
+  import {
+    QUOTE_ASSET,
+    accountReport,
+    totalsSince,
+    type TradingTotals,
+  } from '$lib/domain/trading/compute';
   import { rateLookup } from '$lib/fx';
   import { fmtRelative } from '$lib/format/fr';
   import { msToParisNaive } from '$lib/import/time';
@@ -67,7 +72,14 @@
       .filter((e): e is string => typeof e === 'string'),
   );
   const fxMissing = $derived(app.usdcToDisplay(D('1')) === null);
+  /**
+   * La **trésorerie** du compte (USDC) se convertit au taux BCE, comme partout ailleurs dans
+   * l'app (décision n° 18) — jamais au cours de marché du jeton. Elle s'affichait ici à 0,92 €
+   * quand le taux du jour en donnait 0,909 : la ligne ne s'additionnait donc pas avec la valeur
+   * du compte, à 7 € près sur le jeu de démonstration. Les autres jetons, eux, ont bien un cours.
+   */
   const holdingValue = (asset: string, qty: string): Big | null => {
+    if (asset === QUOTE_ASSET) return app.usdcToDisplay(D(qty));
     const quote = app.displayQuotes[asset];
     return quote ? D(quote.priceEur).times(qty) : null;
   };
@@ -236,11 +248,18 @@
         <p class="big"><Money value={money(allTotals.netFlows)} compact /></p>
       </div>
       <div>
-        <p class="label">Équité</p>
+        <p class="label">
+          Valeur du compte <Info title="Valeur du compte"
+            >Équité du compte perps <strong>plus</strong> les avoirs spot valorisés — le périmètre que
+            la plateforme appelle « capitaux totaux ». Un compte sans position ouverte a une équité perps
+            nulle et tout son argent du côté spot : ne compter que les perps afficherait zéro (décision
+            n° 100).</Info
+          >
+        </p>
         <p class="big"><Money value={money(equity)} compact strong /></p>
         {#if equity === null}
           <!-- « — » plutôt qu'un zéro : l'auto-vérification, plus bas, dit quel compte est muet. -->
-          <p class="muted small">Pas encore d'instantané : équité inconnue, pas nulle.</p>
+          <p class="muted small">Pas encore d'instantané : valeur inconnue, pas nulle.</p>
         {/if}
       </div>
       <div>
@@ -412,8 +431,9 @@
         {/each}
       </ul>
       <p class="muted small">
-        Valorisés au dernier prix connu. Pour un PRU et des plus-values, cochez « traiter le spot
-        comme de l'investissement » sur le compte (écran Comptes).
+        Valorisés au dernier prix connu, et <strong>comptés dans la valeur du compte</strong>. Pour
+        un PRU et des plus-values, cochez « traiter le spot comme de l'investissement » sur le
+        compte (écran Comptes).
       </p>
     {/if}
   </section>
@@ -428,7 +448,14 @@
             {label(a.accountId)} : pas encore d'instantané de compte.
           {:else if a.reconciliation.gap.abs().lte('0.01')}
             <span class="dot ok" aria-hidden="true"></span>
-            {label(a.accountId)} : équité = dépôts nets + réalisé − frais + funding + latent.
+            {label(a.accountId)} : valeur du compte = apports + réalisé − frais + funding + latent.
+          {:else if a.reconciliation.spotSales > 0}
+            <span class="dot info" aria-hidden="true"></span>
+            {label(a.accountId)} : écart de
+            <Money value={money(a.reconciliation.gap)} sign /> — il contient la plus-value réalisée de
+            vos {a.reconciliation.spotSales} vente{a.reconciliation.spotSales > 1 ? 's' : ''} spot, que
+            cet espace ne calcule pas. Pour un PRU et des plus-values sur le spot, cochez « traiter le
+            spot comme de l'investissement » sur le compte.
           {:else}
             <span class="dot warn" aria-hidden="true"></span>
             {label(a.accountId)} : écart de réconciliation
