@@ -218,3 +218,81 @@ describe('computeTradingAccount', () => {
     );
   });
 });
+
+describe('compte à plat sur les perps : la valeur est du côté spot (décision n° 100)', () => {
+  /**
+   * Le cas réel qui a motivé la décision : aucune position ouverte, équité perps **nulle**, et
+   * tout l'argent sur le portefeuille spot. C'est l'état le plus banal d'un compte Hyperliquid
+   * entre deux trades — la version perps-seul y affichait zéro, donc une perte de 100 % des
+   * apports.
+   */
+  const plat = (spot: string) => ({
+    accountId: 'hl:a',
+    executions: [exec({ closedPnl: '500', fee: '100', direction: 'Close Long' })],
+    funding: [funding({ amount: '-50' })],
+    cashFlows: [
+      flow({ kind: 'deposit', amount: '10000' }),
+      // Un `send` entrant : de l'argent qui arrive d'une autre adresse, longtemps compté zéro.
+      flow({ id: 'hl:l:2', kind: 'transfer-in', amount: '1000', label: 'Réception de 1000 USDC' }),
+      // Virement interne : il déplace sans rien produire, il ne compte donc plus (montant nul).
+      flow({ id: 'hl:l:3', kind: 'perp-to-spot', amount: '0', label: 'Transfert interne' }),
+    ],
+    snapshot: {
+      at: '2026-09-05T00:00:00.000Z',
+      accountValue: '0',
+      withdrawable: '0',
+      marginUsed: '0',
+      positions: [],
+      spot: [{ asset: 'usdc', qty: spot, hold: '0', entryNotional: '0' }],
+    } satisfies TradingSnapshot,
+  });
+
+  it('la valeur du compte est le solde spot, et l’identité se ferme au centime', () => {
+    const report = computeTradingAccount(plat('11350'));
+    expect(report.spotValue.toString()).toBe('11350');
+    // 10 000 déposés + 1 000 reçus + 500 réalisés − 100 de frais − 50 de funding = 11 350.
+    expect(report.equity?.toString()).toBe('11350');
+    expect(report.reconciliation?.gap.toString()).toBe('0');
+    expect(report.reconciliation?.spotSales).toBe(0);
+  });
+
+  it('un solde spot qui ne colle pas au grand livre laisse un écart, sans vente spot pour l’excuser', () => {
+    const report = computeTradingAccount(plat('11000'));
+    expect(report.reconciliation?.gap.toString()).toBe('-350');
+    expect(report.reconciliation?.spotSales).toBe(0);
+  });
+
+  it('un jeton spot sans cotation est écarté et nommé, jamais deviné', () => {
+    // 300 USDC de moins, un jeton acheté 300 en face : le compte n'a rien gagné à l'achat.
+    const input = plat('11050');
+    const report = computeTradingAccount({
+      ...input,
+      snapshot: {
+        ...input.snapshot,
+        spot: [
+          ...input.snapshot.spot,
+          { asset: 'hype', qty: '10', hold: '0', entryNotional: '300' },
+        ],
+      },
+    });
+    expect(report.spotValue.toString()).toBe('11050');
+    expect(report.spotUnpriced).toEqual(['hype']);
+    // Avec une cotation, le jeton entre dans la valeur et son latent dans l'attendu.
+    const coté = computeTradingAccount(
+      {
+        ...input,
+        snapshot: {
+          ...input.snapshot,
+          spot: [
+            ...input.snapshot.spot,
+            { asset: 'hype', qty: '10', hold: '0', entryNotional: '300' },
+          ],
+        },
+      },
+      (asset) => (asset === 'hype' ? D('33') : null),
+    );
+    expect(coté.spotValue.toString()).toBe('11380');
+    expect(coté.spotUnrealized.toString()).toBe('30');
+    expect(coté.reconciliation?.gap.toString()).toBe('0');
+  });
+});

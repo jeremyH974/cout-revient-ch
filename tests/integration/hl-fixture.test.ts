@@ -29,7 +29,6 @@ import { sortedFills } from '../../src/lib/import/hyperliquid/data';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount, type SyncResult } from '../../src/lib/import/hyperliquid/sync';
 
-const EPS_GAP = new Big('0.000001');
 const EPS_TIGHT = new Big('0.000000001');
 const close = (a: Big, b: Big, eps: Big): boolean => a.minus(b).abs().lte(eps);
 const ACCOUNT_ID = `hl:${HL_DEMO_ADDRESS}`;
@@ -68,7 +67,7 @@ describe('jeu de démonstration Hyperliquid synthétique', () => {
     expect(Object.keys(second.data.fills)).toHaveLength(fixture.userFillsByTime.length);
   });
 
-  it('réconciliation de l’équité perps : gap nul à 1e-6 près, aucun type de grand livre inconnu', async () => {
+  it('réconciliation du compte entier : l’écart n’est que la plus-value spot réalisée', async () => {
     const fixture = generateHlFixture();
     const { data, spotPairs, error } = await sync(fixture);
     expect(error).toBeNull();
@@ -81,10 +80,29 @@ describe('jeu de démonstration Hyperliquid synthétique', () => {
     });
     expect(normalized.unknownLedgerTypes).toEqual([]);
 
-    const report = computeTradingAccount(normalized.trading);
+    /*
+     * Périmètre du COMPTE ENTIER depuis la décision n° 100 : perps + spot. Les jetons spot ont
+     * besoin d'un prix, que le moteur ne devine jamais — c'est l'appelant qui le fournit (ici les
+     * mêmes cotations que l'instantané de la fixture).
+     */
+    const spotPrice = (asset: string): Big | null =>
+      ({ purr: new Big('0.2'), hype: new Big('33') })[asset] ?? null;
+    const report = computeTradingAccount(normalized.trading, spotPrice);
     const reconciliation = report.reconciliation;
     if (!reconciliation) throw new Error('réconciliation absente : instantané manquant');
-    expect(close(reconciliation.gap, new Big('0'), EPS_GAP)).toBe(true);
+    expect(report.spotUnpriced).toEqual([]);
+
+    /*
+     * Le scénario VEND du spot (PURR et HYPE), et la plus-value réalisée de ces ventes n'entre pas
+     * dans l'attendu : la calculer demanderait un coût de revient par jeton, que ce moteur ne
+     * tient pas — c'est le travail de l'espace Investissement, via l'option « traiter le spot
+     * comme de l'investissement ». L'écart la contient donc, et le compteur le dit plutôt que de
+     * faire passer une limite connue pour une anomalie de données (décision n° 100).
+     */
+    expect(reconciliation.spotSales).toBeGreaterThan(0);
+    expect(reconciliation.gap.gt(new Big('0'))).toBe(true);
+    // Borne : ce résidu ne peut pas dépasser ce que valent les avoirs spot.
+    expect(reconciliation.gap.lte(report.spotValue)).toBe(true);
 
     // `computeTotals` (src/lib/domain/trading/compute.ts) compte TOUTES les exécutions dans
     // `totals.fills`, spot et perps confondus, dès lors que `spotAsInvestment` ne les a pas

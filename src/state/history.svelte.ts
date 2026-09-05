@@ -346,7 +346,14 @@ export class HistoryState {
     for (const account of app.hlAccounts) {
       const data = app.state.hyperliquid.accounts[account.id];
       const series = data?.portfolio?.['allTime'];
-      const equity = data?.snapshot?.perps.accountValue ?? null;
+      /*
+       * Valeur du compte = perps + spot (décision n° 100), et non plus la seule équité perps.
+       * C'est le même périmètre que la série `portfolio` de la plateforme : le point « live » ne
+       * peut donc plus écraser la courbe par un chiffre plus étroit — c'est ce qui ramenait à zéro
+       * un compte dont tout l'argent dort sur le portefeuille spot.
+       */
+      const compte = app.tradingReport.accounts.find((a) => a.accountId === account.id);
+      const equity = compte?.equity ?? null;
       /*
        * Un compte sans série ET sans instantané reste dans la liste (décision n° 97). Il en
        * sortait, et c'était la disparition la plus trompeuse de l'écran : ses apports quittaient
@@ -372,9 +379,7 @@ export class HistoryState {
         amountEur: D(c.amount),
       }));
       const cumulativeUsd = cumulativeContributions(flows);
-      const reconciliationGap =
-        app.tradingReport.accounts.find((a) => a.accountId === account.id)?.reconciliation?.gap ??
-        null;
+      const reconciliationGap = compte?.reconciliation?.gap ?? null;
       list.push(
         tradingEquityContribution({
           id: account.id,
@@ -391,7 +396,7 @@ export class HistoryState {
           },
           // L'instantané est plus frais que la dernière clôture servie par `portfolio` : sans ce
           // remplacement, le dernier point divergerait du total affiché dans le bandeau.
-          live: equity === null ? null : { day: today, usd: equity },
+          live: equity === null ? null : { day: today, usd: toDecimalString(equity) },
           // L'écart que le moteur calcule déjà pour ce compte : au-delà du résultat lui-même, il
           // interdit d'en déduire un (décision n° 97).
           gap:

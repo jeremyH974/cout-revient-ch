@@ -41,7 +41,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `types.ts` (`Execution` : fill spot ou perp ; `FundingPayment` ; `CashFlow` ; `OpenPosition` ;
   `SpotHolding` ; `TradingSnapshot`), `compute.ts` (`computeTradingAccount` : totaux réalisé brut,
   frais, funding, net = réalisé − frais perps + funding, dépôts nets, P&L latent, équité, et
-  réconciliation `accountValue ≈ Σ flux + Σ closedPnl − Σ frais perps + Σ funding + latent` —
+  réconciliation `perps + spot ≈ Σ flux externes + Σ closedPnl − Σ frais + Σ funding + latent`
+  (décision n° 100 : le périmètre est le COMPTE, pas la seule poche perps — un compte sans position
+  ouverte a une équité perps nulle et tout son argent sur le spot) —
   auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
   plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (`realizedEvents` : un montant par
   événement daté — `closedPnl − frais` au jour du fill, funding au jour du paiement — puis les

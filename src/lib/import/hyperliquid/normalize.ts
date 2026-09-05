@@ -116,11 +116,20 @@ export function ledgerToCashFlow(
     case 'withdraw':
       return { flow: make('withdrawal', usdc.neg(), 'Retrait'), known: true };
     case 'accountClassTransfer': {
+      /*
+       * Montant NUL, volontairement (décision n° 100). Le périmètre du compte couvre désormais
+       * les perps ET le spot : déplacer de l'argent de l'une à l'autre poche ne fait rien entrer
+       * ni sortir. Le compter comme un flux — ce que faisait la version perps-seul — présentait un
+       * virement interne comme un retrait, et le retour comme un apport.
+       */
       const toPerp = entry.fields['toPerp'] === true;
+      const montant = toDecimalString(usdc.abs());
       return {
-        flow: toPerp
-          ? make('spot-to-perp', usdc, 'Transfert spot → perps')
-          : make('perp-to-spot', usdc.neg(), 'Transfert perps → spot'),
+        flow: make(
+          toPerp ? 'spot-to-perp' : 'perp-to-spot',
+          ZERO,
+          `Transfert interne de ${montant} USDC ${toPerp ? 'spot → perps' : 'perps → spot'}`,
+        ),
         known: true,
       };
     }
@@ -144,13 +153,25 @@ export function ledgerToCashFlow(
     case 'vaultWithdraw':
     case 'vaultDistribution':
       return { flow: make('vault-withdraw', usdc, 'Retrait d’un vault'), known: true };
-    case 'spotTransfer': {
-      const token = field(entry, 'token') ?? '?';
+    case 'spotTransfer':
+    /* eslint-disable-next-line no-fallthrough -- même forme de delta, même traitement. */
+    case 'send': {
+      /*
+       * Transfert de jetons entre deux ADRESSES : de l'argent entre ou sort réellement du compte.
+       * Ces deux types valaient zéro « faute de sens documenté » — l'API sert pourtant les deux
+       * champs qu'il faut : `usdcValue` (la valeur en dollars, déjà calculée par la plateforme) et
+       * `user`/`destination` (le sens). Sur un compte réel, cinq `send` entrants de 3 227,35 USDC
+       * manquaient ainsi aux apports, et l'écran annonçait une perte qui n'existait pas
+       * (décision n° 100).
+       */
+      const token = field(entry, 'token') ?? 'USDC';
+      const valeur = decField(entry, 'usdcValue');
+      const quantite = field(entry, 'amount') ?? toDecimalString(valeur);
       return {
         flow: make(
           outgoing ? 'transfer-out' : 'transfer-in',
-          ZERO,
-          `${outgoing ? 'Envoi' : 'Réception'} de ${field(entry, 'amount') ?? ''} ${token} (spot)`,
+          outgoing ? valeur.neg() : valeur,
+          `${outgoing ? 'Envoi' : 'Réception'} de ${quantite} ${token}`,
           token,
         ),
         known: true,
@@ -158,18 +179,6 @@ export function ledgerToCashFlow(
     }
     case 'liquidation':
       return { flow: make('other', ZERO, 'Liquidation'), known: true };
-    // Transfert entre DEX (perps multiples) : sens et classe de compte non documentés — listé pour
-    // mémoire ; un écart de réconciliation le signalerait.
-    case 'send':
-      return {
-        flow: make(
-          'other',
-          ZERO,
-          `Transfert inter-DEX de ${field(entry, 'amount') ?? ''} ${field(entry, 'token') ?? ''}`,
-          field(entry, 'token') ?? 'USDC',
-        ),
-        known: true,
-      };
     case 'spotGenesis':
     case 'rewardsClaim':
       return {
