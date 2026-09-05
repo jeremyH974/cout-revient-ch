@@ -2349,3 +2349,29 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      réconciliation semblait combler le résidu de 2,16 USDC observé. Vérification faite sur l'API,
      ces mouvements ne portent aucun frais — le terme n'aurait mordu que sur la fixture synthétique,
      en aggravant son écart. Retiré. Le résidu de 0,008 % reste nommé, non maquillé.
+102. **Un 5xx est une non-réponse, et un sursis qui pourrit masque une panne** (05/09/2026).
+     Le sursis déclaré le 30/08 sur l'instance publique Blockscout de Base courait jusqu'en mars.
+     Mesures du jour, avant de décider : `500` à 09 h 15 UTC, puis **huit succès sur huit** une
+     heure plus tard, contre un succès sur sept le 01/09. Base n'est pas éteinte, elle est
+     **intermittente**.
+     **Le sursis est donc levé**, comme la doctrine de `contract-state.ts` l'exige — « un
+     fournisseur rétabli alors qu'un sursis le couvre encore doit voir ce sursis retiré », et le
+     laisser courir six mois aurait masqué la prochaine vraie extinction.
+     **Ce qui le remplace : le réessai**, appliqué aux deux étages, parce qu'un `500` d'une
+     instance publique est une non-réponse et non un verdict (décisions n° 98 et 99) :
+     — le **contrôleur de contrat** rejoue un 5xx au lieu de le compter comme un écart ;
+     — l'**import EVM** donne à chaque fournisseur un second essai avant de passer au suivant. Ce
+     point-là n'était pas cosmétique : `syncEvmWithFallback` n'essayait qu'une fois, si bien qu'un
+     seul `500` de Blockscout épuisait le chemin sans clé et réclamait à l'utilisateur une clé
+     d'explorateur — pour Base, qui n'a **aucun secours gratuit** (Routescan : « chain not
+     supported » pour 8453 comme pour 42161, revérifié le 05/09/2026).
+     **Ce qui n'est PAS réessayé, et c'est le cœur de la règle** : un `429` (le fournisseur a
+     répondu, et il demande d'attendre — insister le fâcherait) et un `4xx` (un refus qui ne
+     changera pas en deux secondes). Seules la panne de transport et le 5xx le sont.
+     Contre-épreuve : réessai neutralisé, le test « un 500 puis un succès » rougit en réclamant une
+     clé que l'utilisateur n'a pas à fournir.
+     **Un test instable réparé au passage** : `market.spec.ts` vérifiait qu'un écran ne télécharge
+     rien à l'arrivée, mais comptait aussi les requêtes **de l'écran précédent** qui retombaient —
+     la démo lance le chargement de l'historique des prix. Il les laisse maintenant atterrir avant
+     de mesurer. Attendre `networkidle` aurait été pire : l'historique finissait de charger et la
+     section n'affichait plus le bouton que le test veut voir.
