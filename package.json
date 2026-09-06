@@ -34,6 +34,7 @@
     "calendar": "node scripts/generate-calendar.ts",
     "macro": "node scripts/generate-macro.ts",
     "fixture": "node scripts/generate-fixture.ts",
+    "fixture:etoro": "node scripts/generate-etoro-fixture.ts",
     "fixture:hl": "node scripts/generate-hl-fixture.ts",
     "mcp:build": "vite build --config vite.mcp.config.ts",
     "ai:capture": "node --import ./scripts/ts-resolve.mjs scripts/capture-ai.ts"

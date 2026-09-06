@@ -2524,3 +2524,25 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      et 10 cryptos détenus, 9 positions closes, zéro opération non qualifiée** — soit exactement
      les 28 instruments que porte le relevé.
      Lot PR 3 du plan « Voir ses actifs eToro ».
+
+108. **Une fixture de classeur s'écrit, elle ne se dépose pas** (06/09/2026).
+     Le chantier eToro s'était arrêté sans test de bout en bout, faute de classeur de démonstration :
+     un relevé réel est exclu, même transformé (décision n° 17), et un binaire opaque déposé dans le
+     dépôt n'aurait rien documenté de ce qu'il contient.
+     **Retenu** : `scripts/generate-etoro-fixture.ts` écrit le classeur, données et structure
+     comprises. Le fichier généré est committé — `.gitignore` l'autorise sous `tests/fixtures/**` —
+     mais c'est le script qui fait foi, et il se lit.
+     **La fixture porte exprès les pièges du format réel**, sans quoi elle validerait un lecteur
+     complaisant : éléments préfixés `x:` comme chez eToro et non comme Excel, chaîne partagée
+     fragmentée en deux `<x:t>`, feuilles référencées par chemin absolu, en-tête à saut de ligne
+     encodé, **deux instantanés empilés**, une position à effet de levier et un contrat pour
+     différence à écarter. Le CRC32 est calculé, pour qu'un tableur puisse l'ouvrir et qu'on puisse
+     la relire à l'œil.
+     **Le port des tests E2E devient configurable** (`E2E_PORT`) : deux worktrees du même dépôt ne
+     peuvent pas tenir 4173 en même temps, et `reuseExistingServer` faisait alors tester **le build
+     du voisin** — un échec qui accuse le mauvais coupable, et qui a déjà coûté du temps.
+     **Contre-épreuve** (décision n° 75) : privé de l'embranchement qui détourne les classeurs avant
+     les détections CSV, le parcours n'affiche jamais « Import réussi » et le test le dit. Les trois
+     scénarios vérifient que les titres vont au Patrimoine, que la crypto du même relevé reste à
+     l'Investissement, et que la barre y mène.
+     Solde la dette laissée par la PR 3 du plan « Voir ses actifs eToro ».
