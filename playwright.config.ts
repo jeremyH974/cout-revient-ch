@@ -5,7 +5,12 @@
  */
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4173;
+/**
+ * Port du serveur de prévisualisation. Surchargable par `E2E_PORT` : deux worktrees du même
+ * dépôt ne peuvent pas tenir 4173 en même temps, et `reuseExistingServer` ferait alors tester le
+ * build du VOISIN — un échec qui accuse le mauvais coupable.
+ */
+const PORT = Number(process.env['E2E_PORT'] ?? 4173);
 export const BASE_URL = `http://127.0.0.1:${PORT}/cout-revient-ch/`;
 const CI = process.env['CI'] === 'true';
 

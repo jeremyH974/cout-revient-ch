@@ -20,6 +20,10 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   grandeurs déterministes (décisions n° 85 et 87).
 - `npm run build` / `npm run preview`
 - `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
+- `npm run fixture:etoro` — régénère le relevé eToro de démonstration
+  (`tests/fixtures/etoro/releve-demo.xlsx`). Le classeur est **écrit par le script**, jamais déposé :
+  il porte exprès les pièges du format réel (préfixe `x:`, chaîne partagée fragmentée, cibles
+  absolues, deux instantanés empilés, une position à levier et un CFD à écarter).
 - `node scripts/generate-tickers.mjs [top]` — régénère `src/lib/pricing/tickers.generated.ts` (top N
   CoinGecko, 500 par défaut). **`src/lib/pricing/tickers.ts` est la table CURÉE et reste prioritaire** :
   `TICKERS = { ...GENERATED, ...CURATED }`. Un symbole partagé par deux projets ne reçoit **aucun**
