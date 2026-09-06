@@ -103,6 +103,41 @@ l'application n'affiche **jamais** le taux de défaut communiqué par une platef
 ce qu'elle sait calculer sur les prêts de l'utilisateur, avec son dénominateur nommé à l'écran.
 C'est la transposition directe de la décision n° 9 (un chiffre non calculable ne vaut pas zéro).
 
+### 2.5 Addendum du 06/09/2026 — l'export existe, et voici sa forme
+
+Le § 2.3 concluait « non démontré ». **Il l'est désormais** : l'espace investisseur produit bien un
+export (`transactions_<nom>_<horodatage>.csv`), obtenu le jour même. Il faut le demander **sans
+filtre** — un premier export filtré ne contenait que les six dépôts de fonds.
+
+**Forme.** 11 colonnes, séparateur `;`, UTF-8 sans BOM, dates `dd/MM/yyyy`, décimales à la virgule :
+`Opération`, `N°Contrat`, `Projet`, `Entreprise`, `Date`, `Montant`, `Remarques`,
+`Capital remboursé`, `Intérêts remboursés`, `Prélèvements fiscaux et sociaux`, `Montant net`.
+Neuf libellés d'opération observés, dont cinq de remboursement.
+
+**La plateforme ventile elle-même capital / intérêt / prélèvement, ligne par ligne.** C'est mieux
+qu'espéré : l'assiette fiscale du § 7 et le TRI brut comme net se calculent sans aucune hypothèse.
+
+**Trois pièges, tous constatés sur l'export de référence (1 425 lignes, 116 prêts) :**
+
+1. **`Montant` change de sens en cours d'historique.** Ancien flux (`Remboursement mensuel`,
+   jusqu'au 07/09/2025) : montant NET, 551/551. Nouveau flux (`… (new)`, depuis le 08/08/2025) :
+   BRUT capital + intérêts, 589/589. On ne lit donc jamais cette colonne sur un remboursement.
+2. **Un remboursement anticipé est éclaté en plusieurs lignes au même (contrat, date)** — une porte
+   le capital, les autres les intérêts période par période. 36 groupes concernés ; dédoublonner sur
+   ce couple perdrait des intérêts.
+3. **Le même impôt figure deux fois** depuis le nouveau flux : dans la colonne ventilée ET comme
+   débit autonome du portefeuille (131,28 € des deux côtés en 2025). La colonne fait foi.
+
+**Ce que l'export ne contient pas** : taux nominal, échéance, convention de jours, mode
+d'amortissement — et aucun événement de retard ou de défaut. Conséquence directe : l'encours, les
+intérêts et le TRI sont exacts, mais **l'intérêt couru et la détection de retard restent hors de
+portée** tant que ces champs ne sont pas complétés (à la main, ou depuis les contrats PDF).
+
+**Contrôle sur l'export de référence** : 116 prêts, 1 328 événements, 0 libellé inconnu,
+0 incohérence, 0 orphelin. Encours 13 796,85 € ; intérêts bruts 3 210,81 €, prélèvements 943,64 €.
+**TRI brut 14,19 %, TRI net 9,87 %** — la valeur terminale excluant l'intérêt couru, ces deux taux
+sont légèrement prudents.
+
 ---
 
 ## 3. Ce que font les meilleurs
