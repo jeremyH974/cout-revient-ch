@@ -6,7 +6,7 @@
  * l'ordre, et ce qui en sort — encours, retard, défaut — n'est jamais une valeur saisie.
  */
 import { daysInMonth, epochDayOf } from '../date';
-import { D, ZERO, compare, max, toDecimalString, type Big } from '../money';
+import { D, ZERO, compare, max, min, toDecimalString, type Big } from '../money';
 import type {
   Concentration,
   DayCount,
@@ -126,7 +126,13 @@ function roll(events: readonly LoanEvent[]): Rolled {
         acc.principalRepaid = acc.principalRepaid.plus(principal);
         acc.interestReceived = acc.interestReceived.plus(interest);
         acc.withheld = acc.withheld.plus(D(event.withheld));
-        acc.outstanding = max(ZERO, acc.outstanding.minus(principal));
+        // Un recouvrement POSTÉRIEUR à un passage en perte reprend sur la perte : il ne s'ajoute
+        // pas au capital remboursé sans contrepartie, sinon `versé = remboursé + perte + encours`
+        // se briserait — et la perte imputée fiscalement resterait surévaluée.
+        const fromOutstanding = min(principal, acc.outstanding);
+        acc.outstanding = acc.outstanding.minus(fromOutstanding);
+        const beyond = principal.minus(fromOutstanding);
+        if (beyond.gt(ZERO)) acc.writtenOff = max(ZERO, acc.writtenOff.minus(beyond));
         if (interest.gt(ZERO)) acc.lastInterestAt = event.at;
         break;
       }

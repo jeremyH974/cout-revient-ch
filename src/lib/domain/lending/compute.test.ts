@@ -328,3 +328,40 @@ describe('invariant d’encours', () => {
     );
   });
 });
+
+describe('recouvrement après passage en perte', () => {
+  it('reprend sur la perte au lieu de gonfler le capital remboursé', () => {
+    const report = computeLending({
+      loans: [loan()],
+      events: [
+        subscribe('2026-01-01T00:00:00', '1000'),
+        repay('2026-04-01T00:00:00', '300', '30'),
+        {
+          id: 'e:wo',
+          loanId: 'bp:1',
+          at: '2027-01-01T00:00:00',
+          kind: 'write-off',
+          proof: 'failed-proceedings',
+        },
+        {
+          id: 'e:rec',
+          loanId: 'bp:1',
+          at: '2027-06-01T00:00:00',
+          kind: 'recovery',
+          principal: '200',
+          interest: '0',
+          withheld: '0',
+        },
+      ],
+      asOf: '2027-12-31',
+    });
+    const line = report.loans[0]!;
+    expect(line.principalRepaid).toBe('500');
+    expect(line.writtenOff).toBe('500'); // 700 constatés, 200 recouvrés
+    expect(line.outstanding).toBe('0');
+    // L'invariant tient : 500 + 500 + 0 = 1000.
+    expect(Number(line.principalRepaid) + Number(line.writtenOff) + Number(line.outstanding)).toBe(
+      Number(line.disbursed),
+    );
+  });
+});

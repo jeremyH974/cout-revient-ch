@@ -110,7 +110,12 @@ describe('isStale — les trois barrières', () => {
 describe('relevantTo', () => {
   it('ne rend que les entrées touchant le thème demandé', () => {
     const staking = relevantTo(WATCH_ENTRIES, 'revenus');
-    expect(staking.map((e) => e.id).sort()).toEqual(['airdrops', 'staking']);
+    expect(staking.map((e) => e.id).sort()).toEqual([
+      'airdrops',
+      'case-2tt',
+      'pfu-rcm-31_4',
+      'staking',
+    ]);
     for (const entry of staking) expect(entry.topics).toContain('revenus');
   });
 

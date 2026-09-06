@@ -65,6 +65,7 @@ import { computeTrading, type TradingReport } from '$lib/domain/trading/compute'
 import { computeLending } from '$lib/domain/lending/compute';
 import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending/performance';
 import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
+import { lendingTaxFr, type LendingTaxLedger } from '$lib/domain/lending/tax-fr';
 import type { LendingInput, LendingReport } from '$lib/domain/lending/types';
 import {
   detectBienPreter,
@@ -399,6 +400,18 @@ export class AppState {
   );
 
   hasLending = $derived(Object.keys(this.state.lending.loans).length > 0);
+
+  /**
+   * Estimation de déclaration par année civile — jamais un calcul officiel ni un conseil
+   * (`domain/lending/tax-fr.ts`). L'année en cours borne le tableau.
+   */
+  lendingTax = $derived.by((): LendingTaxLedger =>
+    lendingTaxFr({
+      report: this.lendingReport,
+      events: this.lendingInput.events,
+      throughYear: Number(nowIso().slice(0, 4)),
+    }),
+  );
 
   /**
    * Aller-retours (perps reconstruits par compte + trades manuels) fusionnés avec le journal,

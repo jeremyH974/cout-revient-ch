@@ -106,6 +106,47 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['cession'],
   },
   {
+    id: 'pfu-rcm-31_4',
+    title: 'Taux du PFU sur les intérêts de prêts participatifs',
+    status: 'in-force',
+    statusDate: '2025-12-30',
+    effect:
+      '31,4 % (12,8 % IR + 18,6 % PS) sur les intérêts VERSÉS à compter du 01/01/2026 ; 30 % avant. ' +
+      'Date d’effet distincte de celle des cessions (déjà 31,4 % en 2025) : le fait générateur d’un ' +
+      'revenu de placement est son versement. La hausse de CSG elle-même est portée par la LFSS 2026, ' +
+      'mais son application aux produits de placement n’a été lue que dans des commentaires.',
+    source: {
+      label:
+        'MoneyVox, « CSG de 10,6 % sur les intérêts », recoupé avec quatre commentaires de cabinets',
+      url: 'https://www.moneyvox.fr/impot/actualites/108354/impot-sur-le-revenu-2026-les-placements-concernes-par-la-csg-de-10-6-sur-les-interets-2025',
+      official: false,
+      checkedOn: '2026-09-06',
+    },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-09-06',
+    topics: ['revenus'],
+  },
+  {
+    id: 'case-2tt',
+    title: 'Case de déclaration des intérêts de prêts participatifs',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'Les intérêts de prêts participatifs se déclarent case 2TT, PAS case 2TR : « Ne déclarez pas ' +
+      'ligne 2TR les intérêts des prêts participatifs et des minibons qui doivent être déclarés ligne ' +
+      '2TT ». L’IFU 2561 porte une section dédiée qui alimente 2TT. Pertes non imputées à reporter : ' +
+      'cases 2TU à 2TY, par année d’origine.',
+    source: {
+      label: 'Brochure pratique IR 2026, chapitre « Revenus de capitaux mobiliers », p. 127',
+      url: 'https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2026/pdf_som/08-RCM_121a136.pdf',
+      official: true,
+      checkedOn: '2026-09-06',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-06',
+    topics: ['revenus', 'declaratif'],
+  },
+  {
     id: 'seuil-305',
     title: 'Seuil d’exonération de 305 €',
     status: 'in-force',

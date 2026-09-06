@@ -225,6 +225,16 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     use: 'link',
     why: 'Textes officiels (lois, décrets, articles du CGI) cités par la table de veille réglementaire, liés depuis chaque entrée qui en a une.',
   },
+  {
+    origin: 'https://www.impots.gouv.fr',
+    use: 'link',
+    why: 'Brochure pratique de l’impôt sur le revenu, citée par la table de veille pour la case de déclaration des intérêts de prêts participatifs (2TT).',
+  },
+  {
+    origin: 'https://www.moneyvox.fr',
+    use: 'link',
+    why: 'Commentaire de presse spécialisée, seule source trouvée pour la date d’effet de la hausse de CSG sur les produits de placement — l’entrée de veille est marquée `secondary-only` pour cette raison.',
+  },
 ];
 
 /** Origines autorisées par `connect-src`, dans l'ordre de la table. */

@@ -18,6 +18,7 @@
   import { D } from '$lib/domain/money';
   import { fmtPct, fmtRatio } from '$lib/format/fr';
   import type { LoanStatus } from '$lib/domain/lending/types';
+  import { TAX_BOXES } from '$lib/domain/lending/tax-fr';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Delta from '../../components/shared/Delta.svelte';
   import Money from '../../components/shared/Money.svelte';
@@ -28,6 +29,7 @@
   const s = $derived(app.lending);
   const report = $derived(app.lendingReport);
   const perf = $derived(app.lendingPerf);
+  const tax = $derived(app.lendingTax);
 
   const STATUS: Record<LoanStatus, string> = {
     pending: 'En attente',
@@ -213,6 +215,65 @@
         </ul>
       {/if}
     </section>
+
+    {#if tax.years.length > 0}
+      <details class="card">
+        <summary>Déclaration de revenus — estimation</summary>
+        <p class="muted small">
+          Estimation calculée à partir de vos seules opérations. Ce n'est ni une déclaration, ni un
+          conseil fiscal. Vérifiez chaque montant sur l'IFU que la plateforme vous remet en début
+          d'année.
+        </p>
+        <div class="scroll">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Année</th>
+                <th scope="col" class="right">Intérêts — {TAX_BOXES.interest.box}</th>
+                <th scope="col" class="right">Acompte — {TAX_BOXES.incomeTaxCredit.box}</th>
+                <th scope="col" class="right">Sociaux — {TAX_BOXES.social.box}</th>
+                <th scope="col" class="right">Perte imputée</th>
+                <th scope="col" class="right">À reporter — {TAX_BOXES.carry.box}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each tax.years as y (y.year)}
+                <tr>
+                  <th scope="row">{y.year}<span class="muted small block">{y.rate.label}</span></th>
+                  <td class="right"><Money value={app.displayFromEur(y.interestGross)} /></td>
+                  <td class="right"><Money value={app.displayFromEur(y.incomeTaxCredit)} /></td>
+                  <td class="right"><Money value={app.displayFromEur(y.socialPaid)} /></td>
+                  <td class="right"><Money value={app.displayFromEur(y.lossImputed)} /></td>
+                  <td class="right">
+                    <Money
+                      value={app.displayFromEur(
+                        y.carryForward.reduce((t, c) => t.plus(D(c.amount)), D('0')),
+                      )}
+                    />
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <p class="muted small">
+          Les intérêts de prêts participatifs se déclarent case <strong>2TT</strong>, et non 2TR —
+          la brochure officielle le dit expressément. Le partage entre acompte de 12,8 % et
+          prélèvements sociaux est une <strong>estimation</strong> : la plateforme ne communique qu'un
+          montant retenu global, réparti ici au prorata des taux légaux de l'année.
+        </p>
+        {#if tax.hasLosses}
+          <p class="warn">
+            Ce tableau impute des pertes en capital. Le texte laisse plusieurs points ouverts, que
+            l'application tranche par convention :
+          </p>
+          <ul class="muted small">
+            {#each tax.assumptions as note (note)}<li>{note}</li>{/each}
+          </ul>
+          <p class="muted small">Faites vérifier par un professionnel avant de déclarer.</p>
+        {/if}
+      </details>
+    {/if}
 
     <section class="card">
       <div class="head">
