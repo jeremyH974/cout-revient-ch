@@ -23,7 +23,7 @@
     "test:coverage": "vitest run --coverage",
     "bench": "vitest bench --run",
     "audit:prod": "node scripts/audit-deps.ts",
-    "lint": "eslint . && prettier --check . && node scripts/check-no-personal-csv.js",
+    "lint": "eslint . && prettier --check . && node scripts/check-no-personal-exports.js",
     "format": "prettier --write .",
     "typecheck": "svelte-check --tsconfig ./tsconfig.json",
     "check": "npm run lint && npm run typecheck && npm run mcp:build && npm run test",
