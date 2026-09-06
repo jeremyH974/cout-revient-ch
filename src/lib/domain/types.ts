@@ -91,7 +91,7 @@ export type EventScope = 'coinhouse' | 'external';
 
 /** Identifiant d'un compte (plateforme ou saisie) : `ch:main`, `man:default`, `man:<uuid>`, `hl:<adresse>`… */
 export type AccountId = string;
-export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv' | 'onchain';
+export type AccountKind = 'coinhouse' | 'manual' | 'hyperliquid' | 'csv' | 'onchain' | 'lending';
 
 /** Chaîne suivie par un compte on-chain (adresse publique). */
 export type OnchainChain = 'btc' | 'eth' | 'arbitrum' | 'base';

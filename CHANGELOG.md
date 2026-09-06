@@ -5,6 +5,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Un onglet Prêts, pour vos placements en financement participatif.** Importez l'export de
+  votre espace BienPrêter et l'application vous dit ce que vous avez réellement apporté, ce que
+  ça vaut aujourd'hui, et ce que ça rapporte — en euros et en pourcentage, plus un TRI annualisé.
+  Le capital prêté cumulé n'est pas mis en avant : sur un compte où les remboursements sont
+  reprêtés, il peut valoir deux ou trois fois vos apports, et le confondre avec l'argent investi
+  diviserait d'autant le rendement affiché.
+- **Le retard et le défaut se déduisent de vos échéances, ils ne se saisissent pas.** Un
+  remboursement encaissé met à jour le capital restant dû ; rien n'est stocké qu'on puisse oublier
+  de recalculer.
+- **La répartition du risque, en clair.** « Emprunteurs effectifs » : le nombre de lignes de poids
+  égal qui donnerait la même concentration que votre portefeuille réel. Mesurée aussi par
+  plateforme — un défaut d'emprunteur et une défaillance de plateforme ne sont pas le même risque.
+- **Une estimation de déclaration, année par année.** Les intérêts de prêts participatifs se
+  déclarent case **2TT**, pas 2TR, et l'application le dit avec sa source. Elle ventile aussi le
+  prélèvement retenu entre acompte et prélèvements sociaux — en lisant le taux effectivement
+  appliqué plutôt qu'en le présumant, de sorte qu'une année sous dispense n'affiche pas un crédit
+  d'impôt que vous n'avez jamais payé. Estimation, jamais une déclaration ni un conseil fiscal.
+
 ## [2.17.0] - 2026-09-05
 
 ### Fixed

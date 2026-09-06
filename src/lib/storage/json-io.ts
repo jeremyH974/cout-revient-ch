@@ -117,6 +117,11 @@ export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): St
     hyperliquid: mergeHyperliquid(current.hyperliquid, incoming.hyperliquid),
     journal: { ...incoming.journal, ...current.journal },
     manualTrades: { ...incoming.manualTrades, ...current.manualTrades },
+    lending: {
+      loans: { ...incoming.lending.loans, ...current.lending.loans },
+      events: { ...incoming.lending.events, ...current.lending.events },
+      wallet: { ...incoming.lending.wallet, ...current.lending.wallet },
+    },
     alerts: mergeAlerts(current.alerts, incoming.alerts),
   };
 }

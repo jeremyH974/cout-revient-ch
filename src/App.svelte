@@ -23,6 +23,7 @@
   import Alerts from './routes/invest/Alerts.svelte';
   import AssetDetail from './routes/invest/AssetDetail.svelte';
   import Import from './routes/invest/Import.svelte';
+  import Loans from './routes/invest/Loans.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
   import Report from './routes/invest/Report.svelte';
@@ -145,6 +146,8 @@
         <AssetDetail asset={route.asset} />
       {:else if route.name === 'import'}
         <Import />
+      {:else if route.name === 'loans'}
+        <Loans />
       {:else if route.name === 'alerts'}
         <Alerts />
       {:else if route.name === 'add'}

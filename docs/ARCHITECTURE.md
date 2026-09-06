@@ -195,7 +195,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
     résultats de nature différente) : `overview`, `welcome`.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
-    `secondOpinion`, `alerts`.
+    `secondOpinion`, `alerts`, `loans`.
+    `loans` (`#/invest/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
+    de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
+    chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
+    pour ne pas se lire comme un investissement.
   - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`, `fills`.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
@@ -206,7 +210,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     lecture seule, et porte le bouton « Synchroniser ».
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
-  `add`, `report`, `secondOpinion`, `alerts`, `trading`, `trades`, `trade`, `tradeAdd`,
+  `add`, `report`, `secondOpinion`, `alerts`, `loans`, `trading`, `trades`, `trade`, `tradeAdd`,
   `tradeStats`, `fills`, `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
   `help`, `news`, `privacy`.
 
@@ -258,11 +262,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 ## Amélioration continue
 
 - **Auto-vérifications** (`src/lib/support/self-check.ts`, section Réglages + rappel en pied de
-  portefeuille), quinze contrôles identifiés — liste croisée avec le code par
+  portefeuille), seize contrôles identifiés — liste croisée avec le code par
   `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** : `data`, `invariant`, `cashflows`, `lots`,
   `balances`, `blocked`, `unqualified`, `prices`, `mirror`, `backup`, `install`, `transfers`,
   `net-worth-parts`, `net-worth-invest`, `fx` (âge du taux BCE qui convertit les montants en
-  dollars, décision n° 101). Compteurs et tickers seulement.
+  dollars, décision n° 101), `loans` (invariant d'encours des prêts de financement participatif). Compteurs et tickers seulement.
 - **Oracle indépendant** (`tests/integration/independent-oracle.test.ts`) : parseur minimal +
   boucle naïve, comparé au moteur à 1e-9 (fixture et export réel local).
 - **Retours** : diagnostic copiable (`diagnostic.ts`, jamais de montant) + formulaire GitHub

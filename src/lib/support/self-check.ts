@@ -8,6 +8,7 @@ import type { PortfolioReport, PositionReport, PriceQuoteInput } from '../domain
 import type { NetWorthReconciliation } from '../history/net-worth';
 import { D, ZERO, type Big } from '../domain/money';
 import type { AssetCode } from '../domain/types';
+import type { LoanReport } from '../domain/lending/types';
 
 export type CheckLevel = 'ok' | 'warn' | 'fail' | 'info';
 
@@ -43,6 +44,11 @@ export interface SelfCheckInput {
   platform?: { ios: boolean; standalone: boolean };
   /** Comptes de trading (Hyperliquid) : réconciliation d'équité et fraîcheur de synchronisation. */
   trading?: TradingCheckInput[];
+  /**
+   * Prêts de financement participatif : l'invariant d'encours, prêt par prêt. Absent tant
+   * qu'aucun prêt n'est importé — un contrôle sans objet n'est pas un contrôle vert.
+   */
+  lending?: { loans: readonly LoanReport[] };
   /**
    * Taux de change BCE : dernier jour connu de la série EUR→USD, et l'erreur du dernier
    * rafraîchissement. C'est ce taux qui convertit **tout montant en dollars**, y compris quand
@@ -565,6 +571,36 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       );
     }
   }
+  // 8. Prêts : `versé = capital remboursé + passé en perte + encours`, contrat par contrat. Le
+  //    seul invariant du moteur de prêts, et celui qu'un recouvrement tardif avait déjà brisé.
+  const loans = input.lending?.loans ?? [];
+  if (loans.length > 0) {
+    const broken = loans.filter(
+      (l) =>
+        !D(l.disbursed)
+          .minus(D(l.principalRepaid).plus(D(l.writtenOff)).plus(D(l.outstanding)))
+          .abs()
+          .lte(TOLERANCE),
+    );
+    checks.push(
+      broken.length === 0
+        ? {
+            id: 'loans',
+            label: 'Cohérence des prêts',
+            level: 'ok',
+            detail: `${plural(loans.length, 'prêt vérifié', 'prêts vérifiés')} : versé = remboursé + perte + encours.`,
+          }
+        : {
+            id: 'loans',
+            label: 'Cohérence des prêts',
+            level: 'fail',
+            detail: `Écart sur ${plural(broken.length, 'prêt', 'prêts')}.`,
+            action:
+              'Signalez-le avec le diagnostic : c’est une erreur de calcul, pas de vos données.',
+          },
+    );
+  }
+
   return checks;
 }
 

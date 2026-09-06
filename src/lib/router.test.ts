@@ -109,6 +109,7 @@ describe('toHash / parseHash — aller-retour', () => {
     { name: 'add' },
     { name: 'report' },
     { name: 'secondOpinion' },
+    { name: 'loans' },
     { name: 'trading' },
     { name: 'more' },
     { name: 'settings' },

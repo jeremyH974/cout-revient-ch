@@ -1,0 +1,13 @@
+Opération;N°Contrat;Projet;Entreprise;Date;Montant;Remarques;"Capital remboursé";"Intérêts remboursés";"Prélèvements fiscaux et sociaux";"Montant net"
+"Dépôt de fonds";;;;01/02/2025;1000;;;;;
+"Intention de prêt acceptée";C-001;Rénovation atelier;ALPHA SARL;05/02/2025;-500;;;;;
+"Intention de prêt acceptée";C-002;Flotte utilitaire;BETA SAS;06/02/2025;-300;;;;;
+"Remboursement mensuel";C-001;Rénovation atelier;ALPHA SARL;05/03/2025;42,35;;40;3;0,65;42,35
+"Remboursement mensuel (new)";C-001;Rénovation atelier;ALPHA SARL;05/09/2025;43;;40;3;0,65;42,35
+"Remboursement anticipé total";C-002;Flotte utilitaire;BETA SAS;10/04/2025;300;;300;0;0;300
+"Remboursement anticipé total";C-002;Flotte utilitaire;BETA SAS;10/04/2025;0,13;;0;0,19;0,06;0,13
+"Remboursement anticipé total";C-002;Flotte utilitaire;BETA SAS;10/04/2025;2;;0;2,92;0,92;2
+"Prélèvements fiscaux";;;;30/04/2025;-1,63;;;;;
+Bonus;;;;30/04/2025;5;;;;;
+"Remboursement mensuel";C-001;Rénovation atelier;ALPHA SARL;05/04/2025;40;;40;3;0,65;99
+"Vente aux enchères de licornes";C-003;Truc;GAMMA;01/05/2025;10;;;;;

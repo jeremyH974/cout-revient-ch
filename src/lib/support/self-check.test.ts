@@ -5,6 +5,7 @@ import { computePortfolio } from '../domain/engine/aggregate';
 import type { PortfolioReport, PriceQuoteInput } from '../domain/engine/report';
 import { D } from '../domain/money';
 import { DEFAULT_ENGINE_SETTINGS, type TradeEvent } from '../domain/types';
+import type { LoanReport } from '../domain/lending/types';
 import { balanceRecords } from '../import/coinhouse/balances';
 import { importCoinhouseCsv } from '../import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../import/coinhouse/normalize';
@@ -265,5 +266,44 @@ describe('auto-vérifications — un titre entre dans le périmètre vérifié (
   it('compte le titre parmi les positions dont les lots sont recomposés', () => {
     const lots = runSelfChecks(input(report)).find((c) => c.id === 'lots');
     expect(lots?.detail).toContain('2 positions');
+  });
+});
+
+describe('cohérence des prêts', () => {
+  const line = (id: string, over: Partial<LoanReport> = {}): LoanReport =>
+    ({
+      loan: { id } as LoanReport['loan'],
+      status: 'performing',
+      disbursed: '1000',
+      principalRepaid: '400',
+      interestReceived: '50',
+      withheld: '15',
+      writtenOff: '0',
+      saleProceeds: '0',
+      outstanding: '600',
+      accruedInterest: null,
+      daysLate: null,
+      lastEventAt: null,
+      ...over,
+    }) as LoanReport;
+
+  const checkOf = (loans: LoanReport[]) =>
+    runSelfChecks(input(null, { lending: { loans } })).find((c) => c.id === 'loans');
+
+  it('ne pousse aucun contrôle tant qu’aucun prêt n’est importé', () => {
+    expect(checkOf([])).toBeUndefined();
+  });
+
+  it('passe au vert quand `versé = remboursé + perte + encours`', () => {
+    const check = checkOf([line('a'), line('b', { writtenOff: '600', outstanding: '0' })]);
+    expect(check?.level).toBe('ok');
+    expect(check?.detail).toContain('2 prêts vérifiés');
+  });
+
+  it('échoue en comptant les prêts fautifs, sans jamais citer de montant', () => {
+    const check = checkOf([line('a'), line('b', { outstanding: '999' })]);
+    expect(check?.level).toBe('fail');
+    expect(check?.detail).toContain('1 prêt');
+    expect(check?.detail).not.toMatch(/\d{3,}/); // ni encours, ni euros : des compteurs seulement
   });
 });

@@ -40,6 +40,7 @@ class ChecksState {
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
       trading: app.tradingChecks,
+      ...(app.hasLending ? { lending: { loans: app.lendingReport.loans } } : {}),
       fx: {
         latestDay: app.usdRateDay,
         error: app.fxStatus.error,
