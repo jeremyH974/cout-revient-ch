@@ -42,6 +42,7 @@ function baseReport(overrides: Partial<PortfolioReport> = {}): PortfolioReport {
     positions: [],
     cashFlows: [],
     stablecoins: [],
+    equities: [],
     closed: [],
     blocked: [],
     totals: EMPTY_TOTALS,

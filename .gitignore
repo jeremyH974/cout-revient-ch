@@ -19,9 +19,14 @@ monitor-results/
 .DS_Store
 Thumbs.db
 
-# Exports Coinhouse personnels : JAMAIS dans git (seules les fixtures anonymisées sont autorisées)
+# Relevés de courtier personnels : JAMAIS dans git (seules les fixtures synthétiques sont
+# autorisées). Le classeur compte autant que le CSV — c'est le format du relevé eToro.
 *.csv
 !tests/fixtures/**/*.csv
+*.xlsx
+*.xls
+*.xlsm
+!tests/fixtures/**/*.xlsx
 /data/
 
 # Grille tarifaire Coinhouse (PDF tiers, non redistribuable) : ses taux sont repris, sourcés et

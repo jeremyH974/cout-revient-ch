@@ -5,7 +5,8 @@
  * Ordre : CoinGecko (une requête groupée, cotation EUR native, longue traîne ; clé Demo
  * optionnelle) → Coinbase (EUR natif, un appel par actif) → Kraken (EUR natif, groupé) →
  * Hyperliquid (mids USDC : HYPE, PURR et tokens spot Hyperliquid) → DefiLlama (USD, filet de
- * sécurité par identifiant CoinGecko). Les prix en dollars sont convertis au taux BCE du jour par
+ * sécurité par identifiant CoinGecko) → Twelve Data (actions et ETF, sur clé de l'utilisateur ;
+ * inactif sans clé). Les prix en dollars sont convertis au taux BCE du jour par
  * `usdToEur` (docs/DECISIONS.md n° 18).
  */
 import type { AssetCode } from '../../domain/types';
@@ -15,11 +16,14 @@ import { coingeckoProvider } from './coingecko';
 import { defillamaProvider } from './defillama';
 import { hyperliquidProvider } from './hyperliquid';
 import { krakenTickerProvider } from './kraken';
+import { twelveDataProvider } from './twelvedata';
 
 export interface DefaultProvidersOptions {
   /** Identifiants CoinGecko forcés par actif (réglages). */
   idOverrides?: Record<AssetCode, string | null>;
   coingeckoDemoKey?: string | null;
+  /** Clé Twelve Data : sans elle, les actions et ETF restent au prix manuel. */
+  twelveDataApiKey?: string | null;
   /**
    * Convertisseur USD → EUR, éventuellement différé : le taux BCE se charge en parallèle des
    * fournisseurs cotés en euros, et seuls Hyperliquid et DefiLlama l'attendent.
@@ -49,6 +53,9 @@ export function defaultPriceProviders(options: DefaultProvidersOptions): PricePr
     usdProvider('Hyperliquid', options.usdToEur, (usdToEur) => hyperliquidProvider({ usdToEur })),
     usdProvider('DefiLlama', options.usdToEur, (usdToEur) =>
       defillamaProvider({ idOverrides, usdToEur }),
+    ),
+    usdProvider('Twelve Data', options.usdToEur, (usdToEur) =>
+      twelveDataProvider({ apiKey: options.twelveDataApiKey ?? null, usdToEur }),
     ),
   ];
 }

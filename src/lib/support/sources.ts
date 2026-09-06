@@ -94,6 +94,16 @@ export const DATA_SOURCES: readonly DataSource[] = [
     emits: ['Kraken'],
   },
   {
+    id: 'twelvedata',
+    label: 'Twelve Data',
+    role: 'Cours du jour des actions et ETF, sur la clé gratuite que vous fournissez.',
+    url: 'https://twelvedata.com',
+    notice: null,
+    duty: 'unverified',
+    terms: null,
+    emits: ['Twelve Data'],
+  },
+  {
     id: 'hyperliquid',
     label: 'Hyperliquid',
     role: 'Cours des jetons Hyperliquid, et lecture d’un compte suivi par son adresse publique.',

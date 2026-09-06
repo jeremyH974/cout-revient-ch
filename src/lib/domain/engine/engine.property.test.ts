@@ -148,6 +148,7 @@ const close = (x: Big, y: Big): boolean => x.minus(y).abs().lte(TOLERANCE);
 const all = (r: PortfolioReport): PositionReport[] => [
   ...r.positions,
   ...r.stablecoins,
+  ...r.equities,
   ...r.closed,
 ];
 

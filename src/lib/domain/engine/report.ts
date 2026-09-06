@@ -206,6 +206,8 @@ export interface PortfolioReport {
   /** Flux externes datés (voir `CashFlow`), dans l'ordre chronologique du moteur. */
   cashFlows: readonly CashFlow[];
   stablecoins: PositionReport[];
+  /** Titres ouverts (actions, ETF) : classe et régime fiscal distincts. Décision n° 103. */
+  equities: PositionReport[];
   closed: PositionReport[];
   blocked: PositionReport[];
   totals: PortfolioTotals;
