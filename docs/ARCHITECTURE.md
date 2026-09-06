@@ -88,14 +88,16 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   réimportable ailleurs, valeurs EUR de l'app (`koinly-csv.ts`, docs/pivot-import.md).
 - `src/lib/pricing` — table curée des tickers, fournisseurs CoinGecko (groupé), Coinbase (par
   actif), Kraken (groupé), Hyperliquid (mids USDC : HYPE, PURR et tokens spot Hyperliquid) et
-  DefiLlama (filet de sécurité, par identifiant CoinGecko) ; cascade avec cache et prix manuels.
+  DefiLlama (filet de sécurité, par identifiant CoinGecko) et Twelve Data (actions et ETF, seul
+  fournisseur à clé obligatoire — inactif tant que l'utilisateur n'en a pas saisi une, décisions
+  n° 32 et 104) ; cascade avec cache et prix manuels.
   Les trois derniers cotent en USD/USDC, convertis en EUR au taux BCE du jour (`src/lib/fx`,
   docs/DECISIONS.md n° 18). `live.ts` (`createLiveMids`) : prix « live » Hyperliquid par WebSocket
   (`allMids`), strictement opt-in (interrupteur « Prix en direct » de `routes/Trading.svelte`,
   réglage `ui.liveMids`), jamais écrit dans le cache de prix persisté ci-dessus — un canal
   d'affichage à part, docs/DECISIONS.md n° 29. Hôtes joignables déclarés dans `connect-src`
   (`src/lib/support/csp.ts`, table `KNOWN_ORIGINS` — **source de vérité**, croisée avec cette liste
-  par `tests/integration/architecture-doc.test.ts`). **Liste vérifiée** : `api.coingecko.com`, `api.coinbase.com`,
+  par `tests/integration/architecture-doc.test.ts`). **Liste vérifiée** : `api.coingecko.com`, `api.coinbase.com`, `api.twelvedata.com`,
   `api.exchange.coinbase.com`, `api.kraken.com`, `api.hyperliquid.xyz`, `coins.llama.fi`,
   `api.frankfurter.dev`, `api.frankfurter.app`, `mempool.space`, `blockstream.info`,
   `eth.blockscout.com`, `arbitrum.blockscout.com`, `base.blockscout.com`, `api.blockscout.com`,

@@ -87,6 +87,12 @@ export interface UiSettings {
    */
   explorerKey: string | null;
   explorerFlavor: ExplorerFlavor;
+  /**
+   * Clé Twelve Data (cours des actions et ETF), gratuite et facultative : données de marché en
+   * lecture seule, qui n'ouvrent aucun compte — même famille que la clé d'explorateur ci-dessus
+   * (décision n° 32). Sans elle, les titres restent au prix manuel, sans erreur.
+   */
+  twelveDataApiKey: string | null;
   /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
   liveMids: boolean;
   /**
@@ -197,6 +203,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   demoMode: false,
   lastSeenVersion: null,
   coingeckoDemoKey: null,
+  twelveDataApiKey: null,
   explorerKey: null,
   explorerFlavor: 'etherscan',
   liveMids: false,
@@ -885,6 +892,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       ...state.ui,
       coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey),
       explorerKey: sanitizeApiKey(state.ui.explorerKey),
+      twelveDataApiKey: sanitizeApiKey(state.ui.twelveDataApiKey),
       explorerFlavor: KEYED_FLAVORS.includes(state.ui.explorerFlavor)
         ? state.ui.explorerFlavor
         : 'etherscan',

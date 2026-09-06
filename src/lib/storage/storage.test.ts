@@ -151,7 +151,15 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       // rôle : elle constate qu'une sauvegarde de 2026 gagne deux préférences à valeur par défaut,
       // sans montée de `SCHEMA_VERSION` et sans qu'aucune donnée de l'utilisateur ne bouge. Le
       // fichier gelé, lui, n'est pas retouché.
-      ui: { ...envelope.state.ui, aiEnabled: false, aiModelId: null },
+      // Et un troisième depuis (P102, clé Twelve Data) : la fixture a rougi dès sa déclaration,
+      // et constate qu'une sauvegarde de 2026 gagne un réglage vide de plus, sans montée de
+      // schéma ni déplacement de la moindre donnée.
+      ui: {
+        ...envelope.state.ui,
+        aiEnabled: false,
+        aiModelId: null,
+        twelveDataApiKey: null,
+      },
       priceCache: {
         ...envelope.state.priceCache,
         btc: { ...envelope.state.priceCache['btc']!, stale: true },
