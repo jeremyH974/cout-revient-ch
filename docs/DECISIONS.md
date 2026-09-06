@@ -2437,3 +2437,33 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      — il cherchait « sol » quand le code envoie « SOL » — et c'est la contre-épreuve, non la
      relecture, qui l'a montré. La règle a payé une fois de plus.
      Lot P102 de la proposition du 06/09.
+
+105. **Un classeur se lit sans dépendance, et son XML se scanne sans DOM** (06/09/2026).
+     Le relevé eToro n'existe qu'en `.xlsx` : savoir lire un classeur est devenu la condition
+     d'entrée des actions et ETF dans l'application.
+     **Écarté, le paquet npm `xlsx`** (SheetJS) : figé à la 0.18.5 de mars 2022, avec deux avis de
+     sécurité dont le texte indique qu'aucune version corrigée n'est disponible sur npm.
+     **Écarté aussi, `read-excel-file`** : sain et maintenu, mais il ajouterait une dépendance de
+     production à un projet qui en compte neuf — pour lire trois parties d'un format connu.
+     **Retenu : environ 230 lignes.** Un `.xlsx` est un ZIP de XML ;
+     `DecompressionStream('deflate-raw')` est natif du navigateur comme de Node, et trois parties
+     suffisent : le classeur, sa table de relations, les chaînes partagées.
+     **`DOMParser` est écarté pour une raison qui n'est pas esthétique** : les tests tournent sous
+     `environment: 'node'` et le dépôt n'embarque ni jsdom ni happy-dom. Un lecteur non testable
+     aurait coûté plus cher que quatre-vingts lignes de scanner, et le XML d'un classeur est
+     machine-généré — sans DTD, sans CDATA.
+     **Ce que le fichier réel a démenti**, et qu'aucune documentation ne disait : le relevé eToro
+     **préfixe tous ses éléments** (`<x:sheet>`, `<x:row>`, `<x:c>`) là où Excel écrit sans préfixe,
+     et référence ses feuilles par chemin absolu. Un scanner cherchant `<sheet` littéralement aurait
+     rendu un classeur **vide, sans la moindre erreur**. C'est d'avoir lu le vrai fichier avant
+     d'écrire la première ligne qui l'a montré.
+     **Aucune valeur n'est interprétée** : tout est rendu en texte tel qu'écrit, sans arrondi ni
+     conversion de date. La règle du dépôt veut qu'aucun `number` ne porte un montant, et c'est au
+     convertisseur de plateforme de donner un sens aux colonnes.
+     **Contre-épreuve** (décision n° 75) : privé de la gestion du préfixe, le scanner rend
+     `undefined` là où « B » est attendu ; privé du placement par référence de colonne, une ligne à
+     trou rend `[ 'Asset', 'ISIN' ]` au lieu de `[ 'Asset', '', 'ISIN' ]` — la colonne C devient la
+     B, en silence.
+     Vérifié sur le relevé réel : sept feuilles, 182 / 32 / 408 / 65 lignes, et le `_x000a_` des
+     en-têtes restitué en saut de ligne.
+     Lot PR 1 du plan « Voir ses actifs eToro ».
