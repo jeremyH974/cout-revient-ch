@@ -263,6 +263,10 @@
     >Alertes{app.unreadAlertCount > 0 ? ` (${app.unreadAlertCount})` : ''}</a
   >
   ·
+  <a href={router.href({ name: 'loans' })}
+    >Prêts{app.hasLending ? ` (${app.lendingReport.loans.length})` : ''}</a
+  >
+  ·
   <a href={router.href({ name: 'settings' })} class="checks-link"><SelfChecks compact /></a>
 </footer>
 

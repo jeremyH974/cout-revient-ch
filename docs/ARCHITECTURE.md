@@ -193,7 +193,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
     résultats de nature différente) : `overview`, `welcome`.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
-    `secondOpinion`, `alerts`.
+    `secondOpinion`, `alerts`, `loans`.
+    `loans` (`#/invest/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
+    de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
+    chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
+    pour ne pas se lire comme un investissement.
   - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`, `fills`.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
@@ -204,7 +208,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     lecture seule, et porte le bouton « Synchroniser ».
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
-  `add`, `report`, `secondOpinion`, `alerts`, `trading`, `trades`, `trade`, `tradeAdd`,
+  `add`, `report`, `secondOpinion`, `alerts`, `loans`, `trading`, `trades`, `trade`, `tradeAdd`,
   `tradeStats`, `fills`, `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
   `help`, `news`, `privacy`.
 

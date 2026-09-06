@@ -62,6 +62,16 @@ import { analyzeSubscription, type SubscriptionAnalysis } from '$lib/domain/subs
 import { xirrEur, type XirrResult } from '$lib/domain/xirr';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
+import { computeLending } from '$lib/domain/lending/compute';
+import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending/performance';
+import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
+import type { LendingInput, LendingReport } from '$lib/domain/lending/types';
+import {
+  detectBienPreter,
+  parseBienPreter,
+  type BienPreterImport,
+} from '$lib/import/bienpreter/parse';
+import { parseCsvText } from '$lib/import/csv';
 import {
   emptyJournalEntry,
   isEmptyJournalEntry,
@@ -366,6 +376,29 @@ export class AppState {
   );
 
   hasTrading = $derived(this.hlAccounts.length > 0);
+
+  /**
+   * Espace Prêts (financement participatif). Le jour d'observation est celui de la journée en
+   * cours : retard, intérêts courus et valeur terminale s'y rapportent.
+   */
+  private lendingInput = $derived.by((): LendingInput => ({
+    loans: Object.values(this.state.lending.loans),
+    events: Object.values(this.state.lending.events),
+    asOf: nowIso().slice(0, 10),
+  }));
+
+  lendingReport = $derived.by((): LendingReport => computeLending(this.lendingInput));
+
+  /** Apports, valeur, résultat — `apports nets + résultat = valeur` (décision n° 51). */
+  lending = $derived.by((): LendingSummary =>
+    lendingSummary(this.lendingReport, Object.values(this.state.lending.wallet)),
+  );
+
+  lendingPerf = $derived.by((): LendingPerformance =>
+    lendingPerformance(this.lendingInput, this.lendingReport),
+  );
+
+  hasLending = $derived(Object.keys(this.state.lending.loans).length > 0);
 
   /**
    * Aller-retours (perps reconstruits par compte + trades manuels) fusionnés avec le journal,
@@ -1262,6 +1295,61 @@ export class AppState {
       void requestPersistentStorage();
     }
     return result;
+  }
+
+  /**
+   * Import d'un export de plateforme de financement participatif. Union par identifiant : les
+   * clés étant des empreintes de contenu, ré-importer le même fichier n'ajoute rien.
+   *
+   * Le compte porte un identifiant fixe faute de `AccountKind` dédié — conséquence assumée et
+   * temporaire : ce compte n'apparaît pas encore dans l'écran Comptes ni dans le 3916-bis.
+   */
+  importLendingCsv(
+    text: string,
+    fileName: string,
+    now = nowMs(),
+  ): { ok: false; error: string } | { ok: true; added: number; parsed: BienPreterImport } {
+    const table = parseCsvText(text);
+    if (!detectBienPreter(table.header))
+      return {
+        ok: false,
+        error:
+          'Ce fichier ne ressemble pas à un export BienPrêter : les colonnes « N°Contrat », « Capital remboursé », « Intérêts remboursés » et « Prélèvements fiscaux et sociaux » sont attendues.',
+      };
+    this.exitDemo();
+    const parsed = parseBienPreter(table, 'lend:bienpreter');
+    const before = Object.keys(this.state.lending.events).length;
+    this.state.lending = {
+      loans: {
+        ...this.state.lending.loans,
+        ...Object.fromEntries(parsed.loans.map((l) => [l.id, l])),
+      },
+      events: {
+        ...this.state.lending.events,
+        ...Object.fromEntries(parsed.events.map((e) => [e.id, e])),
+      },
+      wallet: {
+        ...this.state.lending.wallet,
+        ...Object.fromEntries(parsed.wallet.map((w) => [w.id, w])),
+      },
+    };
+    const importId = `imp:${now.toString(36)}`;
+    this.state.imports = [
+      ...this.state.imports,
+      {
+        id: importId,
+        at: nowIso(now),
+        fileName,
+        rows: table.rows.length,
+        newRows: Object.keys(this.state.lending.events).length - before,
+        format: 'bienpreter',
+        header: table.header,
+        unknownColumns: parsed.unknown.map((u) => u.label),
+        accountId: 'lend:bienpreter',
+      },
+    ];
+    void requestPersistentStorage();
+    return { ok: true, added: Object.keys(this.state.lending.events).length - before, parsed };
   }
 
   /** Compte destinataire d'un import pivot (kind `csv`, espace Investissement). */
