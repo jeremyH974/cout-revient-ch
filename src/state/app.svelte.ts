@@ -127,6 +127,7 @@ import {
 import { fnv1a } from '$lib/import/pivot/rows';
 import { importMappedCsv, normalizeHeader, type ConfirmedMapping } from '$lib/import/mapping/index';
 import { pivotLedgerEvents } from '$lib/import/pivot/events';
+import { importEtoroWorkbook as readEtoroWorkbook } from '$lib/import/etoro';
 import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index';
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
 import { importAnyCsv, PLATFORM_CONVERTERS } from '$lib/import/platforms/index';
@@ -1387,6 +1388,74 @@ export class AppState {
   }
 
   /** Compte destinataire d'un import pivot (kind `csv`, espace Investissement). */
+  /**
+   * Importe un relevé eToro (classeur). Le fichier est **binaire** : il ne peut pas emprunter le
+   * chemin des CSV, qui commence par `file.text()`. Le compte est unique et implicite, comme
+   * celui de Coinhouse — on a un compte eToro, pas plusieurs.
+   *
+   * Aucun pays n’est posé : eToro tient plusieurs entités selon le pays de résidence, et en
+   * deviner une serait pire que laisser l’utilisateur la déclarer (même règle que P66).
+   */
+  async importEtoroWorkbook(
+    buffer: ArrayBuffer,
+    fileName: string,
+    now = nowMs(),
+  ): Promise<PivotImportResult> {
+    const importId = `imp:${now.toString(36)}`;
+    const accountId = 'etoro:main';
+    const parsed = await readEtoroWorkbook(buffer, importId, accountId);
+    if (!parsed.ok) return { ok: false, error: parsed.error, details: [], header: [] };
+    this.exitDemo();
+    if (!this.state.accounts[accountId]) {
+      this.state.accounts = {
+        ...this.state.accounts,
+        [accountId]: {
+          id: accountId,
+          kind: 'etoro',
+          label: 'eToro',
+          space: 'invest',
+          createdAt: nowIso(now),
+        },
+      };
+    }
+    const usd = rateLookup(this.state.fx.rates.USD ?? {});
+    const result = ingestPivotRows(
+      { rows: parsed.rows, issues: parsed.issues },
+      {
+        format: 'etoro',
+        header: [],
+        unknownColumns: [],
+        totalRows: parsed.rows.length,
+        skippedInternal: parsed.skipped,
+      },
+      this.state.pivotRows,
+      accountId,
+      (day) => usd.rate(day),
+      this.state.qualifications,
+    );
+    if (result.ok) {
+      this.state.pivotRows = result.rows;
+      this.state.imports = [
+        ...this.state.imports,
+        {
+          id: importId,
+          at: nowIso(now),
+          fileName,
+          rows: result.report.parsedRows,
+          newRows: result.report.newRows,
+          format: 'etoro',
+          header: [],
+          unknownColumns: [],
+          accountId,
+        },
+      ];
+      // Les montants du relevé sont en dollars : leurs jours ont besoin des taux BCE.
+      void this.ensureRates('USD');
+      void requestPersistentStorage();
+    }
+    return result;
+  }
+
   addPivotAccount(label: string): Account {
     const id = `csv:${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     const account: Account = {

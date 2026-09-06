@@ -5,7 +5,7 @@
  */
 import type { Route, RouteName } from './router.svelte';
 
-export type SpaceId = 'overview' | 'invest' | 'trading' | 'more';
+export type SpaceId = 'overview' | 'invest' | 'wealth' | 'trading' | 'more';
 
 export interface Space {
   id: SpaceId;
@@ -31,6 +31,13 @@ export const SPACES: readonly Space[] = [
     home: { name: 'portfolio' },
     backLabel: 'Retour au portefeuille',
     routes: ['portfolio', 'asset', 'import', 'add', 'report', 'secondOpinion', 'alerts', 'loans'],
+  },
+  {
+    id: 'wealth',
+    label: 'Patrimoine',
+    home: { name: 'titles' },
+    backLabel: 'Retour au patrimoine',
+    routes: ['titles'],
   },
   {
     id: 'trading',

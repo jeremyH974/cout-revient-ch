@@ -26,6 +26,7 @@
   import Loans from './routes/invest/Loans.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
+  import Titles from './routes/wealth/Titles.svelte';
   import Report from './routes/invest/Report.svelte';
   import SecondOpinion from './routes/invest/SecondOpinion.svelte';
   import { recordError } from '$lib/support/errors';
@@ -148,6 +149,8 @@
         <Import />
       {:else if route.name === 'loans'}
         <Loans />
+      {:else if route.name === 'titles'}
+        <Titles />
       {:else if route.name === 'alerts'}
         <Alerts />
       {:else if route.name === 'add'}

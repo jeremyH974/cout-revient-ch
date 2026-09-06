@@ -16,7 +16,9 @@
   });
 
   const quotes = $derived(
-    [...app.report.positions, ...app.report.stablecoins].flatMap((p) => (p.price ? [p.price] : [])),
+    [...app.report.positions, ...app.report.stablecoins, ...app.report.equities].flatMap((p) =>
+      p.price ? [p.price] : [],
+    ),
   );
   const sources = $derived([...new Set(quotes.map((q) => q.source))]);
   const stale = $derived(quotes.some((q) => q.stale));

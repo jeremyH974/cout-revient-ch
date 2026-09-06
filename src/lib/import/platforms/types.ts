@@ -16,7 +16,8 @@ export type PlatformFormatId =
   | 'ledger-live'
   | 'binance'
   | 'bitpanda'
-  | 'swissborg';
+  | 'swissborg'
+  | 'etoro';
 
 export interface PlatformDraft {
   /** Ligne du fichier d'origine (la première, pour une opération multi-lignes). */

@@ -10,7 +10,7 @@
 import type { AccountId } from '../../domain/types';
 import { draftsToPivotRows } from '../platforms/drafts';
 import type { ParsedPivotRows, PivotIssue } from '../pivot/rows';
-import { readWorkbook } from '../xlsx';
+import { readWorkbook } from '../xlsx/index';
 import { convertEtoroWorkbook } from './convert';
 import { detectEtoroWorkbook } from './sheets';
 

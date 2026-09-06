@@ -9,7 +9,7 @@
  * Les en-têtes portent aussi des sauts de ligne (« Montant⏎ en (USD) », encodés `_x000a_`) : la
  * comparaison normalise donc tous les blancs avant de chercher.
  */
-import type { SheetData, Workbook } from '../xlsx';
+import type { SheetData, Workbook } from '../xlsx/index';
 
 export interface EtoroSheet {
   name: string;

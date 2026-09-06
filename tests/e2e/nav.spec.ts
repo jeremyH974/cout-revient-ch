@@ -1,5 +1,5 @@
 /**
- * Navigation en espaces (v2) : alias v1 encore valables, quatre destinations de la navigation
+ * Navigation en espaces (v2) : alias v1 encore valables, cinq destinations de la navigation
  * principale, Vue d'ensemble, espace Trading accessible sans données, et liens de retour de la
  * barre d'application. Les autres specs (mobile, a11y, demo, asset…) couvrent le contenu de chaque
  * écran ; celle-ci couvre le routage lui-même.
@@ -26,10 +26,10 @@ test.describe('alias v1 (hashes historiques toujours compris)', () => {
 });
 
 test.describe('navigation principale', () => {
-  test('quatre destinations, aria-current suit la route', async ({ page }) => {
+  test('cinq destinations, aria-current suit la route', async ({ page }) => {
     await openDemo(page);
     const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-    const labels = ["Vue d'ensemble", 'Investissement', 'Trading', 'Plus'];
+    const labels = ["Vue d'ensemble", 'Investissement', 'Patrimoine', 'Trading', 'Plus'];
     await expect(nav.getByRole('link')).toHaveCount(labels.length);
     for (const label of labels) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible();
