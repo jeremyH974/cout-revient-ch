@@ -88,6 +88,7 @@ const HOUR_MS = 3_600_000;
 const allPositions = (r: PortfolioReport): PositionReport[] => [
   ...r.positions,
   ...r.stablecoins,
+  ...r.equities,
   ...r.closed,
 ];
 
@@ -168,7 +169,9 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
     }
 
     // 2. Lots ↔ position : la somme des lots restants doit redonner la quantité et le coût.
-    const open = [...report.positions, ...report.stablecoins].filter((p) => p.lots.length > 0);
+    const open = [...report.positions, ...report.stablecoins, ...report.equities].filter(
+      (p) => p.lots.length > 0,
+    );
     const lotBroken = open.filter((p) => {
       const qty = p.lots.reduce((acc, l) => acc.plus(l.qtyRemaining), p.qty.minus(p.qty));
       const cost = p.lots.reduce(
@@ -263,7 +266,9 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
     }
 
     // 5. Prix : manquants, périmés, anciens.
-    const held = [...report.positions, ...report.stablecoins].map((p) => p.asset);
+    const held = [...report.positions, ...report.stablecoins, ...report.equities].map(
+      (p) => p.asset,
+    );
     if (input.prices.source === 'off') {
       checks.push({
         id: 'prices',

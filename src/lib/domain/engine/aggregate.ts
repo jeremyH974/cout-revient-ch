@@ -131,6 +131,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   const closed = live.filter((p) => p.closed);
   const positions = open.filter((p) => p.assetClass === 'crypto');
   const stablecoins = open.filter((p) => p.assetClass === 'stablecoin');
+  const equities = open.filter((p) => p.assetClass === 'equity');
 
   const sumBy = (items: PositionReport[], pick: (p: PositionReport) => Big | null): Big =>
     items.reduce((acc, p) => acc.plus(pick(p) ?? ZERO), ZERO);
@@ -186,6 +187,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     positions,
     cashFlows: run.cashFlows,
     stablecoins,
+    equities,
     closed,
     blocked,
     totals,

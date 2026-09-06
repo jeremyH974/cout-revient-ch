@@ -2375,3 +2375,30 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      la démo lance le chargement de l'historique des prix. Il les laisse maintenant atterrir avant
      de mesurer. Attendre `networkidle` aurait été pire : l'historique finissait de charger et la
      section n'affichait plus le bouton que le test veut voir.
+
+103. **La classe d'un actif est une donnée portée par son code, jamais devinée depuis le ticker**
+     (06/09/2026).
+     `assetClass()` déclarait `crypto` tout code absent des tables fiat et stablecoin. Une action
+     importée demain y serait tombée sans un mot — et deux actifs homonymes auraient partagé une
+     position, donc un PRU : `sol` désigne Solana, `SOL` désigne aussi Emeren Group au NYSE, et
+     `UNI` vaut pour Uniswap comme pour une action cotée. Un ticker n'identifie rien à lui seul ;
+     Portfolio Performance exige ISIN, ticker ou WKN pour cette raison précise, et la décision
+     n° 54 disait déjà la même chose des prix.
+     **Retenu** : les titres portent une marque dans leur code interne (`eq:aapl`), posée à
+     l'import, là où l'information existe. `assetClass()` la lit avant toute déduction. Le
+     deux-points est sûr : aucun ticker n'en contient, aucune clé du domaine n'est découpée dessus,
+     et le stockage l'accepte déjà.
+     **Écarté** : un champ de classe sur chaque jambe d'événement. Il aurait fallu le propager
+     partout sans jamais empêcher deux classes de partager une clé de position. La marque dans le
+     code rend la collision impossible par construction, et ne touche pas au type `AssetCode` —
+     donc ni au stockage, ni aux écrans, ni aux tables de prix.
+     **Corollaire, et c'est le vrai risque du lot** : le rapport gagne une liste `equities`,
+     incluse **dès sa naissance** dans les agrégations d'auto-vérification. L'exhaustivité y était
+     implicite — `positions ∪ stablecoins ∪ closed`, le fiat étant écarté en amont — si bien qu'une
+     quatrième classe aurait laissé un titre hors de l'invariant comptable : voyants verts sur un
+     actif jamais regardé.
+     **Contre-épreuve dans les deux sens** (décision n° 75) : privée de la marque, la vérification
+     rend `[ 'eq:sol', 'sol' ]` là où elle attend `[ 'sol' ]` — les deux actifs ont fusionné ;
+     privées d'`equities`, les auto-vérifications annoncent « 1 actif vérifié » au lieu de 2.
+     Lot P100 de la proposition du 06/09. Le PRU en coût moyen pondéré (décision n° 5) étant déjà
+     la méthode légale des valeurs mobilières, le calcul lui-même n'a pas eu à changer.

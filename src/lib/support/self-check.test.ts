@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { equityCode } from '../domain/assets';
 import { computePortfolio } from '../domain/engine/aggregate';
 import type { PortfolioReport, PriceQuoteInput } from '../domain/engine/report';
 import { D } from '../domain/money';
-import { DEFAULT_ENGINE_SETTINGS } from '../domain/types';
+import { DEFAULT_ENGINE_SETTINGS, type TradeEvent } from '../domain/types';
 import { balanceRecords } from '../import/coinhouse/balances';
 import { importCoinhouseCsv } from '../import/coinhouse/index';
 import { normalizeCoinhouseRows } from '../import/coinhouse/normalize';
@@ -221,5 +222,48 @@ describe('fraîcheur du taux de change (décision n° 101)', () => {
   it('quand le rafraîchissement échoue, l’action nomme l’erreur plutôt que d’envoyer actualiser', () => {
     const check = fxCheck({ error: 'HTTP 503' });
     expect(check?.action).toContain('HTTP 503');
+  });
+});
+
+describe('auto-vérifications — un titre entre dans le périmètre vérifié (décision n° 103)', () => {
+  // Un titre vit dans `report.equities`. S'il échappait aux agrégations ci-dessous, les voyants
+  // resteraient verts sans l'avoir jamais regardé : le pire des deux mondes.
+  const eq = equityCode('AAPL');
+  const trade = (id: string, asset: string, qty: string, eur: string): TradeEvent => ({
+    id,
+    at: '2026-01-01T10:00:00',
+    source: 'manual',
+    scope: 'external',
+    accountId: 'man:default',
+    rowKeys: [],
+    warnings: [],
+    kind: 'trade',
+    out: { asset: 'eur', qty: eur },
+    in: { asset, qty },
+    valueEur: eur,
+    valueEurSource: 'manual',
+    fee: null,
+    quotePrice: null,
+  });
+  const report = computePortfolio({
+    events: [trade('e1', 'btc', '1', '1000'), trade('e2', eq, '10', '2000')],
+    prices: { btc: quote('btc'), [eq]: quote(eq) },
+    settings: DEFAULT_ENGINE_SETTINGS,
+  });
+
+  it('range le titre dans equities, et non parmi les positions crypto', () => {
+    expect(report.equities.map((p) => p.asset)).toEqual([eq]);
+    expect(report.positions.map((p) => p.asset)).toEqual(['btc']);
+  });
+
+  it('compte le titre parmi les actifs vérifiés par l’invariant comptable', () => {
+    const invariant = runSelfChecks(input(report)).find((c) => c.id === 'invariant');
+    expect(invariant?.level).toBe('ok');
+    expect(invariant?.detail).toContain('2 actifs vérifiés');
+  });
+
+  it('compte le titre parmi les positions dont les lots sont recomposés', () => {
+    const lots = runSelfChecks(input(report)).find((c) => c.id === 'lots');
+    expect(lots?.detail).toContain('2 positions');
   });
 });
