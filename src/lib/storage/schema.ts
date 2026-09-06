@@ -6,6 +6,8 @@ import { METRICS, type Metric } from '../history/metrics';
 import { KEYED_FLAVORS, type ExplorerFlavor } from '../import/onchain/etherscan';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { emptyHlState, type HlState } from '../import/hyperliquid/data';
+import { emptyLendingState, type LendingState } from '../domain/lending/types';
+import { sanitizeLendingState } from '../domain/lending/sanitize';
 import { sanitizeHlState } from '../import/hyperliquid/sanitize';
 import {
   DEFAULT_ENGINE_SETTINGS,
@@ -175,6 +177,11 @@ export interface StoredStateV1 {
   journal: Record<string, JournalEntry>;
   /** Trades saisis à la main (plateformes sans API) ; le P&L est calculé, jamais stocké. */
   manualTrades: Record<string, ManualTrade>;
+  /**
+   * Prêts de financement participatif : contrats, événements datés et trésorerie de la
+   * plateforme. Rien de dérivé n'y est stocké — encours, statut et TRI sont recalculés.
+   */
+  lending: LendingState;
   engineSettings: EngineSettings;
   priceCache: Record<AssetCode, PriceQuoteInput>;
   /** Taux de change BCE mis en cache (EUR → devises d'affichage). */
@@ -222,6 +229,7 @@ export function emptyState(): StoredStateV1 {
     hyperliquid: emptyHlState(),
     journal: {},
     manualTrades: {},
+    lending: emptyLendingState(),
     engineSettings: { ...DEFAULT_ENGINE_SETTINGS },
     priceCache: {},
     fx: { ...EMPTY_FX_CACHE, rates: {}, updatedAt: {} },
@@ -264,6 +272,7 @@ export function withDefaults(state: StoredStateV1): StoredStateV1 {
       : empty.hyperliquid,
     journal: isRecord(state.journal) ? state.journal : {},
     manualTrades: isRecord(state.manualTrades) ? state.manualTrades : {},
+    lending: isRecord(state.lending) ? { ...empty.lending, ...state.lending } : empty.lending,
     priceCache: isRecord(state.priceCache) ? state.priceCache : {},
     fx: isRecord(state.fx) ? { ...empty.fx, ...state.fx } : empty.fx,
     alerts: isRecord(state.alerts)
@@ -785,6 +794,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     if (trade) manualTrades[id] = trade;
     else dropped++;
   }
+  const lending = sanitizeLendingState(state.lending);
+  dropped += lending.dropped;
   const taxAnnotations: Record<EventId, { portfolioValueEur: DecimalString | null }> = {};
   for (const [id, raw] of Object.entries(state.taxAnnotations)) {
     if (isRecord(raw) && isDecimalOrNull(raw['portfolioValueEur']))
@@ -907,6 +918,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       hyperliquid: hl.state,
       journal,
       manualTrades,
+      lending: lending.state,
       engineSettings,
       fx,
       alerts,

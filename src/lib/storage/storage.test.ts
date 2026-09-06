@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { emptyLendingState } from '../domain/lending/types';
 import type { Account, AccountId, ManualEvent, StoredColumnMapping } from '../domain/types';
 import type { AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
@@ -146,6 +147,10 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       // fichier ancien se relit toujours, il gagne un conteneur vide. La fixture, elle, ne bouge
       // pas — seul l'attendu constate l'ajout, et c'est exactement ce que ce test doit exiger.
       duplicateOverrides: {},
+      // Conteneur ajouté APRÈS le gel (prêts de financement participatif) — même chemin additif.
+      // La fixture a rougi dès sa déclaration : une sauvegarde de 2026 gagne un conteneur vide,
+      // sans montée de `SCHEMA_VERSION` et sans qu'aucune donnée de l'utilisateur ne bouge.
+      lending: emptyLendingState(),
       // Deux champs ajoutés APRÈS le gel (P65, récit narratif) — même chemin additif que le
       // conteneur ci-dessus. La fixture a rougi dès leur déclaration, et c'est très exactement son
       // rôle : elle constate qu'une sauvegarde de 2026 gagne deux préférences à valeur par défaut,
@@ -598,6 +603,36 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       at: '2026-01-02T10:00:00Z',
       read: false,
     };
+    s.lending.loans['bp:C-1'] = {
+      id: 'bp:C-1',
+      accountId: 'acc:bp',
+      platform: 'bienpreter',
+      borrower: 'ALPHA SARL',
+      label: 'Facture ALPHA',
+      principal: '500',
+      rate: '0.12',
+      dayCount: 'act/365',
+      amortisation: 'in-fine',
+      subscribedAt: '2026-01-01T00:00:00',
+      maturity: '2026-07-01T00:00:00',
+      currency: 'eur',
+      sector: 'BTP',
+    };
+    s.lending.events['bp:sub'] = {
+      id: 'bp:sub',
+      loanId: 'bp:C-1',
+      at: '2026-01-01T00:00:00',
+      kind: 'subscription',
+      amount: '500',
+      note: 'souscription',
+    };
+    s.lending.wallet['bpw:1'] = {
+      id: 'bpw:1',
+      at: '2026-01-01T00:00:00',
+      kind: 'deposit',
+      amount: '1000',
+      label: 'Dépôt de fonds',
+    };
     s.alerts.events.push(event);
     s.alerts.settings.watch = true;
     s.ui.theme = 'light';
@@ -647,6 +682,7 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       'hyperliquid',
       'journal',
       'manualTrades',
+      'lending',
       'alerts',
     ] as const;
     // Conteneurs LOCAUX : l'état courant l'emporte (docstring de `mergeStates`).

@@ -178,3 +178,32 @@ export interface LendingReport {
   /** Événements orphelins (rattachés à un prêt absent) : signalés, jamais ignorés en silence. */
   orphanEvents: EventId[];
 }
+
+/**
+ * Mouvement du portefeuille électronique de la plateforme : dépôt, retrait, bonus, et débit des
+ * prélèvements. Hors grand livre des prêts — un dépôt n'est pas un prêt — mais indispensable au
+ * solde de trésorerie et à la réconciliation avec le relevé de la plateforme.
+ */
+export interface WalletMovement {
+  id: string;
+  at: NaiveDateTime;
+  kind: 'deposit' | 'withdrawal' | 'bonus' | 'tax';
+  /** Montant SIGNÉ tel que la plateforme le donne (négatif = sortie du portefeuille). */
+  amount: DecimalString;
+  label: string;
+}
+
+/**
+ * Ce qui se persiste : les contrats, les événements et la trésorerie, tous indexés par
+ * identifiant stable. Rien de dérivé n'est stocké — encours, statut et TRI sont recalculés à
+ * chaque chargement, ce qui rend un ré-import idempotent.
+ */
+export interface LendingState {
+  loans: Record<LoanId, Loan>;
+  events: Record<EventId, LoanEvent>;
+  wallet: Record<string, WalletMovement>;
+}
+
+export function emptyLendingState(): LendingState {
+  return { loans: {}, events: {}, wallet: {} };
+}

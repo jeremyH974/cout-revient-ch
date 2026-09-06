@@ -28,21 +28,18 @@
  * détection de retard restent hors de portée tant que l'utilisateur ne les complète pas.
  */
 import type { AccountId, DecimalString, NaiveDateTime } from '../../domain/types';
-import type { Amortisation, DayCount, Loan, LoanEvent } from '../../domain/lending/types';
+export type { WalletMovement };
+import type {
+  Amortisation,
+  DayCount,
+  Loan,
+  LoanEvent,
+  WalletMovement,
+} from '../../domain/lending/types';
 import { D, toDecimalString } from '../../domain/money';
 import { parseNaiveDateTime, parseNumberCell } from '../coinhouse/rows';
 import { fnv1a } from '../pivot/rows';
 import type { CsvTable } from '../csv';
-
-/** Mouvement du portefeuille électronique : hors grand livre des prêts, mais pas hors du total. */
-export interface WalletMovement {
-  id: string;
-  at: NaiveDateTime;
-  kind: 'deposit' | 'withdrawal' | 'bonus' | 'tax';
-  /** Montant SIGNÉ tel que l'export le donne (négatif = sortie du portefeuille). */
-  amount: DecimalString;
-  label: string;
-}
 
 export interface BienPreterImport {
   loans: Loan[];
