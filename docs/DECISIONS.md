@@ -2467,3 +2467,34 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      Vérifié sur le relevé réel : sept feuilles, 182 / 32 / 408 / 65 lignes, et le `_x000a_` des
      en-têtes restitué en saut de ligne.
      Lot PR 1 du plan « Voir ses actifs eToro ».
+
+106. **Un relevé eToro se lit par son grand livre, jamais par la photo de ses positions**
+     (06/09/2026).
+     Trois pièges du format, tous découverts en lisant un relevé réel — aucun n'est documenté, et
+     aucun ne se serait signalé par une erreur.
+     **Le premier aurait triplé un patrimoine.** L'onglet des positions ouvertes n'est pas un
+     inventaire : il **empile des instantanés**. Un relevé de dix-sept mois en porte quatre
+     (01/01/2025, 30/06/2025, 31/12/2025, 01/01/2026), soit 181 lignes pour 62 positions réelles.
+     Les lire toutes aurait produit un portefeuille faux et parfaitement plausible. Seul
+     l'instantané le plus récent est retenu.
+     **Le deuxième aurait faussé les PRU.** `Open Rate` et `Current Rate` ne sont pas exprimés dans
+     la devise du compte : sur douze ETF de dix-huit, le rapport entre valeur et cours trahit une
+     cotation locale — l'un d'eux à un facteur cent, soit des centimes. Le coût d'acquisition vient
+     donc de la feuille d'activité, seule à porter le montant réellement débité, jointe par
+     identifiant de position. Sur le relevé réel, 61 des 62 positions y trouvent leur coût ; la
+     dernière, ouverte avant le début du relevé, est **signalée et non devinée**.
+     **Le troisième est le levier.** Positions à effet de levier et contrats pour différence sont
+     écartés avec un motif nommé : il n'y a pas de quantité détenue derrière un CFD, et aucun
+     moteur open source de référence n'en modélise une (proposition du 06/09, § 4).
+     **La classe d'actif n'est pas devinée** : la source la déclare (`Stocks`, `ETF`,
+     `Crypto Currencies`…), et c'est exactement l'entrée qu'attendait la décision n° 103. Le
+     vocabulaire changeant de langue d'une feuille à l'autre — `Stocks` ici, `Actions` là — la
+     reconnaissance est bilingue, en-têtes compris (dont les sauts de ligne encodés `_x000a_`).
+     **Aucune conversion de devise n'est écrite** : les montants partent en dollars et le pipeline
+     pivot les convertit au taux BCE du jour de l'opération, ce qui est aussi la règle du Conseil
+     d'État sur les plus-values en devises.
+     **Contre-épreuve** (décision n° 75) : privé du filtre d'instantané, le convertisseur rend trois
+     brouillons là où un seul est attendu ; privé du garde sur le coût manquant, il en fabrique un
+     au lieu de signaler. Vérifié sur le relevé réel : 121 lignes pivot — 61 positions ouvertes et
+     30 positions fermées en achat puis vente — un CFD à levier écarté, deux signalements.
+     Lot PR 2 du plan « Voir ses actifs eToro ». L'écran d'import viendra avec l'espace Patrimoine.
