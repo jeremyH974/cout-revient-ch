@@ -8,6 +8,7 @@
     invest:
       'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zM4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6',
     trading: 'M7 3v4M7 17v4M5 7h4v10H5zM17 3v6M17 15v6M15 9h4v6h-4z',
+    wealth: 'M4 19h16M4 15l4-4 4 3 7-7M15 6h6v6',
     more: 'M5 12h.01M12 12h.01M19 12h.01',
   };
   const current = $derived(spaceOf(router.route.name).id);
@@ -44,7 +45,7 @@
     bottom: 0;
     z-index: 10;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(5, 1fr);
     background: var(--bg-elev);
     border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
@@ -74,7 +75,7 @@
     .nav {
       position: sticky;
       top: 0;
-      grid-template-columns: repeat(4, auto);
+      grid-template-columns: repeat(5, auto);
       justify-content: center;
       gap: var(--space-5);
       border-top: 0;

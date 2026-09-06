@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Workbook } from '../xlsx';
+import type { Workbook } from '../xlsx/index';
 import { convertEtoroWorkbook, etoroDateToMs, leverageOf } from './convert';
 import { detectEtoroWorkbook } from './sheets';
 

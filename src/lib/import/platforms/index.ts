@@ -47,6 +47,7 @@ export const FORMAT_LABELS: Record<ImportedFormat, string> = {
   binance: 'Binance — historique (Statements ou Trade History)',
   bitpanda: 'Bitpanda — export de l’historique',
   swissborg: 'SwissBorg — relevé de compte',
+  etoro: 'eToro — relevé de compte (classeur)',
   'ghostfolio-json': 'Ghostfolio — export JSON',
   'onchain-sync': 'Synchronisation on-chain',
   'mapped-csv': 'CSV apparié colonne par colonne',
@@ -56,7 +57,8 @@ export const FORMAT_LABELS: Record<ImportedFormat, string> = {
 export const ACCEPTED_FORMATS_HINT =
   'Formats acceptés : export Coinhouse, CSV pivot Koinly/Waltio (Universal ou From/To), ' +
   'Kraken (ledgers.csv), Revolut (relevé crypto), Coinbase (relevé de transactions), Bitvavo, ' +
-  'Ledger Live, Binance (Statements ou Trade History), Bitpanda et SwissBorg, et JSON Ghostfolio. ' +
+  'Ledger Live, Binance (Statements ou Trade History), Bitpanda et SwissBorg, le classeur eToro, ' +
+  'et JSON Ghostfolio. ' +
   'Tout autre CSV passe par l’appariement de colonnes, que vous confirmez avant l’import (P64).';
 
 export function importAnyCsv(

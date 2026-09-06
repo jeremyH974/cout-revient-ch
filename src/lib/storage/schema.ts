@@ -577,7 +577,15 @@ function sanitizeAlertEvent(raw: unknown): AlertEvent | null {
   };
 }
 
-const ACCOUNT_KINDS = new Set(['coinhouse', 'manual', 'hyperliquid', 'csv', 'onchain', 'lending']);
+const ACCOUNT_KINDS = new Set([
+  'coinhouse',
+  'manual',
+  'hyperliquid',
+  'csv',
+  'onchain',
+  'lending',
+  'etoro',
+]);
 const ONCHAIN_CHAINS = new Set(['btc', 'eth', 'arbitrum', 'base']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
 /** ISO 3166-1 alpha-2 : deux lettres majuscules, rien d'autre (P66, `Account.country`). */

@@ -46,6 +46,7 @@
     csv: 'Import CSV',
     onchain: 'Adresse on-chain',
     lending: 'Financement participatif',
+    etoro: 'eToro (relevé de compte)',
   };
 
   // --- Adresses on-chain (lecture seule) --------------------------------------------------------

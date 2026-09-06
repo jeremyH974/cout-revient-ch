@@ -188,7 +188,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
-- `src/routes`, `src/components` — présentation uniquement. Navigation en quatre espaces
+- `src/routes`, `src/components` — présentation uniquement. Navigation en cinq espaces
   (`src/lib/spaces.ts`, registre `SPACES` — **source de vérité**, croisée avec la liste ci-dessous
   par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et
   sa cible de retour de barre d'application :
@@ -196,6 +196,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     résultats de nature différente) : `overview`, `welcome`.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
     `secondOpinion`, `alerts`, `loans`.
+  - **Patrimoine** (`#/wealth`) : `titles`, l’écran des actions et fonds indiciels — classe
+    d’actif et régime fiscal distincts de la crypto (décisions n° 103 et 106).
     `loans` (`#/invest/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
     de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
     chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
@@ -210,7 +212,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     lecture seule, et porte le bouton « Synchroniser ».
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
-  `add`, `report`, `secondOpinion`, `alerts`, `loans`, `trading`, `trades`, `trade`, `tradeAdd`,
+  `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
   `tradeStats`, `fills`, `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
   `help`, `news`, `privacy`.
 

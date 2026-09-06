@@ -44,6 +44,7 @@
   const position = $derived(
     [
       ...app.report.positions,
+      ...app.report.equities,
       ...app.report.stablecoins,
       ...app.report.closed,
       ...app.report.blocked,

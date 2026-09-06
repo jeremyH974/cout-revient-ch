@@ -2498,3 +2498,29 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      au lieu de signaler. Vérifié sur le relevé réel : 121 lignes pivot — 61 positions ouvertes et
      30 positions fermées en achat puis vente — un CFD à levier écarté, deux signalements.
      Lot PR 2 du plan « Voir ses actifs eToro ». L'écran d'import viendra avec l'espace Patrimoine.
+
+107. **Un cinquième espace « Patrimoine », et non un onglet par courtier** (06/09/2026).
+     La demande était « un onglet pour mes actifs eToro ». Un onglet par courtier ne survit pas au
+     deuxième : le découpage suit donc la **classe d'actif et le régime fiscal**, seuls critères qui
+     tiennent dans le temps. Les titres vont au Patrimoine, la crypto d'eToro rejoint
+     l'Investissement et l'assiette du 150 VH bis, et le levier reste dehors (décision n° 106).
+     Le nom n'est pas « Bourse » : la barre ne tient que cinq entrées, dont « Plus », et ce dernier
+     emplacement ne se dépense qu'une fois. « Patrimoine » accueillera demain d'autres classes non
+     crypto sans nouvelle entrée de navigation — les prêts, aujourd'hui sous-espace de
+     l'Investissement, pourront y venir sans rien renommer.
+     **Deux oublis de la décision n° 103 sont réparés ici**, et ils méritent d'être nommés : la
+     classe `equity` était née sans être ajoutée aux agrégations d'écran de `PriceFreshness` ni de
+     la fiche actif. Une fiche de titre aurait affiché « Aucune donnée » et la fraîcheur des cours
+     aurait ignoré les titres — deux silences, pas deux erreurs. Ajouter une classe oblige à
+     parcourir **tous** les endroits qui énumèrent les classes, pas seulement le moteur.
+     **Un classeur est détourné avant toute détection CSV** : chacune d'elles commence par lire le
+     fichier comme du texte, ce qu'un binaire ne supporte pas. L'embranchement est donc le premier
+     de `handleFile`, avant même le JSON.
+     **Le compte eToro est unique et implicite** (`etoro:main`), comme celui de Coinhouse : on a un
+     compte eToro, pas plusieurs. Aucun pays n'y est posé — eToro tient plusieurs entités selon le
+     pays de résidence, et en deviner une serait pire que de laisser l'utilisateur la déclarer
+     (même règle que P66).
+     Vérifié de bout en bout sur le relevé réel : 121 lignes ingérées, 121 événements, **18 titres
+     et 10 cryptos détenus, 9 positions closes, zéro opération non qualifiée** — soit exactement
+     les 28 instruments que porte le relevé.
+     Lot PR 3 du plan « Voir ses actifs eToro ».

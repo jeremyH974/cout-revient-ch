@@ -164,6 +164,21 @@
     lendingReport = null;
     pending = null;
     try {
+      // 0) Classeur. Un relevé eToro est un fichier BINAIRE : il doit être détourné avant tout,
+      //    car chacune des détections ci-dessous commence par lire le fichier comme du texte.
+      if (/[.]xlsx?$/i.test(file.name)) {
+        const etoro = await app.importEtoroWorkbook(await file.arrayBuffer(), file.name);
+        if (etoro.ok) {
+          pivotReport = etoro.report;
+          toasts.push(
+            `${etoro.report.newRows} nouvelle(s) ligne(s) importée(s) depuis eToro.`,
+            'success',
+          );
+          return;
+        }
+        failure = { error: etoro.error, details: etoro.details, header: etoro.header };
+        return;
+      }
       const text = await file.text();
       // 1) JSON → export Ghostfolio (vérification légère ici, complète à l'import).
       if (/\.json$/i.test(file.name) || text.trimStart().startsWith('{')) {
@@ -397,7 +412,7 @@
   >
     <input
       type="file"
-      accept=".csv,.json,text/csv,application/json"
+      accept=".csv,.json,.xlsx,text/csv,application/json"
       disabled={busy}
       onchange={(e) => void handleFile(e.currentTarget.files?.[0])}
     />

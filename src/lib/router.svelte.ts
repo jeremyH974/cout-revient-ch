@@ -10,6 +10,7 @@ export type Route =
   | { name: 'secondOpinion' }
   | { name: 'alerts' }
   | { name: 'loans' }
+  | { name: 'titles' }
   | { name: 'trading' }
   | { name: 'trades' }
   | { name: 'trade'; id: string }
@@ -94,6 +95,8 @@ export function parseHash(hash: string): Route {
       return parseInvest(second, third);
     case 'trading':
       return parseTrading(second, third);
+    case 'wealth':
+      return { name: 'titles' };
     case 'more':
       return { name: 'more' };
     case 'market':
@@ -150,6 +153,8 @@ export function toHash(route: Route): string {
       return '#/invest/alerts';
     case 'loans':
       return '#/invest/loans';
+    case 'titles':
+      return '#/wealth';
     case 'trades':
       return '#/trading/trades';
     case 'trade':

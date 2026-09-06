@@ -21,7 +21,7 @@ import { equityCode, normalizeAssetCode } from '../../domain/assets';
 import { D, ZERO } from '../../domain/money';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
-import type { Workbook } from '../xlsx';
+import type { Workbook } from '../xlsx/index';
 import { findSheet, reader, SHEET_ALIASES } from './sheets';
 
 export interface EtoroConversion {
