@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { equityCode } from '../assets';
 import { D, toDecimalString } from '../money';
 import {
   DEFAULT_ENGINE_SETTINGS,
@@ -260,5 +261,33 @@ describe('moteur — correctifs de revue', () => {
     });
     expect(s(report.positions[0]?.qty)).toBe('1.5');
     expect(report.positions[0]?.integrity?.status).toBe('ok');
+  });
+});
+
+describe('moteur — le titre est une classe à part (décision n° 103)', () => {
+  // « SOL » désigne Solana et Emeren Group (NYSE) : deux actifs distincts, deux PRU.
+  const solEquity = equityCode('SOL');
+  const events = [
+    buy('2026-01-01T10:00:00', 'sol', '10', '1000'),
+    buy('2026-01-02T10:00:00', solEquity, '10', '2000'),
+  ];
+  const report = run(events, [price('sol', '120'), price(solEquity, '250')]);
+
+  it('ne fusionne pas le ticker crypto et le ticker action', () => {
+    expect(report.positions.map((p) => p.asset)).toEqual(['sol']);
+    expect(report.equities.map((p) => p.asset)).toEqual([solEquity]);
+    expect(s(report.positions[0]?.pru)).toBe('100');
+    expect(s(report.equities[0]?.pru)).toBe('200');
+  });
+
+  it('classe le titre en equity, et lui seul', () => {
+    expect(report.equities[0]?.assetClass).toBe('equity');
+    expect(report.positions[0]?.assetClass).toBe('crypto');
+    expect(report.stablecoins).toHaveLength(0);
+  });
+
+  it('compte le titre dans les totaux : 3700 de valeur pour 3000 investis', () => {
+    expect(s(report.totals.value)).toBe('3700');
+    expect(s(report.totals.total)).toBe('700');
   });
 });

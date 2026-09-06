@@ -39,6 +39,7 @@ const EMPTY_REPORT = {
   positions: [],
   cashFlows: [],
   stablecoins: [],
+  equities: [],
   closed: [],
   blocked: [],
   totals: {
