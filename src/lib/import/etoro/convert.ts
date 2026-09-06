@@ -19,6 +19,7 @@
  */
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
 import { D, ZERO } from '../../domain/money';
+import { codeByName } from '../../pricing/tickers';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
 import type { Workbook } from '../xlsx/index';
@@ -29,6 +30,8 @@ export interface EtoroConversion {
   issues: PivotIssue[];
   /** Lignes volontairement hors modèle (levier, CFD) : comptées, jamais tues. */
   skipped: number;
+  /** Nom commercial par code, pour l’affichage : `eq:us02079k1079` ne se lit pas. */
+  labels: Record<string, string>;
 }
 
 const EQUITY_TYPES = new Set(['stocks', 'actions', 'etf']);
@@ -64,12 +67,67 @@ export function leverageOf(raw: string): number {
   return Number.isFinite(value) && value > 0 ? value : Number.NaN;
 }
 
-/** Code interne d'un actif selon la classe que la source déclare (décision n° 103). */
-function assetCodeFor(symbol: string, type: string): string | null {
+/** Ticker que certaines feuilles accolent au nom : « Bitcoin (BTC) ». */
+const TICKER_SUFFIX = /[ ]*[(]([A-Za-z0-9.]{2,10})[)][ ]*$/;
+
+function tickerInParentheses(label: string): string | null {
+  const found = TICKER_SUFFIX.exec(label);
+  return found ? normalizeAssetCode(found[1]!) : null;
+}
+
+/** Format ISIN : code pays, neuf caractères, clé de contrôle. */
+const ISIN = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+
+type Resolution =
+  { ok: true; code: string; label: string } | { ok: false; message: string; outOfScope: boolean };
+
+/**
+ * Identifie un actif. **La colonne « Asset » d'eToro porte un nom commercial, pas un symbole** —
+ * « Alphabet », « iShares NASDAQ 100 UCITS ETF usd », « Bitcoin » — et aucun fournisseur de cours
+ * ne saurait quoi faire de `eq:alphabet`.
+ *
+ * Un titre est donc identifié par son **ISIN**, présent dans le relevé et unique au monde. Une
+ * crypto est résolue par son nom vers le code du moteur : sans cela, un bitcoin venu d'eToro
+ * formerait une position distincte de celui de Coinhouse, et l'assiette du 150 VH bis — qui se
+ * calcule sur le portefeuille entier — serait fausse en silence.
+ *
+ * Ce qui ne se résout pas est **signalé, jamais deviné** : un rapprochement faux abîmerait deux
+ * portefeuilles à la fois (même règle que la décision n° 54).
+ */
+function resolveAsset(name: string, type: string, isin: string): Resolution {
   const kind = type.trim().toLowerCase();
-  if (EQUITY_TYPES.has(kind)) return equityCode(symbol);
-  if (CRYPTO_TYPES.has(kind)) return normalizeAssetCode(symbol);
-  return null;
+  const label = name.trim().replace(TICKER_SUFFIX, '').trim();
+  if (EQUITY_TYPES.has(kind)) {
+    const code = isin.trim().toUpperCase();
+    if (!ISIN.test(code)) {
+      return {
+        ok: false,
+        message: `Titre « ${label} » sans ISIN exploitable : impossible de l’identifier.`,
+        outOfScope: false,
+      };
+    }
+    return { ok: true, code: equityCode(code), label };
+  }
+  if (CRYPTO_TYPES.has(kind)) {
+    // eToro nomme « Bitcoin » dans une feuille et « Bitcoin (BTC) » dans une autre. On tente
+    // d'abord le nom nettoyé, qui passe par la table curée ; à défaut le ticker que la source
+    // affirme entre parenthèses — il n’y a pas d’ambiguïté de classe, le type est déjà connu.
+    const bare = label.replace(TICKER_SUFFIX, '').trim();
+    const code = codeByName(bare) ?? tickerInParentheses(label);
+    if (code === null) {
+      return {
+        ok: false,
+        message: `Actif numérique « ${label} » absent de la table des tickers : à rapprocher à la main plutôt qu’à deviner.`,
+        outOfScope: false,
+      };
+    }
+    return { ok: true, code, label };
+  }
+  return {
+    ok: false,
+    message: `Type d’actif « ${type} » hors périmètre (contrat pour différence ?).`,
+    outOfScope: true,
+  };
 }
 
 const HOLDINGS_COLUMNS = {
@@ -80,6 +138,7 @@ const HOLDINGS_COLUMNS = {
   leverage: ['leverage', 'effet de levier'],
   units: ['units', 'unités'],
   type: ['type', 'type d’actif', "type d'actif"],
+  isin: ['isin'],
 };
 
 const ACTIVITY_COLUMNS = {
@@ -115,6 +174,7 @@ const CLOSED_COLUMNS = {
   leverage: ['effet de levier', 'leverage'],
   profit: ['profit (usd)'],
   type: ['type'],
+  isin: ['isin'],
 };
 
 /**
@@ -122,7 +182,12 @@ const CLOSED_COLUMNS = {
  * de la vente est le montant investi augmenté du profit : c'est la définition même de la colonne,
  * et cela évite de reconstruire un cours de clôture dont la devise n'est pas fiable (§ 2).
  */
-function closedDrafts(book: Workbook, drafts: PlatformDraft[], issues: PivotIssue[]): number {
+function closedDrafts(
+  book: Workbook,
+  drafts: PlatformDraft[],
+  issues: PivotIssue[],
+  labels: Record<string, string>,
+): number {
   const sheet = findSheet(book, SHEET_ALIASES.closed);
   if (!sheet) return 0;
   const read = reader(sheet, CLOSED_COLUMNS);
@@ -146,12 +211,14 @@ function closedDrafts(book: Workbook, drafts: PlatformDraft[], issues: PivotIssu
       skipped += 1;
       return;
     }
-    const code = assetCodeFor(read.get(row, 'asset'), type);
-    if (code === null) {
-      issues.push({ lineNo, message: `Position fermée de type « ${type} » : hors périmètre.` });
-      skipped += 1;
+    const resolved = resolveAsset(read.get(row, 'asset'), type, read.get(row, 'isin'));
+    if (!resolved.ok) {
+      issues.push({ lineNo, message: resolved.message });
+      if (resolved.outOfScope) skipped += 1;
       return;
     }
+    const { code, label } = resolved;
+    labels[code] = label;
     const units = read.get(row, 'units');
     const amount = read.get(row, 'amount');
     const openMs = etoroDateToMs(read.get(row, 'openDate'));
@@ -194,6 +261,7 @@ function closedDrafts(book: Workbook, drafts: PlatformDraft[], issues: PivotIssu
 export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
   const drafts: PlatformDraft[] = [];
   const issues: PivotIssue[] = [];
+  const labels: Record<string, string> = {};
   let skipped = 0;
 
   const holdings = findSheet(book, SHEET_ALIASES.holdings);
@@ -202,6 +270,7 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
       drafts,
       issues: [{ lineNo: 0, message: 'Feuille des positions absente du relevé.' }],
       skipped,
+      labels,
     };
   }
   const read = reader(holdings, HOLDINGS_COLUMNS);
@@ -211,6 +280,7 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
       drafts,
       issues: [{ lineNo: 1, message: `Colonnes introuvables : ${names}.` }],
       skipped,
+      labels,
     };
   }
 
@@ -235,15 +305,14 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
       skipped += 1;
       return;
     }
-    const code = assetCodeFor(read.get(row, 'asset'), type);
-    if (code === null) {
-      issues.push({
-        lineNo,
-        message: `Type d’actif « ${type} » hors périmètre (contrat pour différence ?).`,
-      });
-      skipped += 1;
+    const resolved = resolveAsset(read.get(row, 'asset'), type, read.get(row, 'isin'));
+    if (!resolved.ok) {
+      issues.push({ lineNo, message: resolved.message });
+      if (resolved.outOfScope) skipped += 1;
       return;
     }
+    const { code, label } = resolved;
+    labels[code] = label;
     const units = read.get(row, 'units');
     const timeMs = etoroDateToMs(read.get(row, 'openDate'));
     if (units === '' || timeMs === null) {
@@ -273,6 +342,6 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
     });
   });
 
-  skipped += closedDrafts(book, drafts, issues);
-  return { drafts, issues, skipped };
+  skipped += closedDrafts(book, drafts, issues, labels);
+  return { drafts, issues, skipped, labels };
 }

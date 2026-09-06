@@ -41,6 +41,8 @@ const hold = (
   lev: string,
   units: string,
   type: string,
+  /** L'ISIN identifie un titre : deux titres ne peuvent pas partager le même. */
+  isin = 'US0378331005',
 ): string[] => [
   snapshot,
   asset,
@@ -54,7 +56,7 @@ const hold = (
   '1000',
   '900',
   type,
-  'IE00B4L5Y983',
+  isin,
 ];
 
 const act = (id: string, amount: string, type = 'Position ouverte'): string[] => [
@@ -100,15 +102,24 @@ describe('conversion d’un relevé eToro', () => {
     const result = convertEtoroWorkbook(
       book(
         [
-          hold('45838', 'AAPL', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
-          hold('46022', 'AAPL', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
-          hold('46023', 'AAPL', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
+          hold('45838', 'Apple Inc.', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
+          hold('46022', 'Apple Inc.', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
+          hold(
+            '46023',
+            'Apple Inc.',
+            'p1',
+            '01/02/2025 10:00:00',
+            'X1',
+            '10',
+            'Stocks',
+            'US0378331005',
+          ),
         ],
         [act('p1', '2000')],
       ),
     );
     expect(result.drafts).toHaveLength(1);
-    expect(result.drafts[0]?.received).toEqual({ amount: '10', currency: 'eq:aapl' });
+    expect(result.drafts[0]?.received).toEqual({ amount: '10', currency: 'eq:us0378331005' });
     expect(result.drafts[0]?.sent).toEqual({ amount: '2000', currency: 'usd' });
   });
 
@@ -116,20 +127,33 @@ describe('conversion d’un relevé eToro', () => {
     const result = convertEtoroWorkbook(
       book(
         [
-          hold('46023', 'AAPL', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
-          hold('46023', 'IWDA', 'p2', '01/02/2025 10:00:00', 'X1', '5', 'ETF'),
-          hold('46023', 'SOL', 'p3', '01/02/2025 10:00:00', 'X1', '3', 'Crypto Currencies'),
+          hold('46023', 'Apple Inc.', 'p1', '01/02/2025 10:00:00', 'X1', '10', 'Stocks'),
+          hold(
+            '46023',
+            'iShares Core MSCI World',
+            'p2',
+            '01/02/2025 10:00:00',
+            'X1',
+            '5',
+            'ETF',
+            'IE00B4L5Y983',
+          ),
+          hold('46023', 'Solana', 'p3', '01/02/2025 10:00:00', 'X1', '3', 'Crypto Currencies', '-'),
         ],
         [act('p1', '2000'), act('p2', '500'), act('p3', '300')],
       ),
     );
-    expect(result.drafts.map((d) => d.received?.currency)).toEqual(['eq:aapl', 'eq:iwda', 'sol']);
+    expect(result.drafts.map((d) => d.received?.currency)).toEqual([
+      'eq:us0378331005',
+      'eq:ie00b4l5y983',
+      'sol',
+    ]);
   });
 
   it('écarte une position à effet de levier en nommant le motif', () => {
     const result = convertEtoroWorkbook(
       book(
-        [hold('46023', 'TSLA', 'p9', '01/02/2025 10:00:00', 'X2', '4', 'Stocks')],
+        [hold('46023', 'Tesla Inc.', 'p9', '01/02/2025 10:00:00', 'X2', '4', 'Stocks')],
         [act('p9', '900')],
       ),
     );
@@ -141,7 +165,7 @@ describe('conversion d’un relevé eToro', () => {
   it('écarte un contrat pour différence, qui n’a pas de quantité détenue', () => {
     const result = convertEtoroWorkbook(
       book(
-        [hold('46023', 'OIL', 'p8', '01/02/2025 10:00:00', 'X1', '4', 'CFD')],
+        [hold('46023', 'Pétrole brut', 'p8', '01/02/2025 10:00:00', 'X1', '4', 'CFD')],
         [act('p8', '900')],
       ),
     );
@@ -151,7 +175,7 @@ describe('conversion d’un relevé eToro', () => {
 
   it('signale une position ouverte avant le relevé plutôt que d’inventer son coût', () => {
     const result = convertEtoroWorkbook(
-      book([hold('46023', 'MSFT', 'vieux', '23/12/2024 08:00:22', 'X1', '2', 'Stocks')], []),
+      book([hold('46023', 'Microsoft', 'vieux', '23/12/2024 08:00:22', 'X1', '2', 'Stocks')], []),
     );
     expect(result.drafts).toHaveLength(0);
     expect(result.issues[0]?.message).toContain('avant le début du relevé');
@@ -160,7 +184,7 @@ describe('conversion d’un relevé eToro', () => {
   it('traite le tiret isolé comme une absence de valeur, jamais comme un zéro', () => {
     const result = convertEtoroWorkbook(
       book(
-        [hold('46023', 'AAPL', 'p1', '01/02/2025 10:00:00', 'X1', '-', 'Stocks')],
+        [hold('46023', 'Apple Inc.', 'p1', '01/02/2025 10:00:00', 'X1', '-', 'Stocks')],
         [act('p1', '2000')],
       ),
     );
@@ -218,6 +242,8 @@ const closed = (
   profit: string,
   lev: string,
   type: string,
+  /** Une crypto n’a pas d’ISIN chez eToro : le tiret y tient lieu d’absence. */
+  isin = 'US0378331005',
 ): string[] => [
   id,
   asset,
@@ -240,7 +266,7 @@ const closed = (
   '0',
   '',
   type,
-  'US0378331005',
+  isin,
   '',
 ];
 
@@ -255,31 +281,33 @@ const withClosed = (rows: string[][]): Workbook => ({
 describe('positions fermées', () => {
   it('produit un achat daté de l’ouverture et une vente datée de la clôture', () => {
     const r = convertEtoroWorkbook(
-      withClosed([closed('c1', 'AAPL', '1000', '10', '250', '1', 'Actions')]),
+      withClosed([closed('c1', 'Apple Inc.', '1000', '10', '250', '1', 'Actions')]),
     );
     expect(r.drafts).toHaveLength(2);
     const [buy, sell] = r.drafts;
     expect(buy?.timeMs).toBe(Date.UTC(2025, 1, 1, 10, 0, 0));
     expect(buy?.sent).toEqual({ amount: '1000', currency: 'usd' });
-    expect(buy?.received).toEqual({ amount: '10', currency: 'eq:aapl' });
+    expect(buy?.received).toEqual({ amount: '10', currency: 'eq:us0378331005' });
     expect(sell?.timeMs).toBe(Date.UTC(2025, 5, 1, 10, 0, 0));
-    expect(sell?.sent).toEqual({ amount: '10', currency: 'eq:aapl' });
+    expect(sell?.sent).toEqual({ amount: '10', currency: 'eq:us0378331005' });
   });
 
   it('le produit de la vente est le montant investi augmenté du profit', () => {
     const gain = convertEtoroWorkbook(
-      withClosed([closed('c1', 'AAPL', '1000', '10', '250', '1', 'Actions')]),
+      withClosed([closed('c1', 'Apple Inc.', '1000', '10', '250', '1', 'Actions')]),
     );
     expect(gain.drafts[1]?.received).toEqual({ amount: '1250', currency: 'usd' });
     const loss = convertEtoroWorkbook(
-      withClosed([closed('c2', 'BTC', '1000', '1', '-400', '1', 'Crypto-monnaies')]),
+      withClosed([closed('c2', 'Bitcoin', '1000', '1', '-400', '1', 'Crypto-monnaies', '-')]),
     );
     expect(loss.drafts[1]?.received).toEqual({ amount: '600', currency: 'usd' });
     expect(loss.drafts[1]?.sent).toEqual({ amount: '1', currency: 'btc' });
   });
 
   it('écarte un contrat pour différence fermé, et le compte', () => {
-    const r = convertEtoroWorkbook(withClosed([closed('c3', 'OIL', '500', '2', '10', '1', 'CFD')]));
+    const r = convertEtoroWorkbook(
+      withClosed([closed('c3', 'Pétrole brut', '500', '2', '10', '1', 'CFD')]),
+    );
     expect(r.drafts).toHaveLength(0);
     expect(r.skipped).toBe(1);
     expect(r.issues[0]?.message).toContain('hors périmètre');
@@ -287,7 +315,7 @@ describe('positions fermées', () => {
 
   it('écarte une position fermée à effet de levier', () => {
     const r = convertEtoroWorkbook(
-      withClosed([closed('c4', 'TSLA', '500', '2', '10', '2', 'Actions')]),
+      withClosed([closed('c4', 'Tesla Inc.', '500', '2', '10', '2', 'Actions')]),
     );
     expect(r.drafts).toHaveLength(0);
     expect(r.issues[0]?.message).toContain('levier');
