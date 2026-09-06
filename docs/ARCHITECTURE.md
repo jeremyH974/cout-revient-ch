@@ -260,11 +260,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 ## Amélioration continue
 
 - **Auto-vérifications** (`src/lib/support/self-check.ts`, section Réglages + rappel en pied de
-  portefeuille), quinze contrôles identifiés — liste croisée avec le code par
+  portefeuille), seize contrôles identifiés — liste croisée avec le code par
   `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** : `data`, `invariant`, `cashflows`, `lots`,
   `balances`, `blocked`, `unqualified`, `prices`, `mirror`, `backup`, `install`, `transfers`,
   `net-worth-parts`, `net-worth-invest`, `fx` (âge du taux BCE qui convertit les montants en
-  dollars, décision n° 101). Compteurs et tickers seulement.
+  dollars, décision n° 101), `loans` (invariant d'encours des prêts de financement participatif). Compteurs et tickers seulement.
 - **Oracle indépendant** (`tests/integration/independent-oracle.test.ts`) : parseur minimal +
   boucle naïve, comparé au moteur à 1e-9 (fixture et export réel local).
 - **Retours** : diagnostic copiable (`diagnostic.ts`, jamais de montant) + formulaire GitHub

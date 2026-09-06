@@ -746,6 +746,9 @@ export class AppState {
 
   removeAccount(id: AccountId): boolean {
     if (!this.state.accounts[id] || this.manualCountOf(id) > 0) return false;
+    // Un compte de prêts qui porte encore des contrats ne se supprime pas : ses prêts seraient
+    // orphelins et leurs événements deviendraient illisibles.
+    if (Object.values(this.state.lending.loans).some((l) => l.accountId === id)) return false;
     const { [id]: _removed, ...rest } = this.state.accounts;
     void _removed;
     this.state.accounts = rest;
@@ -1330,7 +1333,25 @@ export class AppState {
           'Ce fichier ne ressemble pas à un export BienPrêter : les colonnes « N°Contrat », « Capital remboursé », « Intérêts remboursés » et « Prélèvements fiscaux et sociaux » sont attendues.',
       };
     this.exitDemo();
-    const parsed = parseBienPreter(table, 'lend:bienpreter');
+    const accountId = 'lend:bienpreter';
+    const parsed = parseBienPreter(table, accountId);
+    // Compte de première classe, pour qu'il apparaisse dans l'écran Comptes et dans le bilan
+    // 3916-bis. `country: 'FR'` n'est pas une supposition : BienPrêter est éditée par ULENDS SAS,
+    // RCS Aix-en-Provence, agréée PSFP par l'AMF (n° FP-2023-38) — le compte est donc tenu par un
+    // organisme français, ce qui l'exclut du périmètre déclaratif.
+    if (!this.state.accounts[accountId]) {
+      this.state.accounts = {
+        ...this.state.accounts,
+        [accountId]: {
+          id: accountId,
+          kind: 'lending',
+          label: 'BienPrêter',
+          space: 'invest',
+          country: 'FR',
+          createdAt: nowIso(now),
+        },
+      };
+    }
     const before = Object.keys(this.state.lending.events).length;
     this.state.lending = {
       loans: {

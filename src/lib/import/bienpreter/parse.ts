@@ -28,7 +28,6 @@
  * détection de retard restent hors de portée tant que l'utilisateur ne les complète pas.
  */
 import type { AccountId, DecimalString, NaiveDateTime } from '../../domain/types';
-export type { WalletMovement };
 import type {
   Amortisation,
   DayCount,

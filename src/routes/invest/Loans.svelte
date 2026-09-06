@@ -80,7 +80,7 @@
 
 <AppBar title="Prêts" back />
 
-<main>
+<div class="page">
   {#if !app.hasLending}
     <section class="card empty">
       <h2>Aucun prêt importé</h2>
@@ -327,10 +327,10 @@
       pas des performances futures.
     </p>
   {/if}
-</main>
+</div>
 
 <style>
-  main {
+  .page {
     display: grid;
     gap: 1rem;
   }

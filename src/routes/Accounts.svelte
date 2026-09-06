@@ -45,6 +45,7 @@
     hyperliquid: 'Hyperliquid (adresse publique)',
     csv: 'Import CSV',
     onchain: 'Adresse on-chain',
+    lending: 'Financement participatif',
   };
 
   // --- Adresses on-chain (lecture seule) --------------------------------------------------------
@@ -160,7 +161,9 @@
           <div class="main">
             <strong>{a.label}</strong>
             <span class="muted small"
-              >{KIND_LABELS[a.kind]} · {SPACE_LABELS[a.space]}{#if a.kind !== 'hyperliquid'}
+              >{KIND_LABELS[a.kind]} · {SPACE_LABELS[
+                a.space
+              ]}{#if a.kind !== 'hyperliquid' && a.kind !== 'lending'}
                 · {positionsOf(a.id)} position{positionsOf(a.id) > 1
                   ? 's'
                   : ''}{/if}{#if app.manualCountOf(a.id) > 0}
