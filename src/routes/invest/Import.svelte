@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { ImportReport } from '$lib/import/coinhouse/index';
   import { parseCsvText } from '$lib/import/csv';
+  import { detectBienPreter, type BienPreterImport } from '$lib/import/bienpreter/parse';
   import { detectPivotFormat } from '$lib/import/pivot/detect';
   import type { ImportedFormat, PivotImportReport } from '$lib/import/pivot/index';
   import {
@@ -43,6 +44,7 @@
   let dragging = $state(false);
   let report = $state<ImportReport | null>(null);
   let pivotReport = $state<PivotImportReport | null>(null);
+  let lendingReport = $state<{ added: number; parsed: BienPreterImport } | null>(null);
   let failure = $state<{ error: string; details: string[]; header: string[] } | null>(null);
   let backupDone = $state(false);
 
@@ -159,6 +161,7 @@
     failure = null;
     report = null;
     pivotReport = null;
+    lendingReport = null;
     pending = null;
     try {
       const text = await file.text();
@@ -179,6 +182,19 @@
         } catch {
           // pas un JSON : on continue avec les détections CSV.
         }
+      }
+      // 1 bis) Export d'une plateforme de financement participatif. Ce fichier est un grand
+      //        livre de PRÊTS, pas d'actifs fongibles : il ne peut emprunter aucun des chemins
+      //        ci-dessous, dont les types supposent tous un échange de quantités.
+      if (detectBienPreter(parseCsvText(text).header)) {
+        const lending = app.importLendingCsv(text, file.name);
+        if (lending.ok) {
+          lendingReport = { added: lending.added, parsed: lending.parsed };
+          toasts.push(`${lending.added} nouvelle(s) opération(s) de prêt importée(s).`, 'success');
+          return;
+        }
+        failure = { error: lending.error, details: [], header: parseCsvText(text).header };
+        return;
       }
       // 2) Export Coinhouse (import direct, sans choix de compte).
       const result = app.importCsv(text, file.name);
@@ -570,6 +586,32 @@
     </section>
   {/if}
 
+  {#if lendingReport}
+    <section class="card">
+      <h2>Prêts importés</h2>
+      <p>
+        <strong>{lendingReport.parsed.loans.length}</strong> prêt(s) et
+        <strong>{lendingReport.added}</strong> nouvelle(s) opération(s).
+        {lendingReport.parsed.wallet.length} mouvement(s) de portefeuille.
+      </p>
+      {#each lendingReport.parsed.notes as note (note)}
+        <p class="warn">{note}</p>
+      {/each}
+      {#if lendingReport.parsed.unknown.length > 0}
+        <p class="warn">
+          Libellé(s) d'opération non reconnu(s), ignoré(s) et signalé(s) plutôt qu'interprétés :
+          {lendingReport.parsed.unknown.map((u) => `« ${u.label} » (${u.count})`).join(', ')}.
+        </p>
+      {/if}
+      {#if lendingReport.parsed.inconsistent.length > 0}
+        <p class="warn">
+          {lendingReport.parsed.inconsistent.length} ligne(s) où le montant net de l'export ne correspond
+          pas à sa propre ventilation capital / intérêts / prélèvements.
+        </p>
+      {/if}
+      <p><a href={router.href({ name: 'loans' })}>Ouvrir l'écran Prêts</a></p>
+    </section>
+  {/if}
   {#if report}
     <section class="card block">
       <h2>Import réussi</h2>

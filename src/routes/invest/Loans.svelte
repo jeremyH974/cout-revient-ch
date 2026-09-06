@@ -16,6 +16,7 @@
    * c'est plus défendable qu'un seuil inventé.
    */
   import { D } from '$lib/domain/money';
+  import { fmtPct, fmtRatio } from '$lib/format/fr';
   import type { LoanStatus } from '$lib/domain/lending/types';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Delta from '../../components/shared/Delta.svelte';
@@ -69,11 +70,10 @@
           ? { mark: '◐', label: 'Modérément concentré' }
           : { mark: '○', label: 'Fortement concentré' },
   );
-  const effective = $derived(
-    report.concentration.byBorrower.effectiveCount === null
-      ? null
-      : D(report.concentration.byBorrower.effectiveCount).toFixed(1),
-  );
+  // Formatage français : virgule décimale et espace insécable, comme partout ailleurs dans l'app.
+  const effectiveRaw = $derived(report.concentration.byBorrower.effectiveCount);
+  const effective = $derived(effectiveRaw === null ? null : fmtRatio(D(effectiveRaw), 1));
+  const effectivePlural = $derived(effectiveRaw !== null && D(effectiveRaw).gte('2') ? 's' : '');
 </script>
 
 <AppBar title="Prêts" back />
@@ -144,9 +144,10 @@
       <p>
         Vous avez prêté <strong><Money value={app.displayFromEur(s.principalLent)} /></strong> au
         total, soit
-        <strong>{s.recycling === null ? '—' : D(s.recycling).toFixed(2)} fois</strong> vos apports :
-        chaque remboursement est reprêté. <strong>Ce n'est pas de l'argent supplémentaire</strong>,
-        et c'est pourquoi le gain est rapporté aux apports, jamais au capital prêté.
+        <strong>{s.recycling === null ? '—' : fmtRatio(D(s.recycling), 2)} fois</strong> vos apports
+        : chaque remboursement est reprêté.
+        <strong>Ce n'est pas de l'argent supplémentaire</strong>, et c'est pourquoi le gain est
+        rapporté aux apports, jamais au capital prêté.
       </p>
       <dl>
         <div>
@@ -191,7 +192,7 @@
         <span aria-hidden="true">{spread.mark}</span>
         <strong>{spread.label}</strong>
         {#if effective}
-          · <strong>{effective}</strong> emprunteurs effectifs sur
+          · <strong>{effective}</strong> emprunteur{effectivePlural} effectif{effectivePlural} sur
           {report.concentration.byBorrower.top.length} en cours
         {/if}
       </p>
@@ -206,7 +207,7 @@
             <li>
               <span class="who">{row.key}</span>
               <Money value={app.displayFromEur(row.outstanding)} />
-              <span class="muted">({D(row.weight).times('100').toFixed(1)} %)</span>
+              <span class="muted">({fmtPct(D(row.weight), { sign: false })})</span>
             </li>
           {/each}
         </ul>
