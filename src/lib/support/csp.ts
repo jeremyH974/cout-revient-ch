@@ -54,6 +54,11 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     why: 'Cours du jour cotés nativement en euros.',
   },
   {
+    origin: 'https://api.twelvedata.com',
+    use: 'connect',
+    why: "Cours du jour des actions et ETF, seuls actifs qu'aucune source crypto ne cote. Contactée uniquement si l'utilisateur a saisi sa propre clé.",
+  },
+  {
     origin: 'https://api.exchange.coinbase.com',
     use: 'connect',
     why: 'Chandelles quotidiennes pour la courbe de patrimoine.',
@@ -157,6 +162,7 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
   { origin: 'https://www.coingecko.com', use: 'link', why: 'Crédit de source affiché.' },
   { origin: 'https://www.coinbase.com', use: 'link', why: 'Crédit de source affiché.' },
   { origin: 'https://www.kraken.com', use: 'link', why: 'Crédit de source affiché.' },
+  { origin: 'https://twelvedata.com', use: 'link', why: 'Crédit de source affiché.' },
   { origin: 'https://defillama.com', use: 'link', why: 'Crédit de source affiché.' },
   { origin: 'https://hyperliquid.xyz', use: 'link', why: 'Crédit de source affiché.' },
   { origin: 'https://frankfurter.dev', use: 'link', why: 'Crédit de source affiché.' },

@@ -2402,3 +2402,38 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      privées d'`equities`, les auto-vérifications annoncent « 1 actif vérifié » au lieu de 2.
      Lot P100 de la proposition du 06/09. Le PRU en coût moyen pondéré (décision n° 5) étant déjà
      la méthode légale des valeurs mobilières, le calcul lui-même n'a pas eu à changer.
+
+104. **Les cours des titres viennent d'une clé que vous fournissez, et d'aucune autre source**
+     (06/09/2026).
+     Aucun des cinq fournisseurs du dépôt ne cote une action ni un ETF. Quinze candidats ont été
+     sondés le 06/09 **en requêtes réelles**, avec l'en-tête `Origin` d'un navigateur : dans une
+     application sans serveur, le CORS se mesure, il ne se suppose pas.
+     **Éliminés** : Yahoo Finance, EODHD, Tiingo et **OpenFIGI** n'envoient aucun en-tête CORS —
+     le dernier contredisant sa réputation d'API appelable depuis un navigateur ; Yahoo interdit de
+     surcroît l'accès automatisé depuis l'arrêt de son API officielle en 2017. Alpha Vantage
+     plafonne à 25 requêtes par jour et MarketStack à 100 par mois, quand il en faut une cinquantaine
+     par jour. Finnhub et Polygon verrouillent l'Europe derrière un abonnement, or les ETF UCITS
+     sont précisément le cas difficile. Stooq, justETF, Euronext et Boursorama n'exposent aucune API
+     stable.
+     **Retenu : Twelve Data** — CORS ouvert vérifié, 800 requêtes par jour au palier gratuit, et
+     couverture confirmée sur un ISIN UCITS réel (Amsterdam, Xetra et Londres).
+     **La clé est saisie par l'utilisateur, et c'est une extension de la décision n° 32, pas une
+     exception** : une clé de données de marché est en lecture seule et n'ouvre aucun compte — même
+     famille que la clé d'explorateur de blocs acceptée, à l'opposé de la clé d'exchange refusée.
+     **Corollaire, et il ferme une porte** : la clé de l'API publique eToro, ouverte en février
+     2026, est une clé de compte. Elle tombe donc du mauvais côté de cette même décision n° 32,
+     indépendamment de toute considération technique — une meilleure raison, et plus stable.
+     **Sans clé, le fournisseur ne contacte rien** et les titres restent au prix manuel : la
+     dégradation est douce, jamais une erreur. Une devise autre que l'euro ou le dollar repart sans
+     prix plutôt que convertie au hasard (décision n° 54).
+     **Aucun instantané de cours committé** : à la différence du calendrier macro ou de la table des
+     tickers, aucune licence sondée n'autorise de redistribuer des cours ; l'appel navigateur reste
+     donc le mode de transport (décision n° 59). La résolution ISIN → ticker, elle, est
+     redistribuable — OpenFIGI l'autorise explicitement — et se fera par script committé, jamais à
+     l'exécution, faute de CORS de toute façon.
+     **Contre-épreuve** (décision n° 75) : privé de son garde, le fournisseur émet une requête alors
+     qu'aucune clé n'est saisie, et le test le nomme ; privé de son filtre de classe, il demande
+     `AAPL,SOL,BTC` là où `AAPL` est attendu. Ce second test était **creux à sa première écriture**
+     — il cherchait « sol » quand le code envoie « SOL » — et c'est la contre-épreuve, non la
+     relecture, qui l'a montré. La règle a payé une fois de plus.
+     Lot P102 de la proposition du 06/09.

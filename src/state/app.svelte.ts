@@ -2229,6 +2229,7 @@ export class AppState {
       providers: defaultPriceProviders({
         idOverrides: overrides,
         coingeckoDemoKey: this.state.ui.coingeckoDemoKey,
+        twelveDataApiKey: this.state.ui.twelveDataApiKey,
         usdToEur,
       }),
       maxAgeMs: force ? 0 : PRICE_MAX_AGE_MS,

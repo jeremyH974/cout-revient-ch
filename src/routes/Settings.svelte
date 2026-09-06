@@ -312,7 +312,7 @@
         onchange={(e) => app.setUi({ priceSource: e.currentTarget.value as 'auto' | 'off' })}
       >
         <option value="auto"
-          >Automatique (CoinGecko, Coinbase, Kraken, Hyperliquid, DefiLlama)</option
+          >Automatique (CoinGecko, Coinbase, Kraken, Hyperliquid, DefiLlama, Twelve Data)</option
         >
         <option value="off">Désactivés (prix manuels uniquement)</option>
       </select>
@@ -332,6 +332,23 @@
     <p class="line small muted">
       Gratuite sur coingecko.com, elle lève les limites de débit du plan public. Elle reste sur cet
       appareil, envoyée à CoinGecko uniquement.
+    </p>
+    <label class="field"
+      >Clé Twelve Data (facultative)
+      <input
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck={false}
+        placeholder="32 caractères"
+        value={app.state.ui.twelveDataApiKey ?? ''}
+        onchange={(e) => app.setUi({ twelveDataApiKey: e.currentTarget.value.trim() || null })}
+      />
+    </label>
+    <p class="line small muted">
+      Gratuite sur twelvedata.com, elle seule permet de coter vos actions et vos ETF : aucune source
+      crypto ne les connaît. Sans elle, ces actifs restent au prix que vous saisissez vous-même.
+      Elle reste sur cet appareil, envoyée à Twelve Data uniquement.
     </p>
     <label class="field"
       >Explorateur de blocs (comptes on-chain EVM)
