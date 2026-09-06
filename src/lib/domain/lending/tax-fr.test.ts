@@ -92,6 +92,53 @@ describe('ventilation du prélèvement réellement retenu', () => {
   });
 });
 
+describe('la ventilation se lit dans le taux effectif, elle ne se présume pas', () => {
+  const year = (interest: string, withheld: string) =>
+    ledger(
+      [loan('a')],
+      [
+        sub('a', '2025-01-01T00:00:00', '10000'),
+        rep('a', '2025-06-01T00:00:00', interest, withheld),
+      ],
+      2025,
+    ).years.find((x) => x.year === 2025)!;
+
+  it('reconnaît un PFU complet et le ventile', () => {
+    const y = year('100', '30');
+    expect(y.withholding).toBe('full');
+    expect(Number(y.incomeTaxCredit)).toBeCloseTo(12.8, 10);
+    expect(Number(y.socialPaid)).toBeCloseTo(17.2, 10);
+  });
+
+  it('reconnaît une dispense d’acompte : prélèvements sociaux seuls, aucun crédit d’impôt', () => {
+    // 17,2 % seulement : l'acompte de 12,8 % n'a pas été prélevé (art. 242 quater). Annoncer un
+    // crédit d'impôt de 12,8 % ici serait une erreur de déclaration.
+    const y = year('100', '17.2');
+    expect(y.withholding).toBe('social-only');
+    expect(y.incomeTaxCredit).toBe('0');
+    expect(y.socialPaid).toBe('17.2');
+  });
+
+  it('tolère l’arrondi d’échéance autour d’un taux légal', () => {
+    expect(year('1535.88', '461.28').withholding).toBe('full'); // 30,03 %
+    expect(year('294.38', '50.60').withholding).toBe('social-only'); // 17,19 %
+  });
+
+  it('ne ventile RIEN quand le taux ne correspond à aucun régime connu', () => {
+    const y = year('100', '22');
+    expect(y.withholding).toBe('unknown');
+    expect(y.incomeTaxCredit).toBeNull();
+    expect(y.socialPaid).toBeNull();
+    expect(y.withheld).toBe('22'); // le fait, lui, reste affiché
+  });
+
+  it('ne ventile rien non plus quand rien n’a été retenu', () => {
+    const y = year('100', '0');
+    expect(y.withholding).toBe('none');
+    expect(y.incomeTaxCredit).toBe('0');
+  });
+});
+
 describe('imputation des pertes en capital', () => {
   const scenario = (throughYear: number) =>
     ledger(
@@ -198,7 +245,7 @@ describe('garde-fous du grand livre', () => {
 
   it('énonce ses hypothèses au lieu de les faire passer pour du droit', () => {
     const l = ledger([loan('a')], [sub('a', '2025-01-01T00:00:00', '100')], 2025);
-    expect(l.assumptions).toHaveLength(3);
+    expect(l.assumptions).toHaveLength(4);
     expect(l.assumptions[0]).toContain('plus anciennes');
     expect(l.assumptions[1]).toContain('8 000');
   });

@@ -258,9 +258,11 @@
         </div>
         <p class="muted small">
           Les intérêts de prêts participatifs se déclarent case <strong>2TT</strong>, et non 2TR —
-          la brochure officielle le dit expressément. Le partage entre acompte de 12,8 % et
-          prélèvements sociaux est une <strong>estimation</strong> : la plateforme ne communique qu'un
-          montant retenu global, réparti ici au prorata des taux légaux de l'année.
+          la brochure officielle le dit expressément. La plateforme ne communique qu'un montant
+          retenu global : le partage entre acompte de 12,8 % et prélèvements sociaux est
+          <strong>déduit du taux effectivement retenu</strong>. Une année où seuls les prélèvements
+          sociaux apparaissent signale une dispense d'acompte — elle se redemande chaque année,
+          avant le 30 novembre.
         </p>
         {#if tax.hasLosses}
           <p class="warn">

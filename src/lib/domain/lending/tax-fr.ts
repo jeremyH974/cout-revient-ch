@@ -97,20 +97,49 @@ export const TAX_BOXES = {
 export const TAX_ASSUMPTIONS: readonly string[] = [
   'Les pertes les plus anciennes sont imputées les premières : ce sont elles qui expirent en premier. Ni l’article 125-00 A ni le BOFiP ne fixent d’ordre.',
   'Le plafond de 8 000 € est appliqué à l’année d’imputation. Le BOFiP dit « au titre d’une même année » sans trancher laquelle.',
+  'Le partage entre acompte de 12,8 % et prélèvements sociaux est déduit du taux effectivement retenu, la plateforme ne fournissant qu’un total. Un taux qui ne correspond à aucun régime connu n’est pas ventilé du tout.',
   'Un recouvrement postérieur à une perte réduit celle-ci à sa date de constat. Si une imputation a déjà été faite au titre d’une année antérieure, elle serait à réviser — faites-la vérifier.',
 ];
+
+/**
+ * Ce que le prélèvement retenu par la plateforme révèle du régime effectivement appliqué. Il se
+ * LIT dans le taux effectif (`retenu ÷ intérêts`) au lieu d'être présumé : un investisseur
+ * dispensé d'acompte (revenu fiscal de référence sous le seuil, art. 242 quater) ne subit que les
+ * prélèvements sociaux, et lui annoncer un crédit d'impôt de 12,8 % qu'il n'a jamais payé serait
+ * une erreur de déclaration.
+ */
+export type WithholdingShape = 'full' | 'social-only' | 'none' | 'unknown';
+
+/** Écart toléré autour d'un taux légal pour le reconnaître (arrondis d'échéance). */
+const RATE_TOLERANCE: DecimalString = '0.005';
+
+function shapeOf(gross: Big, paid: Big, rate: RcmRate): WithholdingShape {
+  if (paid.lte(ZERO)) return 'none';
+  if (gross.lte(ZERO)) return 'unknown';
+  const effective = paid.div(gross);
+  const near = (target: DecimalString): boolean =>
+    effective.minus(D(target)).abs().lte(D(RATE_TOLERANCE));
+  if (near(rate.pfu)) return 'full';
+  if (near(rate.social)) return 'social-only';
+  return 'unknown';
+}
 
 export interface LendingTaxYear {
   year: number;
   rate: RcmRate;
+  /** Régime lu dans le taux effectivement retenu, jamais présumé. */
+  withholding: WithholdingShape;
   /** Case 2TT. **Fait**, lu dans l'export. */
   interestGross: DecimalString;
   /** Prélèvements réellement retenus par la plateforme. **Fait**. */
   withheld: DecimalString;
-  /** Case 2CK. **Estimation** : le prélèvement réel réparti au prorata des taux légaux. */
-  incomeTaxCredit: DecimalString;
-  /** Case 2CG. **Estimation**, même répartition. */
-  socialPaid: DecimalString;
+  /**
+   * Case 2CK. `null` quand le taux effectif ne correspond à aucun régime connu : mieux vaut ne
+   * rien annoncer que d'annoncer un crédit d'impôt qui n'a pas été payé.
+   */
+  incomeTaxCredit: DecimalString | null;
+  /** Case 2CG. `null` dans le même cas. */
+  socialPaid: DecimalString | null;
   /** Capital devenu définitivement irrécouvrable dans l'année (événement `write-off`). */
   lossRealised: DecimalString;
   /** Perte effectivement imputée sur les intérêts de l'année, plafond compris. */
@@ -218,18 +247,24 @@ export function lendingTaxFr(input: LendingTaxInput): LendingTaxLedger {
 
     const paid = withheld.get(year) ?? ZERO;
     const rate = rcmRateFor(year);
-    // Répartition du prélèvement RÉEL au prorata des taux légaux : on ne recalcule jamais un
-    // montant que la plateforme a déjà retenu, on se contente de le ventiler.
-    const share = D(rate.incomeTax).div(D(rate.pfu));
-    const credit = paid.times(share);
+    // On ne recalcule jamais un montant que la plateforme a déjà retenu : on le VENTILE, et
+    // seulement si le taux effectif dit sous quel régime il a été retenu.
+    const shape = shapeOf(gross, paid, rate);
+    const credit =
+      shape === 'full'
+        ? paid.times(D(rate.incomeTax).div(D(rate.pfu)))
+        : shape === 'social-only' || shape === 'none'
+          ? ZERO
+          : null;
 
     years.push({
       year,
       rate,
+      withholding: shape,
       interestGross: toDecimalString(gross),
       withheld: toDecimalString(paid),
-      incomeTaxCredit: toDecimalString(credit),
-      socialPaid: toDecimalString(paid.minus(credit)),
+      incomeTaxCredit: credit === null ? null : toDecimalString(credit),
+      socialPaid: credit === null ? null : toDecimalString(paid.minus(credit)),
       lossRealised: toDecimalString(realised),
       lossImputed: toDecimalString(imputed),
       taxableInterest: toDecimalString(max(ZERO, gross.minus(imputed))),
