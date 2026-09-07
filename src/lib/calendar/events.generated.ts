@@ -6,35 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-04T11:17:50Z',
-  coversFrom: '2026-06-05',
+  generatedAt: '2026-09-07T12:31:43Z',
+  coversFrom: '2026-06-10',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-04', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-04', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
-    { source: 'bls', checkedOn: '2026-09-01', count: 27, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-04', count: 19, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-07', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-07', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'bls', checkedOn: '2026-09-01', count: 26, coversTo: '2026-12-15', upkeep: 'manual' },
+    { source: 'ecb', checkedOn: '2026-09-07', count: 19, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-04',
+      checkedOn: '2026-09-07',
       count: 9,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'bls-employment-2026-06-05',
-      kind: 'employment',
-      at: '2026-06-05T12:30:00Z',
-      precision: 'exact',
-      title: 'Emploi américain (rapport mensuel)',
-      detail: 'Données de mai 2026',
-      tier: 'major',
-      source: 'bls',
-      url: 'https://www.bls.gov/schedule/news_release/empsit.htm',
-    },
     {
       id: 'bls-cpi-2026-06-10',
       kind: 'cpi',
