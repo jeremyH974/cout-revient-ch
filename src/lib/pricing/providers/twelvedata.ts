@@ -51,6 +51,35 @@ function chunk<T>(items: T[], size: number): T[][] {
   return out;
 }
 
+const SEARCH_ENDPOINT = 'https://api.twelvedata.com/symbol_search';
+/** Format ISIN : code pays, neuf caractères, clé de contrôle. */
+const ISIN = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+
+/**
+ * Symboles résolus depuis un ISIN, mémorisés pour la durée de la session. Un relevé de courtier
+ * identifie ses titres par ISIN — c'est le seul identifiant qu'il donne, et le seul qui soit
+ * unique au monde — quand les fournisseurs de cours parlent en symboles. La résolution coûte un
+ * crédit ; la refaire à chaque rafraîchissement en gaspillerait la moitié.
+ */
+const symbolByIsin = new Map<string, string | null>();
+
+async function resolveSymbol(
+  isin: string,
+  key: string,
+  doFetch: FetchLike,
+  signal: AbortSignal,
+): Promise<string | null> {
+  const known = symbolByIsin.get(isin);
+  if (known !== undefined) return known;
+  const url = `${SEARCH_ENDPOINT}?symbol=${isin}&outputsize=1&apikey=${encodeURIComponent(key)}`;
+  const response = await doFetch(url, { signal, headers: { accept: 'application/json' } });
+  const body = (await readJson('Twelve Data', response)) as { data?: { symbol?: unknown }[] };
+  const first = Array.isArray(body.data) ? body.data[0] : undefined;
+  const symbol = typeof first?.symbol === 'string' && first.symbol !== '' ? first.symbol : null;
+  symbolByIsin.set(isin, symbol);
+  return symbol;
+}
+
 export interface TwelveDataOptions {
   /** Clé saisie par l'utilisateur ; `null` désactive le fournisseur sans appel réseau. */
   apiKey: string | null;
@@ -69,9 +98,16 @@ export function twelveDataProvider(options: TwelveDataOptions): PriceProvider {
       if (!key) return found;
 
       // Un seul symbole peut porter deux actifs de classes différentes : seuls les titres passent.
+      const wanted = codes.filter(isEquityCode);
+      if (wanted.length === 0) return found;
       const codeBySymbol = new Map<string, AssetCode>();
-      for (const code of codes) {
-        if (isEquityCode(code)) codeBySymbol.set(assetSymbol(code).toUpperCase(), code);
+      for (const code of wanted) {
+        const identifier = assetSymbol(code).toUpperCase();
+        // Un ISIN se résout en symbole ; tout autre identifiant est déjà celui du fournisseur.
+        const symbol = ISIN.test(identifier)
+          ? await resolveSymbol(identifier, key, doFetch, signal)
+          : identifier;
+        if (symbol !== null) codeBySymbol.set(symbol, code);
       }
       if (codeBySymbol.size === 0) return found;
 
@@ -85,10 +121,13 @@ export function twelveDataProvider(options: TwelveDataOptions): PriceProvider {
             typeof body['message'] === 'string' ? body['message'] : 'réponse en erreur';
           throw new Error(`Twelve Data : ${message}`);
         }
-        // Un symbole unique renvoie la cotation à plat ; plusieurs, un objet indexé par symbole.
+        // Un symbole unique renvoie la cotation à plat, plusieurs un objet indexé par symbole.
+        // On reconnaît la forme au lieu de la déduire du nombre demandé : l'API a le droit de
+        // changer d’avis, et une cotation lue de travers vaudrait un prix absent.
+        const flat = typeof (body as QuoteEntry).close !== 'undefined';
         const entries: Record<string, QuoteEntry> =
-          group.length === 1
-            ? { [group[0]!]: body as QuoteEntry }
+          flat && group[0] !== undefined
+            ? { [group[0]]: body as QuoteEntry }
             : (body as Record<string, QuoteEntry>);
         const at = nowIso();
         for (const symbol of group) {

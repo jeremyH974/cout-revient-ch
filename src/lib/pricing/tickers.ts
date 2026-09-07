@@ -127,3 +127,28 @@ export function tickerInfo(code: AssetCode): TickerInfo | null {
 export function assetName(code: AssetCode): string {
   return TICKERS[code]?.name ?? code.toUpperCase();
 }
+
+/**
+ * Index inverse **nom → code**, construit une fois. eToro nomme ses actifs (« Bitcoin »,
+ * « Ethereum ») là où le moteur les code (`btc`, `eth`) : sans cette résolution, un bitcoin
+ * importé d'eToro formerait une position distincte de celui de Coinhouse, et l'assiette du
+ * 150 VH bis — qui se calcule sur le portefeuille entier — serait fausse en silence.
+ *
+ * Un nom porté par deux codes ne résout vers **aucun** : un rapprochement faux coûterait plus cher
+ * qu'une ligne à qualifier à la main (même règle que la décision n° 54 pour les prix).
+ */
+const normalizeAssetName = (raw: string): string => raw.trim().toLowerCase().replace(/\s+/g, ' ');
+
+const CODE_BY_NAME: Readonly<Record<string, AssetCode | null>> = (() => {
+  const index: Record<string, AssetCode | null> = {};
+  for (const [code, info] of Object.entries(TICKERS)) {
+    const key = normalizeAssetName(info.name);
+    index[key] = key in index ? null : code;
+  }
+  return index;
+})();
+
+/** Code d'un actif d'après son nom commercial ; `null` si inconnu ou ambigu. */
+export function codeByName(name: string): AssetCode | null {
+  return CODE_BY_NAME[normalizeAssetName(name)] ?? null;
+}

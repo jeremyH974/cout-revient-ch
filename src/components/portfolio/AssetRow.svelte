@@ -3,6 +3,7 @@
 
   import { nowMs } from '$lib/clock';
   import { fmtPrice as fmtPriceBase, fmtRelative } from '$lib/format/fr';
+  import { assetClass, assetSymbol } from '$lib/domain/assets';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import CoinBadge from '../shared/CoinBadge.svelte';
@@ -14,6 +15,17 @@
 
   let { position, now = nowMs() }: { position: PositionReport; now?: number } = $props();
   const p = $derived(position);
+  /**
+   * Un titre est codé par son ISIN : illisible. Son nom vient du relevé du courtier, et c'est
+   * lui qu'on met en avant ; l'identifiant passe en second, là où une crypto met son nom.
+   */
+  const isEquity = $derived(assetClass(p.asset) === 'equity');
+  const heading = $derived(
+    isEquity
+      ? (app.state.assetSettings[p.asset]?.label ?? assetSymbol(p.asset).toUpperCase())
+      : p.asset.toUpperCase(),
+  );
+  const subtitle = $derived(isEquity ? assetSymbol(p.asset).toUpperCase() : assetName(p.asset));
 </script>
 
 <!--
@@ -26,11 +38,10 @@
     <span class="cell id"
       ><CoinBadge asset={p.asset} /><span class="names"
         ><strong
-          >{p.asset.toUpperCase()}{#if p.price?.stale}<span
-              class="stale"
-              title="Prix issu du cache : actualisez">périmé</span
+          >{heading}{#if p.price?.stale}<span class="stale" title="Prix issu du cache : actualisez"
+              >périmé</span
             >{/if}</strong
-        ><span class="muted small">{assetName(p.asset)}</span></span
+        ><span class="muted small">{subtitle}</span></span
       ></span
     >
     <span class="cell qty"

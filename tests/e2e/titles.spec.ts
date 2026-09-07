@@ -6,7 +6,6 @@
  * calculés par le convertisseur lui-même, jamais écrits en dur (helpers/expected.ts).
  */
 import { expect, test } from '@playwright/test';
-import { assetSymbol } from '../../src/lib/domain/assets';
 import { ETORO_FIXTURE, etoroAssets } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
 
@@ -27,10 +26,8 @@ test('un relevé eToro remplit l’espace Patrimoine', async ({ page }) => {
   await expect(list).toBeVisible();
   // Un titre par ligne, et seulement des titres : la crypto du même relevé va à l'Investissement.
   await expect(list.getByRole('listitem')).toHaveCount(expected.length);
-  for (const code of expected) {
-    await expect(
-      list.getByText(assetSymbol(code).toUpperCase(), { exact: false }).first(),
-    ).toBeVisible();
+  for (const { label } of expected) {
+    await expect(list.getByText(label, { exact: false }).first()).toBeVisible();
   }
 });
 
@@ -44,10 +41,10 @@ test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoi
   await page.goto('#/invest');
   // .first() : le code d'un actif apparaît plusieurs fois dans une ligne (pastille, nom, unité).
   await expect(
-    page.getByRole('list', { name: 'Positions' }).getByText('ZCH').first(),
+    page.getByRole('list', { name: 'Positions' }).getByText('BTC').first(),
   ).toBeVisible();
   await page.goto('#/wealth');
-  await expect(page.getByRole('list', { name: 'Titres détenus' }).getByText('ZCH')).toHaveCount(0);
+  await expect(page.getByRole('list', { name: 'Titres détenus' }).getByText('BTC')).toHaveCount(0);
 });
 
 test('la barre de navigation mène au Patrimoine', async ({ page }) => {

@@ -98,3 +98,41 @@ describe('Twelve Data', () => {
     expect(found.get(iwda)?.priceEur).toBe('100');
   });
 });
+
+describe('Twelve Data — titres identifiés par ISIN', () => {
+  const isinCode = equityCode('US0378331005');
+
+  it('résout l’ISIN en symbole avant de demander une cotation', async () => {
+    const { calls, fetch } = fakeFetch((url) => {
+      if (url.includes('symbol_search')) return { body: { data: [{ symbol: 'AAPL' }] } };
+      return { body: { AAPL: { close: '200', currency: 'USD' } } };
+    });
+    const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
+    const found = await provider.fetchPrices([isinCode], signal);
+    expect(calls[0]).toContain('symbol_search');
+    expect(calls[0]).toContain('US0378331005');
+    expect(found.get(isinCode)?.priceEur).toBe('180');
+  });
+
+  it('ne redemande pas une résolution déjà faite : un crédit ne se dépense qu’une fois', async () => {
+    const { calls, fetch } = fakeFetch((url) => {
+      if (url.includes('symbol_search')) return { body: { data: [{ symbol: 'AAPL' }] } };
+      return { body: { AAPL: { close: '100', currency: 'EUR' } } };
+    });
+    const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
+    await provider.fetchPrices([isinCode], signal);
+    const before = calls.filter((u) => u.includes('symbol_search')).length;
+    await provider.fetchPrices([isinCode], signal);
+    expect(calls.filter((u) => u.includes('symbol_search')).length).toBe(before);
+  });
+
+  it('laisse un ISIN introuvable sans prix, plutôt que d’interroger au hasard', async () => {
+    const unknown = equityCode('XX9999999999');
+    const { fetch } = fakeFetch((url) =>
+      url.includes('symbol_search') ? { body: { data: [] } } : { body: {} },
+    );
+    const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
+    const found = await provider.fetchPrices([unknown], signal);
+    expect(found.size).toBe(0);
+  });
+});
