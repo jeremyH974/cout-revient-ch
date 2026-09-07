@@ -39,6 +39,7 @@ const time = (naive: string): string => naive.slice(11, 16);
 const KIND_LABELS: Record<HistoryEntry['kind'], string> = {
   buy: 'Achat',
   sell: 'Vente',
+  split: 'Fractionnement',
   reward: 'Récompense',
   deposit: 'Dépôt',
   withdrawal: 'Retrait',

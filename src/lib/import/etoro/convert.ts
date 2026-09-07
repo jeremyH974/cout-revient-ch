@@ -18,7 +18,7 @@
  * de quantité détenue derrière un CFD, et aucun moteur open source de référence n'en modélise une.
  */
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
-import { D, ZERO } from '../../domain/money';
+import { D, isPositive, ZERO } from '../../domain/money';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
 import { excelSerialToNaive, type Workbook } from '../xlsx/index';
@@ -133,6 +133,28 @@ const CLOSED_COLUMNS = {
   type: ['type'],
 };
 
+/** Étiquette des actions de société dans le grand livre : « corp action: Split ». */
+const SPLIT_LABELS = /^corp action:[ ]*split$/i;
+
+/**
+ * Ratio d'un fractionnement, tel qu'eToro l'écrit dans le libellé : « HON/USD 1:2 ».
+ *
+ * **Le sens n'est documenté nulle part.** `a:b` est lu « a devient b », donc un multiplicateur
+ * `b/a` — la lecture courante de « 1 pour 2 ». Un regroupement compris à l’envers diviserait une
+ * position au lieu de la multiplier : l'opération est donc signalée à l'utilisateur, jamais
+ * appliquée en silence.
+ */
+const SPLIT_RATIO = /([0-9]+(?:[.][0-9]+)?)[ ]*:[ ]*([0-9]+(?:[.][0-9]+)?)[ ]*$/;
+
+export function splitRatioOf(details: string): string | null {
+  const found = SPLIT_RATIO.exec(details.trim());
+  if (!found) return null;
+  const from = D(found[1]!);
+  const to = D(found[2]!);
+  if (!isPositive(from) || !isPositive(to)) return null;
+  return to.div(from).toString();
+}
+
 const OPEN_LABELS = new Set(['position ouverte', 'open position']);
 
 interface Collected {
@@ -142,6 +164,63 @@ interface Collected {
   /** Code d'actif par identifiant de position : le lien entre les trois feuilles. */
   codeByPosition: Map<string, string>;
   skipped: number;
+}
+
+/**
+ * Fractionnement d'action. Le libellé porte le ticker et le ratio ; la classe vient de la colonne
+ * de type, et l'identifiant de position rattache l'opération à un actif déjà connu.
+ */
+function collectSplit(
+  row: readonly string[],
+  lineNo: number,
+  read: ReturnType<typeof reader>,
+  out: Collected,
+): void {
+  const details = read.get(row, 'details');
+  const ratio = splitRatioOf(details);
+  if (ratio === null) {
+    out.issues.push({ lineNo, message: `Fractionnement « ${details} » : ratio illisible.` });
+    return;
+  }
+  const known = out.codeByPosition.get(read.get(row, 'positionId'));
+  // « HON/USD 1:2 » : le couple précède le ratio, séparé par une espace.
+  const ticker = tickerOf(details.split(' ')[0] ?? details);
+  const resolved =
+    known !== undefined
+      ? ({ ok: true, code: known } as Resolution)
+      : ticker !== null
+        ? resolveTicker(ticker, read.get(row, 'assetType'))
+        : ({
+            ok: false,
+            message: `Fractionnement « ${details} » : actif introuvable.`,
+            outOfScope: false,
+          } as Resolution);
+  if (!resolved.ok) {
+    out.issues.push({ lineNo, message: resolved.message });
+    return;
+  }
+  const timeMs = etoroDateToMs(read.get(row, 'date'));
+  if (timeMs === null) {
+    out.issues.push({ lineNo, message: 'Fractionnement : date illisible.' });
+    return;
+  }
+  out.issues.push({
+    lineNo,
+    message: `Fractionnement appliqué à ${resolved.code} : quantité multipliée par ${ratio} (« ${details} »). Vérifiez le sens, eToro ne le documente pas.`,
+  });
+  out.drafts.push({
+    lineNo,
+    nativeContent: `etoro:split:${read.get(row, 'positionId')}:${details}`,
+    timeMs,
+    sent: null,
+    received: null,
+    fee: null,
+    netWorth: null,
+    label: null,
+    description: null,
+    txHash: null,
+    corporateAction: { kind: 'split', asset: resolved.code, ratio },
+  });
 }
 
 /**
@@ -164,7 +243,12 @@ function collectOpenings(book: Workbook, out: Collected): void {
   }
   sheet.rows.forEach((row, i) => {
     const lineNo = i + 2;
-    if (!OPEN_LABELS.has(read.get(row, 'type').toLowerCase())) return;
+    const kind = read.get(row, 'type');
+    if (SPLIT_LABELS.test(kind)) {
+      collectSplit(row, lineNo, read, out);
+      return;
+    }
+    if (!OPEN_LABELS.has(kind.toLowerCase())) return;
 
     const details = read.get(row, 'details');
     const ticker = tickerOf(details);

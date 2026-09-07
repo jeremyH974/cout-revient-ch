@@ -58,6 +58,7 @@ export type HistoryKind =
   | 'reward'
   | 'deposit'
   | 'withdrawal'
+  | 'split'
   | 'migration-in'
   | 'migration-out'
   | 'opening-balance';

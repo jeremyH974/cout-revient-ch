@@ -69,6 +69,7 @@ export type TraceUnit = 'eur' | 'qty' | 'price' | 'ratio';
 export type TraceOperator = 'sum' | 'difference' | 'product' | 'quotient' | 'identity';
 
 export type TraceRole =
+  | 'split'
   | 'metric'
   | 'cost-basis'
   | 'quantity'
@@ -376,6 +377,7 @@ function cap(ctx: Ctx, parentId: string, unit: TraceUnit, children: TraceNode[])
 const KIND_TO_EVENT_KIND: Record<HistoryKind, LedgerEventKind> = {
   buy: 'trade',
   sell: 'trade',
+  split: 'split',
   reward: 'reward',
   deposit: 'deposit',
   withdrawal: 'withdrawal',

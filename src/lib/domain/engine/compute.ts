@@ -18,6 +18,7 @@ const KIND_RANK: Record<LedgerEvent['kind'], number> = {
   reward: 2,
   trade: 3,
   migration: 3,
+  split: 3,
   withdrawal: 4,
   fee: 5,
   unqualified: 6,
@@ -212,6 +213,12 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         if (applied && outIsCash) run.cashIn = run.cashIn.plus(value);
         if (applied && inIsCash) run.cashOut = run.cashOut.plus(value);
         noteCash();
+        break;
+      }
+      case 'split': {
+        // Ni cession ni acquisition : la quantité change, le coût reste. Rien à tracker, le
+        // contrôle de solde compare des quantités que le courtier a lui aussi fractionnées.
+        pos(event.asset).split(D(event.ratio), move(event, 'split'));
         break;
       }
       case 'migration': {

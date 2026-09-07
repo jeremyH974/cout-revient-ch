@@ -167,6 +167,14 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       },
       // Un quatrième champ additif (décision n° 109) : le nom commercial d’un actif, que le
       // relevé d'un courtier fournit et qu'une sauvegarde de 2026 ne pouvait pas connaître.
+      // Cinquième champ additif (décision n° 111) : l'action de société d'une ligne pivot, que
+      // les sauvegardes antérieures au fractionnement ne pouvaient pas porter.
+      pivotRows: Object.fromEntries(
+        Object.entries(envelope.state.pivotRows).map(([key, row]) => [
+          key,
+          { ...row, corporateAction: null },
+        ]),
+      ),
       assetSettings: Object.fromEntries(
         Object.entries(envelope.state.assetSettings).map(([code, settings]) => [
           code,
@@ -499,6 +507,7 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       label: null,
       description: null,
       txHash: null,
+      corporateAction: null,
     };
     const manual: Required<ManualEvent> = {
       id: 'm1',

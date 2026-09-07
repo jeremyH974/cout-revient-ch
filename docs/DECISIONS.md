@@ -2606,3 +2606,32 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      zéro opération non qualifiée, **zéro position négative** — donc aucun achat manquant —, et
      **aucun écart** au contrôle de la photo. Deux signalements subsistent, tous deux volontaires :
      un CFD et une position à effet de levier.
+
+111. **Le fractionnement d'action est un événement du moteur, pas un échange déguisé**
+     (07/09/2026).
+     Un fractionnement ne s'échange pas, il se subit : la quantité détenue est multipliée, le coût
+     d'acquisition ne bouge pas, et **rien n'est réalisé**. Aucun type existant ne disait cela.
+     **Écarté : le détourner en migration** de l'actif vers lui-même. Le moteur l'aurait accepté et
+     le prix de revient serait resté juste — mais la migration **cède puis acquiert**, donc elle
+     recrée un lot neuf à sa propre date et **perd les dates d'acquisition d'origine**. Une action
+     détenue depuis deux ans doit le rester après un fractionnement.
+     **Retenu** : un `SplitEvent` (`asset`, `ratio`) et une opération `PositionState.split()` qui
+     multiplie la quantité de **chaque lot existant** en place, coûts intacts. C'est la seule
+     opération du moteur qui réécrit rétroactivement sans rien acquérir ni céder.
+     **Le format pivot a gagné un champ**, `corporateAction` : une ligne de fractionnement n'a ni
+     montant envoyé ni montant reçu, et le pipeline rejetait jusqu'ici toute ligne sans montant.
+     Ajout additif, donc sans montée de `SCHEMA_VERSION` (décision n° 66).
+     **Le sens du ratio n'est documenté nulle part.** eToro écrit « HON/USD 1:2 » ; `a:b` est lu
+     « a devient b », soit un multiplicateur `b/a`. Un regroupement compris à l'envers **diviserait**
+     une position au lieu de la multiplier : l'opération est donc **signalée à l'utilisateur**,
+     jamais appliquée en silence.
+     **L'exhaustivité de TypeScript a fait le travail de relecture** : ajouter un type d'événement a
+     immédiatement révélé sept endroits à compléter — table de traçabilité, export CSV, export
+     Koinly, conversion de devise, libellés de la fiche actif. L'export Koinly rend `null` pour un
+     fractionnement : ce format n'a rien pour le dire, et en fabriquer une ligne fausserait le
+     portefeuille de destination.
+     **Contre-épreuve** (décision n° 75) : privé de la multiplication des lots, le moteur rend
+     `[ '10', '5' ]` là où `[ '20', '10' ]` est attendu ; ratio inversé, une position de 10 tombe à
+     5 au lieu de monter à 20 — c'est très exactement le risque que le signalement décrit.
+     Vérifié sur le relevé réel : le fractionnement du 29/06/2026 double la position concernée,
+     dont le lot unique et sa date sont conservés.

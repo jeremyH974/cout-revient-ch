@@ -34,7 +34,8 @@ describe('relevé eToro de démonstration', () => {
   it('lit le grand livre, écarte levier et CFD en les nommant', async () => {
     const result = await imported();
     // 5 ouvertures retenues + 1 vente ; le CFD et la position à levier sont écartés.
-    expect(result.rows).toHaveLength(6);
+    // 5 ouvertures + 1 vente + 1 fractionnement ; le CFD et le levier sont écartés.
+    expect(result.rows).toHaveLength(7);
     expect(result.skipped).toBe(2);
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('levier');
@@ -87,7 +88,9 @@ describe('relevé eToro de démonstration', () => {
     // et il reste les 10 unités de l'autre position.
     const demo = report.equities.find((p) => p.asset === 'eq:demo');
     expect(demo && isPositive(demo.realized)).toBe(true);
-    expect(demo?.qty.toString()).toBe('10');
+    // Le fractionnement « 1:2 » a doublé la quantité sans toucher au coût.
+    expect(demo?.qty.toString()).toBe('20');
+    expect(demo?.lots).toHaveLength(2);
   });
 
   it('refuse un classeur qui n’est pas un relevé eToro', async () => {
