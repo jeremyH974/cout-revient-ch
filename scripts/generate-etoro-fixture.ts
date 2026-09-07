@@ -197,12 +197,112 @@ export function writeWorkbook(path: string, sheets: FixtureSheet[]): void {
 
 // --- Le relevé de démonstration ----------------------------------------------------------------
 
-/** 45838 = 30/06/2025, 46023 = 01/01/2026 : deux photos, dont une seule décrit ce qui est détenu. */
+/** 45838 = 30/06/2025, 46023 = 01/01/2026 : deux photos, la seconde suivie d'autres opérations. */
 const OLD_SNAPSHOT = 45838;
 const LAST_SNAPSHOT = 46023;
 
+const ACTIVITY_HEADER = [
+  'Date',
+  'Type',
+  'Détails',
+  'Montant',
+  'Unités',
+  'Variation Fonds propres réalisés',
+  'Équité réalisée',
+  'Solde',
+  'Identifiant de position',
+  "Type d'actif",
+  'NWA (fonds non retirables)',
+];
+
+/**
+ * Le grand livre : c'est lui qui fait entrer les positions. Il porte volontairement une ouverture
+ * **postérieure à la dernière photo** — le défaut que la photo dissimulait —, un contrat pour
+ * différence à écarter, et des frais hors modèle. Les libellés sont des couples `TICKER/DEVISE`,
+ * comme dans le relevé réel.
+ */
+const ACTIVITY: FixtureSheet = {
+  name: 'Activité du compte',
+  rows: [
+    ACTIVITY_HEADER,
+    ['01/02/2025 08:00:00', 'Dépôt', 'Virement', 5000, '-', 0, 0, 5000, '', '-', 0],
+    [
+      '05/01/2025 10:00:00',
+      'Position ouverte',
+      'DEMO/USD',
+      200,
+      5,
+      0,
+      0,
+      4800,
+      'p-201',
+      'Actions',
+      0,
+    ],
+    [
+      '12/02/2025 09:30:00',
+      'Position ouverte',
+      'DEMO/USD',
+      400,
+      10,
+      0,
+      0,
+      4600,
+      'p-101',
+      'Actions',
+      0,
+    ],
+    [
+      '03/03/2025 11:00:00',
+      'Position ouverte',
+      'IDX.DE/EUR',
+      450,
+      5,
+      0,
+      0,
+      4150,
+      'p-102',
+      'ETF',
+      0,
+    ],
+    [
+      '20/05/2025 16:45:00',
+      'Position ouverte',
+      'BTC/USD',
+      600,
+      2,
+      0,
+      0,
+      3550,
+      'p-103',
+      'Crypto-monnaies',
+      0,
+    ],
+    ['02/06/2025 10:00:00', 'Position ouverte', 'OIL/USD', 60, 3, 0, 0, 3490, 'p-104', 'CFD', 0],
+    ['15/07/2025 12:00:00', 'Frais overnight', 'OIL/USD', -2, '-', 0, 0, 3488, 'p-104', 'CFD', 0],
+    // Après la dernière photo : invisible d'un import qui lirait la photo, présente ici.
+    [
+      '14/04/2026 14:20:00',
+      'Position ouverte',
+      'NEWCO/USD',
+      300,
+      4,
+      0,
+      0,
+      3190,
+      'p-301',
+      'Actions',
+      0,
+    ],
+  ],
+};
+
+/**
+ * Les photos. Elles ne produisent plus aucune opération : elles **nomment** les instruments et
+ * **contrôlent** les quantités à leur propre date. Onglet et colonnes restés anglais, comme chez
+ * eToro, alors que les autres feuilles sont traduites.
+ */
 const HOLDINGS: FixtureSheet = {
-  // Onglet resté anglais chez eToro, colonnes comprises — c'est le piège que la fixture doit porter.
   name: 'Holdings',
   rows: [
     [
@@ -282,7 +382,7 @@ const HOLDINGS: FixtureSheet = {
     ],
     [
       LAST_SNAPSHOT,
-      'Bitcoin (BTC)',
+      'Bitcoin',
       'p-103',
       'Long',
       '20/05/2025 16:45:00',
@@ -295,111 +395,11 @@ const HOLDINGS: FixtureSheet = {
       'Crypto Currencies',
       '-',
     ],
-    [
-      LAST_SNAPSHOT,
-      'Levier SA',
-      'p-104',
-      'Long',
-      '02/06/2025 10:00:00',
-      'X2',
-      20,
-      3,
-      22,
-      66,
-      60,
-      'Stocks',
-      'XX0000000004',
-    ],
   ],
 };
 
-const ACTIVITY: FixtureSheet = {
-  name: 'Activité du compte',
-  rows: [
-    [
-      'Date',
-      'Type',
-      'Détails',
-      'Montant',
-      'Unités',
-      'Variation Fonds propres réalisés',
-      'Équité réalisée',
-      'Solde',
-      'Identifiant de position',
-      "Type d'actif",
-      'NWA (fonds non retirables)',
-    ],
-    ['01/02/2025 08:00:00', 'Dépôt', 'Virement', 5000, '-', 0, 0, 5000, '', '-', 0],
-    [
-      '12/02/2025 09:30:00',
-      'Position ouverte',
-      'Demo Industries Inc.',
-      400,
-      10,
-      0,
-      0,
-      4600,
-      'p-101',
-      'Actions',
-      0,
-    ],
-    [
-      '03/03/2025 11:00:00',
-      'Position ouverte',
-      'Indice Monde UCITS ETF',
-      450,
-      5,
-      0,
-      0,
-      4150,
-      'p-102',
-      'ETF',
-      0,
-    ],
-    [
-      '20/05/2025 16:45:00',
-      'Position ouverte',
-      'Bitcoin (BTC)',
-      600,
-      2,
-      0,
-      0,
-      3550,
-      'p-103',
-      'Crypto-monnaies',
-      0,
-    ],
-    [
-      '02/06/2025 10:00:00',
-      'Position ouverte',
-      'Levier SA',
-      60,
-      3,
-      0,
-      0,
-      3490,
-      'p-104',
-      'Actions',
-      0,
-    ],
-    [
-      '15/07/2025 12:00:00',
-      'Frais overnight',
-      'Levier SA',
-      -2,
-      '-',
-      0,
-      0,
-      3488,
-      'p-104',
-      'Actions',
-      0,
-    ],
-  ],
-};
-
+/** Positions fermées : la vente seule en sort, l'achat étant déjà au grand livre. */
 const CLOSED: FixtureSheet = {
-  // Onglet localisé, lui : le même concept y change de langue (« Actions » contre « Stocks »).
   name: 'Positions fermées',
   rows: [
     [
@@ -429,7 +429,7 @@ const CLOSED: FixtureSheet = {
     ],
     [
       'p-201',
-      'Demo Industries Inc.',
+      'Demo Industries Inc. (DEMO)',
       'Long',
       200,
       5,
@@ -454,7 +454,7 @@ const CLOSED: FixtureSheet = {
     ],
     [
       'p-202',
-      'Pétrole CFD',
+      'Pétrole (OIL)',
       'Long',
       100,
       1,
@@ -493,4 +493,7 @@ const SUMMARY: FixtureSheet = {
 const PATH = 'tests/fixtures/etoro/releve-demo.xlsx';
 writeWorkbook(PATH, [SUMMARY, HOLDINGS, CLOSED, ACTIVITY]);
 console.log(`Relevé eToro de démonstration écrit : ${PATH}`);
-console.log('  4 feuilles ; 2 instantanés empilés ; 1 position à levier et 1 CFD à écarter.');
+console.log(
+  '  grand livre de 8 lignes ; 2 photos empilées ; 1 ouverture postérieure à la dernière ;',
+);
+console.log('  1 CFD et 1 position à levier à écarter.');
