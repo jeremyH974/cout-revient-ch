@@ -129,14 +129,41 @@ qu'espéré : l'assiette fiscale du § 7 et le TRI brut comme net se calculent s
    débit autonome du portefeuille (131,28 € des deux côtés en 2025). La colonne fait foi.
 
 **Ce que l'export ne contient pas** : taux nominal, échéance, convention de jours, mode
-d'amortissement — et aucun événement de retard ou de défaut. Conséquence directe : l'encours, les
-intérêts et le TRI sont exacts, mais **l'intérêt couru et la détection de retard restent hors de
-portée** tant que ces champs ne sont pas complétés (à la main, ou depuis les contrats PDF).
+d'amortissement — et aucun événement de retard ou de défaut. **Cette limite est levée par le
+§ 2.6** : les contrats, eux, les écrivent.
 
 **Contrôle sur l'export de référence** : 116 prêts, 1 328 événements, 0 libellé inconnu,
 0 incohérence, 0 orphelin. Encours 13 796,85 € ; intérêts bruts 3 210,81 €, prélèvements 943,64 €.
 **TRI brut 14,19 %, TRI net 9,87 %** — la valeur terminale excluant l'intérêt couru, ces deux taux
 sont légèrement prudents.
+
+### 2.6 Les contrats disent ce que le relevé tait
+
+Une **déduction** des termes à partir des seuls remboursements a d'abord été tentée, puis
+écartée : sur le portefeuille réel elle ne convergeait — écart résiduel sous 2 % — que pour 27
+prêts sur 102, et le modèle qui s'ajuste le mieux (intérêts sur le capital initial, taux annuel
+÷ 12) laissait la moitié des prêts inexpliqués. Un taux faux gonfle silencieusement la valeur du
+portefeuille ; l'absence, elle, se voit.
+
+**Les contrats sont téléchargeables en archive depuis l'espace investisseur**, un PDF par prêt,
+nommé par son numéro de contrat — donc directement rapprochable de l'export. Ils portent tout ce
+qui manquait, écrit noir sur blanc : taux (art. 3 et 5.1), durée, **base de calcul** — « année
+civile » sur les 113 contrats lus, soit ACT/365 — et, en annexe, **l'échéancier attendu daté**.
+
+Vérification arithmétique du modèle : un prêt de 300 € à 15 % sur 15 mois annonce 56,25 €
+d'intérêts totaux, soit `300 × 15 % × 15/12`. Les intérêts se calculent donc bien sur le capital
+initial, au douzième du taux annuel — ce que la déduction avait trouvé, et que le contrat confirme.
+
+**Lire un PDF sans dépendance.** `pdf.js` pèse plusieurs centaines de kilo-octets pour un usage
+qui ne concerne qu'un producteur connu. Un lecteur minimal a donc été écrit sur le parti de
+`import/xlsx` : `DecompressionStream` natif, balayage linéaire des objets, tables `ToUnicode`. Il
+couvre le cas droit et **refuse en le nommant** ce qu'il ne couvre pas (document chiffré, objets
+en `/ObjStm`). Éprouvé sur 113 contrats : 113 lus sans erreur, et les taux extraits recoupent
+exactement ceux de poppler.
+
+**Ce que cela débloque, mesuré** : les prêts sans intérêt couru calculable passent de 54 à 3, et
+le retard cesse d'être hors de portée — il se déduit de la comparaison entre l'échéancier
+contractuel et les encaissements, sans qu'aucun signalement soit nécessaire.
 
 ---
 

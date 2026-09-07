@@ -90,8 +90,10 @@
       </p>
       <p class="muted">
         Depuis votre espace BienPrêter, ouvrez <strong>Opérations</strong> et exportez l'historique
-        <strong>sans filtre</strong> — un export filtré ne contient que les dépôts. N'ouvrez pas le fichier
-        dans Excel avant de l'importer.
+        <strong>sans filtre</strong> — un export filtré ne contient que les dépôts. N'ouvrez pas le
+        fichier dans Excel avant de l'importer. Déposez ensuite l'<strong
+          >archive de vos contrats</strong
+        > : elle porte le taux et l'échéancier, que le relevé ne donne pas.
       </p>
       <button type="button" onclick={() => router.navigate({ name: 'import' })}>
         Importer un export
