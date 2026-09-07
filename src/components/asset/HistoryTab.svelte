@@ -17,6 +17,7 @@
     withdrawal: 'RETRAIT',
     'migration-in': 'MIGRATION (entrée)',
     'migration-out': 'MIGRATION (sortie)',
+    split: 'FRACTIONNEMENT',
     'opening-balance': 'SOLDE INITIAL',
   };
   /** Ce que représente le montant affiché, selon l'opération. */
@@ -28,6 +29,7 @@
     withdrawal: 'valeur de cession',
     'migration-in': 'coût reporté',
     'migration-out': 'valorisation de la sortie',
+    split: 'quantité multipliée',
     'opening-balance': 'coût du solde initial',
   };
   const zeroCost = (h: HistoryEntry): boolean => h.valueEur !== null && h.valueEur.eq(ZERO);

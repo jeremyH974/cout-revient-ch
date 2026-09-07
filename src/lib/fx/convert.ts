@@ -82,6 +82,9 @@ function convertLeg(leg: { asset: AssetCode; qty: DecimalString }, rate: Decimal
 
 export function convertEvent(event: LedgerEvent, rate: DecimalString): LedgerEvent {
   switch (event.kind) {
+    // Un fractionnement ne porte aucun montant : il n'y a rien à convertir.
+    case 'split':
+      return event;
     case 'trade':
       return {
         ...event,

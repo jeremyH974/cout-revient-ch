@@ -91,6 +91,43 @@ export class PositionState {
   }
 
   /**
+   * Fractionnement d'action : la quantité est multipliée, **le coût ne bouge pas**. C'est la
+   * seule opération du moteur qui réécrit des lots existants sans rien acquérir ni céder — le
+   * prix de revient unitaire est divisé d'autant, et aucune plus-value n'est réalisée.
+   *
+   * Les lots sont modifiés en place plutôt que remplacés : une action détenue depuis deux ans
+   * le reste après un fractionnement, et sa date d'acquisition avec elle.
+   */
+  split(ratio: Big, m: Movement): void {
+    if (this.blocked) return;
+    const before = this.qty;
+    this.qty = roundLot(this.qty.times(ratio));
+    for (const lot of this.lots) {
+      lot.qtyInitial = roundLot(lot.qtyInitial.times(ratio));
+      lot.qtyRemaining = roundLot(lot.qtyRemaining.times(ratio));
+    }
+    this.history.push({
+      eventId: m.eventId,
+      rowKeys: m.rowKeys,
+      accountId: m.accountId,
+      at: m.at,
+      kind: 'split',
+      qty: this.qty.minus(before),
+      valueEur: null,
+      unitPrice: null,
+      counterAsset: null,
+      quotePrice: null,
+      feeEur: ZERO,
+      rebateEur: ZERO,
+      lotsConsumed: [],
+      warnings: m.warnings,
+      realized: ZERO,
+      pruAfter: this.pru,
+      qtyAfter: this.qty,
+    });
+  }
+
+  /**
    * Acquisition de `qty` unités pour un coût `cost` (EUR all-in).
    * `counted` : le coût entre dans Σ acquisitions (faux pour une récompense).
    */

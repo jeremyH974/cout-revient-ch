@@ -291,3 +291,69 @@ describe('moteur — le titre est une classe à part (décision n° 103)', () =>
     expect(s(report.totals.total)).toBe('700');
   });
 });
+
+describe('moteur — fractionnement d’action (décision n° 111)', () => {
+  const asset = equityCode('DEMO');
+  const split = (at: string, ratio: string): LedgerEvent => ({
+    ...base(),
+    kind: 'split',
+    at,
+    asset,
+    ratio,
+  });
+
+  it('double la quantité sans toucher au coût : le PRU est divisé d’autant', () => {
+    const report = run(
+      [buy('2026-01-01T10:00:00', asset, '10', '1000'), split('2026-06-01T10:00:00', '2')],
+      [price(asset, '60')],
+    );
+    const p = report.equities[0]!;
+    expect(s(p.qty)).toBe('20');
+    expect(s(p.costBasis)).toBe('1000');
+    expect(s(p.pru)).toBe('50');
+    // Ni cession ni acquisition : rien n'est réalisé, et Σ achats ne bouge pas.
+    expect(s(p.realized)).toBe('0');
+    expect(s(p.investedTotal)).toBe('1000');
+  });
+
+  it('garde les lots et leur date d’acquisition, au lieu d’en recréer un', () => {
+    const report = run(
+      [
+        buy('2026-01-01T10:00:00', asset, '10', '1000'),
+        buy('2026-03-01T10:00:00', asset, '5', '600'),
+        split('2026-06-01T10:00:00', '2'),
+      ],
+      [],
+    );
+    const p = report.equities[0]!;
+    expect(p.lots).toHaveLength(2);
+    expect(p.lots.map((l) => l.openedAt)).toEqual(['2026-01-01T10:00:00', '2026-03-01T10:00:00']);
+    expect(p.lots.map((l) => s(l.qtyRemaining))).toEqual(['20', '10']);
+    // Les coûts, eux, sont intacts.
+    expect(p.lots.map((l) => s(l.costRemaining))).toEqual(['1000', '600']);
+  });
+
+  it('sait aussi regrouper : un ratio inférieur à 1 réduit la quantité', () => {
+    const report = run(
+      [buy('2026-01-01T10:00:00', asset, '10', '1000'), split('2026-06-01T10:00:00', '0.5')],
+      [],
+    );
+    const p = report.equities[0]!;
+    expect(s(p.qty)).toBe('5');
+    expect(s(p.costBasis)).toBe('1000');
+  });
+
+  it('laisse l’invariant comptable vrai après fractionnement', () => {
+    const report = run(
+      [
+        buy('2026-01-01T10:00:00', asset, '10', '1000'),
+        split('2026-06-01T10:00:00', '2'),
+        sell('2026-07-01T10:00:00', asset, '5', '400'),
+      ],
+      [price(asset, '60')],
+    );
+    const p = report.equities[0]!;
+    // total = valeur + Σ produits − Σ achats : 15 × 60 + 400 − 1000 = 300.
+    expect(s(p.total)).toBe('300');
+  });
+});

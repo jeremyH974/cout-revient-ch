@@ -59,6 +59,17 @@ export interface PivotAmount {
  * telle quelle après validation. Clé `pv:<hash de contenu>[#n]` : l'appartenance au compte est
  * portée par `accountId` (un même fichier ne va que dans un compte).
  */
+/**
+ * Action de société sans montant : un fractionnement ne s'échange pas, il se subit. La ligne qui
+ * le porte n'a ni jambe envoyée ni jambe reçue — d'où un champ à part, plutôt qu'un montant
+ * fabriqué pour entrer dans un moule qui ne lui va pas.
+ */
+export interface CorporateAction {
+  kind: 'split';
+  asset: AssetCode;
+  ratio: DecimalString;
+}
+
 export interface RawPivotRow {
   key: RowKey;
   importId: string;
@@ -76,6 +87,8 @@ export interface RawPivotRow {
   label: string | null;
   description: string | null;
   txHash: string | null;
+  /** Action de société : la ligne ne porte alors aucun montant. */
+  corporateAction?: CorporateAction | null;
 }
 
 /** Une jambe d'opération : quantité strictement positive, le sens est donné par `out`/`in`. */
@@ -222,6 +235,17 @@ export interface MigrationEvent extends EventBase {
 }
 
 /** Frais hors opération (abonnement Coinhouse…). */
+/**
+ * Fractionnement (ou regroupement) d'action : la quantité détenue est multipliée par `ratio`,
+ * le coût d'acquisition reste identique. Ni cession ni acquisition — rien n'est réalisé.
+ */
+export interface SplitEvent extends EventBase {
+  kind: 'split';
+  asset: AssetCode;
+  /** Multiplicateur : `2` pour un « 1 pour 2 », `0.5` pour un regroupement deux contre un. */
+  ratio: DecimalString;
+}
+
 export interface FeeEvent extends EventBase {
   kind: 'fee';
   amountEur: DecimalString;
@@ -280,6 +304,7 @@ export interface UnqualifiedEvent extends EventBase {
 export type LedgerEvent =
   | TradeEvent
   | MigrationEvent
+  | SplitEvent
   | FeeEvent
   | RewardEvent
   | DepositEvent

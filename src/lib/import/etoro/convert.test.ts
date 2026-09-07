@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Workbook } from '../xlsx/index';
-import { convertEtoroWorkbook, etoroDateToMs, leverageOf } from './convert';
+import { convertEtoroWorkbook, etoroDateToMs, leverageOf, splitRatioOf } from './convert';
 import { detectEtoroWorkbook } from './sheets';
 
 const HOLDINGS_HEADER = [
@@ -311,5 +311,63 @@ describe('formats propres à eToro', () => {
       1, 1, 2, 1,
     ]);
     expect(leverageOf('abc')).toBeNaN();
+  });
+});
+
+/** Une ligne de fractionnement : ni montant, ni quantité — seulement un ratio dans le libellé. */
+const splitRow = (date: string, details: string, id: string, assetType: string): string[] => [
+  date,
+  'corp action: Split',
+  details,
+  '0',
+  '-',
+  '0',
+  '0',
+  '0',
+  id,
+  assetType,
+  '0',
+];
+
+describe('fractionnement d’action', () => {
+  it('lit le ratio du libellé, « a devient b »', () => {
+    expect(splitRatioOf('HON/USD 1:2')).toBe('2');
+    // Un regroupement deux contre un : la quantité est divisée par deux.
+    expect(splitRatioOf('ABC/USD 2:1')).toBe('0.5');
+    expect(splitRatioOf('ABC/USD 1:1.5')).toBe('1.5');
+    expect(splitRatioOf('sans ratio')).toBeNull();
+    expect(splitRatioOf('ABC/USD 0:2')).toBeNull();
+  });
+
+  it('rattache le fractionnement à l’actif de la position, et le signale', () => {
+    const result = convertEtoroWorkbook(
+      book([
+        open('01/02/2025 10:00:00', 'HON/USD', '400', '1', 'p1', 'Actions'),
+        splitRow('29/06/2026 06:27:00', 'HON/USD 1:2', 'p1', 'Actions'),
+      ]),
+    );
+    expect(result.drafts).toHaveLength(2);
+    const split = result.drafts[1];
+    expect(split?.corporateAction).toEqual({ kind: 'split', asset: 'eq:hon', ratio: '2' });
+    // Ni montant envoyé ni montant reçu : ce n'est pas un échange.
+    expect(split?.sent).toBeNull();
+    expect(split?.received).toBeNull();
+    // Le sens du ratio n'est pas documenté par eToro : on le dit.
+    expect(result.issues[0]?.message).toContain('Vérifiez le sens');
+  });
+
+  it('retrouve l’actif par son ticker même sans position connue', () => {
+    const result = convertEtoroWorkbook(
+      book([splitRow('29/06/2026 06:27:00', 'HON/USD 1:2', 'inconnue', 'Actions')]),
+    );
+    expect(result.drafts[0]?.corporateAction?.asset).toBe('eq:hon');
+  });
+
+  it('refuse un ratio illisible plutôt que d’en inventer un', () => {
+    const result = convertEtoroWorkbook(
+      book([splitRow('29/06/2026 06:27:00', 'HON/USD regroupement', 'p1', 'Actions')]),
+    );
+    expect(result.drafts).toHaveLength(0);
+    expect(result.issues[0]?.message).toContain('ratio illisible');
   });
 });

@@ -280,6 +280,20 @@ const ACTIVITY: FixtureSheet = {
     ],
     ['02/06/2025 10:00:00', 'Position ouverte', 'OIL/USD', 60, 3, 0, 0, 3490, 'p-104', 'CFD', 0],
     ['15/07/2025 12:00:00', 'Frais overnight', 'OIL/USD', -2, '-', 0, 0, 3488, 'p-104', 'CFD', 0],
+    // Fractionnement postérieur à la photo : la quantité double, le coût ne bouge pas.
+    [
+      '30/06/2026 06:00:00',
+      'corp action: Split',
+      'DEMO/USD 1:2',
+      0,
+      '-',
+      0,
+      0,
+      0,
+      'p-101',
+      'Actions',
+      0,
+    ],
     // Après la dernière photo : invisible d'un import qui lirait la photo, présente ici.
     [
       '14/04/2026 14:20:00',
@@ -494,6 +508,6 @@ const PATH = 'tests/fixtures/etoro/releve-demo.xlsx';
 writeWorkbook(PATH, [SUMMARY, HOLDINGS, CLOSED, ACTIVITY]);
 console.log(`Relevé eToro de démonstration écrit : ${PATH}`);
 console.log(
-  '  grand livre de 8 lignes ; 2 photos empilées ; 1 ouverture postérieure à la dernière ;',
+  '  grand livre de 9 lignes ; 2 photos empilées ; 1 ouverture et 1 fractionnement postérieurs ;',
 );
 console.log('  1 CFD et 1 position à levier à écarter.');
