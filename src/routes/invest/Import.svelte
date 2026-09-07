@@ -45,6 +45,11 @@
   let report = $state<ImportReport | null>(null);
   let pivotReport = $state<PivotImportReport | null>(null);
   let lendingReport = $state<{ added: number; parsed: BienPreterImport } | null>(null);
+  let contractsReport = $state<{
+    applied: number;
+    unmatched: string[];
+    rejected: { name: string; reason: string }[];
+  } | null>(null);
   let failure = $state<{ error: string; details: string[]; header: string[] } | null>(null);
   let backupDone = $state(false);
 
@@ -162,6 +167,7 @@
     report = null;
     pivotReport = null;
     lendingReport = null;
+    contractsReport = null;
     pending = null;
     try {
       // 0) Classeur. Un relevé eToro est un fichier BINAIRE : il doit être détourné avant tout,
@@ -177,6 +183,18 @@
           return;
         }
         failure = { error: etoro.error, details: etoro.details, header: etoro.header };
+        return;
+      }
+      // 0) Contrats de prêt — archive ZIP ou PDF isolé. C'est du BINAIRE : on ne le lit pas en
+      //    texte, et ce chemin passe avant tous les autres, qui supposent un fichier lisible.
+      if (/\.(zip|pdf)$/i.test(file.name)) {
+        const contracts = await app.importLendingContracts(await file.arrayBuffer(), file.name);
+        if (contracts.ok) {
+          contractsReport = contracts;
+          toasts.push(`${contracts.applied} prêt(s) complété(s) par leur contrat.`, 'success');
+        } else {
+          failure = { error: contracts.error, details: [], header: [] };
+        }
         return;
       }
       const text = await file.text();
@@ -601,6 +619,31 @@
     </section>
   {/if}
 
+  {#if contractsReport}
+    <section class="card">
+      <h2>Contrats lus</h2>
+      <p>
+        <strong>{contractsReport.applied}</strong> prêt(s) complété(s) : taux, convention de jours, mode
+        d'amortissement et échéancier. Les intérêts courus et la détection de retard en dépendent.
+      </p>
+      {#if contractsReport.unmatched.length > 0}
+        <p class="warn">
+          {contractsReport.unmatched.length} contrat(s) sans prêt correspondant dans vos opérations —
+          rapprochés par numéro de contrat, jamais par ressemblance.
+        </p>
+      {/if}
+      {#if contractsReport.rejected.length > 0}
+        <p class="warn">
+          {contractsReport.rejected.length} fichier(s) illisible(s), signalé(s) plutôt qu'ignoré(s) :
+          {contractsReport.rejected
+            .slice(0, 3)
+            .map((r) => `${r.name} (${r.reason})`)
+            .join(', ')}.
+        </p>
+      {/if}
+      <p><a href={router.href({ name: 'loans' })}>Ouvrir l'écran Prêts</a></p>
+    </section>
+  {/if}
   {#if lendingReport}
     <section class="card">
       <h2>Prêts importés</h2>

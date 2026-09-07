@@ -10,6 +10,7 @@ import { isDecimalString } from '../money';
 import type {
   Amortisation,
   DayCount,
+  ScheduledInstalment,
   LendingState,
   Loan,
   LoanEvent,
@@ -35,6 +36,24 @@ const str = (v: unknown): v is string => typeof v === 'string';
 const dec = (v: unknown): v is string => str(v) && isDecimalString(v);
 const naive = (v: unknown): v is string => str(v) && NAIVE.test(v);
 
+/** Échéancier du contrat : une ligne mal formée est écartée, jamais devinée. */
+function sanitizeSchedule(raw: unknown): ScheduledInstalment[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ScheduledInstalment[] = [];
+  for (const row of raw) {
+    if (!isRecord(row)) continue;
+    if (!naive(row['due']) || !dec(row['principal'])) continue;
+    if (!dec(row['interest']) || !dec(row['outstanding'])) continue;
+    out.push({
+      due: row['due'],
+      principal: row['principal'],
+      interest: row['interest'],
+      outstanding: row['outstanding'],
+    });
+  }
+  return out;
+}
+
 function sanitizeLoan(id: string, raw: unknown): Loan | null {
   if (!isRecord(raw)) return null;
   const dayCount = raw['dayCount'];
@@ -54,6 +73,7 @@ function sanitizeLoan(id: string, raw: unknown): Loan | null {
     !str(raw['currency'])
   )
     return null;
+  const schedule = sanitizeSchedule(raw['schedule']);
   return {
     id,
     accountId: raw['accountId'],
@@ -68,6 +88,9 @@ function sanitizeLoan(id: string, raw: unknown): Loan | null {
     maturity: naive(raw['maturity']) ? raw['maturity'] : null,
     currency: raw['currency'],
     sector: str(raw['sector']) ? raw['sector'] : null,
+    // Champ facultatif : on ne l'inscrit que s'il porte quelque chose, `exactOptionalPropertyTypes`
+    // interdisant d'y poser `undefined`.
+    ...(schedule.length > 0 ? { schedule } : {}),
   };
 }
 

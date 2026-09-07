@@ -15,19 +15,10 @@
  * taux faux gonfle silencieusement la valeur du portefeuille. Ici chaque champ est LU ; ce qui ne
  * se lit pas reste absent.
  */
-import type { Amortisation, DayCount } from '../../domain/lending/types';
+import type { Amortisation, DayCount, ScheduledInstalment } from '../../domain/lending/types';
 import { D, toDecimalString } from '../../domain/money';
 import type { DecimalString, NaiveDateTime } from '../../domain/types';
 import { parseNaiveDateTime } from '../coinhouse/rows';
-
-/** Une échéance de l'annexe : ce qui était PRÉVU, à comparer plus tard au réalisé. */
-export interface ScheduledInstalment {
-  due: NaiveDateTime;
-  principal: DecimalString;
-  interest: DecimalString;
-  /** Capital restant dû après cette échéance, tel que l'annexe l'annonce. */
-  outstanding: DecimalString;
-}
 
 export interface BienPreterContract {
   /** Taux nominal annuel en fraction (`0.15` pour 15 %). */

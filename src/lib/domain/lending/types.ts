@@ -38,6 +38,19 @@ export type Amortisation = 'in-fine' | 'linear' | 'constant' | 'unknown';
  */
 export type WriteOffProof = 'failed-proceedings' | 'credit-insurance' | 'debtor-vanished' | 'other';
 
+/**
+ * Une échéance ATTENDUE, lue dans l'annexe du contrat. Ce n'est pas un événement : rien n'a eu
+ * lieu, c'est ce qui devait avoir lieu. La comparer aux remboursements reçus est ce qui permet de
+ * dire qu'un prêt est en retard sans que personne ait à le déclarer.
+ */
+export interface ScheduledInstalment {
+  due: NaiveDateTime;
+  principal: DecimalString;
+  interest: DecimalString;
+  /** Capital restant dû après cette échéance, tel que l'annexe l'annonce. */
+  outstanding: DecimalString;
+}
+
 /** Le contrat, décidé à la souscription. Ce qui bouge ensuite est un événement, pas un champ. */
 export interface Loan {
   id: LoanId;
@@ -60,6 +73,13 @@ export interface Loan {
   currency: string;
   /** Secteur d'activité de l'emprunteur, si connu — second axe de concentration. */
   sector: string | null;
+  /**
+   * Échéancier contractuel, quand le contrat a pu être lu. **Facultatif** : un prêt importé du
+   * seul CSV n'en a pas, et une sauvegarde antérieure non plus — l'ajouter en obligatoire aurait
+   * invalidé les états déjà enregistrés. Absent, le retard ne peut être déduit que d'une échéance
+   * dépassée ; présent, il se lit de la comparaison entre l'attendu et le reçu.
+   */
+  schedule?: ScheduledInstalment[];
 }
 
 interface LoanEventBase {

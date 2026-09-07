@@ -168,10 +168,34 @@ function statusOf(acc: Rolled, daysLate: number | null): LoanStatus {
   return 'performing';
 }
 
+/** Un centime : les annexes arrondissent chaque ligne, un écart moindre n'est pas un impayé. */
+const DUE_TOLERANCE = '0.01';
+
 /**
- * Retard à la date d'observation. Deux sources concordantes : l'échéance contractuelle dépassée
- * alors qu'il reste du capital dû, et un retard explicitement constaté par la plateforme. On
- * retient le plus ancien des deux — c'est le retard réel, pas le dernier signalé.
+ * Retard lu dans l'ÉCHÉANCIER : on cumule ce qui était dû au jour d'observation et on le compare à
+ * ce qui a été reçu. La première échéance que les encaissements ne couvrent plus est la date du
+ * retard. C'est la seule mesure qui repose sur le contrat plutôt que sur un signalement — et elle
+ * ne se déclenche pas sur un prêt remboursé en avance, dont le reçu dépasse l'attendu.
+ */
+function scheduleLate(loan: Loan, acc: Rolled, today: number): number | null {
+  const schedule = loan.schedule ?? [];
+  if (schedule.length === 0) return null;
+  const received = acc.principalRepaid.plus(acc.interestReceived);
+  let expected = ZERO;
+  for (const row of schedule) {
+    const due = epochDayOf(row.due);
+    if (due === null || due > today) break;
+    expected = expected.plus(D(row.principal)).plus(D(row.interest));
+    if (expected.minus(received).gt(D(DUE_TOLERANCE))) return today - due;
+  }
+  return null;
+}
+
+/**
+ * Retard à la date d'observation. Trois sources : l'échéance finale dépassée alors qu'il reste du
+ * capital dû, un retard explicitement constaté par la plateforme, et — la plus fine — l'échéancier
+ * du contrat comparé aux encaissements. On retient le plus ANCIEN, c'est-à-dire le plus grand
+ * nombre de jours : le retard réel, pas le dernier signalé.
  */
 function daysLateOf(loan: Loan, acc: Rolled, asOf: string): number | null {
   if (acc.outstanding.eq(ZERO)) return null;
@@ -186,6 +210,8 @@ function daysLateOf(loan: Loan, acc: Rolled, asOf: string): number | null {
     const seen = epochDayOf(acc.lastLateAt);
     if (seen !== null && today >= seen) candidates.push(today - seen);
   }
+  const fromSchedule = scheduleLate(loan, acc, today);
+  if (fromSchedule !== null && fromSchedule > 0) candidates.push(fromSchedule);
   return candidates.length === 0 ? null : Math.max(...candidates);
 }
 

@@ -365,3 +365,63 @@ describe('recouvrement après passage en perte', () => {
     );
   });
 });
+
+describe('retard lu dans l’échéancier du contrat', () => {
+  const withSchedule = (rows: { due: string; principal: string; interest: string }[]) =>
+    loan({
+      maturity: null,
+      schedule: rows.map((r) => ({ ...r, outstanding: '0' })),
+    });
+
+  it('déclare en retard dès qu’une échéance passée n’est pas couverte', () => {
+    const report = computeLending({
+      loans: [
+        withSchedule([
+          { due: '2026-02-01T00:00:00', principal: '0', interest: '10' },
+          { due: '2026-03-01T00:00:00', principal: '0', interest: '10' },
+        ]),
+      ],
+      events: [subscribe('2026-01-01T00:00:00', '1000'), repay('2026-02-01T00:00:00', '0', '10')],
+      asOf: '2026-03-11',
+    });
+    // La deuxième échéance était due le 1er mars et n'a pas été encaissée.
+    expect(report.loans[0]!.status).toBe('late');
+    expect(report.loans[0]!.daysLate).toBe(10);
+  });
+
+  it('ne déclare aucun retard tant que rien n’est encore dû', () => {
+    const report = computeLending({
+      loans: [withSchedule([{ due: '2026-06-01T00:00:00', principal: '1000', interest: '10' }])],
+      events: [subscribe('2026-01-01T00:00:00', '1000')],
+      asOf: '2026-03-01',
+    });
+    expect(report.loans[0]!.daysLate).toBeNull();
+    expect(report.loans[0]!.status).toBe('performing');
+  });
+
+  it('ne punit pas un emprunteur en avance : le reçu dépasse l’attendu', () => {
+    const report = computeLending({
+      loans: [
+        withSchedule([
+          { due: '2026-02-01T00:00:00', principal: '0', interest: '10' },
+          { due: '2026-03-01T00:00:00', principal: '0', interest: '10' },
+        ]),
+      ],
+      events: [subscribe('2026-01-01T00:00:00', '1000'), repay('2026-02-01T00:00:00', '0', '25')],
+      asOf: '2026-03-11',
+    });
+    expect(report.loans[0]!.daysLate).toBeNull();
+  });
+
+  it('tolère l’arrondi au centime des annexes', () => {
+    const report = computeLending({
+      loans: [withSchedule([{ due: '2026-02-01T00:00:00', principal: '0', interest: '10' }])],
+      events: [
+        subscribe('2026-01-01T00:00:00', '1000'),
+        repay('2026-02-01T00:00:00', '0', '9.995'),
+      ],
+      asOf: '2026-03-01',
+    });
+    expect(report.loans[0]!.daysLate).toBeNull();
+  });
+});

@@ -72,6 +72,7 @@ import {
   parseBienPreter,
   type BienPreterImport,
 } from '$lib/import/bienpreter/parse';
+import { applyContracts, readContractFile } from '$lib/import/bienpreter/contracts';
 import { parseCsvText } from '$lib/import/csv';
 import {
   emptyJournalEntry,
@@ -1385,6 +1386,63 @@ export class AppState {
     ];
     void requestPersistentStorage();
     return { ok: true, added: Object.keys(this.state.lending.events).length - before, parsed };
+  }
+
+  /**
+   * Contrats de prêt (archive ZIP ou PDF isolé) : ils portent le taux, la convention de jours,
+   * le mode d'amortissement et l'échéancier — tout ce que le relevé CSV ne dit pas. Le
+   * rapprochement se fait par NUMÉRO DE CONTRAT, jamais par ressemblance.
+   *
+   * Le fichier ne quitte pas l'appareil, et rien de personnel n'est conservé : seuls les termes
+   * du prêt entrent dans l'état.
+   */
+  async importLendingContracts(
+    buffer: ArrayBuffer,
+    fileName: string,
+    now = nowMs(),
+  ): Promise<
+    | { ok: false; error: string }
+    | {
+        ok: true;
+        applied: number;
+        unmatched: string[];
+        rejected: { name: string; reason: string }[];
+      }
+  > {
+    let read;
+    try {
+      read = await readContractFile(buffer, fileName);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+    if (read.contracts.size === 0)
+      return {
+        ok: false,
+        error:
+          'Aucun contrat lisible dans ce fichier. Attendu : l’archive des contrats de votre espace BienPrêter, ou un contrat PDF isolé.',
+      };
+    this.exitDemo();
+    const merged = applyContracts(this.state.lending.loans, read.contracts);
+    this.state.lending = { ...this.state.lending, loans: merged.loans };
+    this.state.imports = [
+      ...this.state.imports,
+      {
+        id: `imp:${now.toString(36)}`,
+        at: nowIso(now),
+        fileName,
+        rows: read.contracts.size,
+        newRows: merged.applied,
+        format: 'bienpreter-contracts',
+        accountId: 'lend:bienpreter',
+      },
+    ];
+    void requestPersistentStorage();
+    return {
+      ok: true,
+      applied: merged.applied,
+      unmatched: merged.unmatched,
+      rejected: read.rejected,
+    };
   }
 
   /** Compte destinataire d'un import pivot (kind `csv`, espace Investissement). */

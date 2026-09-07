@@ -36,10 +36,11 @@ async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
 }
 
 /**
- * Rend le contenu **texte** de chaque partie de l'archive, indexé par son chemin interne
- * (`xl/workbook.xml`). Un `.xlsx` ne contient que de l'XML : décoder en UTF-8 est sans perte.
+ * Rend le contenu **binaire** de chaque partie de l'archive, indexé par son chemin interne. C'est
+ * l'étage sur lequel tout le reste s'appuie : un classeur veut du texte, une archive de contrats
+ * veut des octets, et décoder trop tôt perdrait les seconds.
  */
-export async function unzipText(buffer: ArrayBuffer): Promise<Map<string, string>> {
+export async function unzipEntries(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
   const eocd = findEndOfCentralDirectory(view);
@@ -49,8 +50,9 @@ export async function unzipText(buffer: ArrayBuffer): Promise<Map<string, string
     throw new ZipError('Archive ZIP64 : ce format n’est pas lu. Réexportez un relevé plus court.');
   }
 
+  // Les NOMS d'entrée restent du texte même quand le contenu est binaire.
   const decoder = new TextDecoder();
-  const parts = new Map<string, string>();
+  const parts = new Map<string, Uint8Array>();
   let at = directoryAt;
   for (let i = 0; i < count; i += 1) {
     if (at + 46 > view.byteLength || view.getUint32(at, true) !== CENTRAL_SIGNATURE) {
@@ -72,9 +74,20 @@ export async function unzipText(buffer: ArrayBuffer): Promise<Map<string, string
     const dataAt =
       localAt + 30 + view.getUint16(localAt + 26, true) + view.getUint16(localAt + 28, true);
     const raw = bytes.subarray(dataAt, dataAt + compressedSize);
-    if (method === 0) parts.set(name, decoder.decode(raw));
-    else if (method === 8) parts.set(name, decoder.decode(await inflateRaw(raw)));
+    if (method === 0) parts.set(name, raw.slice());
+    else if (method === 8) parts.set(name, await inflateRaw(raw));
     else throw new ZipError(`Compression ${method} non gérée pour « ${name} ».`);
   }
   return parts;
+}
+
+/**
+ * Rend le contenu **texte** de chaque partie, indexé par son chemin interne (`xl/workbook.xml`).
+ * Un `.xlsx` ne contient que de l'XML : décoder en UTF-8 est sans perte.
+ */
+export async function unzipText(buffer: ArrayBuffer): Promise<Map<string, string>> {
+  const decoder = new TextDecoder();
+  const out = new Map<string, string>();
+  for (const [name, bytes] of await unzipEntries(buffer)) out.set(name, decoder.decode(bytes));
+  return out;
 }
