@@ -13,6 +13,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   Le capital prêté cumulé n'est pas mis en avant : sur un compte où les remboursements sont
   reprêtés, il peut valoir deux ou trois fois vos apports, et le confondre avec l'argent investi
   diviserait d'autant le rendement affiché.
+- **Vos contrats de prêt se lisent, et complètent le reste.** Déposez l'archive de contrats de
+  votre espace BienPrêter — ou un contrat isolé — et l'application y lit le taux, la durée, la
+  base de calcul et l'échéancier attendu, que le relevé d'opérations ne donne pas. Les intérêts
+  courus deviennent calculables et le retard se déduit de la comparaison entre l'échéancier et
+  vos encaissements. Le fichier ne quitte pas votre appareil, et rien de personnel n'en est
+  conservé : seuls les termes du prêt entrent dans vos données.
 - **Le retard et le défaut se déduisent de vos échéances, ils ne se saisissent pas.** Un
   remboursement encaissé met à jour le capital restant dû ; rien n'est stocké qu'on puisse oublier
   de recalculer.
