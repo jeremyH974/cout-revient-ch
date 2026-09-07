@@ -2577,3 +2577,32 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      **Leçon de méthode** : le fichier réel était disponible depuis le début. Une supposition sur
      le contenu d'une colonne se vérifie en trois lignes de script, et coûte trois PR quand on ne
      le fait pas.
+
+110. **Le grand livre est la source, la photo des positions n'est qu'un contrôle** (07/09/2026).
+     La décision n° 106 lisait la feuille des positions ouvertes en ne gardant que le dernier
+     instantané — pour éviter le triple comptage, et c'était juste sur ce point. Mais cette feuille
+     est une **photo périodique**, pas l'état courant.
+     **Mesuré sur un relevé réel de vingt mois** : la dernière photo datait de huit mois. Sur 407
+     lignes d'activité, **224 lui étaient postérieures**, dont **31 positions ouvertes et toujours
+     détenues** — près d'un tiers du portefeuille, absent sans le moindre signe. Le défaut a été
+     découvert en instruisant le fractionnement d'action : la position concernée n'était dans
+     aucune photo.
+     **Retenu** : les ouvertures viennent du **grand livre d'activité**, les clôtures de la feuille
+     des positions fermées — **la vente seulement**, l'achat y étant déjà. La photo ne produit plus
+     rien : elle **nomme** les instruments et **contrôle** les quantités à sa propre date, un écart
+     étant signalé.
+     **L'identité devient le ticker**, et non l'ISIN retenu la veille (décision n° 109). Chaque
+     feuille désigne ses actifs autrement — la photo par un nom et un ISIN, le grand livre par un
+     couple `TICKER/DEVISE`, les positions fermées par un `Nom (TICKER)`. Le ticker est le seul
+     présent partout, et les 31 positions manquantes n'avaient que lui : leur ISIN n'était nulle
+     part. C'est aussi ce qu'un fournisseur de cours interroge directement.
+     **Le contrôle ne passe pas par `checkBalances`** : ce mécanisme est lié au `scope: 'coinhouse'`
+     en deux endroits du moteur et suppose une chaîne de soldes datés. Un contrôle final dans le
+     convertisseur rend le même service sans toucher au moteur.
+     **Contre-épreuve** (décision n° 75) : privé du grand livre, le convertisseur ne produit plus
+     aucune position ; privé de son contrôle, un écart entre le relevé et la reconstitution passe
+     sans un mot.
+     Vérifié sur le relevé réel : **133 opérations** contre 120, **38 titres détenus** contre 18,
+     zéro opération non qualifiée, **zéro position négative** — donc aucun achat manquant —, et
+     **aucun écart** au contrôle de la photo. Deux signalements subsistent, tous deux volontaires :
+     un CFD et une position à effet de levier.

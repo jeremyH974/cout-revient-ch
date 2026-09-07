@@ -3,26 +3,25 @@
  * la conversion USD → EUR au taux BCE **du jour de l'opération** y est déjà faite
  * (`pivot/events.ts`), ce qui est aussi la règle du Conseil d'État sur les plus-values en devises.
  *
- * Trois choix que le fichier réel a imposés, et qu'aucune documentation ne donnait :
+ * **La source est le grand livre d'activité, pas la photo des positions.** La feuille « Holdings »
+ * empile des instantanés périodiques : sur un relevé de vingt mois, le plus récent datait de huit
+ * mois et ignorait trente et une positions ouvertes depuis — près d'un tiers du portefeuille, sans
+ * le moindre signe. Elle ne sert plus qu'à deux choses : donner le nom et l'ISIN d'un instrument,
+ * et **contrôler** les quantités à sa propre date.
  *
- * 1. **La feuille des positions ouvertes empile des instantanés.** Un relevé de dix-sept mois en
- *    contient quatre (01/01/2025, 30/06/2025, 31/12/2025, 01/01/2026) : lire toutes les lignes
- *    compterait le portefeuille trois fois, avec un résultat parfaitement plausible. Seul le
- *    dernier instantané est retenu.
- * 2. **`Open Rate` n'est pas en devise du compte.** Sur douze ETF de dix-huit, le rapport entre
- *    valeur et cours trahit une cotation en devise locale — l'un à un facteur cent, soit des
- *    centimes. Le coût vient donc de la feuille d'activité, seule à porter le montant réellement
- *    débité, joint par identifiant de position.
- * 3. **Le levier existe.** Les positions à effet de levier et les CFD sont écartés avec un motif
- *    nommé : il n'y a pas de quantité détenue derrière un contrat pour différence, et aucun moteur
- *    open source de référence n'en modélise une.
+ * **L'identité d'un actif est son ticker.** Chaque feuille en désigne un autrement — Holdings donne
+ * un nom et un ISIN, l'activité un couple `TICKER/DEVISE`, les positions fermées un
+ * `Nom (TICKER)`. Le ticker est le seul présent partout, et le seul qu'un fournisseur de cours
+ * sache interroger.
+ *
+ * Restent écartés avec un motif nommé : effet de levier et contrats pour différence — il n'y a pas
+ * de quantité détenue derrière un CFD, et aucun moteur open source de référence n'en modélise une.
  */
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
 import { D, ZERO } from '../../domain/money';
-import { codeByName } from '../../pricing/tickers';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
-import type { Workbook } from '../xlsx/index';
+import { excelSerialToNaive, type Workbook } from '../xlsx/index';
 import { findSheet, reader, SHEET_ALIASES } from './sheets';
 
 export interface EtoroConversion {
@@ -30,14 +29,14 @@ export interface EtoroConversion {
   issues: PivotIssue[];
   /** Lignes volontairement hors modèle (levier, CFD) : comptées, jamais tues. */
   skipped: number;
-  /** Nom commercial par code, pour l’affichage : `eq:us02079k1079` ne se lit pas. */
+  /** Nom commercial par code, pour l’affichage : un ticker seul ne dit pas grand-chose. */
   labels: Record<string, string>;
 }
 
 const EQUITY_TYPES = new Set(['stocks', 'actions', 'etf']);
 const CRYPTO_TYPES = new Set(['crypto currencies', 'crypto-monnaies', 'cryptocurrencies']);
 
-/** Devise du compte eToro : tous les montants d'activité y sont exprimés. */
+/** Devise du compte eToro : tous les montants du grand livre y sont exprimés. */
 const ACCOUNT_CURRENCY = 'usd';
 
 /**
@@ -67,62 +66,36 @@ export function leverageOf(raw: string): number {
   return Number.isFinite(value) && value > 0 ? value : Number.NaN;
 }
 
-/** Ticker que certaines feuilles accolent au nom : « Bitcoin (BTC) ». */
-const TICKER_SUFFIX = /[ ]*[(]([A-Za-z0-9.]{2,10})[)][ ]*$/;
+/** Ticker que les positions fermées accolent au nom : « Dogecoin (DOGE) ». */
+const TICKER_SUFFIX = /[ ]*[(]([A-Za-z0-9.-]{1,16})[)][ ]*$/;
 
-function tickerInParentheses(label: string): string | null {
-  const found = TICKER_SUFFIX.exec(label);
-  return found ? normalizeAssetCode(found[1]!) : null;
+/** Ticker et devise de cotation du grand livre : « NOW/USD », « SPCX.24-7/USD ». */
+const PAIR = /^([A-Za-z0-9.-]{1,16})[/]([A-Za-z]{3})$/;
+
+function tickerOf(raw: string): string | null {
+  const text = raw.trim();
+  const pair = PAIR.exec(text);
+  if (pair) return pair[1]!;
+  const suffix = TICKER_SUFFIX.exec(text);
+  return suffix ? suffix[1]! : null;
 }
 
-/** Format ISIN : code pays, neuf caractères, clé de contrôle. */
-const ISIN = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
+/** Nom d'affichage : le libellé débarrassé du ticker qu'il répète. */
+function labelOf(raw: string): string {
+  return raw.trim().replace(TICKER_SUFFIX, '').trim();
+}
 
-type Resolution =
-  { ok: true; code: string; label: string } | { ok: false; message: string; outOfScope: boolean };
+type Resolution = { ok: true; code: string } | { ok: false; message: string; outOfScope: boolean };
 
 /**
- * Identifie un actif. **La colonne « Asset » d'eToro porte un nom commercial, pas un symbole** —
- * « Alphabet », « iShares NASDAQ 100 UCITS ETF usd », « Bitcoin » — et aucun fournisseur de cours
- * ne saurait quoi faire de `eq:alphabet`.
- *
- * Un titre est donc identifié par son **ISIN**, présent dans le relevé et unique au monde. Une
- * crypto est résolue par son nom vers le code du moteur : sans cela, un bitcoin venu d'eToro
- * formerait une position distincte de celui de Coinhouse, et l'assiette du 150 VH bis — qui se
- * calcule sur le portefeuille entier — serait fausse en silence.
- *
- * Ce qui ne se résout pas est **signalé, jamais deviné** : un rapprochement faux abîmerait deux
- * portefeuilles à la fois (même règle que la décision n° 54).
+ * Code interne d'un actif, depuis son **ticker** et la classe que la source déclare
+ * (décision n° 103). Un titre est préfixé, une crypto garde son ticker nu — c'est celui qu'emploient
+ * déjà les autres plateformes, donc les positions se rejoignent au lieu de se dédoubler.
  */
-function resolveAsset(name: string, type: string, isin: string): Resolution {
+function resolveTicker(ticker: string, type: string): Resolution {
   const kind = type.trim().toLowerCase();
-  const label = name.trim().replace(TICKER_SUFFIX, '').trim();
-  if (EQUITY_TYPES.has(kind)) {
-    const code = isin.trim().toUpperCase();
-    if (!ISIN.test(code)) {
-      return {
-        ok: false,
-        message: `Titre « ${label} » sans ISIN exploitable : impossible de l’identifier.`,
-        outOfScope: false,
-      };
-    }
-    return { ok: true, code: equityCode(code), label };
-  }
-  if (CRYPTO_TYPES.has(kind)) {
-    // eToro nomme « Bitcoin » dans une feuille et « Bitcoin (BTC) » dans une autre. On tente
-    // d'abord le nom nettoyé, qui passe par la table curée ; à défaut le ticker que la source
-    // affirme entre parenthèses — il n’y a pas d’ambiguïté de classe, le type est déjà connu.
-    const bare = label.replace(TICKER_SUFFIX, '').trim();
-    const code = codeByName(bare) ?? tickerInParentheses(label);
-    if (code === null) {
-      return {
-        ok: false,
-        message: `Actif numérique « ${label} » absent de la table des tickers : à rapprocher à la main plutôt qu’à deviner.`,
-        outOfScope: false,
-      };
-    }
-    return { ok: true, code, label };
-  }
+  if (EQUITY_TYPES.has(kind)) return { ok: true, code: equityCode(ticker) };
+  if (CRYPTO_TYPES.has(kind)) return { ok: true, code: normalizeAssetCode(ticker) };
   return {
     ok: false,
     message: `Type d’actif « ${type} » hors périmètre (contrat pour différence ?).`,
@@ -130,123 +103,175 @@ function resolveAsset(name: string, type: string, isin: string): Resolution {
   };
 }
 
+const ACTIVITY_COLUMNS = {
+  date: ['date'],
+  type: ['type'],
+  details: ['détails', 'details'],
+  amount: ['montant', 'amount'],
+  units: ['unités', 'units'],
+  positionId: ['identifiant de position', 'position id'],
+  assetType: ['type d’actif', "type d'actif", 'asset type'],
+};
+
 const HOLDINGS_COLUMNS = {
   snapshot: ['snapshot date', 'date de l’instantané', "date de l'instantané"],
   asset: ['asset', 'actif'],
   positionId: ['position id', 'identifiant de position'],
-  openDate: ['open date', 'date d’ouverture', "date d'ouverture"],
-  leverage: ['leverage', 'effet de levier'],
   units: ['units', 'unités'],
   type: ['type', 'type d’actif', "type d'actif"],
   isin: ['isin'],
 };
-
-const ACTIVITY_COLUMNS = {
-  type: ['type'],
-  amount: ['montant', 'amount'],
-  positionId: ['identifiant de position', 'position id'],
-};
-
-const OPEN_LABELS = new Set(['position ouverte', 'open position']);
-
-/** Coût réellement débité par position, lu dans le grand livre du compte. */
-function costsByPosition(book: Workbook): Map<string, string> {
-  const sheet = findSheet(book, SHEET_ALIASES.activity);
-  const costs = new Map<string, string>();
-  if (!sheet) return costs;
-  const read = reader(sheet, ACTIVITY_COLUMNS);
-  for (const row of sheet.rows) {
-    if (!OPEN_LABELS.has(read.get(row, 'type').toLowerCase())) continue;
-    const id = read.get(row, 'positionId');
-    const amount = read.get(row, 'amount');
-    if (id !== '' && amount !== '') costs.set(id, amount);
-  }
-  return costs;
-}
 
 const CLOSED_COLUMNS = {
   positionId: ['identifiant de position', 'position id'],
   asset: ['action', 'asset'],
   units: ['unités', 'units'],
   amount: ['montant', 'amount'],
-  openDate: ['date d’ouverture', "date d'ouverture", 'open date'],
   closeDate: ['date de clôture', 'close date'],
   leverage: ['effet de levier', 'leverage'],
   profit: ['profit (usd)'],
   type: ['type'],
-  isin: ['isin'],
 };
 
+const OPEN_LABELS = new Set(['position ouverte', 'open position']);
+
+interface Collected {
+  drafts: PlatformDraft[];
+  issues: PivotIssue[];
+  labels: Record<string, string>;
+  /** Code d'actif par identifiant de position : le lien entre les trois feuilles. */
+  codeByPosition: Map<string, string>;
+  skipped: number;
+}
+
 /**
- * Positions fermées → un achat daté de l'ouverture, puis une vente datée de la clôture. Le produit
- * de la vente est le montant investi augmenté du profit : c'est la définition même de la colonne,
- * et cela évite de reconstruire un cours de clôture dont la devise n'est pas fiable (§ 2).
+ * Ouvertures de position, depuis le grand livre. C'est **la** source des acquisitions : la photo
+ * des positions n'en couvre qu'une partie, et jamais les plus récentes.
  */
-function closedDrafts(
-  book: Workbook,
-  drafts: PlatformDraft[],
-  issues: PivotIssue[],
-  labels: Record<string, string>,
-): number {
-  const sheet = findSheet(book, SHEET_ALIASES.closed);
-  if (!sheet) return 0;
-  const read = reader(sheet, CLOSED_COLUMNS);
-  if (read.missing.length > 0) {
-    issues.push({
-      lineNo: 1,
-      message: `Positions fermées, colonnes introuvables : ${read.missing.join(', ')}.`,
-    });
-    return 0;
+function collectOpenings(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.activity);
+  if (!sheet) {
+    out.issues.push({ lineNo: 0, message: 'Feuille d’activité absente du relevé.' });
+    return;
   }
-  let skipped = 0;
+  const read = reader(sheet, ACTIVITY_COLUMNS);
+  if (read.missing.length > 0) {
+    out.issues.push({
+      lineNo: 1,
+      message: `Activité, colonnes introuvables : ${read.missing.join(', ')}.`,
+    });
+    return;
+  }
   sheet.rows.forEach((row, i) => {
     const lineNo = i + 2;
-    const type = read.get(row, 'type');
-    const leverage = leverageOf(read.get(row, 'leverage'));
-    if (!Number.isFinite(leverage) || leverage !== 1) {
-      issues.push({
-        lineNo,
-        message: `Position fermée à effet de levier (${leverage}×) : hors périmètre.`,
-      });
-      skipped += 1;
+    if (!OPEN_LABELS.has(read.get(row, 'type').toLowerCase())) return;
+
+    const details = read.get(row, 'details');
+    const ticker = tickerOf(details);
+    if (ticker === null) {
+      out.issues.push({ lineNo, message: `Ouverture « ${details} » : ticker illisible.` });
       return;
     }
-    const resolved = resolveAsset(read.get(row, 'asset'), type, read.get(row, 'isin'));
+    const resolved = resolveTicker(ticker, read.get(row, 'assetType'));
     if (!resolved.ok) {
-      issues.push({ lineNo, message: resolved.message });
-      if (resolved.outOfScope) skipped += 1;
+      out.issues.push({ lineNo, message: resolved.message });
+      if (resolved.outOfScope) out.skipped += 1;
       return;
     }
-    const { code, label } = resolved;
-    labels[code] = label;
     const units = read.get(row, 'units');
     const amount = read.get(row, 'amount');
-    const openMs = etoroDateToMs(read.get(row, 'openDate'));
-    const closeMs = etoroDateToMs(read.get(row, 'closeDate'));
-    if (units === '' || amount === '' || openMs === null || closeMs === null) {
-      issues.push({ lineNo, message: 'Position fermée : quantité, montant ou date illisible.' });
+    const timeMs = etoroDateToMs(read.get(row, 'date'));
+    if (units === '' || amount === '' || timeMs === null) {
+      out.issues.push({ lineNo, message: 'Ouverture : quantité, montant ou date illisible.' });
       return;
     }
-    const profit = read.get(row, 'profit');
-    const proceeds = D(amount).plus(profit === '' ? ZERO : D(profit));
-    const id = read.get(row, 'positionId');
-    drafts.push({
+    const positionId = read.get(row, 'positionId');
+    if (positionId !== '') out.codeByPosition.set(positionId, resolved.code);
+    out.labels[resolved.code] ??= ticker;
+    out.drafts.push({
       lineNo,
-      nativeContent: `etoro:closed:buy:${id}`,
-      timeMs: openMs,
+      nativeContent: `etoro:open:${positionId}`,
+      timeMs,
       sent: { amount, currency: ACCOUNT_CURRENCY },
-      received: { amount: units, currency: code },
+      received: { amount: units, currency: resolved.code },
       fee: null,
       netWorth: null,
       label: null,
       description: null,
       txHash: null,
     });
-    drafts.push({
+  });
+}
+
+/**
+ * Clôtures : **la vente seulement**. L'achat correspondant est déjà dans le grand livre — le
+ * produire ici aussi doublerait chaque position revendue.
+ *
+ * Le produit de la vente est le montant investi augmenté du profit : c'est la définition même de
+ * la colonne, et cela évite de reconstruire un cours de clôture dont la devise n'est pas fiable.
+ */
+function collectClosings(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.closed);
+  if (!sheet) return;
+  const read = reader(sheet, CLOSED_COLUMNS);
+  if (read.missing.length > 0) {
+    out.issues.push({
+      lineNo: 1,
+      message: `Positions fermées, colonnes introuvables : ${read.missing.join(', ')}.`,
+    });
+    return;
+  }
+  sheet.rows.forEach((row, i) => {
+    const lineNo = i + 2;
+    const leverage = leverageOf(read.get(row, 'leverage'));
+    if (!Number.isFinite(leverage) || leverage !== 1) {
+      out.issues.push({
+        lineNo,
+        message: `Position fermée à effet de levier (${leverage}×) : hors périmètre.`,
+      });
+      out.skipped += 1;
+      return;
+    }
+    const positionId = read.get(row, 'positionId');
+    const asset = read.get(row, 'asset');
+    const ticker = tickerOf(asset);
+    const known = out.codeByPosition.get(positionId);
+    const resolved =
+      known !== undefined
+        ? ({ ok: true, code: known } as Resolution)
+        : ticker !== null
+          ? resolveTicker(ticker, read.get(row, 'type'))
+          : ({
+              ok: false,
+              message: `Position fermée « ${asset} » : ticker illisible.`,
+              outOfScope: false,
+            } as Resolution);
+    if (!resolved.ok) {
+      out.issues.push({ lineNo, message: resolved.message });
+      if (resolved.outOfScope) out.skipped += 1;
+      return;
+    }
+    // Le nom complet des positions fermées est plus parlant qu'un ticker : il l'emporte.
+    const label = labelOf(asset);
+    if (label !== '') out.labels[resolved.code] = label;
+
+    const units = read.get(row, 'units');
+    const amount = read.get(row, 'amount');
+    const closeMs = etoroDateToMs(read.get(row, 'closeDate'));
+    if (units === '' || amount === '' || closeMs === null) {
+      out.issues.push({
+        lineNo,
+        message: 'Position fermée : quantité, montant ou date illisible.',
+      });
+      return;
+    }
+    const profit = read.get(row, 'profit');
+    const proceeds = D(amount).plus(profit === '' ? ZERO : D(profit));
+    out.drafts.push({
       lineNo,
-      nativeContent: `etoro:closed:sell:${id}`,
+      nativeContent: `etoro:closed:sell:${positionId}`,
       timeMs: closeMs,
-      sent: { amount: units, currency: code },
+      sent: { amount: units, currency: resolved.code },
       received: { amount: proceeds.toString(), currency: ACCOUNT_CURRENCY },
       fee: null,
       netWorth: null,
@@ -255,93 +280,78 @@ function closedDrafts(
       txHash: null,
     });
   });
-  return skipped;
+}
+
+/**
+ * La photo des positions ne produit plus rien : elle **nomme** les instruments (son libellé est
+ * plus lisible qu'un ticker) et **contrôle** les quantités à sa propre date. Un écart signale que
+ * le grand livre ne raconte pas la même histoire que le courtier.
+ */
+function auditAgainstSnapshot(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.holdings);
+  if (!sheet) return;
+  const read = reader(sheet, HOLDINGS_COLUMNS);
+  if (read.missing.length > 0) return;
+
+  const serials = sheet.rows
+    .map((row) => Number(read.get(row, 'snapshot')))
+    .filter((n) => Number.isFinite(n));
+  if (serials.length === 0) return;
+  const latest = Math.max(...serials);
+  const naive = excelSerialToNaive(latest);
+  if (naive === null) return;
+  // La photo est datée du jour : tout ce qui la précède doit s'y retrouver.
+  const cutoff = Date.parse(`${naive}Z`) + 86_400_000;
+
+  const expected = new Map<string, ReturnType<typeof D>>();
+  for (const row of sheet.rows) {
+    if (Number(read.get(row, 'snapshot')) !== latest) continue;
+    const positionId = read.get(row, 'positionId');
+    const code = out.codeByPosition.get(positionId);
+    const units = read.get(row, 'units');
+    if (code === undefined || units === '') continue;
+    const label = labelOf(read.get(row, 'asset'));
+    if (label !== '') out.labels[code] = label;
+    expected.set(code, (expected.get(code) ?? ZERO).plus(D(units)));
+  }
+  if (expected.size === 0) return;
+
+  const actual = new Map<string, ReturnType<typeof D>>();
+  for (const draft of out.drafts) {
+    if (draft.timeMs > cutoff) continue;
+    if (draft.received && draft.received.currency !== ACCOUNT_CURRENCY) {
+      const code = draft.received.currency;
+      actual.set(code, (actual.get(code) ?? ZERO).plus(D(draft.received.amount)));
+    }
+    if (draft.sent && draft.sent.currency !== ACCOUNT_CURRENCY) {
+      const code = draft.sent.currency;
+      actual.set(code, (actual.get(code) ?? ZERO).minus(D(draft.sent.amount)));
+    }
+  }
+  const drifted: string[] = [];
+  for (const [code, qty] of expected) {
+    const got = actual.get(code) ?? ZERO;
+    // Tolérance : eToro arrondit ses quantités affichées à six décimales.
+    if (qty.minus(got).abs().gt(D('0.000001'))) drifted.push(code);
+  }
+  if (drifted.length > 0) {
+    out.issues.push({
+      lineNo: 0,
+      message: `Contrôle du ${naive.slice(0, 10)} : ${drifted.length} actif(s) dont la quantité reconstituée diffère de celle du relevé (${drifted.slice(0, 5).join(', ')}).`,
+    });
+  }
 }
 
 export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
-  const drafts: PlatformDraft[] = [];
-  const issues: PivotIssue[] = [];
-  const labels: Record<string, string> = {};
-  let skipped = 0;
-
-  const holdings = findSheet(book, SHEET_ALIASES.holdings);
-  if (!holdings) {
-    return {
-      drafts,
-      issues: [{ lineNo: 0, message: 'Feuille des positions absente du relevé.' }],
-      skipped,
-      labels,
-    };
-  }
-  const read = reader(holdings, HOLDINGS_COLUMNS);
-  if (read.missing.length > 0) {
-    const names = read.missing.join(', ');
-    return {
-      drafts,
-      issues: [{ lineNo: 1, message: `Colonnes introuvables : ${names}.` }],
-      skipped,
-      labels,
-    };
-  }
-
-  // Un relevé empile plusieurs photos du portefeuille : seule la plus récente décrit ce qui est détenu.
-  const serials = holdings.rows
-    .map((row) => Number(read.get(row, 'snapshot')))
-    .filter((n) => Number.isFinite(n));
-  const latest = serials.length > 0 ? Math.max(...serials) : Number.NaN;
-
-  const costs = costsByPosition(book);
-  holdings.rows.forEach((row, i) => {
-    const lineNo = i + 2;
-    if (Number(read.get(row, 'snapshot')) !== latest) return;
-
-    const type = read.get(row, 'type');
-    const leverage = leverageOf(read.get(row, 'leverage'));
-    if (!Number.isFinite(leverage) || leverage !== 1) {
-      issues.push({
-        lineNo,
-        message: `Position à effet de levier (${leverage}×) : hors périmètre.`,
-      });
-      skipped += 1;
-      return;
-    }
-    const resolved = resolveAsset(read.get(row, 'asset'), type, read.get(row, 'isin'));
-    if (!resolved.ok) {
-      issues.push({ lineNo, message: resolved.message });
-      if (resolved.outOfScope) skipped += 1;
-      return;
-    }
-    const { code, label } = resolved;
-    labels[code] = label;
-    const units = read.get(row, 'units');
-    const timeMs = etoroDateToMs(read.get(row, 'openDate'));
-    if (units === '' || timeMs === null) {
-      issues.push({ lineNo, message: 'Quantité ou date d’ouverture illisible.' });
-      return;
-    }
-    const positionId = read.get(row, 'positionId');
-    const cost = costs.get(positionId);
-    if (cost === undefined) {
-      issues.push({
-        lineNo,
-        message: `Coût introuvable pour la position ${positionId} : ouverte avant le début du relevé.`,
-      });
-      return;
-    }
-    drafts.push({
-      lineNo,
-      nativeContent: `etoro:open:${positionId}`,
-      timeMs,
-      sent: { amount: cost, currency: ACCOUNT_CURRENCY },
-      received: { amount: units, currency: code },
-      fee: null,
-      netWorth: null,
-      label: null,
-      description: null,
-      txHash: null,
-    });
-  });
-
-  skipped += closedDrafts(book, drafts, issues, labels);
-  return { drafts, issues, skipped, labels };
+  const out: Collected = {
+    drafts: [],
+    issues: [],
+    labels: {},
+    codeByPosition: new Map(),
+    skipped: 0,
+  };
+  collectOpenings(book, out);
+  collectClosings(book, out);
+  auditAgainstSnapshot(book, out);
+  return { drafts: out.drafts, issues: out.issues, skipped: out.skipped, labels: out.labels };
 }
