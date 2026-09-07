@@ -50,9 +50,9 @@ describe('relevé eToro de démonstration', () => {
         ),
       ),
     ].sort();
-    expect(codes).toEqual(['eq:demo', 'eq:idx', 'usd', 'zch']);
-    expect(assetClass('eq:demo')).toBe('equity');
-    expect(assetClass('zch')).toBe('crypto');
+    expect(codes).toEqual(['btc', 'eq:xx0000000001', 'eq:xx0000000002', 'usd']);
+    expect(assetClass('eq:xx0000000001')).toBe('equity');
+    expect(assetClass('btc')).toBe('crypto');
   });
 
   it('produit un portefeuille cohérent : deux titres, une crypto, rien à qualifier', async () => {
@@ -68,11 +68,14 @@ describe('relevé eToro de démonstration', () => {
     const { events } = pivotLedgerEvents(Object.values(ingested.rows), {}, usdRate);
     const report = computePortfolio({ events, prices: {}, settings: DEFAULT_ENGINE_SETTINGS });
 
-    expect(report.equities.map((p) => p.asset).sort()).toEqual(['eq:demo', 'eq:idx']);
-    expect(report.positions.map((p) => p.asset)).toEqual(['zch']);
+    expect(report.equities.map((p) => p.asset).sort()).toEqual([
+      'eq:xx0000000001',
+      'eq:xx0000000002',
+    ]);
+    expect(report.positions.map((p) => p.asset)).toEqual(['btc']);
     expect(report.unqualified).toHaveLength(0);
     // La position fermée a rapporté 240 pour 200 investis : le titre garde une plus-value réalisée.
-    const demo = report.equities.find((p) => p.asset === 'eq:demo');
+    const demo = report.equities.find((p) => p.asset === 'eq:xx0000000001');
     expect(demo && isPositive(demo.realized)).toBe(true);
     expect(demo?.qty.toString()).toBe('10');
   });

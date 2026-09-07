@@ -21,6 +21,8 @@ export type { EtoroConversion } from './convert';
 export interface EtoroImport extends ParsedPivotRows {
   /** Positions volontairement hors modèle (effet de levier, contrats pour différence). */
   skipped: number;
+  /** Nom commercial par code : la seule chose lisible quand le code est un ISIN. */
+  labels: Record<string, string>;
 }
 
 export interface EtoroImportError {
@@ -48,5 +50,11 @@ export async function importEtoroWorkbook(
   const conversion = convertEtoroWorkbook(book);
   const parsed = draftsToPivotRows(conversion.drafts, importId, accountId);
   const issues: PivotIssue[] = [...conversion.issues, ...parsed.issues];
-  return { ok: true, rows: parsed.rows, issues, skipped: conversion.skipped };
+  return {
+    ok: true,
+    rows: parsed.rows,
+    issues,
+    skipped: conversion.skipped,
+    labels: conversion.labels,
+  };
 }

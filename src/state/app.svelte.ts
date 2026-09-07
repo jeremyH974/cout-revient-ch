@@ -1418,6 +1418,17 @@ export class AppState {
         },
       };
     }
+    // Les noms viennent du relevé : sans eux, un titre s’afficherait sous son ISIN. On ne
+    // réécrit jamais un libellé déjà connu — l’utilisateur a pu le corriger.
+    const settings = { ...this.state.assetSettings };
+    for (const [code, label] of Object.entries(parsed.labels)) {
+      const current = settings[code];
+      if (current?.label) continue;
+      settings[code] = current
+        ? { ...current, label }
+        : { manualPriceEur: null, manualPriceAt: null, coingeckoId: null, label };
+    }
+    this.state.assetSettings = settings;
     const usd = rateLookup(this.state.fx.rates.USD ?? {});
     const result = ingestPivotRows(
       { rows: parsed.rows, issues: parsed.issues },

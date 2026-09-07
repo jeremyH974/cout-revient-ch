@@ -2546,3 +2546,34 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      scénarios vérifient que les titres vont au Patrimoine, que la crypto du même relevé reste à
      l'Investissement, et que la barre y mène.
      Solde la dette laissée par la PR 3 du plan « Voir ses actifs eToro ».
+
+109. **Un actif s'identifie par son ISIN ou son ticker, jamais par son nom commercial**
+     (06/09/2026).
+     La décision n° 106 supposait que la colonne « Asset » d'un relevé eToro portait un symbole.
+     **Elle porte un nom** : « Alphabet », « Palantir Technologies Inc. », « iShares NASDAQ 100
+     UCITS ETF usd », « Bitcoin ». Sur soixante-deux positions, quatre seulement ressemblaient à un
+     ticker. L'erreur est passée parce que le fichier était là et que je ne l'ai pas regardé.
+     **Deux conséquences, dont une invisible.** Visible : `eq:alphabet` n'est cotable par personne,
+     et aucune clé de données de marché n'y aurait rien changé. Invisible, et plus grave :
+     `bitcoin` n'est pas `btc`, donc les actifs numériques venus d'eToro formaient des positions
+     **distinctes** de celles de Coinhouse — deux PRU pour un même actif, et une assiette du
+     150 VH bis fausse, qui se calcule pourtant sur le portefeuille entier.
+     **Retenu** : un titre est identifié par son **ISIN**, que le relevé fournit sur toutes ses
+     lignes de titres et qui est unique au monde ; une crypto est résolue par son nom vers le code
+     du moteur, via l'index inverse de la table des tickers. eToro nommant « Bitcoin » dans une
+     feuille et « Bitcoin (BTC) » dans une autre, le ticker entre parenthèses sert de second
+     recours. Ce qui ne se résout pas est **signalé, jamais deviné** — un rapprochement faux
+     abîmerait deux portefeuilles à la fois (même règle que la décision n° 54). Sur le relevé réel,
+     il reste trois signalements : un actif hors table, une position antérieure au relevé, un CFD.
+     **Le nom devient une donnée d'affichage** (`AssetSettings.label`, champ additif) : un ISIN ne
+     se lit pas, et la source est seule à savoir comment l'instrument s'appelle. Il n'est jamais
+     réécrit s'il existe déjà — l'utilisateur a pu le corriger.
+     **Le fournisseur de cours résout l'ISIN en symbole** avant de coter, et mémorise la résolution
+     pour la session : elle coûte un crédit d'API, la refaire à chaque rafraîchissement en
+     gaspillerait la moitié.
+     **Contre-épreuve** (décision n° 75) : rendu à son nom, un titre redevient `eq:apple inc.` là où
+     l'ISIN est attendu ; privée de sa résolution, une crypto redevient `bitcoin` au lieu de `btc`.
+     Les deux tests nomment précisément le défaut d'origine.
+     **Leçon de méthode** : le fichier réel était disponible depuis le début. Une supposition sur
+     le contenu d'une colonne se vérifie en trois lignes de script, et coûte trois PR quand on ne
+     le fait pas.

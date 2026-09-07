@@ -165,6 +165,14 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         aiModelId: null,
         twelveDataApiKey: null,
       },
+      // Un quatrième champ additif (décision n° 109) : le nom commercial d’un actif, que le
+      // relevé d'un courtier fournit et qu'une sauvegarde de 2026 ne pouvait pas connaître.
+      assetSettings: Object.fromEntries(
+        Object.entries(envelope.state.assetSettings).map(([code, settings]) => [
+          code,
+          { ...settings, label: null },
+        ]),
+      ),
       priceCache: {
         ...envelope.state.priceCache,
         btc: { ...envelope.state.priceCache['btc']!, stale: true },
@@ -512,6 +520,7 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       manualPriceEur: '50000',
       manualPriceAt: '2026-01-01',
       coingeckoId: 'bitcoin',
+      label: 'Bitcoin',
     };
     s.accounts['man:trading'] = {
       id: 'man:trading',

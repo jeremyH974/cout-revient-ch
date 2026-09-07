@@ -50,7 +50,7 @@ export const ETORO_FIXTURE = 'tests/fixtures/etoro/releve-demo.xlsx';
  * compare à lui, jamais à des chiffres codés en dur. Le taux du jour est celui que l'app applique
  * hors ligne (les requêtes sont stubées) — seuls les codes et les quantités sont vérifiés ici.
  */
-export async function etoroAssets(): Promise<string[]> {
+export async function etoroAssets(): Promise<{ code: string; label: string }[]> {
   const file = readFileSync(ETORO_FIXTURE);
   const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
   const result = await importEtoroWorkbook(buffer as ArrayBuffer, 'imp:e2e', 'etoro:main');
@@ -61,5 +61,6 @@ export async function etoroAssets(): Promise<string[]> {
       if (leg && assetClass(leg.currency) === 'equity') codes.add(leg.currency);
     }
   }
-  return [...codes].sort();
+  // Le nom commercial : c’est lui que l’écran affiche, un ISIN ne se lit pas.
+  return [...codes].sort().map((code) => ({ code, label: result.labels[code] ?? code }));
 }

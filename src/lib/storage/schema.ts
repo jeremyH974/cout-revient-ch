@@ -50,6 +50,11 @@ export interface AssetSettings {
   manualPriceEur: DecimalString | null;
   manualPriceAt: string | null;
   coingeckoId: string | null;
+  /**
+   * Nom commercial de l'actif, tel que le relevé du courtier le donne (« Palantir Technologies
+   * Inc. »). Seul identifiant lisible d'un titre, dont le code interne est un ISIN.
+   */
+  label?: string | null;
 }
 
 export interface UiSettings {
@@ -787,6 +792,10 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       manualPriceEur: decOrNull(raw['manualPriceEur']),
       manualPriceAt: typeof raw['manualPriceAt'] === 'string' ? raw['manualPriceAt'] : null,
       coingeckoId: typeof raw['coingeckoId'] === 'string' ? raw['coingeckoId'] : null,
+      label:
+        typeof raw['label'] === 'string' && raw['label'].trim() !== ''
+          ? raw['label'].trim().slice(0, 120)
+          : null,
     };
   }
   const accounts: Record<AccountId, Account> = {};
