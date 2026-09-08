@@ -14,6 +14,7 @@
   import EngineSettings from '../components/settings/EngineSettings.svelte';
   import SelfChecks from '../components/settings/SelfChecks.svelte';
   import SourcesSection from '../components/settings/SourcesSection.svelte';
+  import NetworkSection from '../components/settings/NetworkSection.svelte';
   import VaultSection from '../components/settings/VaultSection.svelte';
   import SupportSection from '../components/settings/SupportSection.svelte';
   import {
@@ -478,6 +479,10 @@
   </section>
 
   <EngineSettings />
+
+  {#if __PRIVATE_BUILD__}
+    <NetworkSection />
+  {/if}
 
   <VaultSection />
 

@@ -6,3 +6,6 @@
 declare const __APP_VERSION__: string;
 /** Sept premiers caractères du commit déployé (« dev » hors CI). */
 declare const __BUILD_SHA__: string;
+
+/** Variante personnelle locale (`vite --mode prive`) : sortie réseau coupée, pas de service worker. */
+declare const __PRIVATE_BUILD__: boolean;

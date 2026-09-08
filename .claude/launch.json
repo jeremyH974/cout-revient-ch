@@ -4,16 +4,38 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--host", "127.0.0.1"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 5173,
       "autoPort": true
     },
     {
       "name": "preview",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "preview", "--", "--host", "127.0.0.1"],
+      "runtimeArgs": [
+        "run",
+        "preview",
+        "--",
+        "--host",
+        "127.0.0.1"
+      ],
       "port": 4173,
       "autoPort": true
+    },
+    {
+      "name": "prive",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "prive:serve"
+      ],
+      "port": 7331,
+      "url": "http://crch.localhost:7331"
     }
   ]
 }
