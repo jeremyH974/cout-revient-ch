@@ -10,7 +10,8 @@
  *   - 14 fills spot sur deux paires (`PURR/USDC` canonique, `@107` = HYPE/USDC) ;
  *   - ~60 fills perps sur BTC (long ouvert en 3 tranches puis clôturé en gain), ETH (short ouvert
  *     puis retourné en long, clôturé en perte), HYPE (long liquidé) et SOL (accumulation encore
- *     ouverte à l'instantané final) ;
+ *     ouverte à l'instantané final), dont **cinq tranches d'un même ordre à la même milliseconde**,
+ *     `tid` dans le désordre — le piège du format réel (décision n° 130) ;
  *   - le funding toutes les 8h (00:00/08:00/16:00 UTC) pour chaque position perp ouverte ;
  *   - un instantané (`clearinghouseState` / `spotClearinghouseState`) dont l'équité est la somme
  *     exacte de tout ce qui précède, vérifiée par `tests/integration/hl-fixture.test.ts`
@@ -330,15 +331,27 @@ export function generateHlFixture(): HlFixture {
   applyPerpFill('HYPE', ms(2026, 8, 10, 13, 0, 0), 'A', '30', '29.5', true, 'taker', null, true);
   applyPerpFill('HYPE', ms(2026, 8, 10, 13, 2, 0), 'A', '20', '29.0', true, 'taker', null, true);
 
-  // --- SOL : accumulation en 25 tranches, encore ouverte à l'instantané -----------------------
+  /*
+   * SOL : accumulation en 25 tranches, encore ouverte à l'instantané. Cinq d'entre elles partent à
+   * la MÊME milliseconde et portent le même `oid` — c'est ce que produit un ordre qui traverse le
+   * carnet, et c'est le piège que le format réel tend à la reconstruction des aller-retours
+   * (décision n° 130). Sans lui, le jeu de démonstration ne pouvait pas voir le défaut qu'il est
+   * censé garder : sur un compte réel, un paquet a compté jusqu'à 32 exécutions.
+   */
   const solStart = ms(2026, 8, 14, 9, 17, 0);
+  const SOL_SWEEP_FROM = 10;
+  const SOL_SWEEP_SIZE = 5;
+  const solSweepOid = oidCounter++;
   let lastSolTime = solStart;
   for (let i = 0; i < 25; i++) {
-    const t = solStart + i * 5 * 3_600_000;
+    const sweeping = i >= SOL_SWEEP_FROM && i < SOL_SWEEP_FROM + SOL_SWEEP_SIZE;
+    const slot = i < SOL_SWEEP_FROM ? i : sweeping ? SOL_SWEEP_FROM : i - SOL_SWEEP_SIZE + 1;
+    const t = solStart + slot * 5 * 3_600_000;
     const sizeStr = (0.4 + rnd() * 0.4).toFixed(3);
     const priceStr = (95 + i * 0.5 + (rnd() - 0.5) * 2).toFixed(2);
-    const crossed = i % 2 === 0;
-    applyPerpFill(
+    // Un ordre qui balaie le carnet est pris (taker) sur toutes ses tranches.
+    const crossed = sweeping || i % 2 === 0;
+    const record = applyPerpFill(
       'SOL',
       t,
       'B',
@@ -349,6 +362,7 @@ export function generateHlFixture(): HlFixture {
       null,
       false,
     );
+    if (sweeping) record.oid = solSweepOid;
     lastSolTime = t;
   }
 
@@ -544,6 +558,26 @@ export function generateHlFixture(): HlFixture {
     const f = combined[i]!;
     f.tid = tidCounter++;
     if (f.oid === 0) f.oid = oidCounter++;
+  }
+  /*
+   * Les `tid` d'un même instant ne suivent PAS l'ordre d'exécution : la plateforme les attribue
+   * autrement. On inverse donc les identifiants à l'intérieur de chaque paquet (même symbole, même
+   * milliseconde), pour que le jeu de démonstration présente les tranches dans le pire ordre
+   * possible — celui qui, trié par `tid`, rejoue la position à l'envers (décision n° 130).
+   */
+  const packets = new Map<string, FillRecord[]>();
+  for (const f of combined) {
+    const key = `${f.coin}@${f.time}`;
+    const list = packets.get(key);
+    if (list) list.push(f);
+    else packets.set(key, [f]);
+  }
+  for (const list of packets.values()) {
+    if (list.length < 2) continue;
+    const reversed = list.map((f) => f.tid).reverse();
+    list.forEach((f, i) => {
+      f.tid = reversed[i]!;
+    });
   }
   const userFillsByTime = combined.map((f) => ({
     coin: f.coin,

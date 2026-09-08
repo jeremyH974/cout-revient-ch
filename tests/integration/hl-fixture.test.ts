@@ -25,7 +25,7 @@ import { journaledTrips } from '../../src/lib/domain/trading/journal';
 import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
 import type { HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { fixtureClient } from '../../src/lib/import/hyperliquid/fixture-client';
-import { sortedFills } from '../../src/lib/import/hyperliquid/data';
+import { compareIds, sortedFills } from '../../src/lib/import/hyperliquid/data';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount, type SyncResult } from '../../src/lib/import/hyperliquid/sync';
 
@@ -119,6 +119,33 @@ describe('jeu de démonstration Hyperliquid synthétique', () => {
     expect(report.totals.fills).toBe(perpExecutions.length + spotExecutions.length);
   });
 
+  /*
+   * Ce que le jeu de démonstration doit PORTER pour que le test suivant garde quelque chose : un
+   * ordre exécuté en plusieurs tranches au même instant, dont les `tid` ne suivent pas l'ordre
+   * d'exécution. Sans ce paquet, la chaîne `startPosition` se vérifierait sur un historique où
+   * chaque milliseconde ne porte qu'un fill — c'est-à-dire sur un cas que le défaut de la décision
+   * n° 130 n'atteignait pas. Le piège fait partie de la fixture, comme ceux du relevé eToro.
+   */
+  it('porte le piège du format réel : un ordre en plusieurs tranches à la même milliseconde', () => {
+    const fills = parseFills(generateHlFixture().userFillsByTime);
+    const packets = new Map<string, typeof fills>();
+    for (const f of fills) {
+      const key = `${f.coin}@${f.time}`;
+      const list = packets.get(key);
+      if (list) list.push(f);
+      else packets.set(key, [f]);
+    }
+    const sweeps = [...packets.values()].filter((l) => l.length > 1);
+    expect(sweeps.length).toBeGreaterThan(0);
+    const sweep = sweeps[0]!;
+    expect(sweep.length).toBeGreaterThanOrEqual(3);
+    // Un seul ordre : toutes les tranches partagent son identifiant.
+    expect(new Set(sweep.map((f) => f.oid)).size).toBe(1);
+    // Et l'ordre des `tid` n'est PAS l'ordre d'exécution — sans quoi le piège ne piège personne.
+    const byTid = [...sweep].sort((a, b) => compareIds(a.tid, b.tid));
+    expect(byTid.map((f) => f.startPosition)).not.toEqual(sweep.map((f) => f.startPosition));
+  });
+
   it('chaîne startPosition par coin perp, cohérente fill après fill jusqu’à l’instantané', async () => {
     const fixture = generateHlFixture();
     const { data } = await sync(fixture);
@@ -133,7 +160,12 @@ describe('jeu de démonstration Hyperliquid synthétique', () => {
       expect(coinFills.length).toBeGreaterThan(0);
       let position = new Big('0');
       for (const fill of coinFills) {
-        expect(close(new Big(fill.startPosition), position, EPS_TIGHT)).toBe(true);
+        expect(
+          close(new Big(fill.startPosition), position, EPS_TIGHT),
+          `${coin} : le fill ${fill.tid} annonce startPosition ${fill.startPosition}, la chaîne
+          reconstruite est à ${position.toString()} — les fills d'un même instant sont-ils rejoués
+          dans leur ordre ?`,
+        ).toBe(true);
         position = fill.side === 'B' ? position.plus(fill.sz) : position.minus(fill.sz);
       }
       const expectedFinal = coin === 'SOL' ? new Big(solPosition.szi) : new Big('0');
