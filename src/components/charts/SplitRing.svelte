@@ -57,7 +57,8 @@
   const span = $derived(measured.reduce((t, s) => t.plus(s.value), ZERO));
 
   const RADIUS = 54;
-  const WIDTH = 18;
+  // Un anneau plus fin laisse au centre de quoi écrire un libellé SANS le chevaucher.
+  const WIDTH = 16;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
   const shareOf = (value: Big): Big | null => (span.gt(ZERO) ? value.div(span) : null);
@@ -130,8 +131,8 @@
   }
   .dial {
     position: relative;
-    width: 128px;
-    height: 128px;
+    width: 140px;
+    height: 140px;
     flex: none;
   }
   svg {
@@ -148,11 +149,11 @@
     justify-content: center;
     gap: 2px;
     text-align: center;
-    padding: 0 var(--space-4);
+    padding: 0 var(--space-2);
   }
   .centre-label {
-    font-size: var(--fs-xs);
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--fg-muted);
   }

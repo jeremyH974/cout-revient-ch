@@ -45,6 +45,16 @@
   const pct = (value: Big): number =>
     peak.gt(ZERO) ? Math.round(Number(value.div(peak).toString()) * 1000) / 10 : 0;
 
+  /**
+   * Douze libellés doivent tenir côte à côte : l'année n'est écrite qu'en **janvier**, où la
+   * fenêtre bascule. Partout ailleurs elle est redondante — et sur un téléphone, elle tronquait
+   * le nom du mois. Le tableau équivalent, lui, garde le mois entier avec son année.
+   */
+  const tickOf = (month: string): string => {
+    const full = fmtMonth(month, { short: true });
+    return month.slice(5, 7) === '01' ? full : (full.split(' ')[0] ?? full);
+  };
+
   const columns = $derived(
     bars.map((bar) => ({
       ...bar,
@@ -68,7 +78,7 @@
           <div class="seg interest" style="height: {column.interestPct}%"></div>
           <div class="seg principal" style="height: {column.principalPct}%"></div>
         </div>
-        <span class="tick">{fmtMonth(column.month, { short: true })}</span>
+        <span class="tick">{tickOf(column.month)}</span>
       </div>
     {/each}
   </div>

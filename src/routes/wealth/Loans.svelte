@@ -509,13 +509,22 @@
     gap: var(--space-3);
     margin: var(--space-4) 0 var(--space-2);
   }
+  /* Le libellé AU-DESSUS de son montant : la règle générale `dl div` les écarte aux deux bouts
+     de la ligne, ce qui, sur deux paires côte à côte, mélange les couples sous l'œil. */
+  .totals div {
+    display: grid;
+    gap: 2px;
+    justify-content: start;
+  }
   .totals dt {
     font-size: var(--fs-sm);
     color: var(--fg-muted);
+    opacity: 1;
   }
   .totals dd {
     margin: 0;
     font-weight: 600;
+    font-size: var(--fs-lg);
   }
   /* La liste repliable : le titre vit DANS le résumé, pour que le triangle le commande. */
   .list > summary h2 {
