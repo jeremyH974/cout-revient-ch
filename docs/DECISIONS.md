@@ -3140,7 +3140,35 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      quand même. L'assertion ne distinguait rien. Ce que l'historique change vraiment, c'est la
      **hachure** — c'est elle qu'il fallait viser.
 
-126. **Un graphique de prêts se lit deux fois : à l'œil, et au lecteur d'écran** (08/09/2026).
+126. **Le spread eToro est facturé à part, donc il manquait au prix de revient** (08/09/2026).
+     Mesuré sur un relevé réel : `Position ouverte PLTR/USD montant 153,22` — soit le cours
+     d'ouverture 76,61 multiplié par 2 unités, **exactement** — et, à la même seconde,
+     `Spread à l'ouverture montant −1`. Le coût réel de la ligne est 154,22 €. Sur le relevé entier,
+     62 spreads d'ouverture pour 290 € et 24 de clôture pour 143 €, **dont les trois quarts sur des
+     cryptos** : l'assiette du 150 VH bis était donc concernée autant que les titres.
+     Ce n'est pas un défaut d'affichage : les frais d'acquisition majorent le prix moyen pondéré
+     (BOFiP BOI-RPPM-PVBMI-20-10-20-10), donc le spread change la plus-value imposable.
+     **Aucun type neuf, aucune arithmétique dans le convertisseur.** `TradeEvent.fee` existe, et le
+     pivot fait déjà exactement ce qu'il faut : il **ajoute** le frais au coût d'un achat et le
+     **retranche** du produit d'une vente (`pivot/events.ts`). Le convertisseur se contente de
+     renseigner le champ, en appariant par identifiant de position. Le côté compte autant que le
+     montant — à l'ouverture le spread majore le coût, à la clôture il minore le produit.
+     **Le silence était le vrai défaut.** Toute ligne du grand livre qui n'était ni une ouverture ni
+     un fractionnement disparaissait sans un mot : ni erreur, ni ligne vide, ni total qui détonne.
+     C'est ainsi que 86 spreads, 64 dividendes et 14 paiements d'intérêts sont restés invisibles
+     pendant tout un lot de travail. Le convertisseur **compte et nomme** désormais ce qu'il laisse
+     de côté. Cela ne les traite pas ; cela les rend impossibles à ignorer.
+     **Recoupement sur le relevé réel** : 84 opérations portent leur spread, pour 430,45 € —
+     exactement les 433,07 € du relevé moins les 2,62 € de spreads sur contrats pour différence,
+     que l'import écarte (décision n° 106).
+     **Contre-épreuves** (décision n° 75) : frais détachés des deux côtés, « expected [] to deeply
+     equal [ '3 usd', '4 usd' ] » ; signalement retiré, le test nomme les motifs qui restent ; tout
+     le spread routé vers l'ouverture, « expected [ '3', '4' ] to deeply equal [ '4' ] ». **Cette
+     dernière n'a rougi qu'à la seconde tentative** : mon premier test ne comparait qu'un total, et
+     confondait donc les deux côtés. Un garde-fou qui mesure la somme ne prouve rien sur la
+     répartition.
+
+127. **Un graphique de prêts se lit deux fois : à l'œil, et au lecteur d'écran** (08/09/2026).
      L'écran Prêts était juste et austère : des chiffres alignés, aucune forme. L'espace
      investisseur de la plateforme, lui, montre deux anneaux et un calendrier d'échéances, et c'est
      cette lecture-là qui manquait — pas des chiffres de plus.
