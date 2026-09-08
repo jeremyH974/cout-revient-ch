@@ -5,8 +5,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
+  **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
+  classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
+  de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
+
 ### Added
 
+- **Vos dividendes s'affichent désormais sur la ligne qui les a versés**, et non plus au compte : le
+  rendement d'un titre inclut enfin ce qu'il vous a rapporté. Les 64 dividendes du relevé sont tous
+  rattachés, y compris ceux d'une position ouverte avant la période du relevé — l'ISIN sert alors de
+  lien. Quand deux titres partagent un identifiant, l'application **ne choisit pas** : le dividende
+  reste au compte et l'import le dit.
+- **La retenue à la source d'un dividende était lue puis perdue** en chemin : elle est maintenant
+  conservée, et c'est elle qui ouvrira le crédit d'impôt.
 - **Vos dividendes sont enfin comptés.** Un dividende encaissé en euros n'avait aucun chemin dans
   l'application : il disparaissait dans un compteur de lignes ignorées. Le relevé eToro en portait 64. Ils apparaissent désormais dans le résultat, **en brut**, avec la retenue à la source suivie
   séparément — c'est le brut qui se déclare, et la retenue qui ouvrira le crédit d'impôt. Ils sont

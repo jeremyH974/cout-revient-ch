@@ -111,7 +111,7 @@ function rowOf(event: LedgerEvent): KoinlyRow | null {
     case 'income':
       // Koinly connait « income » et « cost » : un revenu s'exporte, un frais aussi, et le signe
       // decide lequel. La retenue a la source n'a pas de colonne dans ce format -- elle reste dans
-      // l'application, et c'est une perte connue du format, pas un oubli (decision n 130).
+      // l'application, et c'est une perte connue du format, pas un oubli (decision n 132).
       return D(event.grossEur).lt(ZERO)
         ? {
             ...base,

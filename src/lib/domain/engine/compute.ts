@@ -362,7 +362,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         break;
       case 'income': {
         // Le BRUT compte comme revenu, la retenue est suivie a part : c'est elle qui ouvrira le
-        // credit d'impot conventionnel, et l'agreger au net la perdrait (decision n 130).
+        // credit d'impot conventionnel, et l'agreger au net la perdrait (decision n 132).
         const gross = D(event.grossEur);
         run.withheldEur = run.withheldEur.plus(event.withheldEur);
         if (event.asset === null) {

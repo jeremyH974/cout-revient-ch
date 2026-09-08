@@ -97,6 +97,17 @@ export interface RawPivotRow {
    * et c'est le brut qui se déclare (décision n° 132).
    */
   withheld?: PivotAmount | null;
+  /**
+   * Actif auquel se rattache un montant **sans jambe** : le titre qui a produit un dividende.
+   *
+   * Une entrée en euros ne dit pas de quelle ligne elle vient — il n'y a aucune jambe à lire. Seul
+   * un convertisseur de plateforme le sait, et il ne peut le dire que par un champ : la description
+   * est un texte d'affichage, l'y analyser serait deviner. Absent, le montant est **au compte**.
+   *
+   * Champ **additif** (décision n° 66) : une sauvegarde antérieure n'en a pas, et le relire absent
+   * vaut « au compte » — exactement ce que faisait l'application avant lui (décision n° 133).
+   */
+  relatedAsset?: AssetCode | null;
 }
 
 /** Une jambe d'opération : quantité strictement positive, le sens est donné par `out`/`in`. */

@@ -187,9 +187,9 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
     return {
       ...base,
       kind: 'income',
-      // Le pivot ne sait pas à quelle ligne un revenu appartient : seul un convertisseur de
-      // plateforme le sait, et il le dira par `description`. Ici, le revenu est au compte.
-      asset: null,
+      // Le convertisseur de plateforme est le seul à savoir de quelle ligne vient un encaissement
+      // en euros ; sans son indication, le revenu est au compte, jamais deviné.
+      asset: row.relatedAsset ?? null,
       grossEur: toDecimalString(gross),
       withheldEur: withheld === null ? '0' : toDecimalString(withheld),
       nature: (row.label ?? '') === 'dividend' ? 'dividend' : 'interest',
