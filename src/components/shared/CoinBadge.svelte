@@ -1,7 +1,15 @@
 <script lang="ts">
   import { iconUrl, recordIconFailure } from '$lib/pricing/icons';
 
-  let { asset, size = 36 }: { asset: string; size?: number } = $props();
+  let {
+    asset,
+    size = 36,
+    /**
+     * Chercher un logo. Faux pour un titre : la bibliothèque d'icônes est crypto, et un ticker
+     * partagé y prendrait le logo d'une autre classe d'actif (décision n° 103).
+     */
+    logo = true,
+  }: { asset: string; size?: number; logo?: boolean } = $props();
   const hue = $derived([...asset].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7));
   const label = $derived(asset.slice(0, 4).toUpperCase());
   /** 0 = premier chargement ; 1 = réessai en contournant les caches (navigateur, service worker). */
@@ -9,6 +17,7 @@
   /** Actif dont le logo n'a pas pu être chargé malgré le réessai : repli sur les initiales. */
   let failedAsset = $state<string | null>(null);
   const src = $derived.by(() => {
+    if (!logo) return null;
     const base = iconUrl(asset);
     if (base === null) return null;
     return attempt === 0 ? base : `${base}?retry=${attempt}`;
