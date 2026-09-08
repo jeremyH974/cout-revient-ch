@@ -11,6 +11,7 @@
  */
 import type { AssetCode } from '../../domain/types';
 import type { PriceProvider, UsdToEur } from '../types';
+import { alphaVantageProvider } from './alphavantage';
 import { coinbaseProvider } from './coinbase';
 import { coingeckoProvider } from './coingecko';
 import { defillamaProvider } from './defillama';
@@ -24,6 +25,8 @@ export interface DefaultProvidersOptions {
   coingeckoDemoKey?: string | null;
   /** Clé Twelve Data : sans elle, les actions et ETF restent au prix manuel. */
   twelveDataApiKey?: string | null;
+  /** Clé Alpha Vantage : sans elle, les titres européens restent au prix manuel. */
+  alphaVantageApiKey?: string | null;
   /**
    * Convertisseur USD → EUR, éventuellement différé : le taux BCE se charge en parallèle des
    * fournisseurs cotés en euros, et seuls Hyperliquid et DefiLlama l'attendent.
@@ -57,5 +60,6 @@ export function defaultPriceProviders(options: DefaultProvidersOptions): PricePr
     usdProvider('Twelve Data', options.usdToEur, (usdToEur) =>
       twelveDataProvider({ apiKey: options.twelveDataApiKey ?? null, usdToEur }),
     ),
+    alphaVantageProvider({ apiKey: options.alphaVantageApiKey ?? null }),
   ];
 }
