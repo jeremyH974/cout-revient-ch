@@ -24,6 +24,35 @@ Pour la version compilée, celle qu'on utilise au quotidien :
 npm run prive:build && npm run prive:serve
 ```
 
+### En un double-clic
+
+```bash
+npm run prive:raccourci
+```
+
+Pose un raccourci **« Coût de revient CH »** dans le menu Démarrer (ajoutez `-- -Bureau` pour
+l'avoir aussi sur le Bureau). Il lance `lancer-prive.cmd`, qui reconstruit, démarre le serveur et
+ouvre une fenêtre de navigateur **sans barre d'adresse ni onglets**, avec sa propre entrée dans la
+barre des tâches. Ça ressemble à une application de bureau, sans en être une — et c'est délibéré
+(décision n° 131).
+
+`npm run prive:app` fait la même chose sans passer par le raccourci. `-Rapide` saute la
+reconstruction, mais **seulement** si `dist/` porte déjà un build privé.
+
+Trois choses que le lanceur fait pour vous, et qu'il faut connaître si vous lancez à la main :
+
+- **`dist/` est partagé** entre le build public et le build privé. Servir un build public depuis
+  l'origine privée redonnerait la sortie réseau que cette variante coupe : le lanceur reconstruit
+  donc par défaut, et **refuse** de servir un `dist/` public même avec `-Rapide`.
+- **Aucun `--user-data-dir`** n'est passé au navigateur. Un profil dédié aurait son propre
+  stockage : vous ne verriez pas les mêmes données selon que vous passez par le raccourci ou que
+  vous tapez l'adresse. C'est le piège des origines, déguisé en option de confort.
+- **Le serveur déjà lancé est réutilisé**, jamais doublé — et jamais arrêté par une fenêtre qui ne
+  l'a pas démarré.
+
+Le mode « application » demande Edge ou Chrome ; ailleurs, le lanceur ouvre le navigateur par
+défaut et le dit. `npm run prive:raccourci -- -Supprimer` retire les raccourcis.
+
 Le serveur n'écoute que sur `127.0.0.1` : rien n'est joignable depuis votre réseau Wi-Fi.
 
 ### Pourquoi `crch.localhost` et pas `localhost`

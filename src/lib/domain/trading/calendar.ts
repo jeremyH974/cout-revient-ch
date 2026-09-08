@@ -42,7 +42,7 @@ export interface RealizedEvent {
   /**
    * Cet événement OUVRE son aller-retour : c'est lui qui compte un « trade ouvert » ce jour-là.
    * Faux sur un aller-retour « incomplet » — son ouverture n'a pas été observée, la dater serait
-   * inventer une activité ce jour-là (décision n° 131).
+   * inventer une activité ce jour-là (décision n° 132).
    */
   opens: boolean;
 }
