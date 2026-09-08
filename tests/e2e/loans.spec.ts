@@ -183,3 +183,26 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
   await page.getByText('Comment lire ces chiffres').click();
   await expect(page.getByText(/intérêts courus non échus ne sont pas comptés/)).toHaveCount(0);
 });
+
+test('avec des prêts et AUCUNE crypto, l’écran Prêts reste atteignable par l’interface', async ({
+  page,
+}) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
+
+  // `hasData` ne compte que la crypto : un compte qui n'a QUE des prêts est renvoyé à l'accueil.
+  await page.goto('#/');
+  await expect(page.getByRole('heading', { level: 1, name: /PRU par crypto/ })).toBeVisible();
+
+  // Depuis l'accueil, un lien direct.
+  await page.getByRole('link', { name: /Voir mes \d+ prêts/ }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+
+  // Et par la navigation principale, sans connaître l'adresse.
+  await page.goto('#/');
+  await page.getByRole('link', { name: 'Plus' }).click();
+  await page.getByRole('link', { name: 'Prêts' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+  await expect(page.locator('.headline')).toContainText(eur(summary.value));
+});

@@ -62,6 +62,13 @@
 
   <div class="actions">
     <a class="primary" href={router.href({ name: 'import' })}>Importer mon export CSV</a>
+    {#if app.hasLending}
+      <!-- Un compte qui n'a QUE des prêts n'a « pas de données » au sens crypto : sans ce lien,
+           l'écran Prêts ne serait atteignable que par le menu « Plus » ou par son adresse. -->
+      <a class="secondary" href={router.href({ name: 'loans' })}
+        >Voir mes {app.lendingReport.loans.length} prêts</a
+      >
+    {/if}
     <a class="secondary" href={router.href({ name: 'add' })}>Saisir mes opérations à la main</a>
     <button class="secondary" type="button" disabled={loadingDemo} onclick={() => void tryDemo()}
       >{loadingDemo ? 'Chargement…' : 'Essayer avec des données d’exemple'}</button
