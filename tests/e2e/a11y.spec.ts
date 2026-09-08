@@ -37,6 +37,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/news',
     '#/invest/alerts',
     '#/wealth/loans',
+    '#/invest/titles',
     '#/wealth',
   ]) {
     test(`sans données : ${route}`, async ({ page }) => {

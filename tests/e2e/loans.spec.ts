@@ -205,7 +205,7 @@ test('avec des prêts et AUCUNE crypto, le patrimoine s’ouvre et les compte', 
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
 
-test('la passerelle vers les prêts vit dans l’espace Patrimoine, pas dans l’Investissement', async ({
+test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans l’Investissement', async ({
   page,
 }) => {
   // Un export Coinhouse d'abord : sans lui, l'écran Portefeuille renvoie à l'accueil.
@@ -215,18 +215,24 @@ test('la passerelle vers les prêts vit dans l’espace Patrimoine, pas dans l�
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
   /*
-   * Un prêt participatif n'est pas un actif numérique : sa passerelle appartient à l'espace
-   * Patrimoine, avec les titres, et non à l'écran Investissement où elle a d'abord été posée
-   * (décision n° 118). Les deux assertions comptent autant l'une que l'autre — la présence ici,
-   * l'absence là-bas.
+   * Un prêt participatif n'est pas un actif numérique : il appartient au Patrimoine, et rien ne
+   * doit le ramener dans l'Investissement (décision n° 118). La forme a changé avec la n° 122 :
+   * les titres ayant rejoint l'Investissement, le Patrimoine n'a plus qu'un écran — la passerelle
+   * qui reliait ses deux écrans n'a plus d'objet, et les prêts SONT désormais la racine de
+   * l'espace. L'intention, elle, ne bouge pas : la présence ici, l'absence là-bas.
    */
   await page.goto('#/wealth');
-  const bridge = page.locator('a.bridge');
-  await expect(bridge).toContainText('Prêts');
-  await expect(bridge).toContainText(eur(summary.value));
-  await bridge.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+  await expect(page.getByText(eur(summary.value)).first()).toBeVisible();
 
+  // La barre du bas est le chemin, et le seul : ni le volet Crypto ni le volet Actions ne porte
+  // de raccourci vers les prêts.
   await page.goto('#/invest');
   await expect(page.locator('a.bridge')).toHaveCount(0);
+  await page.goto('#/invest/titles');
+  await expect(page.locator('a.bridge')).toHaveCount(0);
+
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await nav.getByRole('link', { name: 'Patrimoine' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
 });

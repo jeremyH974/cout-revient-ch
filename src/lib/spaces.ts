@@ -30,14 +30,14 @@ export const SPACES: readonly Space[] = [
     label: 'Investissement',
     home: { name: 'portfolio' },
     backLabel: 'Retour au portefeuille',
-    routes: ['portfolio', 'asset', 'import', 'add', 'report', 'secondOpinion', 'alerts'],
+    routes: ['portfolio', 'titles', 'asset', 'import', 'add', 'report', 'secondOpinion', 'alerts'],
   },
   {
     id: 'wealth',
     label: 'Patrimoine',
-    home: { name: 'titles' },
-    backLabel: 'Retour au patrimoine',
-    routes: ['titles', 'loans'],
+    home: { name: 'loans' },
+    backLabel: 'Retour aux prêts',
+    routes: ['loans'],
   },
   {
     id: 'trading',

@@ -3023,3 +3023,41 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      Windows — que ni DPAPI, ni le Credential Manager, ni le TPM n'adressent. Écarté pour cette
      raison : Tauri, dont le seul apport ici serait l'écriture disque sans dialogue, contre une
      chaîne Rust complète et des minutes de compilation.
+
+122. **Crypto et actions sont deux volets d'un même espace, pas deux espaces** (08/09/2026).
+     L'espace Investissement porte désormais **Crypto** et **Actions et ETF** ; le Patrimoine garde
+     le **non-coté** — les prêts, et l'immobilier demain. La ligne de partage est la façon dont un
+     actif se valorise, pas son nom : elle survit à l'arrivée d'obligations (→ Investissement)
+     comme d'une résidence (→ Patrimoine), là où « crypto contre bourse » aurait fallu retrancher
+     à chaque nouvelle classe.
+     Ce qui rapproche crypto et titres est plus fort que ce qui les sépare : même moteur, même prix
+     de revient moyen pondéré, mêmes écrans, mêmes lots. Ce qui les sépare est leur **régime
+     fiscal** (décision n° 119), et un régime fiscal ne justifie pas une seconde barre de
+     navigation — il justifie un second module de calcul.
+     **La route `asset` est partagée, et c'est le point délicat.** L'onglet actif et la cible du
+     retour s'y dérivent de la **classe de l'actif affiché**, jamais de la route : sans cela,
+     ouvrir LVMH allumerait « Crypto » et proposerait de revenir au portefeuille crypto,
+     c'est-à-dire ailleurs que d'où l'utilisateur vient. `AppBar` acceptait déjà une cible
+     explicite, rien n'a été ajouté au composant.
+     `#/wealth` désigne maintenant les prêts, et `#/invest/titles` les titres. **`#/wealth/titles`
+     reste compris** : cette adresse n'a vécu qu'une journée, mais la règle des hashes v1 ne se
+     négocie pas au cas par cas — un favori ne tombe jamais sur le mauvais écran.
+     **Contre-épreuves** (décision n° 75) : `titles` remis dans le Patrimoine, « expected 'wealth'
+     to be 'invest' » et, à l'écran, la barre du bas n'allume plus l'Investissement ; alias retiré,
+     « expected { name: 'loans' } to deeply equal { name: 'titles' } » ; onglet de la fiche codé en
+     dur, « Expected: "page" · Received: "" ».
+     **Conséquence sur la décision n° 118, arbitrée avec l'utilisateur.** La passerelle vers les
+     Prêts avait été posée sur l'écran Titres, « avec les titres », au motif qu'un prêt n'est pas
+     un actif numérique. Les titres partis à l'Investissement, elle y repartait avec eux — contre
+     l'intention même de cette décision. Elle est retirée : elle reliait les deux écrans du
+     Patrimoine, cet espace n'en a plus qu'un, et les prêts en sont désormais la racine. La barre
+     du bas est le chemin, et le seul. Le test de la décision n° 118 est réécrit dans son
+     intention, pas contourné : présence des prêts au Patrimoine, absence de tout raccourci dans
+     les DEUX volets de l'Investissement.
+     **Et une leçon de méthode qui vaut la décision elle-même.** Cette dernière contre-épreuve a
+     refusé de rougir trois fois : code faussé, build refait, bundle vérifié sur disque. J'ai
+     conclu à un test creux et réécrit un test qui était juste. La cause était le harnais —
+     `playwright.config.ts` pose `reuseExistingServer: !CI`, et un serveur de prévisualisation
+     d'un autre worktree tenait le port 4173 en servant un bundle périmé. **Un `npx playwright
+test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui ne rougit pas
+     accuse d'abord le harnais, pas le test.

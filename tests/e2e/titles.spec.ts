@@ -13,7 +13,7 @@ test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
 });
 
-test('un relevé eToro remplit l’espace Patrimoine', async ({ page }) => {
+test('un relevé eToro remplit le volet Actions', async ({ page }) => {
   const expected = await etoroAssets();
   expect(expected.length).toBeGreaterThan(1);
 
@@ -21,7 +21,7 @@ test('un relevé eToro remplit l’espace Patrimoine', async ({ page }) => {
   await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
 
-  await page.goto('#/wealth');
+  await page.goto('#/invest/titles');
   const list = page.getByRole('list', { name: 'Titres détenus' });
   await expect(list).toBeVisible();
   // Un titre par ligne, et seulement des titres : la crypto du même relevé va à l'Investissement.
@@ -43,17 +43,16 @@ test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoi
   await expect(
     page.getByRole('list', { name: 'Positions' }).getByText('BTC').first(),
   ).toBeVisible();
-  await page.goto('#/wealth');
+  await page.goto('#/invest/titles');
   await expect(page.getByRole('list', { name: 'Titres détenus' }).getByText('BTC')).toHaveCount(0);
 });
 
 test('la barre de navigation mène au Patrimoine', async ({ page }) => {
-  // Depuis l'écran Titres : sans données, la racine renvoie à l'accueil, qui n'a pas de barre.
   await page.goto('#/wealth');
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await expect(nav.getByRole('link', { name: 'Patrimoine' })).toBeVisible();
   await nav.getByRole('link', { name: 'Patrimoine' }).click();
-  await expect(page).toHaveURL(/#\/wealth$/);
+  await expect(page).toHaveURL(/#\/wealth/);
 });
 
 test('avec une clé, les titres reçoivent un cours et une valeur', async ({ page }) => {
@@ -70,7 +69,7 @@ test('avec une clé, les titres reçoivent un cours et une valeur', async ({ pag
   await key.fill('clef-de-test-e2e');
   await key.blur();
 
-  await page.goto('#/wealth');
+  await page.goto('#/invest/titles');
   const list = page.getByRole('list', { name: 'Titres détenus' });
   await expect(list).toBeVisible();
   // Un prix, pas « Prix indisponible » : c'est la différence entre un fournisseur écrit et un
@@ -83,4 +82,50 @@ test('avec une clé, les titres reçoivent un cours et une valeur', async ({ pag
   await expect(list.getByText('Valeur').first()).toBeVisible();
   const first = list.getByRole('listitem').first();
   await expect(first).toContainText('€');
+});
+
+test('les deux volets de l’Investissement se répondent', async ({ page }) => {
+  // Décision n° 122 : crypto et titres sont deux volets d'un meme espace. La barre du bas doit
+  // marquer « Investissement » sur les deux, et les onglets doivent mener l'un à l'autre.
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  await page.goto('#/invest/titles');
+  const tabs = page.getByRole('navigation', { name: 'Espace Investissement' });
+  await expect(tabs.getByRole('link', { name: 'Actions et ETF' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  const nav = page.getByRole('navigation', { name: 'Navigation principale' });
+  await expect(nav.getByRole('link', { name: 'Investissement' })).toHaveClass(/active/);
+
+  await tabs.getByRole('link', { name: 'Crypto' }).click();
+  await expect(page).toHaveURL(/#\/invest$/);
+  await expect(tabs.getByRole('link', { name: 'Crypto' })).toHaveAttribute('aria-current', 'page');
+});
+
+test('la fiche d’un titre reste dans le volet Actions', async ({ page }) => {
+  // Sans la dérivation par classe, ouvrir LVMH allumerait « Crypto » et proposerait de revenir au
+  // portefeuille crypto -- c'est-à-dire ailleurs que d'où l'utilisateur vient.
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  await page.goto('#/invest/titles');
+  await page.getByRole('list', { name: 'Titres détenus' }).getByRole('link').first().click();
+  // On vérifie D'ABORD qu'on a bien quitté la liste. Sans cette ligne, le test restait vert avec un
+  // onglet codé en dur : il mesurait l'écran Titres, pas la fiche — la contre-épreuve de la
+  // décision n° 75 l'a attrapé, la relecture non.
+  await expect(page).toHaveURL(/#\/invest\/asset\//);
+  const tabs = page.getByRole('navigation', { name: 'Espace Investissement' });
+  await expect(tabs.getByRole('link', { name: 'Actions et ETF' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  await page
+    .getByRole('link', { name: /Retour/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/#\/invest\/titles$/);
 });

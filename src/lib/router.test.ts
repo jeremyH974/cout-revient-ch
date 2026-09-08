@@ -134,8 +134,23 @@ describe('déménagement de l’écran Prêts vers l’espace Patrimoine', () =>
     expect(parseHash('#/invest/loans')).toEqual({ name: 'loans' });
   });
 
-  it('la racine du Patrimoine reste les titres', () => {
-    expect(parseHash('#/wealth')).toEqual({ name: 'titles' });
-    expect(parseHash('#/wealth/inconnu')).toEqual({ name: 'titles' });
+  it('la racine du Patrimoine, ce sont désormais les prêts', () => {
+    // Les titres ont rejoint l'Investissement (décision n° 122) : le Patrimoine ne garde que le
+    // non-coté, et sa racine mène donc à son seul écran.
+    expect(parseHash('#/wealth')).toEqual({ name: 'loans' });
+    expect(parseHash('#/wealth/inconnu')).toEqual({ name: 'loans' });
+  });
+});
+
+describe('déménagement de l’écran Titres vers l’espace Investissement', () => {
+  it('le hash canonique est celui de l’Investissement', () => {
+    expect(toHash({ name: 'titles' })).toBe('#/invest/titles');
+    expect(parseHash('#/invest/titles')).toEqual({ name: 'titles' });
+  });
+
+  it('l’ancienne adresse continue de fonctionner : on ne casse jamais un lien', () => {
+    // `#/wealth/titles` n'a vécu qu'une journée, mais la règle vaut pour elle comme pour les
+    // hashes v1 : un favori ou un lien partagé ne doit jamais tomber sur le mauvais écran.
+    expect(parseHash('#/wealth/titles')).toEqual({ name: 'titles' });
   });
 });
