@@ -28,8 +28,15 @@ import type { FetchLike } from '../../history/types';
 import { numberToDecimal, type PriceProvider, type PriceQuoteInput, type UsdToEur } from '../types';
 
 const ENDPOINT = 'https://api.twelvedata.com/quote';
-/** Un appel consomme un crédit par symbole ; le palier gratuit en accorde 800 par jour. */
-const CHUNK_SIZE = 20;
+/**
+ * **Un lot coûte un crédit par symbole, pas un crédit par appel** — et le palier gratuit n'en
+ * accorde que huit _par minute_ (huit cents par jour). Grouper plus large ne fait donc pas
+ * d'économie : ça garantit le refus. Mesuré le 08/09/2026 : douze symboles renvoient
+ * « 12 API credits were used, with the current limit being 8 », huit renvoient huit cotations.
+ */
+const CHUNK_SIZE = 8;
+/** Refus pour cause de débit : ce n'est pas une panne, c'est une minute à attendre. */
+const RATE_LIMIT_CODE = 429;
 
 interface QuoteEntry {
   close?: unknown;
@@ -119,6 +126,10 @@ export function twelveDataProvider(options: TwelveDataOptions): PriceProvider {
         if (body['status'] === 'error') {
           const message =
             typeof body['message'] === 'string' ? body['message'] : 'réponse en erreur';
+          // Le quota par minute est une limite, pas une panne : rendre les lots déjà obtenus vaut
+          // mieux que tout perdre. Les actifs restants passent aux fournisseurs suivants, puis au
+          // prochain rafraîchissement — qui, lui, trouvera ceux-ci en cache et avancera d'autant.
+          if (body['code'] === RATE_LIMIT_CODE) return found;
           throw new Error(`Twelve Data : ${message}`);
         }
         // Un symbole unique renvoie la cotation à plat, plusieurs un objet indexé par symbole.

@@ -51,6 +51,16 @@ describe('logos des titres', () => {
     expect(found['eq:aapl']?.url).toBeNull();
   });
 
+  it('ne mémorise rien quand le débit est dépassé : ce n’est pas une absence de logo', async () => {
+    // Le palier gratuit accorde huit crédits par minute et un logo en coûte un. Prendre ce refus
+    // pour un « pas de logo » condamnerait le symbole à rester sans image pour toujours.
+    const { fetch } = fakeFetch(() => ({
+      body: { code: 429, status: 'error', message: 'You have run out of API credits' },
+    }));
+    const found = await fetchLogos(wanted, { apiKey: 'clef-de-test', fetch });
+    expect(found).toEqual({});
+  });
+
   it('ne mémorise rien après une panne : il faudra retenter', async () => {
     const { fetch } = fakeFetch(() => ({ status: 503, body: { message: 'indisponible' } }));
     const found = await fetchLogos(wanted, { apiKey: 'clef-de-test', fetch });

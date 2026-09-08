@@ -19,6 +19,8 @@ import type { FetchLike } from '../history/types';
 import { nowIso } from '../clock';
 
 const ENDPOINT = 'https://api.twelvedata.com/logo';
+/** Refus pour cause de débit : ce n'est pas une absence de logo, c'est une minute à attendre. */
+const RATE_LIMIT_CODE = 429;
 
 export interface LogoLookup {
   /** URL du logo, ou `null` : le fournisseur n'en a pas pour ce symbole. */
@@ -56,7 +58,15 @@ export async function fetchLogos(
     const url = `${ENDPOINT}?symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(key)}`;
     try {
       const response = await doFetch(url, { headers: { accept: 'application/json' } });
-      const body = (await readJson('Twelve Data', response)) as { url?: unknown; status?: unknown };
+      const body = (await readJson('Twelve Data', response)) as {
+        url?: unknown;
+        status?: unknown;
+        code?: unknown;
+      };
+      // Le quota par minute du palier gratuit est de huit crédits, et un logo en coûte un. Un refus
+      // pour débit n'est **pas** une absence de logo : le mémoriser comme tel condamnerait le
+      // symbole à rester sans image pour toujours. On rend la main, la suite viendra plus tard.
+      if (body.code === RATE_LIMIT_CODE) return found;
       // Un symbole inconnu répond « error » sans que ce soit une panne : on mémorise l'absence.
       found[code] = {
         url: body.status === 'error' ? null : safeLogoUrl(body.url),

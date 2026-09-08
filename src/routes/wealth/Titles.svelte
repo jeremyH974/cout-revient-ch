@@ -54,10 +54,14 @@
     {#if !hasMarketKey}
       Aucune clé de données de marché n’est renseignée — sans elle, aucun cours de titre ne peut
       arriver. Collez-en une dans les
-      <a href={router.href({ name: 'settings' })}>réglages</a> (gratuite sur twelvedata.com).
+      <a href={router.href({ name: 'settings' })}>réglages</a>, section « Prix », champ « Clé Twelve
+      Data » (gratuite sur twelvedata.com).
     {:else}
-      Votre clé est bien renseignée : le fournisseur ne reconnaît pas leur symbole. Saisissez un
-      prix depuis la fiche de l’actif, ou vérifiez le symbole auprès de votre courtier.
+      Votre clé est bien renseignée. Le palier gratuit ne délivre que <strong
+        >huit cours par minute</strong
+      > : relancez le rafraîchissement pour compléter la liste, un lot à la fois. Ce qui résiste ensuite
+      est hors de sa couverture — les places européennes (Paris, Xetra, Londres) le sont — et se renseigne
+      par un prix depuis la fiche de l’actif.
     {/if}
   </p>
 {/if}

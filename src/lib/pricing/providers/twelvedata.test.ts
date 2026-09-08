@@ -77,12 +77,40 @@ describe('Twelve Data', () => {
     expect(found.get(aapl)?.priceEur).toBe('200');
   });
 
-  it('lève quand le débit est dépassé — un 200 en erreur reste une non-réponse', async () => {
+  it('lève quand la clé est refusée — un 200 en erreur reste une non-réponse', async () => {
     const { fetch } = fakeFetch(() => ({
-      body: { code: 429, status: 'error', message: 'You have run out of API credits' },
+      body: { code: 401, status: 'error', message: 'Invalid API key' },
     }));
     const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
-    await expect(provider.fetchPrices([aapl], signal)).rejects.toThrow('API credits');
+    await expect(provider.fetchPrices([aapl], signal)).rejects.toThrow('Invalid API key');
+  });
+
+  it('ne demande que huit symboles par appel : le palier gratuit en accorde huit par minute', async () => {
+    // Un lot coûte un crédit PAR SYMBOLE. Grouper plus large ne fait aucune économie, ça garantit
+    // le refus — c'est ce que faisait un `CHUNK_SIZE` de vingt, et rien ne le voyait.
+    const { calls, fetch } = fakeFetch(() => ({ body: {} }));
+    const codes = Array.from({ length: 9 }, (_, i) => equityCode(`T${i}`));
+    const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
+    await provider.fetchPrices(codes, signal);
+    expect(calls).toHaveLength(2);
+    expect(new URL(calls[0]!).searchParams.get('symbol')?.split(',')).toHaveLength(8);
+    expect(new URL(calls[1]!).searchParams.get('symbol')?.split(',')).toHaveLength(1);
+  });
+
+  it('garde les lots obtenus quand le débit est dépassé en cours de route', async () => {
+    // Huit cours acquis puis un refus de débit : lever perdrait les huit, et l'utilisateur
+    // n'aurait aucun prix au lieu de la moitié. Le refus n'est pas une panne, c'est une attente.
+    let call = 0;
+    const { fetch } = fakeFetch(() => {
+      call += 1;
+      if (call === 1) return { body: { T0: { close: '100', currency: 'EUR' } } };
+      return { body: { code: 429, status: 'error', message: 'You have run out of API credits' } };
+    });
+    const codes = Array.from({ length: 9 }, (_, i) => equityCode(`T${i}`));
+    const provider = twelveDataProvider({ apiKey: 'clef-de-test', usdToEur, fetch });
+    const found = await provider.fetchPrices(codes, signal);
+    expect(found.get(equityCode('T0'))?.priceEur).toBe('100');
+    expect(found.size).toBe(1);
   });
 
   it('ignore un symbole en erreur sans perdre les autres', async () => {
