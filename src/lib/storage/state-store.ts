@@ -44,7 +44,7 @@ import {
 import { migrateState } from './migrations';
 import { emptyState, type StoredStateV1 } from './schema';
 import { decodeSealed, encodeSealed, seal, unseal, type SealedBlob } from './vault';
-import { vaultKey } from './vault-session';
+import { isVaultInstalled, vaultKey } from './vault-session';
 
 export const SAVED_AT_KEY = `${STORAGE_KEY}.savedAt`;
 
@@ -73,6 +73,10 @@ export function resetSealedMirrorForTests(): void {
   lastSealed = null;
 }
 
+/** Refus commun : coffre installé, mais fermé. Écrire en clair serait pire que ne rien écrire. */
+const LOCKED_MESSAGE = "Coffre fermé : rien n'est enregistré tant qu'il n'est pas ouvert.";
+const REFUSE_CLEAR: SaveResult = { ok: false, error: LOCKED_MESSAGE };
+
 const withSavedAt = (storage: Storage, savedAt: string): void => {
   try {
     storage.setItem(SAVED_AT_KEY, savedAt);
@@ -87,6 +91,7 @@ export function mirrorStateSync(
   savedAt: string,
   storage: Storage = localStorage,
 ): SaveResult {
+  if (vaultKey() === null && isVaultInstalled()) return REFUSE_CLEAR;
   if (vaultKey() !== null) {
     if (lastSealed === null) {
       return { ok: false, error: "Coffre ouvert : aucun état n'a encore été scellé." };
@@ -177,6 +182,14 @@ export async function savePersistedState(
   storage: Storage = localStorage,
 ): Promise<PersistResult> {
   const key = vaultKey();
+  /*
+   * Coffre installé mais refermé : on n'écrit RIEN. Le seul autre chemin possible serait d'écrire
+   * en clair — c'est-à-dire de déposer le patrimoine en clair à l'instant exact où l'utilisateur
+   * vient de verrouiller. Une sauvegarde en attente au moment du verrouillage suffirait.
+   */
+  if (key === null && isVaultInstalled()) {
+    return { ok: false, error: LOCKED_MESSAGE, via: null, mirrorError: null };
+  }
   let sealed: SealedBlob | null = null;
   if (key !== null) {
     try {

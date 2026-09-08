@@ -31,7 +31,8 @@ let meta: VaultMeta | null = null;
 export async function readVaultMeta(): Promise<VaultMeta | null> {
   try {
     const stored = await idbMetaGet<unknown>(META_KEY);
-    return isVaultMeta(stored) ? stored : null;
+    meta = isVaultMeta(stored) ? stored : null;
+    return meta;
   } catch {
     return null;
   }
@@ -53,9 +54,27 @@ export function armVault(next: VaultMeta, key: CryptoKey): void {
   armed = key;
 }
 
-/** Referme la session sans toucher aux données : elles restent chiffrées, l'en-tête reste en place. */
+/**
+ * Referme la session sans toucher aux données : elles restent chiffrées, l'en-tête reste en place.
+ *
+ * L'en-tête est **délibérément conservé** en mémoire. C'est lui qui fait dire `true` à
+ * `isVaultInstalled()`, et c'est cette réponse qui interdit à la persistance de réécrire en clair
+ * une fois le coffre refermé. L'oublier ici rouvrirait exactement le trou que le coffre bouche.
+ */
 export function disarmVault(): void {
   armed = null;
+}
+
+/**
+ * Un coffre existe-t-il sur cet appareil, **qu'il soit ouvert ou fermé** ?
+ *
+ * La distinction est le cœur du dispositif. `vaultKey()` répond « puis-je chiffrer ? » ;
+ * celle-ci répond « ai-je le droit d'écrire en clair ? ». Confondre les deux, c'est écrire le
+ * patrimoine en clair à la seconde où l'utilisateur verrouille — le moment précis où il croit
+ * l'avoir mis à l'abri.
+ */
+export function isVaultInstalled(): boolean {
+  return meta !== null;
 }
 
 /** La clé de la session, ou `null`. Le seul point d'accès — rien d'autre ne détient la clé. */

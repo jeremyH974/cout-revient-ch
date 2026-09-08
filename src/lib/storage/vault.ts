@@ -150,8 +150,15 @@ async function deriveKek(
     t: params.t,
     p: params.p,
     dkLen: DEK_BYTES,
-    // Rend la main à l'ordonnanceur : l'interface reste vivante pendant la dérivation.
-    asyncTick: 10,
+    /*
+     * Rend la main à l'ordonnanceur toutes les 100 ms : l'interface reste vivante (un rendu par
+     * dixième de seconde suffit à une barre de progression) sans payer une reprise de tâche toutes
+     * les 10 ms. Mesuré : la dérivation coûte ~250 ms sous Node et quelques secondes dans un
+     * navigateur, où l'allocation des 46 Mio pèse bien plus lourd qu'en heap fraîche. Un `tick`
+     * court multipliait ce coût quand l'onglet passait en arrière-plan, où les minuteurs sont
+     * bridés à la seconde.
+     */
+    asyncTick: 100,
     ...(onProgress ? { onProgress } : {}),
   });
   return crypto.subtle.importKey('raw', bytes(raw), AES, false, ['encrypt', 'decrypt']);

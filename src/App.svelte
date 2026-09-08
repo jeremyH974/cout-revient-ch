@@ -3,6 +3,7 @@
   import { router } from '$lib/router.svelte';
   import BottomNav from './components/layout/BottomNav.svelte';
   import Toasts from './components/layout/Toasts.svelte';
+  import VaultLock from './components/layout/VaultLock.svelte';
   import Accounts from './routes/Accounts.svelte';
   import Help from './routes/Help.svelte';
   import Market from './routes/Market.svelte';
@@ -88,115 +89,120 @@
   });
 </script>
 
-<div class="app">
-  {#if update.ready}
-    <div class="update" role="status">
-      Nouvelle version disponible.
-      <button type="button" onclick={() => update.apply()}>Recharger</button>
-    </div>
-  {/if}
-  {#if app.state.ui.lastSeenVersion !== null && app.state.ui.lastSeenVersion !== __APP_VERSION__}
-    <div class="update news" role="status">
-      Version {__APP_VERSION__} installée.
-      <a href={router.href({ name: 'news' })} onclick={seenVersion}>Voir les nouveautés</a>
-      <button type="button" onclick={seenVersion} aria-label="Masquer ce message">✕</button>
-    </div>
-  {/if}
-  {#if app.loadError}
-    <div class="update error" role="alert">
-      Données locales illisibles ({app.loadError}). Restaurez une sauvegarde depuis les réglages.
-    </div>
-  {/if}
-  {#if app.state.ui.demoMode}
-    <div class="update demo" role="status">
-      Données d’exemple (fictives) — importez votre export pour voir vos chiffres.
-      <button type="button" onclick={leaveDemo}>Quitter la démo</button>
-    </div>
-  {/if}
-  <main>
-    <!-- Une erreur dans une page ne doit jamais laisser un écran blanc : on l'explique et on
+{#if app.vaultLocked}
+  <!-- Rien d'autre n'est monté : `app.init()` s'est arrêté avant de charger quoi que ce soit. -->
+  <VaultLock />
+{:else}
+  <div class="app">
+    {#if update.ready}
+      <div class="update" role="status">
+        Nouvelle version disponible.
+        <button type="button" onclick={() => update.apply()}>Recharger</button>
+      </div>
+    {/if}
+    {#if app.state.ui.lastSeenVersion !== null && app.state.ui.lastSeenVersion !== __APP_VERSION__}
+      <div class="update news" role="status">
+        Version {__APP_VERSION__} installée.
+        <a href={router.href({ name: 'news' })} onclick={seenVersion}>Voir les nouveautés</a>
+        <button type="button" onclick={seenVersion} aria-label="Masquer ce message">✕</button>
+      </div>
+    {/if}
+    {#if app.loadError}
+      <div class="update error" role="alert">
+        Données locales illisibles ({app.loadError}). Restaurez une sauvegarde depuis les réglages.
+      </div>
+    {/if}
+    {#if app.state.ui.demoMode}
+      <div class="update demo" role="status">
+        Données d’exemple (fictives) — importez votre export pour voir vos chiffres.
+        <button type="button" onclick={leaveDemo}>Quitter la démo</button>
+      </div>
+    {/if}
+    <main>
+      <!-- Une erreur dans une page ne doit jamais laisser un écran blanc : on l'explique et on
          donne le diagnostic à copier (message + pile, jamais de données). -->
-    <svelte:boundary onerror={(error) => recordError(error, 'page')}>
-      {#if route.name === 'welcome'}
-        <Welcome />
-      {:else if route.name === 'portfolio'}
-        <Portfolio />
-      {:else if route.name === 'trades'}
-        <Trades />
-      {:else if route.name === 'trade'}
-        <TradeDetail id={route.id} />
-      {:else if route.name === 'tradeAdd'}
-        <TradeAdd />
-      {:else if route.name === 'tradeStats'}
-        <TradeStats />
-      {:else if route.name === 'fills'}
-        <Fills />
-      {:else if route.name === 'trading'}
-        <Trading />
-      {:else if route.name === 'more'}
-        <More />
-      {:else if route.name === 'market'}
-        <Market />
-      {:else if route.name === 'watch'}
-        <Watch />
-      {:else if route.name === 'accounts'}
-        <Accounts />
-      {:else if route.name === 'reconciliation'}
-        <Reconciliation />
-      {:else if route.name === 'asset'}
-        <AssetDetail asset={route.asset} />
-      {:else if route.name === 'import'}
-        <Import />
-      {:else if route.name === 'loans'}
-        <Loans />
-      {:else if route.name === 'titles'}
-        <Titles />
-      {:else if route.name === 'alerts'}
-        <Alerts />
-      {:else if route.name === 'add'}
-        <ManualEntry />
-      {:else if route.name === 'settings'}
-        <Settings />
-      {:else if route.name === 'privacy'}
-        <Privacy />
-      {:else if route.name === 'help'}
-        <Help />
-      {:else if route.name === 'report'}
-        <Report />
-      {:else if route.name === 'secondOpinion'}
-        <SecondOpinion />
-      {:else if route.name === 'news'}
-        <News />
-      {:else}
-        <Overview />
-      {/if}
-      {#snippet failed(error, reset)}
-        <section class="card crash" role="alert">
-          <h2>Une erreur inattendue s’est produite sur cette page</h2>
-          <p class="muted">
-            Vos données sont intactes (elles sont enregistrées dans ce navigateur). Réessayez, ou
-            copiez le diagnostic ci-dessous et signalez le problème : il contient le message
-            d’erreur, jamais vos montants.
-          </p>
-          <p class="error-text">
-            {error instanceof Error ? `${error.name} : ${error.message}` : String(error)}
-          </p>
-          <div class="crash-actions">
-            <button class="primary" type="button" onclick={reset}>Réessayer</button>
-            <button
-              class="secondary"
-              type="button"
-              onclick={() => router.navigate({ name: 'overview' })}>Retour à l'accueil</button
-            >
-          </div>
-          <SupportSection intro="Le diagnostic ci-dessous inclut l’erreur rencontrée." />
-        </section>
-      {/snippet}
-    </svelte:boundary>
-  </main>
-  <BottomNav />
-  <Toasts />
-</div>
+      <svelte:boundary onerror={(error) => recordError(error, 'page')}>
+        {#if route.name === 'welcome'}
+          <Welcome />
+        {:else if route.name === 'portfolio'}
+          <Portfolio />
+        {:else if route.name === 'trades'}
+          <Trades />
+        {:else if route.name === 'trade'}
+          <TradeDetail id={route.id} />
+        {:else if route.name === 'tradeAdd'}
+          <TradeAdd />
+        {:else if route.name === 'tradeStats'}
+          <TradeStats />
+        {:else if route.name === 'fills'}
+          <Fills />
+        {:else if route.name === 'trading'}
+          <Trading />
+        {:else if route.name === 'more'}
+          <More />
+        {:else if route.name === 'market'}
+          <Market />
+        {:else if route.name === 'watch'}
+          <Watch />
+        {:else if route.name === 'accounts'}
+          <Accounts />
+        {:else if route.name === 'reconciliation'}
+          <Reconciliation />
+        {:else if route.name === 'asset'}
+          <AssetDetail asset={route.asset} />
+        {:else if route.name === 'import'}
+          <Import />
+        {:else if route.name === 'loans'}
+          <Loans />
+        {:else if route.name === 'titles'}
+          <Titles />
+        {:else if route.name === 'alerts'}
+          <Alerts />
+        {:else if route.name === 'add'}
+          <ManualEntry />
+        {:else if route.name === 'settings'}
+          <Settings />
+        {:else if route.name === 'privacy'}
+          <Privacy />
+        {:else if route.name === 'help'}
+          <Help />
+        {:else if route.name === 'report'}
+          <Report />
+        {:else if route.name === 'secondOpinion'}
+          <SecondOpinion />
+        {:else if route.name === 'news'}
+          <News />
+        {:else}
+          <Overview />
+        {/if}
+        {#snippet failed(error, reset)}
+          <section class="card crash" role="alert">
+            <h2>Une erreur inattendue s’est produite sur cette page</h2>
+            <p class="muted">
+              Vos données sont intactes (elles sont enregistrées dans ce navigateur). Réessayez, ou
+              copiez le diagnostic ci-dessous et signalez le problème : il contient le message
+              d’erreur, jamais vos montants.
+            </p>
+            <p class="error-text">
+              {error instanceof Error ? `${error.name} : ${error.message}` : String(error)}
+            </p>
+            <div class="crash-actions">
+              <button class="primary" type="button" onclick={reset}>Réessayer</button>
+              <button
+                class="secondary"
+                type="button"
+                onclick={() => router.navigate({ name: 'overview' })}>Retour à l'accueil</button
+              >
+            </div>
+            <SupportSection intro="Le diagnostic ci-dessous inclut l’erreur rencontrée." />
+          </section>
+        {/snippet}
+      </svelte:boundary>
+    </main>
+    <BottomNav />
+    <Toasts />
+  </div>
+{/if}
 
 <style>
   .app {

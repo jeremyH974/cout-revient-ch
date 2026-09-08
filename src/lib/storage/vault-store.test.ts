@@ -18,7 +18,12 @@ import {
   savePersistedState,
 } from './state-store';
 import { createVault, decodeSealed, unlockVault, unseal, type VaultKdfParams } from './vault';
-import { armVault, disarmVault, resetVaultSessionForTests } from './vault-session';
+import {
+  armVault,
+  disarmVault,
+  isVaultInstalled,
+  resetVaultSessionForTests,
+} from './vault-session';
 
 const FAST: VaultKdfParams = { m: 256, t: 1, p: 1 };
 
@@ -292,5 +297,52 @@ describe('persistance en clair — inchangée sans coffre', () => {
     expect((await loadPersistedState(storage)).status).toBe('ok');
     const snapshot = await idbLoadSnapshot();
     expect(snapshot?.kind).toBeUndefined();
+  });
+});
+
+describe('persistance scellée — verrouiller ne doit RIEN écrire en clair', () => {
+  it("refuse d'enregistrer tant que le coffre installé reste fermé", async () => {
+    const storage = memoryStorage();
+    await openFreshVault();
+    await savePersistedState(stateWithSecret(), '2026-09-08T10:00:00.000Z', storage);
+    const scelle = storage.getItem(STORAGE_KEY);
+
+    // L'utilisateur verrouille. Une sauvegarde débouncée part juste après.
+    disarmVault();
+    expect(isVaultInstalled(), "l'en-tête reste connu après verrouillage").toBe(true);
+
+    const result = await savePersistedState(stateWithSecret(), '2026-09-08T10:00:01.000Z', storage);
+
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/coffre fermé/i);
+    expect(storage.getItem(STORAGE_KEY), 'le chiffré est intact').toBe(scelle);
+    expect(storage.getItem(STORAGE_KEY)).not.toContain('MARQUEUR-SECRET');
+  });
+
+  it('refuse aussi le miroir synchrone de fermeture, qui part sans await', async () => {
+    const storage = memoryStorage();
+    await openFreshVault();
+    await savePersistedState(stateWithSecret(), '2026-09-08T10:00:00.000Z', storage);
+    const scelle = storage.getItem(STORAGE_KEY);
+
+    disarmVault();
+    const result = mirrorStateSync(stateWithSecret(), '2026-09-08T10:00:01.000Z', storage);
+
+    expect(result.ok).toBe(false);
+    expect(storage.getItem(STORAGE_KEY)).toBe(scelle);
+  });
+
+  it('réécrit bien en clair une fois le coffre RETIRÉ, et pas avant', async () => {
+    const storage = memoryStorage();
+    await openFreshVault();
+    await savePersistedState(stateWithSecret(), '2026-09-08T10:00:00.000Z', storage);
+
+    // Retirer le coffre, ce n'est pas le fermer : l'en-tête disparaît pour de bon.
+    resetVaultSessionForTests();
+    expect(isVaultInstalled()).toBe(false);
+
+    const result = await savePersistedState(stateWithSecret(), '2026-09-08T11:00:00.000Z', storage);
+    expect(result.ok).toBe(true);
+    expect(storage.getItem(STORAGE_KEY)).toContain('MARQUEUR-SECRET');
   });
 });
