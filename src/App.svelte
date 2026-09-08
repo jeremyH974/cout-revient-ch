@@ -23,7 +23,7 @@
   import Alerts from './routes/invest/Alerts.svelte';
   import AssetDetail from './routes/invest/AssetDetail.svelte';
   import Import from './routes/invest/Import.svelte';
-  import Loans from './routes/invest/Loans.svelte';
+  import Loans from './routes/wealth/Loans.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
   import Titles from './routes/wealth/Titles.svelte';

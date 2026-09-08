@@ -5,7 +5,7 @@
  * jeton détenu en milliards d'unités valorisait alors le portefeuille de démonstration à deux
  * millions d'euros : toute proportion mesurée dessus — part d'un actif, pourcentage d'allocation,
  * valeur portée au coût — devenait une fiction, et une spec qui aurait voulu la vérifier n'aurait
- * mesuré que l'artefact. Ce fichier est le garde-fou de cette propriété (décision n° 115).
+ * mesuré que l'artefact. Ce fichier est le garde-fou de cette propriété (décision n° 116).
  */
 import { describe, expect, it } from 'vitest';
 import { coinbaseCandles, coingeckoMarketChart, STUB_PRICES_EUR } from './network';

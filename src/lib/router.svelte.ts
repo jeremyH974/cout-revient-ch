@@ -78,6 +78,16 @@ function parseInvest(sub: string | undefined, arg: string | undefined): Route {
   }
 }
 
+/** Sous-chemins de l'espace Patrimoine : `#/wealth`, `#/wealth/loans`… */
+function parseWealth(sub: string | undefined): Route {
+  switch (sub) {
+    case 'loans':
+      return { name: 'loans' };
+    default:
+      return { name: 'titles' };
+  }
+}
+
 /**
  * Hashes canoniques (v2) : `#/` = Vue d'ensemble (aussi le `start_url` de la PWA, sans hash) ;
  * `#/invest…` = espace Investissement ; `#/trading…` = espace Trading ; `#/more` = écrans
@@ -96,7 +106,7 @@ export function parseHash(hash: string): Route {
     case 'trading':
       return parseTrading(second, third);
     case 'wealth':
-      return { name: 'titles' };
+      return parseWealth(second);
     case 'more':
       return { name: 'more' };
     case 'market':
@@ -152,7 +162,7 @@ export function toHash(route: Route): string {
     case 'alerts':
       return '#/invest/alerts';
     case 'loans':
-      return '#/invest/loans';
+      return '#/wealth/loans';
     case 'titles':
       return '#/wealth';
     case 'trades':

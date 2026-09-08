@@ -33,6 +33,7 @@ import {
   type PriceSource,
   type ValuePoint,
 } from '$lib/history';
+import { lendingContribution } from '$lib/history/net-worth';
 import { pruneHistory } from '$lib/history/evict';
 import { intradayValueSeries, type IntradayValuePoint } from '$lib/history/intraday-series';
 import type { MetricPoint } from '$lib/history/metrics';
@@ -329,14 +330,21 @@ export class HistoryState {
    */
   netWorthContributions = $derived.by((): Contribution[] => {
     const investPoints = this.dailySeries('portfolio');
-    const list: Contribution[] = [
-      valueSeriesContribution(
-        'invest',
-        'Investissement',
-        investPoints,
-        cumulativeContributions(this.flows('portfolio')),
-      ),
-    ];
+    // Un producteur SANS données n'est pas un producteur : à vide, `valueSeriesContribution` rend
+    // `null` chaque jour, ce qui marque le total « indisponible » et le fait tomber à zéro. Tant
+    // que la courbe exigeait de la crypto, le cas ne se posait pas ; depuis que les prêts peuvent
+    // exister seuls, il se pose.
+    const list: Contribution[] =
+      investPoints.length > 0
+        ? [
+            valueSeriesContribution(
+              'invest',
+              'Investissement',
+              investPoints,
+              cumulativeContributions(this.flows('portfolio')),
+            ),
+          ]
+        : [];
     const usd = rateLookup(app.state.fx.rates.USD ?? {});
     // Même unité que le côté Investissement, que `pricesFor` a déjà converti dans la devise
     // d'affichage : en dollars il ne faut PAS diviser. Même règle qu'à `Trading.svelte:105`.
@@ -406,6 +414,20 @@ export class HistoryState {
         }),
       );
     }
+    if (app.hasLending) {
+      // Les prêts sont un producteur comme un autre : ils entrent donc dans le total, dans la
+      // « Répartition » — qui itère les producteurs — et dans l'identité
+      // `apports nets + résultat = patrimoine`, puisque la fabrique déclare AUSSI ses apports.
+      list.push(
+        lendingContribution({
+          id: 'lending',
+          label: 'Prêts',
+          events: Object.values(app.state.lending.events),
+          wallet: Object.values(app.state.lending.wallet),
+          live: { day: today, value: app.lending.value },
+        }),
+      );
+    }
     return list;
   });
 
@@ -416,11 +438,27 @@ export class HistoryState {
    */
   netWorth = $derived.by((): NetWorthPoint[] => {
     const investPoints = this.dailySeries('portfolio');
-    if (investPoints.length === 0) return [];
-    return netWorthSeries({
-      contributions: this.netWorthContributions,
-      days: investPoints.map((p) => p.day),
-    });
+    // Le grand livre crypto, quand il existe, donne les jours — inchangé. Élargir la plage à
+    // l'union des producteurs coûtait des jours en plus à chaque rendu, sans rien apporter : le
+    // dernier point, celui que lisent le bandeau et la réconciliation, ne bouge pas d'un centime.
+    if (investPoints.length > 0)
+      return netWorthSeries({
+        contributions: this.netWorthContributions,
+        days: investPoints.map((p) => p.day),
+      });
+    /*
+     * Sans grand livre crypto, la courbe n'existait tout simplement pas : un compte qui n'a que
+     * des prêts n'avait AUCUN historique, donc aucune réconciliation et un bandeau muet. Les
+     * jours viennent alors des autres producteurs, du plus ancien connu à aujourd'hui.
+     */
+    const contributions = this.netWorthContributions;
+    const starts = contributions
+      .map((c) => c.firstDay)
+      .flatMap((day) => (day === null ? [] : [day]));
+    if (starts.length === 0) return [];
+    const first = starts.sort()[0]!;
+    const today = todayOf(nowMs());
+    return netWorthSeries({ contributions, days: eachDay(first, today > first ? today : first) });
   });
 
   /** Points de métrique quotidiens : valeur, coût, et pour un actif quantité + prix de marché. */

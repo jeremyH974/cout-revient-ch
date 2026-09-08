@@ -119,7 +119,7 @@ const COINGECKO_BY_COINBASE: Record<string, string> = Object.fromEntries(
  * détenu en milliards d'unités valorisait alors le portefeuille de démonstration à deux millions
  * d'euros, et toute proportion mesurée dessus — la part d'un actif, un pourcentage d'allocation,
  * une valeur estimée — devenait une fiction. La FORME reste la même pour tous, un cours qui bouge
- * d'un jour à l'autre ; seule l'ÉCHELLE devient celle du jeton (décision n° 115).
+ * d'un jour à l'autre ; seule l'ÉCHELLE devient celle du jeton (décision n° 116).
  */
 function stubPrice(seconds: number, refEur: number): number {
   const wobble = ((Math.floor(seconds / DAY_S) * 7) % 23) / 100;

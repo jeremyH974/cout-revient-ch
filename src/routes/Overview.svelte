@@ -22,7 +22,7 @@
    */
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
-  import { ZERO, type Big } from '$lib/domain/money';
+  import { D, ZERO, type Big } from '$lib/domain/money';
   import { displayGap, fmtDate } from '$lib/format/fr';
   import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
@@ -69,9 +69,27 @@
   const tradingEquity = $derived(
     app.hasTrading && trading.equity !== null ? app.usdcToDisplay(trading.equity) : null,
   );
-  /** Patrimoine = valeur des positions + équité de trading (des soldes, jamais des P&L). */
+  /**
+   * Valeur des prêts dans la devise d'affichage. Elle est tenue en euros par le moteur : la même
+   * conversion que partout ailleurs s'applique, et `null` si le taux du jour manque.
+   */
+  const lendingValue = $derived(
+    app.hasLending ? app.quoteToDisplay('EUR', D(app.lending.value)) : null,
+  );
+  /**
+   * Patrimoine = somme des soldes des espaces — jamais des résultats. Un espace dont le solde est
+   * **inconnu** (`null`) n'entre pas dans le total, qui est alors incomplet et le dit : compter un
+   * solde inconnu pour zéro serait le mensonge le plus discret de l'écran (décision n° 97).
+   *
+   * Cette somme reste synchrone : le bandeau doit porter un chiffre dès la première image, avant
+   * que l'historique des prix ne soit relu. La courbe consolidée, elle, la refait jour par jour —
+   * et `coherence.spec.ts` vérifie que les deux tombent au même centime.
+   */
   const netWorth = $derived(
-    tradingEquity === null ? t.value : (t.value?.plus(tradingEquity) ?? tradingEquity),
+    [tradingEquity, lendingValue].reduce<Big>(
+      (sum, term) => (term === null ? sum : sum.plus(term)),
+      t.value,
+    ),
   );
 
   onMount(() => void history.ensure());
@@ -178,7 +196,8 @@
       <span>Patrimoine</span>
       <Info title="Patrimoine"
         >Valeur des positions d'investissement (dernier prix connu) + équité de trading (compte
-        perps, USDC au taux BCE du jour). On additionne des soldes — jamais des résultats de nature
+        perps, USDC au taux BCE du jour) + valeur du compte de prêts (capital restant dû, intérêts
+        courus, trésorerie non prêtée). On additionne des soldes — jamais des résultats de nature
         différente.</Info
       >
     </h2>
@@ -219,6 +238,9 @@
     <p class="muted small">
       Taux de change en cours de chargement : équité de trading non comptée.
     </p>
+  {/if}
+  {#if app.hasLending && lendingValue === null}
+    <p class="muted small">Taux de change en cours de chargement : prêts non comptés.</p>
   {/if}
 </section>
 
