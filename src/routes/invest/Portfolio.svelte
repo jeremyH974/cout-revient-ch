@@ -12,7 +12,6 @@
   import SummaryHeader from '../../components/portfolio/SummaryHeader.svelte';
   import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
   import SelfChecks from '../../components/settings/SelfChecks.svelte';
-  import Delta from '../../components/shared/Delta.svelte';
   import Money from '../../components/shared/Money.svelte';
   import Qty from '../../components/shared/Qty.svelte';
   import { app } from '../../state/app.svelte';
@@ -72,30 +71,6 @@
 <AppBar />
 <SummaryHeader />
 <EvolutionCard scope="portfolio" />
-
-{#if app.hasLending}
-  <!-- Passerelle vers l'espace Prêts. Le lien du pied de page existait déjà, mais après toute la
-       liste des actifs : sur un portefeuille fourni, personne ne le voit. Ici il porte en plus le
-       chiffre qui donne envie de cliquer — et rien de plus, la lecture détaillée est là-bas. -->
-  <a class="bridge" href={router.href({ name: 'loans' })}>
-    <span class="what">
-      <strong>Prêts</strong>
-      <span class="muted small"
-        >{app.lendingReport.loans.length} contrats · financement participatif</span
-      >
-    </span>
-    <span class="figures">
-      <Money value={app.displayFromEur(app.lending.value)} strong />
-      <Delta
-        value={app.displayFromEur(app.lending.result)}
-        pct={app.lending.returnOnContributions === null
-          ? null
-          : D(app.lending.returnOnContributions)}
-        size="sm"
-      />
-    </span>
-  </a>
-{/if}
 
 <div class="toolbar">
   <input
@@ -290,37 +265,10 @@
     >Alertes{app.unreadAlertCount > 0 ? ` (${app.unreadAlertCount})` : ''}</a
   >
   ·
-  <a href={router.href({ name: 'loans' })}
-    >Prêts{app.hasLending ? ` (${app.lendingReport.loans.length})` : ''}</a
-  >
-  ·
   <a href={router.href({ name: 'settings' })} class="checks-link"><SelfChecks compact /></a>
 </footer>
 
 <style>
-  .bridge {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin: 0 var(--space-3) var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-    border-radius: var(--radius, 8px);
-    text-decoration: none;
-    color: inherit;
-  }
-  .bridge .what {
-    display: grid;
-  }
-  .bridge .figures {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
   .toolbar {
     display: flex;
     gap: var(--space-2);

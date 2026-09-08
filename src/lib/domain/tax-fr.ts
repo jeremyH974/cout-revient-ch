@@ -21,7 +21,7 @@
  *    contre un autre titre. Les deux méthodes sont mathématiquement incompatibles : mélanger les
  *    deux ne donne pas une approximation, mais un chiffre faux. Le filtre est posé **ici**, à
  *    l'entrée du module, et non chez l'appelant : c'est ce module qui est le régime des actifs
- *    numériques, et aucun appelant ne peut donc l'oublier (décision n° 114).
+ *    numériques, et aucun appelant ne peut donc l'oublier (décision n° 119).
  *
  * Module pur : `Big` et chaînes décimales, aucun arrondi d'affichage, aucune horloge (l'année
  * d'une cession se lit dans sa date). Le texte français vit dans la couche d'affichage.

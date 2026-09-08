@@ -305,7 +305,7 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
     if (url.hostname === 'coins.llama.fi') return json({ coins: {} });
     // Cours des titres (décision n° 104) : un prix fixe par symbole, pour que l'écran Titres soit
     // reproductible. Sans ce stub, aucun titre n'avait jamais de cours en E2E — et le défaut qui
-    // privait `heldAssets` des titres restait invisible (décision n° 114).
+    // privait `heldAssets` des titres restait invisible (décision n° 119).
     if (url.hostname === 'api.twelvedata.com') {
       if (url.pathname === '/logo') return json({ url: null });
       const symbols = (url.searchParams.get('symbol') ?? '').split(',').filter(Boolean);

@@ -205,7 +205,7 @@ test('avec des prêts et AUCUNE crypto, le patrimoine s’ouvre et les compte', 
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
 
-test('avec de la crypto ET des prêts, le portefeuille porte une passerelle vers les prêts', async ({
+test('la passerelle vers les prêts vit dans l’espace Patrimoine, pas dans l’Investissement', async ({
   page,
 }) => {
   // Un export Coinhouse d'abord : sans lui, l'écran Portefeuille renvoie à l'accueil.
@@ -214,10 +214,19 @@ test('avec de la crypto ET des prêts, le portefeuille porte une passerelle vers
   await page.setInputFiles('input[type="file"]', FIXTURE);
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
-  await page.goto('#/invest');
+  /*
+   * Un prêt participatif n'est pas un actif numérique : sa passerelle appartient à l'espace
+   * Patrimoine, avec les titres, et non à l'écran Investissement où elle a d'abord été posée
+   * (décision n° 118). Les deux assertions comptent autant l'une que l'autre — la présence ici,
+   * l'absence là-bas.
+   */
+  await page.goto('#/wealth');
   const bridge = page.locator('a.bridge');
   await expect(bridge).toContainText('Prêts');
   await expect(bridge).toContainText(eur(summary.value));
   await bridge.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+
+  await page.goto('#/invest');
+  await expect(page.locator('a.bridge')).toHaveCount(0);
 });

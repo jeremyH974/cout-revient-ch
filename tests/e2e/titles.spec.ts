@@ -59,7 +59,7 @@ test('la barre de navigation mène au Patrimoine', async ({ page }) => {
 test('avec une clé, les titres reçoivent un cours et une valeur', async ({ page }) => {
   // LE test qui manquait. Les fournisseurs de cours étaient corrects et éprouvés isolément, mais
   // `heldAssets` ne leur soumettait aucun code `eq:` : aucun titre n'a jamais eu de prix dans
-  // l'application. Rien ne le voyait — cette spec ne vérifiait que des libellés (décision n° 114).
+  // l'application. Rien ne le voyait — cette spec ne vérifiait que des libellés (décision n° 119).
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();

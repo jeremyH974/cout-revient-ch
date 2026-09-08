@@ -311,7 +311,7 @@ describe('dac8Summary — contrôler ce que la plateforme déclarera', () => {
 });
 
 describe('les valeurs mobilières ne sont pas des actifs numériques', () => {
-  // Décision n° 114. L'assiette du 150 VH bis est le portefeuille entier ; celle du 150-0 D est la
+  // Décision n° 119. L'assiette du 150 VH bis est le portefeuille entier ; celle du 150-0 D est la
   // ligne. Mélanger les deux ne donne pas une approximation, mais un chiffre faux — et il
   // s'affichait sur trois écrans et dans le PDF, présenté comme une estimation fiscale.
 
