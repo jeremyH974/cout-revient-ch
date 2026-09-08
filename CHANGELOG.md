@@ -39,6 +39,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [2.17.0] - 2026-09-05
 
+### Changed
+
+- **Le raccourci vers vos Prêts a rejoint l'espace Patrimoine.** Il s'affichait sur l'écran
+  Investissement, réservé aux actifs numériques ; il est maintenant en tête de l'espace Patrimoine,
+  avec vos titres — là où cliquer ne change plus d'espace.
+
 ### Fixed
 
 - **Votre compte de trading ne vaut plus le double dès que vous avez une position ouverte.** La

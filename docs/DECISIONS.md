@@ -2841,3 +2841,26 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      **Contre-épreuve** (décision n° 75) : le collatéral de nouveau additionné,
      `compute.test.ts` rougit en nommant le doublon — « expected '10350' to be '0' » pour la part
      libre, « expected '10350' to be '350' » pour un gage partiel.
+
+118. **La passerelle vers les Prêts appartient au Patrimoine, pas à l'Investissement**
+     (08/09/2026).
+
+     La décision n° 115 a fait entrer les prêts dans le patrimoine et leur a donné leur écran dans
+     l'espace **Patrimoine**, avec les titres. La carte-passerelle qui affiche leur valeur, elle,
+     avait été posée sur l'écran **Investissement** — là où le lecteur passe le plus de temps, ce
+     qui était le bon réflexe pour la rendre visible, mais au mauvais endroit : l'espace
+     Investissement est celui des actifs numériques, et un prêt participatif n'en est pas un. Deux
+     espaces se partageaient donc le même sujet, et la navigation le disait : cliquer sur la carte
+     changeait d'espace.
+
+     La passerelle vit désormais sur l'écran **Titres**, tête de l'espace Patrimoine, avec le même
+     contenu — le chiffre qui donne envie de cliquer, et rien de plus. Le lien du pied de page de
+     l'écran Investissement disparaît pour la même raison.
+
+     **Règle** : un raccourci se pose dans l'espace de ce qu'il désigne, jamais dans celui où l'on
+     espère être vu. La visibilité se gagne par la navigation principale, qui porte déjà
+     « Patrimoine ».
+
+     **Contre-épreuve** (décision n° 75), sur les deux moitiés de la garde : la passerelle retirée
+     du Patrimoine, le parcours ne la trouve plus (« element(s) not found ») ; remise sur
+     l'Investissement, l'assertion d'absence rougit (« Expected: 0, Received: 1 »).
