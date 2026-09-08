@@ -161,6 +161,20 @@ déjà. Pire : `market-data.yml` s'exécute deux fois par semaine et **committe*
 `monitor.yml` toutes les six heures. Le miroir se serait mis à diverger tout seul, par un chemin que
 personne ne surveille.
 
+### Dependabot, lui, ne s'arrête pas là
+
+Couper les workflows **ne suffit pas** : les mises à jour de version de Dependabot sont une
+fonctionnalité distincte, pilotée par `.github/dependabot.yml` sur la branche par défaut. À la
+création du miroir, elle a ouvert quatre PR dans la minute — avant même que la coupure ne prenne.
+
+Il n'existe **aucun réglage REST** pour l'éteindre (`security_and_analysis` ne couvre que les mises
+à jour de _sécurité_). C'est un clic, une fois, dans le miroir : **Settings → Code security →
+Dependabot version updates → Disable**.
+
+Si des PR `chore(deps)` réapparaissent sur le miroir, c'est ce clic qui manque. Elles ne sont pas
+dangereuses — juste du bruit sur un dépôt que personne ne relit, et des minutes consommées pour un
+travail que le dépôt public fait déjà.
+
 Le corollaire à ne pas oublier : **le miroir ne vérifie rien**. C'est la CI du dépôt public qui fait
 foi, donc on continue d'ouvrir ses PR là-bas.
 
