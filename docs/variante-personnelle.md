@@ -126,22 +126,57 @@ Vérifiez avec `msinfo32.exe` → **Prise en charge du chiffrement de l'appareil
 
 ## Le dépôt privé miroir
 
-Le dépôt public reste la source du code. Le dépôt privé sert à ce qui ne doit jamais y remonter :
-vos exports, vos configurations, vos essais.
+**Il existe : [`jeremyH974/cout-revient-ch-perso`](https://github.com/jeremyH974/cout-revient-ch-perso)**, privé,
+raccordé sous le nom de dépôt distant `perso`. Le dépôt public reste la source du code ; celui-ci en
+est une copie sous votre seul contrôle, et l'endroit où déposer ce qui n'a rien à faire en public —
+notes, configurations, essais.
 
-Mise en place, une fois :
-
-```bash
-gh repo create cout-revient-ch-perso --private
-git remote add perso https://github.com/<vous>/cout-revient-ch-perso.git
-git push perso main
-```
-
-Ensuite, récupérer les évolutions publiques est un `git pull` ordinaire :
+Synchroniser après une évolution publique :
 
 ```bash
 git pull origin main && git push perso main
 ```
+
+### Ce qui n'y va pas non plus
+
+Un dépôt privé n'est pas un coffre. C'est une copie de vos fichiers sur les serveurs d'un tiers,
+en clair, accessible à quiconque obtient votre jeton GitHub — et elle survit à votre machine.
+
+**Votre export réel reste donc exclu, exactement comme du dépôt public.** `.gitignore` et
+`scripts/check-no-personal-exports.js` continuent de s'appliquer ici, et c'est délibéré : le jour où
+l'on prend l'habitude de committer un relevé « puisque c'est privé », il ne reste plus qu'un
+changement de visibilité entre vos opérations et le monde entier.
+
+Si vous voulez conserver un historique hors de votre machine, c'est la **sauvegarde chiffrée**
+(Réglages → Sauvegarde, avec phrase secrète) qui est faite pour ça — et elle se dépose où vous
+voulez, y compris dans un service de synchronisation, puisqu'elle ne se lit pas sans la phrase.
+
+### Les workflows sont désactivés sur le miroir, exprès
+
+`gh api -X PUT repos/<vous>/cout-revient-ch-perso/actions/permissions -F enabled=false`
+
+Sans cela, chaque poussée y relancerait toute la CI — dont neuf minutes d'E2E et de Lighthouse — sur
+le quota de minutes **payantes** d'un dépôt privé, pour un résultat que le dépôt public produit
+déjà. Pire : `market-data.yml` s'exécute deux fois par semaine et **committe** ce qu'il régénère, et
+`monitor.yml` toutes les six heures. Le miroir se serait mis à diverger tout seul, par un chemin que
+personne ne surveille.
+
+### Dependabot, lui, ne s'arrête pas là
+
+Couper les workflows **ne suffit pas** : les mises à jour de version de Dependabot sont une
+fonctionnalité distincte, pilotée par `.github/dependabot.yml` sur la branche par défaut. À la
+création du miroir, elle a ouvert quatre PR dans la minute — avant même que la coupure ne prenne.
+
+Il n'existe **aucun réglage REST** pour l'éteindre (`security_and_analysis` ne couvre que les mises
+à jour de _sécurité_). C'est un clic, une fois, dans le miroir : **Settings → Code security →
+Dependabot version updates → Disable**.
+
+Si des PR `chore(deps)` réapparaissent sur le miroir, c'est ce clic qui manque. Elles ne sont pas
+dangereuses — juste du bruit sur un dépôt que personne ne relit, et des minutes consommées pour un
+travail que le dépôt public fait déjà.
+
+Le corollaire à ne pas oublier : **le miroir ne vérifie rien**. C'est la CI du dépôt public qui fait
+foi, donc on continue d'ouvrir ses PR là-bas.
 
 **Une branche privée dans le dépôt public est le seul schéma à écarter.** Tout ce qui est poussé
 dans un dépôt public est public, y compris une branche qu'on croit oubliée : les objets restent
