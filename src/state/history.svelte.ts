@@ -33,6 +33,7 @@ import {
   type PriceSource,
   type ValuePoint,
 } from '$lib/history';
+import { isAggregate, positionsInScope, type Scope } from '$lib/history/scope';
 import { lendingContribution } from '$lib/history/net-worth';
 import { pruneHistory } from '$lib/history/evict';
 import { intradayValueSeries, type IntradayValuePoint } from '$lib/history/intraday-series';
@@ -62,7 +63,7 @@ export interface HistoryStatus {
   sources: string[];
 }
 
-export type Scope = 'portfolio' | AssetCode;
+export type { Scope };
 
 const INFLOW = ['buy', 'migration-in', 'deposit', 'opening-balance'];
 const OUTFLOW = ['sell', 'migration-out', 'withdrawal'];
@@ -222,9 +223,18 @@ export class HistoryState {
   }
 
   private positionsFor(scope: Scope): PositionReport[] {
-    return scope === 'portfolio'
-      ? this.allPositions
-      : this.allPositions.filter((p) => p.asset === scope);
+    return positionsInScope(this.allPositions, scope);
+  }
+
+  /**
+   * Actifs **encore détenus** d'un périmètre : ce que la période 1J doit charger. Un agrégat en
+   * porte plusieurs, un code d'actif un seul — et c'est ce que l'appelant ne peut pas deviner
+   * depuis un `Scope` seul (décision n° 123).
+   */
+  assetsOf(scope: Scope): AssetCode[] {
+    return this.positionsFor(scope)
+      .filter((p) => p.qty.gt(ZERO))
+      .map((p) => p.asset);
   }
 
   /** Multiplicateur devise du jour (1 en euros). */
@@ -461,7 +471,9 @@ export class HistoryState {
 
   /** Points de métrique quotidiens : valeur, coût, et pour un actif quantité + prix de marché. */
   metricPoints(scope: Scope): MetricPoint[] {
-    if (scope === 'portfolio') {
+    // Un périmètre AGRÉGÉ (plusieurs actifs) n'a ni quantité ni prix unitaire : seul un actif seul
+    // en a. Les trois agrégats se traitent donc de la même façon.
+    if (isAggregate(scope)) {
       return this.dailySeries(scope).map((p) => ({
         day: p.day,
         value: p.value,
@@ -513,7 +525,10 @@ export class HistoryState {
   frenchTax(): TaxLedger {
     // Un Record plutôt qu'une Map : la règle `prefer-svelte-reactivity` proscrit `new Map` ici.
     const closingByDay: Record<string, Big> = {};
-    for (const point of this.metricPoints('portfolio')) {
+    // `'crypto'` et non `'portfolio'` : l'article 150 VH bis divise par la valeur globale du
+    // portefeuille d'ACTIFS NUMÉRIQUES. Y verser la valeur des titres gonfle le dénominateur, et
+    // minore donc la plus-value imposable (décision n° 123).
+    for (const point of this.metricPoints('crypto')) {
       const day = point.day.slice(0, 10);
       const eur = app.eurFromDisplay(point.value, day);
       if (eur !== null) closingByDay[day] = eur;

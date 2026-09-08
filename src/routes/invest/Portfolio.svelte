@@ -72,7 +72,7 @@
 <AppBar />
 <InvestTabs active="portfolio" />
 <SummaryHeader />
-<EvolutionCard scope="portfolio" />
+<EvolutionCard scope="crypto" />
 
 <div class="toolbar">
   <input

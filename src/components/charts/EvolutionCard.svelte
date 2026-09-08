@@ -6,6 +6,7 @@
   import { downloadText } from '$lib/export/download';
   import { fmtMoney, fmtPct, fmtPoints, fmtPrice } from '$lib/format/fr';
   import { periodPerformance, periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import { isAggregate } from '$lib/history/scope';
   import {
     METRIC_SPECS,
     type Metric,
@@ -22,24 +23,22 @@
 
   let { scope = 'portfolio', title = 'Évolution' }: { scope?: Scope; title?: string } = $props();
   let period = $state<Period>('1m');
-  const metrics = $derived(availableMetrics(scope === 'portfolio' ? 'portfolio' : 'asset'));
+  const metrics = $derived(availableMetrics(isAggregate(scope) ? 'portfolio' : 'asset'));
   const stored = $derived(
-    scope === 'portfolio' ? app.state.ui.chartMetric : app.state.ui.assetChartMetric,
+    isAggregate(scope) ? app.state.ui.chartMetric : app.state.ui.assetChartMetric,
   );
   const metric = $derived<Metric>(
-    metrics.includes(stored)
-      ? stored
-      : defaultMetric(scope === 'portfolio' ? 'portfolio' : 'asset'),
+    metrics.includes(stored) ? stored : defaultMetric(isAggregate(scope) ? 'portfolio' : 'asset'),
   );
   const chooseMetric = (m: Metric): void =>
-    app.setUi(scope === 'portfolio' ? { chartMetric: m } : { assetChartMetric: m });
+    app.setUi(isAggregate(scope) ? { chartMetric: m } : { assetChartMetric: m });
   const spec = $derived(METRIC_SPECS[metric]);
 
   onMount(() => void history.ensure());
   /** Période 1J : chargement immédiat, puis contrôle chaque minute (rechargement au-delà de 10 min). */
   $effect(() => {
     if (period !== '1d') return;
-    const assets = scope === 'portfolio' ? app.heldAssets : [scope];
+    const assets = history.assetsOf(scope);
     void history.ensureIntraday(assets);
     const timer = setInterval(() => void history.ensureIntraday(assets), 60_000);
     return () => clearInterval(timer);
@@ -109,7 +108,7 @@
   });
   /** Achats et ventes de l'actif dont le jour tombe dans la fenêtre affichée. */
   const markers = $derived.by((): ChartMarker[] => {
-    if (scope === 'portfolio' || period === '1d' || visible.length === 0) return [];
+    if (isAggregate(scope) || period === '1d' || visible.length === 0) return [];
     const from = visible[0]!.day;
     const to = visible[visible.length - 1]!.day;
     return history.allPositions
@@ -154,7 +153,7 @@
       {#if metric === 'value'}
         <div>
           <p class="label">
-            {scope === 'portfolio'
+            {isAggregate(scope)
               ? 'Valeur des avoirs'
               : `Valeur de vos ${scope.toUpperCase()}`}{closeNote}
           </p>

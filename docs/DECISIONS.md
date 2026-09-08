@@ -3061,3 +3061,36 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      d'un autre worktree tenait le port 4173 en servant un bundle périmé. **Un `npx playwright
 test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui ne rougit pas
      accuse d'abord le harnais, pas le test.
+123. **« Portefeuille » a cessé de vouloir dire la même chose pour tout le monde** (08/09/2026).
+     Tant que l'application ne valorisait que des actifs numériques, le mot était sans ambiguïté.
+     La classe `equity` (décision n° 119) l'a élargi en silence : sur cinq consommateurs, trois y
+     ont gagné — la courbe de patrimoine, sa contribution et le TWR couvrent enfin tout — et **deux
+     se sont mis à lire plus que ce qu'ils voulaient**, sans jamais produire d'erreur. Ils rendaient
+     un chiffre, simplement pas le bon.
+     Le grave est **la valeur globale servie à l'article 150 VH bis**. La formule divise le produit
+     de cession par la valeur globale du portefeuille d'ACTIFS NUMÉRIQUES : y verser la valeur des
+     titres gonfle le dénominateur et **minore la plus-value imposable**. Par honnêteté, la
+     pollution préexistait — les titres _cédés_ entraient déjà par `closed` — mais elle était
+     partielle ; la décision n° 119 l'a rendue complète. J'avais filtré le numérateur (les
+     événements) sans voir le dénominateur.
+     `Scope` gagne `'crypto'` et `'equities'`, et le filtre devient une **fonction pure nommée**
+     (`history/scope.ts`) plutôt qu'un test enfoui dans une classe d'état : un périmètre qui se
+     trompe ne lève rien, il faut donc pouvoir l'éprouver seul. Les **stablecoins restent dans
+     `'crypto'`** — ce sont des actifs numériques, et les écarter donnerait une assiette trop
+     petite, l'erreur exactement inverse.
+     **Trois écrans doivent dire non plutôt que se taire.** Le simulateur annonce désormais que la
+     fiscalité d'un titre relève du 150-0 D et n'est pas estimée — « ce n'est pas zéro à déclarer,
+     c'est un calcul que l'application ne fait pas encore ». Le second avis exclut les titres **à
+     dessein** : il confronte nos chiffres à un export crypto, où une action absente serait lue
+     comme un écart. Et le seuil d'alerte « objectif net de frais » disparaît pour un titre : sa
+     grille est celle de Coinhouse, et proposer un réglage faux vaut moins que ne rien proposer.
+     **Un périmètre nommé ne suffit pas : il faut le reconnaître.** `EvolutionCard` comparait sept
+     fois `scope === 'portfolio'` pour demander « est-ce un agrégat ? ». La question était juste, la
+     formulation non : `'crypto'` y passait pour un code d'actif, la carte cherchait un actif de ce
+     nom, n'en trouvait pas, et affichait « — » sans rien signaler. D'où `isAggregate()`, qui pose
+     la vraie question, et `assetsOf()`, qui rend la liste qu'un `Scope` seul ne laisse pas deviner.
+     **Contre-épreuve** (décision n° 75) : `'crypto'` rendu à tout, « expected [ Array(4) ] to
+     deeply equal [ 'btc', 'usdc' ] » ; les sept comparaisons remises telles quelles, la spec de
+     cohérence échoue sur « nombre illisible : « — » ». Cette dernière n'a rougi qu'à la deuxième
+     tentative : n'en fausser que deux laissait le choix de métrique correct, donc le test vert —
+     **une contre-épreuve partielle ne prouve rien.**
