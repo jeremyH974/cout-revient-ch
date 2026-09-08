@@ -22,6 +22,11 @@
       needsData: true,
     },
     {
+      route: { name: 'loans' },
+      label: 'Prêts',
+      detail: 'Financement participatif : apports, encours, rendement',
+    },
+    {
       route: { name: 'accounts' },
       label: 'Comptes',
       detail: 'Coinhouse, saisies manuelles, autres plateformes',
