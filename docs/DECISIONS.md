@@ -3306,3 +3306,41 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      ensemble ; symboles mélangés dans l'instant, la chaîne du BTC repart à l'envers.
      **Aucune migration** : les fills bruts sont conservés tels quels et l'ordre se recalcule à
      chaque lecture — l'écran se corrige tout seul sur les données déjà importées.
+
+131. **Un lanceur, pas une application de bureau** (08/09/2026).
+     La variante personnelle demandait deux commandes npm et une adresse à retenir. La question
+     posée était : faut-il en faire une vraie application (Tauri, Electron) ?
+     **Non, et le motif est la sécurité, pas l'effort.** Cette variante tient sur trois choses que
+     l'empaquetage ferait tomber : le bac à sable du navigateur, la Content-Security-Policy servie
+     en **en-tête** par `serve-prive.ts` — `frame-ancestors 'none'` comprise, ce qu'une balise
+     `<meta>` ne peut pas porter — et Trusted Types. Or la menace principale de ce dépôt, nommée
+     dès la décision n° 13, est la **dépendance npm compromise** ; `variante-personnelle.md` la
+     dit déjà « présente, et pire » en local, parce que le code y touche au disque. Une
+     application de bureau rendrait cet accès **permanent** au lieu de le limiter à une session.
+     **Deuxième motif, l'appareil de vérification.** 347 tests E2E sur Chromium, mobile et WebKit,
+     axe sur chaque route, Lighthouse en CI : tout pilote un navigateur. Tauri exigerait
+     `tauri-driver`, et la couverture mobile et WebKit deviendrait sans objet ou dédoublée. Pour un
+     projet dont la qualité repose sur « une contre-épreuve par garde-fou », c'est un mauvais
+     échange contre un double-clic.
+     **Troisième motif : ce ne serait pas un remplacement.** Le site public reste déployé et
+     surveillé toutes les 6 h ; l'application serait un **troisième** artefact. Et sous Windows,
+     Tauri rend dans WebView2 — le même moteur Chromium : le cloisonnement qu'on y gagnerait,
+     l'origine dédiée `crch.localhost` le donne déjà.
+     **Retenu : `--app=` d'un navigateur Chromium.** Fenêtre sans barre d'adresse ni onglets,
+     entrée propre dans la barre des tâches, icône, raccourci au menu Démarrer. L'apparence d'une
+     application, aucune des concessions.
+     **Deux pièges que le lanceur existe pour fermer.** (1) `dist/` est **partagé** entre le build
+     public et le build privé : servir un build public depuis l'origine privée redonnerait la
+     sortie réseau que la variante coupe. Le lanceur reconstruit par défaut et refuse `-Rapide`
+     sur un `dist/` public, en nommant la raison. Il distingue les deux par le préfixe
+     `/cout-revient-ch/assets/`, que seul le build public écrit — un discriminant **déduit** de
+     l'option `base` de Vite, donc croisé par un test contre la configuration elle-même. (2)
+     Aucun `--user-data-dir` : un profil dédié aurait son propre stockage, et le raccourci ne
+     montrerait pas les mêmes données que l'adresse tapée à la main. C'est le piège des origines,
+     déguisé en option de confort.
+     **Les deux `.ps1` s'écrivent sans accents**, seuls fichiers du dépôt dans ce cas : un `.ps1`
+     en UTF-8 sans BOM est relu en ANSI par Windows PowerShell 5.1, et les messages sortiraient en
+     charabia selon l'interpréteur qui les lance.
+     **Contre-épreuves** (décision n° 75), deux : préfixe du discriminant altéré dans le script, le
+     test le nomme (« expected '/cout-revient/assets/' to be '/cout-revient-ch/assets/' ») ; et
+     `dist/` truqué en build public, le lanceur refuse `-Rapide` et reconstruit en disant pourquoi.
