@@ -160,7 +160,7 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
    * **Revenu en espèces**, entrée seule étiquetée comme telle : dividende, intérêts, remise.
    *
    * Sans ce cas, la ligne tombait dans le filtre « 100 % fiat » ci-dessous et **disparaissait dans
-   * un compteur** — c'est ce qui a laissé 64 dividendes hors du modèle (décision n° 131). Le
+   * un compteur** — c'est ce qui a laissé 64 dividendes hors du modèle (décision n° 132). Le
    * symétrique existait déjà pour les frais ; il manquait du côté des revenus.
    */
   const incomeLabelled =

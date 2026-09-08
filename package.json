@@ -21,6 +21,8 @@
     "prive": "vite --mode prive",
     "prive:build": "vite build --mode prive",
     "prive:serve": "node scripts/serve-prive.ts",
+    "prive:app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/lancer-prive.ps1",
+    "prive:raccourci": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/creer-raccourci.ps1",
     "hooks:install": "node scripts/install-hooks.ts",
     "test": "vitest run",
     "test:watch": "vitest",

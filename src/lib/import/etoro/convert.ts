@@ -48,7 +48,7 @@ export function etoroDateToMs(raw: string): number | null {
   // **L'heure est facultative.** Le grand livre horodate à la seconde, mais la feuille des
   // dividendes ne porte qu'un jour de paiement (« 02/04/2025 ») : la refuser faisait disparaître
   // les 64 dividendes en silence. Minuit est la convention, et elle est ici sans conséquence — un
-  // dividende ne se compare à aucune opération de la même journée (décision n° 131).
+  // dividende ne se compare à aucune opération de la même journée (décision n° 132).
   const m = /^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(raw.trim());
   if (!m) return null;
   const at = Date.UTC(
