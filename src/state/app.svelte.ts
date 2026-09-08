@@ -36,9 +36,11 @@ import {
  * Les routes ne calculent rien : elles lisent `app.report`.
  */
 import {
+  allPositions,
   coinhouseTraceRow,
   computePortfolio,
   computePortfolioByAccount,
+  holdings,
   pivotTraceRow,
   traceMetric,
   type PortfolioReport,
@@ -1070,7 +1072,10 @@ export class AppState {
   }
 
   heldAssets = $derived.by((): AssetCode[] => {
-    const assets = [...this.report.positions, ...this.report.stablecoins].map((p) => p.asset);
+    // `holdings` et non une union recopiee : les titres manquaient ici, si bien qu'aucun code
+    // `eq:` n'etait jamais soumis aux fournisseurs de cours -- Twelve Data et Alpha Vantage,
+    // qui filtrent sur `isEquityCode`, recevaient une liste vide et ne rendaient jamais rien.
+    const assets = holdings(this.report).map((p) => p.asset);
     for (const account of this.tradingReport.accounts)
       for (const holding of account.snapshot?.spot ?? [])
         if (!assets.includes(holding.asset)) assets.push(holding.asset);
@@ -2255,7 +2260,7 @@ export class AppState {
   alertPositions = $derived.by((): Record<AssetCode, AlertPositionInput> => {
     const result: Record<AssetCode, AlertPositionInput> = {};
     const report = this.eurReport;
-    for (const p of [...report.positions, ...report.stablecoins])
+    for (const p of holdings(report))
       result[p.asset] = {
         pruEur: p.pru ? toDecimalString(p.pru) : null,
         qty: toDecimalString(p.qty),
@@ -2266,11 +2271,7 @@ export class AppState {
   /** Position du rapport EN EUROS (simulateur, alertes) ; `null` si l'actif est inconnu. */
   positionEur(asset: AssetCode): PositionReport | null {
     const report = this.eurReport;
-    return (
-      [...report.positions, ...report.stablecoins, ...report.closed, ...report.blocked].find(
-        (p) => p.asset === asset,
-      ) ?? null
-    );
+    return allPositions(report).find((p) => p.asset === asset) ?? null;
   }
 
   /** Règles triées par actif puis ancienneté (ordre stable de la page Alertes). */

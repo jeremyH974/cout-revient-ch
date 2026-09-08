@@ -131,6 +131,15 @@
     void app.refreshPrices();
     router.navigate({ name: 'overview' });
   }
+  /**
+   * Une clé saisie vaut demande de cotation : sans ce rafraîchissement, l'utilisateur colle sa clé
+   * et rien ne bouge à l'écran — il n'a aucune raison de deviner qu'un second geste est attendu.
+   */
+  function saveKey(patch: Partial<UiSettings>): void {
+    app.setUi(patch);
+    void app.refreshPrices(true);
+  }
+
   async function clearAll(): Promise<void> {
     // `eraseAll` et non `clearAll` : le second sert aussi à quitter la démo et ne touche pas au
     // cache d'historique de prix (décision n° 88).
@@ -328,7 +337,7 @@
         spellcheck={false}
         placeholder="CG-…"
         value={app.state.ui.coingeckoDemoKey ?? ''}
-        onchange={(e) => app.setUi({ coingeckoDemoKey: e.currentTarget.value.trim() || null })}
+        onchange={(e) => saveKey({ coingeckoDemoKey: e.currentTarget.value.trim() || null })}
       />
     </label>
     <p class="line small muted">
@@ -344,7 +353,7 @@
         spellcheck={false}
         placeholder="32 caractères"
         value={app.state.ui.twelveDataApiKey ?? ''}
-        onchange={(e) => app.setUi({ twelveDataApiKey: e.currentTarget.value.trim() || null })}
+        onchange={(e) => saveKey({ twelveDataApiKey: e.currentTarget.value.trim() || null })}
       />
     </label>
     <p class="line small muted">
@@ -362,7 +371,7 @@
         spellcheck={false}
         placeholder="16 caractères"
         value={app.state.ui.alphaVantageApiKey ?? ''}
-        onchange={(e) => app.setUi({ alphaVantageApiKey: e.currentTarget.value.trim() || null })}
+        onchange={(e) => saveKey({ alphaVantageApiKey: e.currentTarget.value.trim() || null })}
       />
     </label>
     <p class="line small muted">

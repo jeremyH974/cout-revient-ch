@@ -3,7 +3,7 @@
  * Colonnes documentées dans docs/exports.md ; montants dans la devise d'affichage.
  */
 import { concernedDeclarations, type DeclarationReport } from '../domain/declarations-fr';
-import type { HistoryEntry, PortfolioReport, PositionReport } from '../domain/engine';
+import { allPositions, type HistoryEntry, type PortfolioReport } from '../domain/engine';
 import { COINHOUSE_ACCOUNT_ID, MANUAL_ACCOUNT_ID, type AccountId } from '../domain/types';
 import { D, type Big } from '../domain/money';
 import type { TaxLedger } from '../domain/tax-fr';
@@ -48,12 +48,6 @@ const KIND_LABELS: Record<HistoryEntry['kind'], string> = {
   'opening-balance': 'Solde initial',
 };
 
-const allPositions = (r: PortfolioReport): PositionReport[] => [
-  ...r.positions,
-  ...r.stablecoins,
-  ...r.closed,
-  ...r.blocked,
-];
 const sym = (currency: Currency): string => CURRENCY_INFO[currency].symbol;
 
 export function positionsToCsv(report: PortfolioReport, currency: Currency = 'EUR'): string {

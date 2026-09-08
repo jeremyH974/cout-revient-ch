@@ -16,10 +16,17 @@
  *    ne touchent pas au PTA. L'achat de biens ou de services en crypto est imposable lui aussi,
  *    mais un export ne permet pas de le distinguer d'un retrait : c'est signalé, pas deviné.
  *
+ * 3. **Les valeurs mobilières n'entrent pas dans cette assiette.** Une action relève de l'article
+ *    150-0 D — prix moyen pondéré **par ligne**, et toute cession est un fait générateur, y compris
+ *    contre un autre titre. Les deux méthodes sont mathématiquement incompatibles : mélanger les
+ *    deux ne donne pas une approximation, mais un chiffre faux. Le filtre est posé **ici**, à
+ *    l'entrée du module, et non chez l'appelant : c'est ce module qui est le régime des actifs
+ *    numériques, et aucun appelant ne peut donc l'oublier (décision n° 119).
+ *
  * Module pur : `Big` et chaînes décimales, aucun arrondi d'affichage, aucune horloge (l'année
  * d'une cession se lit dans sa date). Le texte français vit dans la couche d'affichage.
  */
-import { isFiat } from './assets';
+import { isEquityCode, isFiat } from './assets';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from './money';
 import type { AssetCode, EventId, LedgerEvent, NaiveDateTime } from './types';
 
@@ -180,14 +187,32 @@ function acquisitionCost(event: LedgerEvent): Big {
 }
 
 /**
+ * Un événement touche-t-il une valeur mobilière ? Une seule jambe suffit : acheter une action en
+ * euros, la vendre, ou l'échanger contre une crypto sont tous hors de l'assiette du 150 VH bis.
+ */
+export function touchesEquity(event: LedgerEvent): boolean {
+  const legs: (AssetCode | undefined)[] = [
+    'out' in event ? event.out.asset : undefined,
+    'in' in event ? event.in.asset : undefined,
+    'asset' in event ? event.asset : undefined,
+  ];
+  return legs.some((code) => code !== undefined && isEquityCode(code));
+}
+
+/**
  * Rejoue le grand livre et produit l'estimation année par année.
  *
  * Hypothèse structurante, à annoncer partout où le résultat s'affiche : **le portefeuille de cette
  * app est supposé être le portefeuille entier du contribuable**. La méthode est globale ; des
  * actifs détenus ailleurs changeraient à la fois le PTA et la valeur globale.
+ *
+ * **Les valeurs mobilières sont écartées d'entrée** (voir l'en-tête du module) : leur régime est
+ * celui de l'article 150-0 D, incompatible avec celui-ci.
  */
 export function computeFrenchTax(input: TaxInput): TaxLedger {
-  const events = [...input.events].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const events = [...input.events]
+    .filter((e) => !touchesEquity(e))
+    .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
   const annotations = input.annotations ?? {};
 
   // Produits encaissés par jour : ils servent à reconstituer la valeur d'avant la cession.

@@ -55,3 +55,32 @@ test('la barre de navigation mène au Patrimoine', async ({ page }) => {
   await nav.getByRole('link', { name: 'Patrimoine' }).click();
   await expect(page).toHaveURL(/#\/wealth$/);
 });
+
+test('avec une clé, les titres reçoivent un cours et une valeur', async ({ page }) => {
+  // LE test qui manquait. Les fournisseurs de cours étaient corrects et éprouvés isolément, mais
+  // `heldAssets` ne leur soumettait aucun code `eq:` : aucun titre n'a jamais eu de prix dans
+  // l'application. Rien ne le voyait — cette spec ne vérifiait que des libellés (décision n° 119).
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  // La clé se saisit comme l'utilisateur le ferait : c'est elle qui arme le fournisseur.
+  await page.goto('#/settings');
+  const key = page.getByLabel('Clé Twelve Data (facultative)');
+  await key.fill('clef-de-test-e2e');
+  await key.blur();
+
+  await page.goto('#/wealth');
+  const list = page.getByRole('list', { name: 'Titres détenus' });
+  await expect(list).toBeVisible();
+  // Un prix, pas « Prix indisponible » : c'est la différence entre un fournisseur écrit et un
+  // fournisseur atteint. Et plus aucune ligne sans cours — la note du haut disparaît.
+  await expect(list.getByText('Prix indisponible').first()).toBeHidden({ timeout: 15000 });
+  await expect(page.getByText(/sans cours/)).toBeHidden({ timeout: 15000 });
+  // La VALEUR, pas le prix : sous 768 px la colonne « Prix » est masquée par la mise en page
+  // (`AssetRow.svelte`, `.price { display: none }`), et l'assertion ne tenait qu'en desktop.
+  // La valeur, elle, est affichée sur les deux — et c'est bien elle que l'utilisateur attend.
+  await expect(list.getByText('Valeur').first()).toBeVisible();
+  const first = list.getByRole('listitem').first();
+  await expect(first).toContainText('€');
+});

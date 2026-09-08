@@ -1,7 +1,7 @@
 /** Historique des prix et séries d'évolution (portefeuille / actif) dans la devise d'affichage. */
 import { nowIso, nowMs } from '$lib/clock';
 import { isFiat } from '$lib/domain/assets';
-import type { PositionReport } from '$lib/domain/engine';
+import { allPositions, type PositionReport } from '$lib/domain/engine';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { estimateSpread, type SpreadEstimate } from '$lib/domain/spread';
 import { computeFrenchTax, type TaxLedger } from '$lib/domain/tax-fr';
@@ -95,9 +95,7 @@ export class HistoryState {
   /** Toutes les positions du grand livre (hors devises), y compris clôturées et bloquées. */
   allPositions = $derived.by((): PositionReport[] => {
     const r = app.report;
-    return [...r.positions, ...r.stablecoins, ...r.closed, ...r.blocked].filter(
-      (p) => !isFiat(p.asset),
-    );
+    return allPositions(r).filter((p) => !isFiat(p.asset));
   });
   /** Actifs des trades (aller-retours) : leurs symboles ont aussi droit à un historique de prix. */
   private tradeAssets = $derived.by((): AssetCode[] => {

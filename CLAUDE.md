@@ -20,7 +20,7 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   grandeurs déterministes (décisions n° 85 et 87).
 - `npm run build` / `npm run preview`
 - `npm run prive` / `npm run prive:build` / `npm run prive:serve` — **variante personnelle locale**
-  (décision n° 119) : origine dédiée `http://crch.localhost:7331` au lieu de `localhost:5173`, qui
+  (décision n° 121) : origine dédiée `http://crch.localhost:7331` au lieu de `localhost:5173`, qui
   est partagée avec tout autre projet Vite de la machine ; **sortie réseau coupée** (`fetch` et
   `WebSocket` emballés dans `src/lib/net/local-only.ts`, verrou fermé par `__PRIVATE_BUILD__`) ;
   pas de service worker, dont le `fetch` s'exécuterait hors du verrou. `prive:serve` sert `dist/`

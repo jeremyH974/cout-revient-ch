@@ -226,6 +226,12 @@ export const ONCHAIN_BTC_TXS = [
   },
 ];
 
+/**
+ * Cours unique de tous les titres pendant les tests : les specs le réutilisent plutôt que de
+ * comparer l'écran à un chiffre écrit en dur.
+ */
+export const EQUITY_PRICE_EUR = 100;
+
 export async function stubNetwork(context: BrowserContext): Promise<void> {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, async (route) => {
     const url = new URL(route.request().url());
@@ -297,6 +303,22 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
       return json(answerInfo(HL_FIXTURE, body ?? {}) ?? {});
     }
     if (url.hostname === 'coins.llama.fi') return json({ coins: {} });
+    // Cours des titres (décision n° 104) : un prix fixe par symbole, pour que l'écran Titres soit
+    // reproductible. Sans ce stub, aucun titre n'avait jamais de cours en E2E — et le défaut qui
+    // privait `heldAssets` des titres restait invisible (décision n° 119).
+    if (url.hostname === 'api.twelvedata.com') {
+      if (url.pathname === '/logo') return json({ url: null });
+      const symbols = (url.searchParams.get('symbol') ?? '').split(',').filter(Boolean);
+      const quote = (s: string): unknown => ({
+        symbol: s,
+        close: String(EQUITY_PRICE_EUR),
+        currency: 'EUR',
+      });
+      if (symbols.length === 1) return json(quote(symbols[0]!));
+      return json(Object.fromEntries(symbols.map((s) => [s, quote(s)])));
+    }
+    if (url.hostname === 'www.alphavantage.co')
+      return json({ 'Global Quote': { '05. price': String(EQUITY_PRICE_EUR) } });
     if (url.hostname.startsWith('api.frankfurter.')) return json(frankfurterRates(url));
     // Contexte de marché (opt-in) : valeur fixe, pour que l'écran soit reproductible.
     if (url.hostname === 'api.alternative.me')
