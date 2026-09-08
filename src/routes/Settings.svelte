@@ -348,7 +348,26 @@
     <p class="line small muted">
       Gratuite sur twelvedata.com, elle seule permet de coter vos actions et vos ETF : aucune source
       crypto ne les connaît. Sans elle, ces actifs restent au prix que vous saisissez vous-même.
-      Elle reste sur cet appareil, envoyée à Twelve Data uniquement.
+      Elle reste sur cet appareil, envoyée à Twelve Data uniquement. Son palier gratuit ne cote que
+      les places américaines.
+    </p>
+    <label class="field"
+      >Clé Alpha Vantage (facultative)
+      <input
+        type="text"
+        autocomplete="off"
+        autocapitalize="off"
+        spellcheck={false}
+        placeholder="16 caractères"
+        value={app.state.ui.alphaVantageApiKey ?? ''}
+        onchange={(e) => app.setUi({ alphaVantageApiKey: e.currentTarget.value.trim() || null })}
+      />
+    </label>
+    <p class="line small muted">
+      Gratuite sur alphavantage.co, elle prend le relais sur <strong>les titres européens</strong> — Paris
+      et Francfort — que la précédente laisse sans cours. Vingt-cinq cotations par jour, cinq par minute
+      : de quoi suivre une poignée de lignes, pas un portefeuille entier. Elle reste sur cet appareil,
+      envoyée à Alpha Vantage uniquement.
     </p>
     <label class="field"
       >Explorateur de blocs (comptes on-chain EVM)

@@ -97,7 +97,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   réglage `ui.liveMids`), jamais écrit dans le cache de prix persisté ci-dessus — un canal
   d'affichage à part, docs/DECISIONS.md n° 29. Hôtes joignables déclarés dans `connect-src`
   (`src/lib/support/csp.ts`, table `KNOWN_ORIGINS` — **source de vérité**, croisée avec cette liste
-  par `tests/integration/architecture-doc.test.ts`). **Liste vérifiée** : `api.coingecko.com`, `api.coinbase.com`, `api.twelvedata.com`,
+  par `tests/integration/architecture-doc.test.ts`). **Liste vérifiée** : `api.coingecko.com`, `api.coinbase.com`, `api.twelvedata.com`, `www.alphavantage.co`,
   `api.exchange.coinbase.com`, `api.kraken.com`, `api.hyperliquid.xyz`, `coins.llama.fi`,
   `api.frankfurter.dev`, `api.frankfurter.app`, `mempool.space`, `blockstream.info`,
   `eth.blockscout.com`, `arbitrum.blockscout.com`, `base.blockscout.com`, `api.blockscout.com`,

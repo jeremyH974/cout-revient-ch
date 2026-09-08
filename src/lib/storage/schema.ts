@@ -105,6 +105,12 @@ export interface UiSettings {
    * (décision n° 32). Sans elle, les titres restent au prix manuel, sans erreur.
    */
   twelveDataApiKey: string | null;
+  /**
+   * Clé Alpha Vantage (cours des titres européens), gratuite et facultative. Le palier gratuit de
+   * Twelve Data ne cote que les places américaines ; celle-ci prend Paris et Francfort (décision
+   * n° 113). Même famille que les précédentes : données de marché en lecture seule.
+   */
+  alphaVantageApiKey: string | null;
   /** Prix « live » Hyperliquid (WebSocket) : opt-in, jamais actif par défaut. */
   liveMids: boolean;
   /**
@@ -221,6 +227,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   lastSeenVersion: null,
   coingeckoDemoKey: null,
   twelveDataApiKey: null,
+  alphaVantageApiKey: null,
   explorerKey: null,
   explorerFlavor: 'etherscan',
   liveMids: false,
@@ -953,6 +960,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey),
       explorerKey: sanitizeApiKey(state.ui.explorerKey),
       twelveDataApiKey: sanitizeApiKey(state.ui.twelveDataApiKey),
+      alphaVantageApiKey: sanitizeApiKey(state.ui.alphaVantageApiKey),
       explorerFlavor: KEYED_FLAVORS.includes(state.ui.explorerFlavor)
         ? state.ui.explorerFlavor
         : 'etherscan',

@@ -34,6 +34,8 @@
   const unpriced = $derived(held.filter((p) => p.value === null).length);
   /** Sans clé, aucun cours de titre ne peut arriver : le message ne dit pas la même chose. */
   const hasMarketKey = $derived((app.state.ui.twelveDataApiKey ?? '') !== '');
+  /** Les places européennes ont leur propre source : leur absence se dit à part (décision n° 113). */
+  const hasEuropeKey = $derived((app.state.ui.alphaVantageApiKey ?? '') !== '');
 </script>
 
 <AppBar />
@@ -59,9 +61,15 @@
     {:else}
       Votre clé est bien renseignée. Le palier gratuit ne délivre que <strong
         >huit cours par minute</strong
-      > : relancez le rafraîchissement pour compléter la liste, un lot à la fois. Ce qui résiste ensuite
-      est hors de sa couverture — les places européennes (Paris, Xetra, Londres) le sont — et se renseigne
-      par un prix depuis la fiche de l’actif.
+      >
+      : relancez le rafraîchissement pour compléter la liste, un lot à la fois.
+      {#if !hasEuropeKey}
+        Il ne cote par ailleurs que les places américaines : pour Paris et Francfort, ajoutez une
+        clé Alpha Vantage dans les
+        <a href={router.href({ name: 'settings' })}>réglages</a> (gratuite sur alphavantage.co).
+      {:else}
+        Ce qui résiste aux deux sources se renseigne par un prix depuis la fiche de l’actif.
+      {/if}
     {/if}
   </p>
 {/if}
