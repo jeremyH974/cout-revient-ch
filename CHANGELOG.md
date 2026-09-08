@@ -8,8 +8,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 ### Added
 
 - **Vos dividendes sont enfin comptés.** Un dividende encaissé en euros n'avait aucun chemin dans
-  l'application : il disparaissait dans un compteur de lignes ignorées. Le relevé eToro en portait
-  64. Ils apparaissent désormais dans le résultat, **en brut**, avec la retenue à la source suivie
+  l'application : il disparaissait dans un compteur de lignes ignorées. Le relevé eToro en portait 64. Ils apparaissent désormais dans le résultat, **en brut**, avec la retenue à la source suivie
   séparément — c'est le brut qui se déclare, et la retenue qui ouvrira le crédit d'impôt. Ils sont
   pour l'instant portés au compte plutôt qu'à la ligne qui les a produits.
 - **L'écran Prêts se lit enfin d'un coup d'œil.** Deux anneaux — capital remboursé face au capital
