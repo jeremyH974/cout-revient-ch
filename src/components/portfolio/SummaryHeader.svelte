@@ -137,7 +137,7 @@
         <!--
           Intérêts de trésorerie et frais de conversion : gagnés ou payés pour de bon, mais
           rattachés à AUCUNE ligne. Les répartir sur les prix de revient serait arbitraire ; ils
-          ont donc leur propre poste (décision n° 130).
+          ont donc leur propre poste (décision n° 131).
         -->
         · Compte <Money value={t.accountIncomeEur} sign colored />
         <span class="muted">(intérêts et frais de conversion)</span>

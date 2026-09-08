@@ -8,7 +8,7 @@
  * `dataSource` (COINGECKO : `symbol` = slug CoinGecko ; YAHOO : `symbol` = ticker suffixé
  * `-EUR`/`-USD`/…) décide si une DIVIDEND/INTEREST est une récompense **en nature** (valorisée via
  * `netWorth`) ou un revenu **en espèces**. Ce second cas était « ignoré cash » en aval, comme tout
- * le reste du pipeline pivot ; il produit désormais un revenu (décision n° 130) — la ligne
+ * le reste du pipeline pivot ; il produit désormais un revenu (décision n° 131) — la ligne
  * disparaissait dans un compteur, et le rendement s'en trouvait sous-estimé. Format vérifié dans le
  * code source du dépôt ghostfolio/ghostfolio, branche main, le 24/08/2026.
  */

@@ -124,7 +124,7 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
     // **Le terme « revenus » manquait.** `total` inclut `otherIncome` depuis toujours, mais aucun
     // produit ne le portait : l'invariant ne tenait que parce que les récompenses valent zéro par
     // défaut. Un dividende non nul l'aurait cassé — et l'auto-vérification aurait accusé le moteur
-    // au lieu de sa propre formule (décision n° 130).
+    // au lieu de sa propre formule (décision n° 131).
     const priced = allPositions(report).filter((p) => p.total !== null && p.value !== null);
     const broken = priced.filter(
       (p) =>

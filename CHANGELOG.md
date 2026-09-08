@@ -7,6 +7,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Vos dividendes sont enfin comptés.** Un dividende encaissé en euros n'avait aucun chemin dans
+  l'application : il disparaissait dans un compteur de lignes ignorées. Le relevé eToro en portait
+  64. Ils apparaissent désormais dans le résultat, **en brut**, avec la retenue à la source suivie
+  séparément — c'est le brut qui se déclare, et la retenue qui ouvrira le crédit d'impôt. Ils sont
+  pour l'instant portés au compte plutôt qu'à la ligne qui les a produits.
 - **L'écran Prêts se lit enfin d'un coup d'œil.** Deux anneaux — capital remboursé face au capital
   encore prêté, intérêts déjà reçus face à ceux que vos contrats annoncent — et un calendrier des
   douze prochains mois, capital et intérêts empilés. Le tout se déduit de vos contrats : ce n'est
@@ -66,6 +71,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **La liste des trades comptait vos positions intermédiaires comme autant de trades.** Un ordre un
+  peu gros ne s'exécute pas d'un bloc : il se remplit par tranches, parfois plusieurs dizaines dans
+  la même milliseconde. L'application rangeait ces tranches par leur numéro d'exécution, qui n'est
+  pas leur ordre de passage — elle rejouait donc votre position à l'envers et ouvrait un trade
+  « historique partiel » à chaque tranche. Un compte avec **une** position ouverte affichait ainsi
+  667 trades au lieu de 68, sans prix d'entrée ni résultat. Les tranches sont désormais remises dans
+  l'ordre décrit par la plateforme elle-même. Rien à réimporter : l'écran se corrige seul.
 - **Votre compte de trading ne vaut plus le double dès que vous avez une position ouverte.** La
   plateforme gage votre trésorerie en collatéral et la renvoie alors des deux côtés — équité et
   solde spot. L'application les additionnait. Seule la part **libre** s'ajoute désormais, et la
