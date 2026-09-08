@@ -216,7 +216,7 @@ test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans
 
   /*
    * Un prêt participatif n'est pas un actif numérique : il appartient au Patrimoine, et rien ne
-   * doit le ramener dans l'Investissement (décision n° 118). La forme a changé avec la n° 120 :
+   * doit le ramener dans l'Investissement (décision n° 118). La forme a changé avec la n° 122 :
    * les titres ayant rejoint l'Investissement, le Patrimoine n'a plus qu'un écran — la passerelle
    * qui reliait ses deux écrans n'a plus d'objet, et les prêts SONT désormais la racine de
    * l'espace. L'intention, elle, ne bouge pas : la présence ici, l'absence là-bas.

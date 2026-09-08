@@ -85,7 +85,7 @@ test('avec une clé, les titres reçoivent un cours et une valeur', async ({ pag
 });
 
 test('les deux volets de l’Investissement se répondent', async ({ page }) => {
-  // Décision n° 120 : crypto et titres sont deux volets d'un meme espace. La barre du bas doit
+  // Décision n° 122 : crypto et titres sont deux volets d'un meme espace. La barre du bas doit
   // marquer « Investissement » sur les deux, et les onglets doivent mener l'un à l'autre.
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);

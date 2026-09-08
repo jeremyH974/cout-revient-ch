@@ -135,7 +135,7 @@ describe('déménagement de l’écran Prêts vers l’espace Patrimoine', () =>
   });
 
   it('la racine du Patrimoine, ce sont désormais les prêts', () => {
-    // Les titres ont rejoint l'Investissement (décision n° 120) : le Patrimoine ne garde que le
+    // Les titres ont rejoint l'Investissement (décision n° 122) : le Patrimoine ne garde que le
     // non-coté, et sa racine mène donc à son seul écran.
     expect(parseHash('#/wealth')).toEqual({ name: 'loans' });
     expect(parseHash('#/wealth/inconnu')).toEqual({ name: 'loans' });

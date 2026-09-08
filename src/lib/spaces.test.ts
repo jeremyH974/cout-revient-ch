@@ -1,7 +1,7 @@
 /**
  * Le registre des espaces décide de trois choses à la fois : l'onglet allumé dans la barre du bas,
  * la cible du lien de retour, et l'accent visuel. Une route rangée dans le mauvais espace ne
- * provoque aucune erreur — elle envoie simplement l'utilisateur ailleurs (décision n° 120).
+ * provoque aucune erreur — elle envoie simplement l'utilisateur ailleurs (décision n° 122).
  */
 import { describe, expect, it } from 'vitest';
 import { SPACES, spaceOf } from './spaces';

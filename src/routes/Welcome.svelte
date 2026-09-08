@@ -54,8 +54,13 @@
     <li>
       <h2>3. Importez-le ici</h2>
       <p>
-        Le fichier reste dans votre navigateur : il n'est envoyé nulle part. Seuls les noms des
-        cryptos sont demandés à CoinGecko/Coinbase pour afficher les prix.
+        Le fichier reste dans votre navigateur : il n'est envoyé nulle part.
+        {#if __PRIVATE_BUILD__}
+          Dans cette variante personnelle, la sortie réseau est coupée au démarrage :
+          <strong>rien du tout</strong> ne quitte cet appareil, pas même les noms des cryptos.
+        {:else}
+          Seuls les noms des cryptos sont demandés à CoinGecko/Coinbase pour afficher les prix.
+        {/if}
       </p>
     </li>
   </ol>
