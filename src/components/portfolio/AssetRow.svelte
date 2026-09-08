@@ -20,6 +20,8 @@
    * lui qu'on met en avant ; l'identifiant passe en second, là où une crypto met son nom.
    */
   const isEquity = $derived(assetClass(p.asset) === 'equity');
+  /** Logo résolu chez le fournisseur de cours ; null tant qu’il n’a pas répondu, ou s’il n’en a pas. */
+  const logoUrl = $derived(app.state.assetSettings[p.asset]?.logo?.url ?? null);
   const heading = $derived(
     isEquity
       ? (app.state.assetSettings[p.asset]?.label ?? assetSymbol(p.asset).toUpperCase())
@@ -36,7 +38,7 @@
 <li class="item">
   <a class="row" href={router.href({ name: 'asset', asset: p.asset })}>
     <span class="cell id"
-      ><CoinBadge asset={assetSymbol(p.asset)} logo={!isEquity} /><span class="names"
+      ><CoinBadge asset={assetSymbol(p.asset)} logo={!isEquity} url={logoUrl} /><span class="names"
         ><strong
           >{heading}{#if p.price?.stale}<span class="stale" title="Prix issu du cache : actualisez"
               >périmé</span

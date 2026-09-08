@@ -39,6 +39,12 @@ export interface KnownOrigin {
   use: OriginUse;
   /** Ce que l'app en fait, en français. Pour `reserved`, c'est la justification. */
   why: string;
+  /**
+   * L'origine sert aussi des images (`img-src`). Une image ne peut rien exfiltrer — ni script ni
+   * charge utile — et l'origine est de toute façon déjà contactée : l'ajout n'ouvre aucune porte
+   * que `connect-src` ne laissait pas déjà ouverte.
+   */
+  img?: boolean;
 }
 
 export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
@@ -57,6 +63,7 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     origin: 'https://api.twelvedata.com',
     use: 'connect',
     why: "Cours du jour des actions et ETF, seuls actifs qu'aucune source crypto ne cote. Contactée uniquement si l'utilisateur a saisi sa propre clé.",
+    img: true,
   },
   {
     origin: 'https://api.exchange.coinbase.com',
@@ -244,6 +251,11 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
 ];
 
 /** Origines autorisées par `connect-src`, dans l'ordre de la table. */
+/** Origines autorisées à servir des images, en plus du site lui-même. */
+export function imgSrcOrigins(): readonly string[] {
+  return KNOWN_ORIGINS.filter((o) => o.img === true).map((o) => o.origin);
+}
+
 export function connectSrcOrigins(): readonly string[] {
   return KNOWN_ORIGINS.filter((o) => o.use !== 'link').map((o) => o.origin);
 }
@@ -288,7 +300,7 @@ export function buildCsp(): string {
     "default-src 'self'",
     "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    `img-src 'self' data: ${imgSrcOrigins().join(' ')}`,
     "font-src 'self'",
     `connect-src 'self' ${connectSrcOrigins().join(' ')}`,
     "manifest-src 'self'",

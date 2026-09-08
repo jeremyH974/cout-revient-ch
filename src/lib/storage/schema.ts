@@ -55,6 +55,11 @@ export interface AssetSettings {
    * Inc. »). Seul identifiant lisible d'un titre, dont le code interne est un ISIN.
    */
   label?: string | null;
+  /**
+   * Logo résolu chez le fournisseur de cours. `url: null` signifie « demandé, il n'en a pas » —
+   * une réponse à part entière, qui évite de redépenser un crédit à chaque affichage.
+   */
+  logo?: { url: string | null; at: string } | null;
 }
 
 export interface UiSettings {
@@ -394,6 +399,17 @@ function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
  * Action de société d'une ligne pivot. Un ratio non décimal ou nul rend la ligne inexploitable :
  * mieux vaut la relire comme une ligne ordinaire que fractionner par une valeur inventée.
  */
+/** Logo mémorisé : une URL du fournisseur, ou une absence datée. */
+function sanitizeLogo(raw: unknown): { url: string | null; at: string } | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const value = raw as Record<string, unknown>;
+  const at = typeof value['at'] === 'string' ? value['at'] : '';
+  if (at === '') return null;
+  const url =
+    typeof value['url'] === 'string' && value['url'].startsWith('https://') ? value['url'] : null;
+  return { url, at };
+}
+
 function sanitizeCorporateAction(raw: unknown): CorporateAction | null {
   if (typeof raw !== 'object' || raw === null) return null;
   const value = raw as Record<string, unknown>;
@@ -807,6 +823,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       manualPriceEur: decOrNull(raw['manualPriceEur']),
       manualPriceAt: typeof raw['manualPriceAt'] === 'string' ? raw['manualPriceAt'] : null,
       coingeckoId: typeof raw['coingeckoId'] === 'string' ? raw['coingeckoId'] : null,
+      logo: sanitizeLogo(raw['logo']),
       label:
         typeof raw['label'] === 'string' && raw['label'].trim() !== ''
           ? raw['label'].trim().slice(0, 120)
