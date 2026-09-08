@@ -3306,3 +3306,30 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      ensemble ; symboles mélangés dans l'instant, la chaîne du BTC repart à l'envers.
      **Aucune migration** : les fills bruts sont conservés tels quels et l'ordre se recalcule à
      chaque lecture — l'écran se corrige tout seul sur les données déjà importées.
+131. **Le jeu de démonstration ne portait pas le piège qu'il était censé garder** (08/09/2026).
+     La décision n° 130 a corrigé un défaut qui affichait 667 aller-retours sur un compte qui n'en
+     portait que 68. Les tests unitaires écrits ce jour-là le tiennent — mais `demo.json` ne
+     contenait **aucun** paquet de fills au même instant, si bien que l'E2E, l'intégration et le
+     mode démonstration étaient tous aveugles au défaut. Le garde-fou qui aurait dû le voir en
+     premier, `hl-fixture.test.ts` et sa vérification de la chaîne `startPosition`, s'exécutait sur
+     un historique où chaque milliseconde ne portait qu'une exécution : il validait un cas que le
+     défaut n'atteignait pas.
+     **Le générateur produit désormais le piège** : cinq des vingt-cinq tranches de l'accumulation
+     SOL partent à la même milliseconde, partagent un `oid` — c'est un seul ordre qui traverse le
+     carnet — et reçoivent leurs `tid` **dans l'ordre inverse** de leur exécution. Trié par `tid`,
+     ce paquet rejoue la position à l'envers (8,089 → 7,323 → 6,776 → 6,339 → 5,932). C'est la même
+     règle que la fixture eToro, qui porte exprès le préfixe `x:`, la chaîne partagée fragmentée et
+     la position ouverte après la dernière photo : **une fixture qui n'a que des cas faciles ne
+     garde rien**.
+     **Un piège doit être gardé lui aussi.** Une régénération distraite pourrait le faire
+     disparaître sans que rien ne rougisse — le jeu redeviendrait alors silencieusement inoffensif.
+     Un test vérifie donc sa présence : au moins un paquet de trois exécutions ou plus au même
+     instant, un `oid` unique, et un ordre de `tid` qui n'est pas l'ordre d'exécution.
+     **Contre-épreuves** (décision n° 75), trois, chacune vue rouge puis restaurée : chaînage des
+     fills retiré (le code d'avant la décision n° 130), « SOL : le fill 900450001059 annonce
+     startPosition 8.089, la chaîne reconstruite est à … » — l'assertion a été reformulée pour
+     nommer le coupable, elle disait « expected false to be true » ; `tid` du générateur remis dans
+     l'ordre, le test du piège rougit ; tranches réparties dans le temps, il rougit aussi.
+     **Rien d'autre n'a changé** : mêmes 74 fills, même graine, même adresse fictive. Seuls les
+     horodatages de cinq tranches SOL et l'attribution des `tid` bougent, et le générateur recalcule
+     l'instantané et le funding en conséquence.
