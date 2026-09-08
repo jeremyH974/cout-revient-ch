@@ -36,7 +36,7 @@
 <li class="item">
   <a class="row" href={router.href({ name: 'asset', asset: p.asset })}>
     <span class="cell id"
-      ><CoinBadge asset={p.asset} /><span class="names"
+      ><CoinBadge asset={assetSymbol(p.asset)} logo={!isEquity} /><span class="names"
         ><strong
           >{heading}{#if p.price?.stale}<span class="stale" title="Prix issu du cache : actualisez"
               >périmé</span

@@ -32,6 +32,8 @@
     [...held, ...closed].reduce((acc, p) => acc.plus(p.total ?? p.realized), ZERO),
   );
   const unpriced = $derived(held.filter((p) => p.value === null).length);
+  /** Sans clé, aucun cours de titre ne peut arriver : le message ne dit pas la même chose. */
+  const hasMarketKey = $derived((app.state.ui.twelveDataApiKey ?? '') !== '');
 </script>
 
 <AppBar />
@@ -48,9 +50,15 @@
 {#if unpriced > 0}
   <p class="small muted note">
     {unpriced}
-    {unpriced > 1 ? 'titres sont' : 'titre est'} sans cours : la valeur affichée les exclut. Renseignez
-    une clé de données de marché dans les
-    <a href={router.href({ name: 'settings' })}>réglages</a>, ou saisissez un prix depuis la fiche.
+    {unpriced > 1 ? 'titres sont' : 'titre est'} sans cours : la valeur affichée les exclut.
+    {#if !hasMarketKey}
+      Aucune clé de données de marché n’est renseignée — sans elle, aucun cours de titre ne peut
+      arriver. Collez-en une dans les
+      <a href={router.href({ name: 'settings' })}>réglages</a> (gratuite sur twelvedata.com).
+    {:else}
+      Votre clé est bien renseignée : le fournisseur ne reconnaît pas leur symbole. Saisissez un
+      prix depuis la fiche de l’actif, ou vérifiez le symbole auprès de votre courtier.
+    {/if}
   </p>
 {/if}
 
@@ -72,6 +80,11 @@
 </div>
 
 <section class="list">
+  <div class="head" aria-hidden="true">
+    <span>Actif</span><span>Quantité · PRU</span><span>Prix</span><span>Valeur</span><span
+      >Latent</span
+    ><span>Réalisé</span><span>Total</span>
+  </div>
   {#if held.length > 0}
     <ul class="rows" aria-label="Titres détenus">
       {#each held as p (p.asset)}
@@ -149,6 +162,25 @@
     list-style: none;
     margin: 0;
     padding: 0;
+  }
+  /* L’en-tête ne sert qu’en grille large : sur mobile, chaque ligne porte ses libellés. */
+  .head {
+    display: none;
+  }
+  @media (min-width: 768px) {
+    .head {
+      display: grid;
+      grid-template-columns: 2fr 1.4fr 1fr 1fr 1.2fr 1fr 1fr;
+      padding: var(--space-2) var(--space-4);
+      font-size: var(--fs-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--fg-muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .head span:not(:first-child) {
+      text-align: right;
+    }
   }
   .empty,
   .empty-state {
