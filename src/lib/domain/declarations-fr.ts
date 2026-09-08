@@ -105,6 +105,17 @@ function applyLegs(balances: Map<string, Big>, event: LedgerEvent): void {
     case 'fee':
       // Frais Coinhouse (abonnement) : jamais rattaché à un actif suivi ici.
       return;
+    case 'split':
+      // **Ce cas manquait, et personne ne l'a vu.** Le fractionnement est né la veille (décision
+      // n° 111) et ce `switch` ne l'a jamais appris : sans `default` mais sans garde non plus,
+      // TypeScript se taisait. Un fractionnement multiplie la quantité détenue sans rien acquérir
+      // ni céder ; le solde du 3916-bis ne regarde que « détient-on encore quelque chose ? », donc
+      // l'effet était nul — cette fois. C'est le hasard qui a tenu lieu de garde-fou.
+      return;
+    default: {
+      const missing: never = event;
+      throw new Error(`Type d'événement sans effet de solde déclaré : ${JSON.stringify(missing)}`);
+    }
   }
 }
 

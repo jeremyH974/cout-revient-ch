@@ -17,6 +17,7 @@ import {
   type DecimalString,
   type EngineSettings,
   type EventId,
+  type AccountKind,
   type ManualEvent,
   type Qualification,
   type RawCoinhouseRow,
@@ -320,16 +321,35 @@ const isDecimal = (v: unknown): v is string => typeof v === 'string' && DECIMAL.
 const isDecimalOrNull = (v: unknown): v is string | null =>
   v === null || v === undefined || isDecimal(v);
 const decOrNull = (v: unknown): string | null => (isDecimal(v) ? v : null);
-const MANUAL_KINDS = new Set(['buy', 'sell', 'reward', 'deposit', 'withdrawal', 'opening-balance']);
-const QUALIFICATION_KINDS = new Set([
-  'ignore',
-  'reward',
-  'deposit',
-  'withdrawal',
-  'purchase',
-  'sale',
-  'trade',
-]);
+/**
+ * Valeurs acceptées à la RELECTURE d'une sauvegarde.
+ *
+ * **Un `Set<string>` incomplet ne se signale pas : il jette la donnée.** Une valeur ajoutée à
+ * `ManualEvent['kind']` ou à `Qualification` sans mise à jour ici serait refusée au rechargement,
+ * en silence — l'utilisateur perdrait une saisie sans un message. Les tables ci-dessous sont
+ * dérivées des unions elles-mêmes : le compilateur exige qu'aucune valeur ne manque, et la
+ * conversion en `Set` n'est plus qu'une commodité de lecture (décision n° 129).
+ */
+const MANUAL_KIND_LIST = {
+  buy: true,
+  sell: true,
+  reward: true,
+  deposit: true,
+  withdrawal: true,
+  'opening-balance': true,
+} satisfies Record<ManualEvent['kind'], true>;
+const MANUAL_KINDS = new Set<string>(Object.keys(MANUAL_KIND_LIST));
+
+const QUALIFICATION_KIND_LIST = {
+  ignore: true,
+  reward: true,
+  deposit: true,
+  withdrawal: true,
+  purchase: true,
+  sale: true,
+  trade: true,
+} satisfies Record<Qualification['kind'], true>;
+const QUALIFICATION_KINDS = new Set<string>(Object.keys(QUALIFICATION_KIND_LIST));
 
 function sanitizeRow(key: string, raw: unknown): RawCoinhouseRow | null {
   if (!isRecord(raw)) return null;
@@ -620,15 +640,16 @@ function sanitizeAlertEvent(raw: unknown): AlertEvent | null {
   };
 }
 
-const ACCOUNT_KINDS = new Set([
-  'coinhouse',
-  'manual',
-  'hyperliquid',
-  'csv',
-  'onchain',
-  'lending',
-  'etoro',
-]);
+const ACCOUNT_KIND_LIST = {
+  coinhouse: true,
+  manual: true,
+  hyperliquid: true,
+  csv: true,
+  onchain: true,
+  lending: true,
+  etoro: true,
+} satisfies Record<AccountKind, true>;
+const ACCOUNT_KINDS = new Set<string>(Object.keys(ACCOUNT_KIND_LIST));
 const ONCHAIN_CHAINS = new Set(['btc', 'eth', 'arbitrum', 'base']);
 const ACCOUNT_SPACES = new Set(['invest', 'trading']);
 /** ISO 3166-1 alpha-2 : deux lettres majuscules, rien d'autre (P66, `Account.country`). */

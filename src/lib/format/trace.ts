@@ -295,18 +295,51 @@ function labelOf(node: TraceNode, metric: TraceMetric): string {
   return node.at && OPERATION_ROLES.has(node.role) ? `${base} du ${fmtDate(node.at)}` : base;
 }
 
-const OPERATION_ROLES: ReadonlySet<TraceRole> = new Set<TraceRole>([
-  'buy',
-  'sell',
-  'reward',
-  'deposit',
-  'withdrawal',
-  'migration-in',
-  'migration-out',
-  'opening-balance',
-  'proceeds',
-  'unqualified',
-]);
+/**
+ * Rôles qui désignent une OPÉRATION datée : leur intitulé se complète d'une date. Les autres sont
+ * des agrégats ou des constantes, qu'une date rendrait faux.
+ *
+ * Table plutôt qu'ensemble : un rôle neuf absent d'un `Set` perdrait simplement sa date, sans que
+ * rien ne le signale. Le `satisfies` oblige à choisir (décision n° 129).
+ */
+const DATED_BY_ROLE = {
+  buy: true,
+  sell: true,
+  reward: true,
+  deposit: true,
+  withdrawal: true,
+  'migration-in': true,
+  'migration-out': true,
+  'opening-balance': true,
+  proceeds: true,
+  unqualified: true,
+  // Agrégats, constantes et conteneurs : une date les rendrait faux.
+  split: false,
+  metric: false,
+  'cost-basis': false,
+  quantity: false,
+  price: false,
+  value: false,
+  realized: false,
+  unrealized: false,
+  invested: false,
+  'cost-of-sale': false,
+  fee: false,
+  rebate: false,
+  'other-income': false,
+  subscription: false,
+  position: false,
+  lot: false,
+  quote: false,
+  note: false,
+  row: false,
+  setting: false,
+  omitted: false,
+} satisfies Record<TraceRole, boolean>;
+
+const OPERATION_ROLES: ReadonlySet<TraceRole> = new Set(
+  (Object.keys(DATED_BY_ROLE) as TraceRole[]).filter((r) => DATED_BY_ROLE[r]),
+);
 
 /** Intitulé court de la métrique, pour la racine de l'arbre (le titre, lui, pose la question). */
 const METRIC_HEADS: Record<TraceMetric, string> = {

@@ -3,7 +3,14 @@
  * `ingestPivotRows` (fusion + comptages + rapport) est partagé avec les convertisseurs natifs et
  * l'import Ghostfolio, qui produisent les mêmes `RawPivotRow` par le chemin « drafts ».
  */
-import type { AccountId, EventId, Qualification, RawPivotRow, RowKey } from '../../domain/types';
+import type {
+  AccountId,
+  EventId,
+  LedgerEvent,
+  Qualification,
+  RawPivotRow,
+  RowKey,
+} from '../../domain/types';
 import { parseCsvText } from '../csv';
 import type { PlatformFormatId } from '../platforms/types';
 import { detectPivotFormat, type PivotFormat } from './detect';
@@ -106,13 +113,29 @@ export function ingestPivotRows(
     skippedCash,
     skippedInternal: context.skippedInternal ?? 0,
   };
+  /**
+   * Compteur par type d'événement. **Le `satisfies` fait garder la porte par le compilateur** : un
+   * type neuf ajouté au grand livre exige ici une décision — compté sous quel nom, ou volontairement
+   * absent du rapport d'import. Une chaîne de `else if` le laissait passer sans un mot, et le
+   * rapport d'import annonçait alors moins de lignes qu'il n'en avait lues (décision n° 129).
+   */
+  const BUCKET = {
+    trade: 'trades',
+    reward: 'rewards',
+    deposit: 'deposits',
+    withdrawal: 'withdrawals',
+    fee: 'fees',
+    unqualified: 'unqualified',
+    // Ni acquisition ni cession : le rapport d'import n'a pas de case pour eux, à dessein. Le
+    // compilateur a d'ailleurs trouvé `opening-balance` du même coup — la chaîne de `else if`
+    // en ignorait trois, pas un.
+    migration: null,
+    split: null,
+    'opening-balance': null,
+  } satisfies Record<LedgerEvent['kind'], keyof typeof counts | null>;
   for (const event of events) {
-    if (event.kind === 'trade') counts.trades++;
-    else if (event.kind === 'reward') counts.rewards++;
-    else if (event.kind === 'deposit') counts.deposits++;
-    else if (event.kind === 'withdrawal') counts.withdrawals++;
-    else if (event.kind === 'fee') counts.fees++;
-    else if (event.kind === 'unqualified') counts.unqualified++;
+    const bucket = BUCKET[event.kind];
+    if (bucket !== null) counts[bucket]++;
   }
   const dates = parsed.rows.map((r) => r.at).sort();
   const assets = [
