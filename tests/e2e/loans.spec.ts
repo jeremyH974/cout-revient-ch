@@ -184,23 +184,21 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
   await expect(page.getByText(/intérêts courus non échus ne sont pas comptés/)).toHaveCount(0);
 });
 
-test('avec des prêts et AUCUNE crypto, l’écran Prêts reste atteignable par l’interface', async ({
-  page,
-}) => {
+test('avec des prêts et AUCUNE crypto, le patrimoine s’ouvre et les compte', async ({ page }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
-  // `hasData` ne compte que la crypto : un compte qui n'a QUE des prêts est renvoyé à l'accueil.
+  // Les prêts sont des données comme les autres : la Vue d'ensemble s'ouvre au lieu de renvoyer
+  // à l'accueil, et son total les compte — c'est le sens de « les prêts entrent dans le patrimoine ».
   await page.goto('#/');
-  await expect(page.getByRole('heading', { level: 1, name: /PRU par crypto/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
+  await expect(page.getByTestId('net-worth-hero')).toContainText(eur(summary.value));
 
-  // Depuis l'accueil, un lien direct.
-  await page.getByRole('link', { name: /Voir mes \d+ prêts/ }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+  // La « Répartition » itère les producteurs : les prêts y ont leur ligne, sans code dédié.
+  await expect(page.locator('section.spaces')).toContainText('Prêts');
 
-  // Et par la navigation principale, sans connaître l'adresse.
-  await page.goto('#/');
+  // Et l'écran reste atteignable par la navigation, sans connaître l'adresse.
   await page.getByRole('link', { name: 'Plus' }).click();
   await page.getByRole('link', { name: 'Prêts' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();

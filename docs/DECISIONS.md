@@ -2666,3 +2666,28 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      replie proprement, mais le résultat ne se constatera qu'avec une vraie clé.
      **Contre-épreuve** (décision n° 75) : privé de son filtre d'origine, le service accepte une URL
      étrangère et le test le nomme.
+
+113. **Les prêts entrent dans le patrimoine** (08/09/2026).
+     L'écran Prêts existait, ses chiffres étaient justes, et la Vue d'ensemble les ignorait : un
+     compte qui n'aurait eu que des prêts était renvoyé à l'accueil, devant un « aucune donnée »
+     démenti par l'écran d'à côté. Les prêts deviennent donc un **producteur de patrimoine** comme
+     l'Investissement et le Trading — `lendingContribution` rend, pour chaque jour, l'encours + les
+     courus + la trésorerie non prêtée, **et ses apports** (dépôts − retraits). Sans cette seconde
+     moitié, l'identité `apports nets + résultat = patrimoine` se serait mise à mentir d'un espace.
+     **Les primes de parrainage ne sont pas un apport** : elles ne sortent pas de la poche de
+     l'utilisateur, elles vont donc à la trésorerie, du côté de la valeur. L'impôt débité sur une
+     ligne à part, lui, reste hors du compte : il est déjà déduit des intérêts nets.
+     **Le bandeau garde sa somme synchrone.** Il aurait été plus élégant de lui faire lire la courbe
+     consolidée — un seul chemin de calcul — mais la courbe attend la relecture de l'historique des
+     prix, et le chiffre principal de l'écran ne peut pas apparaître en deux temps. La somme reste
+     donc à part, et `coherence.spec.ts` vérifie qu'elle tombe au même centime que la courbe : le
+     garde-fou remplace l'unification, il ne la simule pas.
+     **La plage de jours ne s'élargit que si elle est vide.** Premier jet : l'union des producteurs,
+     du plus ancien jour connu à aujourd'hui. Elle recalculait des centaines de jours en plus à
+     chaque rendu sans déplacer le dernier point d'un centime, et ce coût suffisait, sous WebKit, à
+     faire manquer la fenêtre de 300 ms qui persiste l'état — `theme.spec.ts` perdait le mode
+     discret au rechargement. Le grand livre crypto, quand il existe, garde donc la main sur les
+     jours ; les autres producteurs ne fixent la plage que lorsqu'il n'y en a pas.
+     **Contre-épreuves** (décision n° 75), deux, sur la même spec : privé du terme des prêts, le
+     bandeau retombe à `0,00 €` et le test nomme le montant attendu ; privée de sa plage de repli,
+     la courbe disparaît et la « Répartition » perd sa ligne « Prêts ».

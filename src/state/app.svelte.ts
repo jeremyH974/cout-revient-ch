@@ -686,7 +686,10 @@ export class AppState {
       Object.keys(this.state.pivotRows).length > 0 ||
       Object.keys(this.state.manualEvents).length > 0 ||
       Object.keys(this.state.manualTrades).length > 0 ||
-      this.hlAccounts.length > 0,
+      this.hlAccounts.length > 0 ||
+      // Les prêts comptent depuis qu'ils produisent du patrimoine : sans eux ici, un compte qui
+      // n'en a que serait renvoyé à l'accueil devant une Vue d'ensemble pourtant juste.
+      Object.keys(this.state.lending.loans).length > 0,
   );
 
   /**

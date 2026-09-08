@@ -63,8 +63,9 @@
   <div class="actions">
     <a class="primary" href={router.href({ name: 'import' })}>Importer mon export CSV</a>
     {#if app.hasLending}
-      <!-- Un compte qui n'a QUE des prêts n'a « pas de données » au sens crypto : sans ce lien,
-           l'écran Prêts ne serait atteignable que par le menu « Plus » ou par son adresse. -->
+      <!-- Depuis que les prêts comptent dans le patrimoine, un compte qui n'a qu'eux ouvre la Vue
+           d'ensemble et ne passe plus par ici. Le raccourci sert les retours en arrière — démo
+           quittée, notamment — où des prêts existent alors que l'écran d'accueil s'affiche. -->
       <a class="secondary" href={router.href({ name: 'loans' })}
         >Voir mes {app.lendingReport.loans.length} prêts</a
       >
