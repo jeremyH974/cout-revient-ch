@@ -218,3 +218,42 @@ export interface PortfolioReport {
   pricedAt: string | null;
   warnings: string[];
 }
+
+/**
+ * Toutes les positions ouvertes, quelle que soit la classe d'actif.
+ *
+ * **Pourquoi une fonction plutôt qu'une union recopiée.** Le rapport range les positions par classe,
+ * et une douzaine d'appelants avaient besoin de l'ensemble : chacun réécrivait
+ * `[...positions, ...stablecoins]` de mémoire, et six d'entre eux ont oublié `equities` quand la
+ * classe est née (décision n° 103) — dont `heldAssets`, si bien qu'aucun titre n'a jamais été
+ * soumis aux fournisseurs de cours. Le défaut ne se voyait nulle part : chaque liste était juste,
+ * prise isolément.
+ *
+ * Le `satisfies` fait garder la porte par le compilateur. Ajouter `'bond'` à `AssetClass` casse la
+ * compilation **ici**, à un endroit, au lieu de vider six écrans en silence.
+ */
+export function holdings(report: PortfolioReport): PositionReport[] {
+  const byClass = {
+    crypto: report.positions,
+    stablecoin: report.stablecoins,
+    equity: report.equities,
+    // Les espèces ne sont pas une position : le moteur les écarte en amont (`aggregate`).
+    fiat: [],
+  } satisfies Record<AssetClass, readonly PositionReport[]>;
+  return Object.values(byClass).flat();
+}
+
+/** Positions ouvertes **et** clôturées, toutes classes : le passé compte autant que le présent. */
+export function allPositions(report: PortfolioReport): PositionReport[] {
+  return [...holdings(report), ...report.closed, ...report.blocked];
+}
+
+/** Positions clôturées d'une classe donnée : un titre cédé n'a rien à faire au portefeuille crypto. */
+export function closedOfClass(report: PortfolioReport, wanted: AssetClass): PositionReport[] {
+  return report.closed.filter((p) => p.assetClass === wanted);
+}
+
+/** Positions clôturées hors d'une classe donnée. */
+export function closedExcept(report: PortfolioReport, excluded: AssetClass): PositionReport[] {
+  return report.closed.filter((p) => p.assetClass !== excluded);
+}

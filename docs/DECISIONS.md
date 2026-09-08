@@ -2864,3 +2864,37 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      **Contre-épreuve** (décision n° 75), sur les deux moitiés de la garde : la passerelle retirée
      du Patrimoine, le parcours ne la trouve plus (« element(s) not found ») ; remise sur
      l'Investissement, l'assertion d'absence rougit (« Expected: 0, Received: 1 »).
+
+119. **Une classe d'actif s'ajoute au moteur, pas à douze listes écrites de mémoire** (08/09/2026).
+     Le moteur est agnostique depuis la décision n° 103 : un titre reçoit déjà PRU, lots, historique,
+     latent, réalisé, ROI. Mais le rapport range les positions **par classe**, et une douzaine
+     d'appelants avaient besoin de l'ensemble : chacun recopiait `[...positions, ...stablecoins]`,
+     et **six ont oublié `equities`**. Chaque liste était juste, prise isolément ; le défaut n'était
+     visible nulle part.
+     Le plus coûteux était `heldAssets` : `refreshPrices` n'interroge que lui, et Twelve Data comme
+     Alpha Vantage filtrent sur `isEquityCode`. **Ils recevaient une liste vide.** Trois lots livrés
+     les 06 et 08/09 — le fournisseur (n° 104), la correction de quota, la source européenne — ont
+     été vérifiés isolément, tests verts et appels réels concluants, sur un chemin que
+     l'application n'atteignait jamais. Une clé saisie ne changeait rien à l'écran.
+     `holdings()` remplace l'union recopiée, et un `satisfies Record<AssetClass, …>` fait garder la
+     porte par le compilateur : ajouter `'bond'` cassera la compilation **à un endroit**, au lieu de
+     vider six écrans en silence. Corollaire symétrique : les positions clôturées se filtrent par
+     classe (`closedExcept`), sans quoi un titre cédé s'affiche deux fois et sa plus-value boursière
+     gonfle le P&L des clôturées de la crypto.
+     **Le pire n'était pas l'absence, c'était la présence.** `computeFrenchTax` recevait le grand
+     livre **entier** : l'achat d'une action gonflait le prix total d'acquisition crypto, sa vente
+     était calculée par la formule globale du 150 VH bis, et un échange action → crypto passait en
+     sursis d'imposition. Le filtre est posé **dans le module**, pas chez l'appelant : c'est ce
+     module qui EST le régime des actifs numériques, aucun appelant ne peut donc l'oublier.
+     La recherche confirme que les deux assiettes sont **étanches** : côté titres, l'article
+     150-0 D, 11 n'autorise l'imputation que sur les plus-values de même nature au sens de l'article
+     150-0 A ; côté crypto, le 150 VH bis dit « exclusivement » et sans report. Aucune passerelle,
+     dans aucun sens.
+     **Une clé saisie vaut demande de cotation.** Sans rafraîchissement déclenché, l'utilisateur
+     colle sa clé et rien ne bouge : il n'a aucune raison de deviner qu'un second geste est attendu.
+     **Contre-épreuves** (décision n° 75). Filtre fiscal retiré : « expected '6000' to be '1000' » —
+     l'action gonflait le PTA de son prix exact. `holdings` privé des titres : « expected
+     [ 'btc', 'usdc' ] to deeply equal [ 'btc', 'eq:aapl', 'usdc' ] ». Et surtout **le test E2E**,
+     celui qui manquait : `heldAssets` remis dans son état d'origine, l'écran Titres garde
+     « Prix indisponible » et la spec le nomme. Aucun stub de Twelve Data n'existait dans les tests
+     de bout en bout — c'est pourquoi rien n'a jamais rougi.

@@ -8,7 +8,12 @@
  * (`Formatter.money`) pour préparer la bascule de devise.
  */
 import { concernedDeclarations, type DeclarationReport } from '../domain/declarations-fr';
-import type { PortfolioReport, PositionReport } from '../domain/engine';
+import {
+  allPositions,
+  holdings,
+  type PortfolioReport,
+  type PositionReport,
+} from '../domain/engine';
 import { D, ZERO, type Big, type DecimalString } from '../domain/money';
 import type { SubscriptionAnalysis } from '../domain/subscription';
 import type { AssetCode, NaiveDateTime } from '../domain/types';
@@ -821,7 +826,11 @@ function taxSection(
       'Estimation calculée selon la méthode globale de l’article 150 VH bis du CGI : plus-value = ' +
       'prix de cession − prix total d’acquisition × (prix de cession ÷ valeur globale du portefeuille ' +
       'au jour de la cession). Seules les sorties vers l’euro sont imposables ; les échanges entre ' +
-      'actifs numériques, stablecoins compris, bénéficient du sursis. Deux hypothèses commandent le ' +
+      'actifs numériques, stablecoins compris, bénéficient du sursis. **Vos actions et ETF n’entrent ' +
+      'pas dans ce calcul** : ils relèvent de l’article 150-0 D, dont l’assiette est le prix moyen ' +
+      'pondéré PAR LIGNE et non le portefeuille entier — les deux méthodes n’ont pas de dénominateur ' +
+      'commun, et une moins-value de l’une ne s’impute jamais sur une plus-value de l’autre. ' +
+      'Deux hypothèses commandent le ' +
       'résultat : ce portefeuille est supposé être VOTRE PORTEFEUILLE ENTIER (des avoirs détenus ' +
       'ailleurs changeraient le calcul), et la valeur globale de chaque jour est reconstituée à ' +
       'partir des cours de clôture. **Ce n’est ni une déclaration, ni un conseil fiscal** : faites ' +
@@ -1017,12 +1026,12 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
   const currency: Currency = opts.currency ?? 'EUR';
   const f = createFormatter(opts.discreet, currency);
   const t = report.totals;
-  const all = [...report.positions, ...report.stablecoins, ...report.closed, ...report.blocked];
+  const all = allPositions(report);
   const period = coveredPeriod(all);
   const operations = new Set(all.flatMap((p) => p.history.map((h) => h.eventId))).size;
   const generated = localDateTime(opts.generatedAt, opts.timeZone);
   const priced = report.pricedAt ? localDateTime(report.pricedAt, opts.timeZone) : null;
-  const openCount = report.positions.length + report.stablecoins.length;
+  const openCount = holdings(report).length;
 
   const facts: ReportFact[] = [
     { label: 'Généré le', value: generated.label },

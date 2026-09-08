@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PositionReport } from '$lib/domain/engine';
+  import { closedExcept, type PositionReport } from '$lib/domain/engine';
   import type { UnqualifiedEvent } from '$lib/domain/types';
   import { D, ZERO } from '$lib/domain/money';
   import { fmtDate, fmtRelative } from '$lib/format/fr';
@@ -55,7 +55,9 @@
   const filterLabel = $derived(app.accountLabels[accountFilter] ?? '');
   const positions = $derived([...filteredReport.positions].filter(matches).sort(sorters[sort]));
   const stablecoins = $derived(filteredReport.stablecoins.filter(matches));
-  const closed = $derived(filteredReport.closed.filter(matches));
+  // Les titres cédés ont leur propre écran : sans ce tri, ils s'affichaient ici **et** au
+  // Patrimoine, et leurs plus-values boursières gonflaient le « P&L des clôturées » de la crypto.
+  const closed = $derived(closedExcept(filteredReport, 'equity').filter(matches));
   // Une position « poussière » (résidu < 0,01 €) est clôturée, mais son latent résiduel compte
   // dans le P&L total : on l'affiche pour que la somme des sections retrouve l'en-tête.
   const closedTotal = $derived(closed.reduce((acc, p) => acc.plus(p.total ?? p.realized), ZERO));
