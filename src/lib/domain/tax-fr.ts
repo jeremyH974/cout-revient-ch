@@ -180,7 +180,7 @@ export function taxKindOf(event: LedgerEvent): TaxEventKind {
       return 'ignored';
     // Un revenu en especes n'est ni une acquisition ni une cession d'actif numerique : il ne
     // touche pas au prix total d'acquisition. Son propre regime -- revenus de capitaux mobiliers
-    // pour un dividende -- est traite a part, jamais ici (decision n 130).
+    // pour un dividende -- est traite a part, jamais ici (decision n 132).
     case 'income':
       return 'ignored';
     default: {

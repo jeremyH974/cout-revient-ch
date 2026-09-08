@@ -1,7 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { emptyLendingState } from '../domain/lending/types';
-import type { Account, AccountId, ManualEvent, StoredColumnMapping } from '../domain/types';
+import type {
+  Account,
+  AccountId,
+  AccountKind,
+  ManualEvent,
+  StoredColumnMapping,
+} from '../domain/types';
 import type { AlertEvent, AlertRule, AlertRuleState } from '../domain/alerts';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { aiKey } from '../../state/ai-key.svelte';
@@ -172,11 +178,12 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       // Cinquième champ additif (décision n° 111) : l'action de société d'une ligne pivot, que
       // les sauvegardes antérieures au fractionnement ne pouvaient pas porter. Puis un sixième
       // (décision n° 132) : la retenue à la source d'un revenu — une sauvegarde de 2026 n'en avait
-      // aucune, et l'absence vaut « pas de retenue ».
+      // aucune, et l'absence vaut « pas de retenue ». Enfin un septième (décision n° 133) :
+      // l'actif auquel se rattache un revenu, absent d'une sauvegarde qui portait tout au compte.
       pivotRows: Object.fromEntries(
         Object.entries(envelope.state.pivotRows).map(([key, row]) => [
           key,
-          { ...row, corporateAction: null, withheld: null },
+          { ...row, corporateAction: null, withheld: null, relatedAsset: null },
         ]),
       ),
       assetSettings: Object.fromEntries(
@@ -288,6 +295,116 @@ describe('assainissement', () => {
     const result = migrateState(raw);
     expect(result.ok && Object.keys(result.state.rawRows)).toEqual(['ok']);
     expect(result.ok && result.dropped).toBe(5);
+  });
+
+  it('un revenu garde sa retenue ET sa ligne d’origine à la relecture', () => {
+    // Les deux champs sont additifs, donc absents des anciennes sauvegardes — et l'assainisseur
+    // les remplacerait volontiers par `null` sans que rien ne proteste. Ailleurs, ils ne sont
+    // éprouvés qu'à `null` : une valeur nulle qui survit ne prouve pas qu'une vraie survivrait.
+    const raw = emptyState();
+    Object.assign(raw.pivotRows, {
+      d1: {
+        key: 'd1',
+        importId: 'imp',
+        lineNo: 7,
+        accountId: 'etoro:main',
+        date: '2026-04-02 00:00:00',
+        at: '2026-04-02T00:00:00',
+        sent: null,
+        received: { amount: '1', currency: 'eur' },
+        fee: null,
+        netWorth: null,
+        label: 'dividend',
+        description: 'Dividende Apple Inc.',
+        txHash: null,
+        withheld: { amount: '0.15', currency: 'eur' },
+        relatedAsset: 'eq:aapl',
+      },
+    });
+    const result = migrateState(JSON.parse(JSON.stringify(raw)));
+    const row = result.ok ? result.state.pivotRows['d1'] : null;
+    expect(row?.withheld).toEqual({ amount: '0.15', currency: 'eur' });
+    expect(row?.relatedAsset).toBe('eq:aapl');
+  });
+});
+
+/**
+ * Le motif des identifiants de compte n'acceptait que **deux à trois lettres** avant le
+ * deux-points. L'application en produit de plus longs : `etoro:main` et `lend:bienpreter` étaient
+ * donc écartés à chaque relecture de l'état — le compte, et pour eToro **toutes ses lignes**.
+ *
+ * Aucune erreur, aucun message : un import disparaissait entre deux ouvertures de l'application.
+ * Ce test est le garde-fou qui manquait, et il est **exhaustif par le compilateur** : un genre de
+ * compte ajouté demain sans son exemple ne compilera pas.
+ */
+describe('un identifiant de compte doit survivre à sa propre relecture', () => {
+  /** Un exemplaire de chaque identifiant que l'application sait fabriquer. */
+  const EXEMPLES = {
+    coinhouse: 'ch:main',
+    manual: 'man:default',
+    hyperliquid: 'hl:0x1234567890abcdef1234567890abcdef12345678',
+    csv: 'csv:m4k2p-x7y9z',
+    onchain: 'oc:arbitrum-m4k2p',
+    lending: 'lend:bienpreter',
+    etoro: 'etoro:main',
+  } satisfies Record<AccountKind, string>;
+
+  it('chaque genre de compte traverse l’assainissement', () => {
+    const base = emptyState();
+    for (const [kind, id] of Object.entries(EXEMPLES)) {
+      base.accounts[id] = {
+        id,
+        kind: kind as AccountKind,
+        label: kind,
+        space: 'invest',
+        createdAt: '2026-01-01T00:00:00',
+      };
+    }
+    const survivants = Object.keys(sanitizeState(JSON.parse(JSON.stringify(base))).state.accounts);
+    expect(survivants.sort()).toEqual(Object.values(EXEMPLES).sort());
+  });
+
+  it('les lignes d’un compte au préfixe long ne s’évaporent pas non plus', () => {
+    // La perte du compte se voit ; celle des lignes, non — l'écran affiche simplement moins.
+    const base = emptyState();
+    base.pivotRows['e1'] = {
+      key: 'e1',
+      importId: 'imp',
+      lineNo: 2,
+      accountId: 'etoro:main',
+      date: '2026-01-01 09:00:00',
+      at: '2026-01-01T10:00:00',
+      sent: { amount: '100', currency: 'eur' },
+      received: { amount: '1', currency: 'eq:aapl' },
+      fee: null,
+      netWorth: null,
+      label: null,
+      description: null,
+      txHash: null,
+    };
+    const { state } = sanitizeState(JSON.parse(JSON.stringify(base)));
+    expect(Object.keys(state.pivotRows)).toEqual(['e1']);
+  });
+
+  it('refuse tout de même ce qui n’a pas la forme d’un identifiant', () => {
+    // Élargir le préfixe ne doit pas revenir à tout accepter.
+    const base = emptyState();
+    for (const id of [
+      'sansdeuxpoints',
+      'MAJ:main',
+      '1:main',
+      'x:main',
+      ':main',
+      'trop'.repeat(6) + ':x',
+    ])
+      base.accounts[id] = {
+        id,
+        kind: 'manual',
+        label: 'x',
+        space: 'invest',
+        createdAt: '2026-01-01T00:00:00',
+      };
+    expect(Object.keys(sanitizeState(JSON.parse(JSON.stringify(base))).state.accounts)).toEqual([]);
   });
 });
 
@@ -513,6 +630,7 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       txHash: null,
       corporateAction: null,
       withheld: null,
+      relatedAsset: null,
     };
     const manual: Required<ManualEvent> = {
       id: 'm1',

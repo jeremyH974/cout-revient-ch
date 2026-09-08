@@ -3382,3 +3382,48 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      d'abord refusé de rougir** : requalifier un revenu en cession ne changeait aucun chiffre faute
      de valeur globale du portefeuille dans le cas de test. Le garde-fou interroge maintenant la
      fonction **qui décide** — « expected 'cession' to be 'ignored' » — et non son seul effet.
+133. **Un dividende appartient à une ligne, et le relevé sait laquelle** (08/09/2026).
+     La décision n° 132 a fait entrer les 64 dividendes du relevé, mais **au compte** : le pivot ne
+     sait pas d'où vient un encaissement en euros, puisqu'une entrée fiat n'a aucune jambe à lire.
+     Le rendement d'une ligne restait donc faux de son dividende.
+     **Le convertisseur, lui, sait.** Un champ additif `relatedAsset` sur la ligne pivot le lui fait
+     dire, plutôt que de laisser deviner : analyser la `description`, seul canal disponible
+     jusqu'ici, aurait été une devinette déguisée en lecture.
+     **Deux routes, et un refus.** L'identifiant de position d'abord, que le grand livre nomme. Puis
+     l'**ISIN**, que la feuille des dividendes porte et que la photo relie à une position connue —
+     une position ouverte AVANT la fenêtre du relevé n'a pas de ligne d'ouverture, et sans ce pont
+     son dividende tombait au compte alors que sa ligne existe. Un ISIN que deux codes se disputent
+     ne résout rien : on refuse plutôt que de choisir, un rattachement faux faussant le rendement de
+     deux lignes au lieu d'une. Mesuré sur le relevé réel : **61 dividendes sur 64 par l'identifiant,
+     les 3 derniers par l'ISIN, 0 laissé au compte, 0 ambiguïté**, répartis sur 16 lignes.
+     **Un défaut trouvé en chemin, et il annulait la moitié de la décision n° 132** :
+     `draftsToPivotRows` ne recopiait **pas** `withheld`. La retenue à la source était lue dans la
+     feuille, posée sur le brouillon, et perdue au passage suivant — 21,56 € qui n'atteignaient
+     jamais le moteur. Aucune erreur, aucun total qui détonne : seulement un crédit d'impôt qui
+     n'existait pas. Il manquait un test **de bout en bout** ; le voici, et c'est lui le vrai
+     livrable.
+     **La fixture gagne sa feuille Dividendes**, avec les trois issues du rattachement (identifiant,
+     ISIN, aucune) : jusqu'ici `collectDividends` n'était éprouvé que sur le relevé réel, en local,
+     et la CI n'aurait vu passer aucune régression.
+     **Une contre-épreuve creuse, débusquée** : le test « n'invente rien d'un « - » » passait alors
+     que le contrôle correspondant était **du code mort** — `reader.get` rend déjà « - » comme une
+     absence dans tout le relevé. La garde en double a été retirée et la contre-épreuve visée sur ce
+     qui protège réellement. Une garde ajoutée par prudence peut faire passer un test pour une
+     raison qui n'est pas la sienne.
+
+134. **Un compte dont le préfixe dépassait trois lettres disparaissait à chaque ouverture**
+     (08/09/2026).
+     `ACCOUNT_ID` valait `/^[a-z]{2,3}:…/`, sans un mot sur ce « 3 ». L'application produit pourtant
+     `etoro:main` (5 lettres) et `lend:bienpreter` (4) : l'assainisseur, qui tourne à **chaque
+     relecture de l'état**, les écartait — le compte, et pour eToro **toutes les lignes importées
+     avec lui**. Un relevé importé ne survivait donc pas à la fermeture de l'application.
+     Rien ne le signalait : ni erreur, ni message, ni ligne vide. L'assainisseur faisait son travail,
+     et son travail était de les jeter. `ch:`, `man:`, `hl:`, `oc:` et `csv:` passant tous, aucun
+     test ne l'a vu.
+     **La borne devient un simple garde contre une entrée pathologique** (`{2,16}`) ; ce qui empêche
+     la récidive est un test **exhaustif par le compilateur** — une table `satisfies Record<AccountKind,
+string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exemple, et vérifie
+     qu'il traverse l'assainissement. Un troisième test garde le garde-fou : élargir le préfixe ne
+     doit pas revenir à tout accepter.
+     **La leçon dépasse ce motif** : une contrainte numérique sans justification écrite est une
+     bombe à retardement, et celle-ci a explosé au premier préfixe de quatre lettres.

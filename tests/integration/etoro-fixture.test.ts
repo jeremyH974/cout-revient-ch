@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { assetClass } from '../../src/lib/domain/assets';
 import { computePortfolio } from '../../src/lib/domain/engine/aggregate';
-import { isPositive } from '../../src/lib/domain/money';
+import { isPositive, toDecimalString } from '../../src/lib/domain/money';
 import { DEFAULT_ENGINE_SETTINGS } from '../../src/lib/domain/types';
 import { importEtoroWorkbook } from '../../src/lib/import/etoro/index';
 import { pivotLedgerEvents } from '../../src/lib/import/pivot/events';
@@ -24,6 +24,21 @@ function workbook(): ArrayBuffer {
   return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
 }
 
+/** Le rapport complet, depuis le classeur : c'est le seul niveau où un champ perdu se voit. */
+async function reported() {
+  const result = await imported();
+  const ingested = ingestPivotRows(
+    { rows: result.rows, issues: result.issues },
+    { format: 'etoro', header: [], unknownColumns: [], totalRows: result.rows.length },
+    {},
+    'etoro:main',
+    usdRate,
+  );
+  if (!ingested.ok) throw new Error(ingested.error);
+  const { events } = pivotLedgerEvents(Object.values(ingested.rows), {}, usdRate);
+  return computePortfolio({ events, prices: {}, settings: DEFAULT_ENGINE_SETTINGS });
+}
+
 async function imported() {
   const result = await importEtoroWorkbook(workbook(), 'imp:test', 'etoro:main');
   if (!result.ok) throw new Error(result.error);
@@ -33,9 +48,8 @@ async function imported() {
 describe('relevé eToro de démonstration', () => {
   it('lit le grand livre, écarte levier et CFD en les nommant', async () => {
     const result = await imported();
-    // 5 ouvertures retenues + 1 vente ; le CFD et la position à levier sont écartés.
-    // 5 ouvertures + 1 vente + 1 fractionnement ; le CFD et le levier sont écartés.
-    expect(result.rows).toHaveLength(7);
+    // 5 ouvertures + 1 vente + 1 fractionnement + 3 dividendes ; le CFD et le levier sont écartés.
+    expect(result.rows).toHaveLength(10);
     expect(result.skipped).toBe(2);
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('levier');
@@ -95,7 +109,8 @@ describe('relevé eToro de démonstration', () => {
         ),
       ),
     ].sort();
-    expect(codes).toEqual(['btc', 'eq:demo', 'eq:idx.de', 'eq:newco', 'usd']);
+    // « eur » vient des dividendes : un encaissement en espèces n'a qu'une jambe, et elle est fiat.
+    expect(codes).toEqual(['btc', 'eq:demo', 'eq:idx.de', 'eq:newco', 'eur', 'usd']);
     expect(assetClass('eq:demo')).toBe('equity');
     expect(assetClass('btc')).toBe('crypto');
     expect(result.labels['eq:demo']).toBe('Demo Industries Inc.');
@@ -130,6 +145,51 @@ describe('relevé eToro de démonstration', () => {
     // Le fractionnement « 1:2 » a doublé la quantité sans toucher au coût.
     expect(demo?.qty.toString()).toBe('20');
     expect(demo?.lots).toHaveLength(2);
+  });
+
+  /**
+   * Les dividendes de la fixture : 0,45 + 0,075 sur « p-101 », 0,18 + 0,06 sur « p-901 » (que seule
+   * la photo connaît), 0,09 sur « p-999 » (que personne ne connaît).
+   */
+  describe('les dividendes arrivent entiers et à la bonne ligne', () => {
+    it('la retenue à la source traverse l’import — elle était perdue en chemin', async () => {
+      // Elle était LUE dans la feuille, posée sur le brouillon, et jamais recopiée dans la ligne
+      // pivot : le classeur disait 0,135 €, le moteur en recevait zéro. Aucune erreur, aucun
+      // total qui détonne — seulement un crédit d'impôt qui n'existait pas.
+      const result = await imported();
+      const withheld = Object.values(result.rows)
+        .map((r) => r.withheld)
+        .filter((w): w is NonNullable<typeof w> => w != null);
+      expect(withheld.map((w) => `${w.amount} ${w.currency}`).sort()).toEqual([
+        '0.06 eur',
+        '0.075 eur',
+      ]);
+    });
+
+    it('un dividende se pose sur SA ligne, et le brut compte', async () => {
+      const report = await reported();
+      const demo = report.equities.find((p) => p.asset === 'eq:demo');
+      // 0,525 + 0,24 : les BRUTS. Les nets encaissés feraient 0,63.
+      expect(toDecimalString(demo!.otherIncome)).toBe('0.765');
+      expect(toDecimalString(report.totals.withheldEur)).toBe('0.135');
+    });
+
+    it('une position que seule la photo connaît se rattache par son ISIN', async () => {
+      // « p-901 » est ouverte avant la fenêtre du relevé : aucune ligne ne l'ouvre, et son
+      // identifiant ne dit rien. Son ISIN, lui, est celui de « p-101 » — donc de la même ligne.
+      // Sans ce pont, ses 0,24 € tomberaient au compte et le compte en porterait 0,33.
+      const report = await reported();
+      expect(toDecimalString(report.totals.accountIncomeEur)).toBe('0.09');
+    });
+
+    it('un dividende que rien ne situe reste au compte, et l’import le dit', async () => {
+      // « p-999 » n'est ni au grand livre ni à la photo. Le rattacher au hasard fausserait le
+      // rendement d'une ligne ; le taire laisserait croire qu'il n'existe pas.
+      const result = await imported();
+      expect(result.issues.map((i) => i.message).join(' | ')).toContain(
+        "1 dividende(s) dont la position n'est plus identifiable",
+      );
+    });
   });
 
   it('refuse un classeur qui n’est pas un relevé eToro', async () => {

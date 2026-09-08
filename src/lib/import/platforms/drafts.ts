@@ -59,6 +59,7 @@ export function draftsToPivotRows(
     const label = (draft.label ?? '').trim().toLowerCase();
     const description = (draft.description ?? '').trim();
     const txHash = (draft.txHash ?? '').trim();
+    const relatedAsset = (draft.relatedAsset ?? '').trim().toLowerCase();
     rows.push({
       key,
       importId,
@@ -74,6 +75,11 @@ export function draftsToPivotRows(
       description: description === '' ? null : description,
       txHash: txHash === '' ? null : txHash,
       corporateAction: draft.corporateAction ?? null,
+      // Ces deux champs étaient LUS dans le classeur, posés sur le brouillon, et perdus ICI : la
+      // conversion ne les recopiait pas. Une retenue à la source lue puis oubliée ne provoque
+      // aucune erreur — seulement un crédit d'impôt absent, et un dividende au compte.
+      withheld: draft.withheld ?? null,
+      relatedAsset: relatedAsset === '' ? null : relatedAsset,
     });
   }
   return { rows, issues };

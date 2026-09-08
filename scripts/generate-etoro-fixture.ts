@@ -438,6 +438,23 @@ const HOLDINGS: FixtureSheet = {
       'ETF',
       'XX0000000002',
     ],
+    // Ouverte AVANT la fenêtre du relevé : aucune ligne d'ouverture ne la nomme, seule la photo la
+    // porte. Son dividende ne se rattache donc que par l'ISIN, qu'elle partage avec « p-101 ».
+    [
+      LAST_SNAPSHOT,
+      'Demo Industries Inc.',
+      'p-901',
+      'Long',
+      '18/11/2024 09:00:00',
+      'X1',
+      30,
+      2,
+      52,
+      104,
+      94,
+      'Stocks',
+      'XX0000000001',
+    ],
     [
       LAST_SNAPSHOT,
       'Bitcoin',
@@ -538,6 +555,89 @@ const CLOSED: FixtureSheet = {
   ],
 };
 
+/**
+ * Dividendes. Quatorze colonnes comme chez eToro — dont sept qui ne servent à rien ici et qu'il
+ * faut pourtant traverser —, une **date sans heure** (le piège qui avait fait disparaître les 64
+ * dividendes du relevé réel en silence), et le NET encaissé accompagné de sa retenue : le brut est
+ * leur somme, jamais une colonne.
+ *
+ * Les trois lignes couvrent les trois issues du rattachement, et c'est leur raison d'être :
+ * l'identifiant de position connu du grand livre, l'ISIN d'une position que seule la photo porte,
+ * et une position qu'aucune feuille ne nomme — celle-là reste au compte, jamais devinée.
+ */
+const DIVIDENDS: FixtureSheet = {
+  name: 'Dividendes',
+  rows: [
+    [
+      'Date du paiement',
+      "Nom de l'instrument",
+      'Dividende net reçu (USD)',
+      'Net dividends',
+      'Currency',
+      'Affranchi/Non affranchi',
+      'Crédits d’affranchissement (AUD)',
+      'Dividende net reçu (EUR)',
+      'Taux de retenue à la source (%)',
+      'Montant du prélèvement à la source (USD)',
+      'Montant du prélèvement à la source (EUR)',
+      'Identifiant de position',
+      'Type',
+      'ISIN',
+    ],
+    // Rattaché par l'IDENTIFIANT : le grand livre a vu ouvrir « p-101 ». Brut = 0,45 + 0,075.
+    [
+      '15/04/2025',
+      'Demo Industries Inc.',
+      0.5,
+      0,
+      '',
+      '-',
+      '-',
+      0.45,
+      '15 %',
+      0.08,
+      0.075,
+      'p-101',
+      'Stocks',
+      'XX0000000001',
+    ],
+    // Rattaché par l'ISIN : « p-901 » n'existe que dans la photo. Brut = 0,18 + 0,06.
+    [
+      '20/05/2025',
+      'Demo Industries Inc.',
+      0.2,
+      0,
+      '',
+      '-',
+      '-',
+      0.18,
+      '25 %',
+      0.07,
+      0.06,
+      'p-901',
+      'Stocks',
+      'XX0000000001',
+    ],
+    // Rattaché à RIEN : ni le grand livre ni la photo ne connaissent « p-999 ». Reste au compte.
+    [
+      '10/06/2025',
+      'Vanished Corp.',
+      0.1,
+      0,
+      '',
+      '-',
+      '-',
+      0.09,
+      '0 %',
+      0,
+      0,
+      'p-999',
+      'Stocks',
+      'XX0000000009',
+    ],
+  ],
+};
+
 const SUMMARY: FixtureSheet = {
   name: 'Récapitulatif du compte',
   rows: [
@@ -549,9 +649,10 @@ const SUMMARY: FixtureSheet = {
 };
 
 const PATH = 'tests/fixtures/etoro/releve-demo.xlsx';
-writeWorkbook(PATH, [SUMMARY, HOLDINGS, CLOSED, ACTIVITY]);
+writeWorkbook(PATH, [SUMMARY, HOLDINGS, CLOSED, ACTIVITY, DIVIDENDS]);
 console.log(`Relevé eToro de démonstration écrit : ${PATH}`);
 console.log(
   '  grand livre de 9 lignes ; 2 photos empilées ; 1 ouverture et 1 fractionnement postérieurs ;',
 );
-console.log('  1 CFD et 1 position à levier à écarter.');
+console.log('  1 CFD et 1 position à levier à écarter ;');
+console.log('  3 dividendes : un rattaché par identifiant, un par ISIN, un laissé au compte.');

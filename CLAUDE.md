@@ -39,7 +39,9 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   (`tests/fixtures/etoro/releve-demo.xlsx`). Le classeur est **écrit par le script**, jamais déposé :
   il porte exprès les pièges du format réel (préfixe `x:`, chaîne partagée fragmentée, cibles
   absolues, deux photos empilées, **une position ouverte après la dernière photo**, une position à
-  levier et un CFD à écarter).
+  levier et un CFD à écarter). La feuille **Dividendes** y couvre les trois issues du rattachement
+  (identifiant de position connu, ISIN d'une position que seule la photo porte, aucune route) et
+  porte une **date sans heure**, comme le relevé réel.
 - `node scripts/generate-tickers.mjs [top]` — régénère `src/lib/pricing/tickers.generated.ts` (top N
   CoinGecko, 500 par défaut). **`src/lib/pricing/tickers.ts` est la table CURÉE et reste prioritaire** :
   `TICKERS = { ...GENERATED, ...CURATED }`. Un symbole partagé par deux projets ne reçoit **aucun**

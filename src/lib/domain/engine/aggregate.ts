@@ -145,7 +145,7 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   const value = sumBy(priced, (p) => p.value);
   // Les revenus et frais DE COMPTE entrent dans le resultat sur leur propre ligne : interets de
   // tresorerie et frais de conversion sont bien gagnes ou payes, mais n'appartiennent a aucune
-  // position -- les repartir sur les PRU serait arbitraire (decision n 130). Contrairement aux
+  // position -- les repartir sur les PRU serait arbitraire (decision n 132). Contrairement aux
   // abonnements, ils ne dependent d'aucun reglage : ce sont des mouvements du compte, pas une
   // convention de presentation.
   let total = realized.plus(unrealized).plus(otherIncome).plus(run.accountIncomeEur);
