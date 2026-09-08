@@ -34,7 +34,7 @@ test.beforeEach(async ({ context }) => {
 test('sans données, l’écran dit où trouver l’export au lieu d’afficher des zéros', async ({
   page,
 }) => {
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await expect(page.getByRole('heading', { name: 'Aucun prêt importé' })).toBeVisible();
   await expect(page.getByText(/sans filtre/)).toBeVisible();
   // Aucun chiffre inventé tant que rien n'est importé.
@@ -68,7 +68,7 @@ test('import puis lecture : les chiffres de l’écran sont ceux du moteur', asy
 test('le tableau fiscal vise la case 2TT et nomme le régime de prélèvement', async ({ page }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
 
   const block = page.locator('details', { hasText: 'Déclaration de revenus' });
   await block.getByText('Déclaration de revenus — estimation').click(); // ouvre le <details>
@@ -86,7 +86,7 @@ test('les prêts survivent au rechargement', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
   await page.reload();
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
 
@@ -162,7 +162,7 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
 }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   // Le constat vit dans un bloc repliable : il faut l'ouvrir pour le voir.
   await page.getByText('Comment lire ces chiffres').click();
   // Sans contrat, le moteur DIT qu'il ne peut pas calculer les courus.
@@ -179,7 +179,7 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
   // Un seul prêt de la fixture porte ce numéro de contrat.
   await expect(card).toContainText('1 prêt(s) complété(s)');
 
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await page.getByText('Comment lire ces chiffres').click();
   await expect(page.getByText(/intérêts courus non échus ne sont pas comptés/)).toHaveCount(0);
 });
