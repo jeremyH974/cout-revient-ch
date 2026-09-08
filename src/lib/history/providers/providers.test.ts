@@ -420,11 +420,36 @@ describe('DefiLlama chart (historique profond)', () => {
 describe('defaultHistoryProviders', () => {
   it('range DefiLlama en dernier : un prix coté en euros prime sur un prix converti (décision n° 42)', () => {
     const names = defaultHistoryProviders({}, () => '1').map((p) => p.name);
-    expect(names).toEqual(['Coinbase', 'Kraken', 'CoinGecko', 'DefiLlama']);
+    expect(names).toEqual([
+      'Coinbase',
+      'Kraken',
+      'CoinGecko',
+      'Twelve Data',
+      'Alpha Vantage',
+      'DefiLlama',
+    ]);
+    // DefiLlama reste le dernier : c'est la règle que cette assertion garde, et les sources de
+    // titres s'insèrent AVANT lui sans la déplacer.
+    expect(names[names.length - 1]).toBe('DefiLlama');
   });
 
   it('omet DefiLlama faute de convertisseur : il ne sait coter qu’en dollars', () => {
     const names = defaultHistoryProviders({}).map((p) => p.name);
-    expect(names).toEqual(['Coinbase', 'Kraken', 'CoinGecko']);
+    expect(names).toEqual(['Coinbase', 'Kraken', 'CoinGecko', 'Twelve Data', 'Alpha Vantage']);
+  });
+
+  it('les sources de titres sont TOUJOURS dans la chaîne, inertes sans clé', () => {
+    // Les omettre quand la clé manque ferait dépendre la FORME de la chaîne d'un réglage : deux
+    // configurations, deux ordres, deux comportements à éprouver. Elles sont donc toujours là et
+    // se taisent par `supports`, comme DefiLlama se tait sans convertisseur (décision n° 125).
+    const chain = defaultHistoryProviders({}, () => '1');
+    const equity = chain.filter((p) => p.name === 'Twelve Data' || p.name === 'Alpha Vantage');
+    expect(equity).toHaveLength(2);
+    return Promise.all(
+      equity.map(async (p) => {
+        expect(await p.supports!('eq:aapl', new AbortController().signal)).toBe(false);
+        expect(await p.supports!('btc', new AbortController().signal)).toBe(false);
+      }),
+    );
   });
 });

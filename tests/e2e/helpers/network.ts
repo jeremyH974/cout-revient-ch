@@ -232,6 +232,22 @@ export const ONCHAIN_BTC_TXS = [
  */
 export const EQUITY_PRICE_EUR = 100;
 
+/**
+ * Jours couverts par la serie d'un titre : la fenetre demandee quand elle est donnee (Twelve Data),
+ * sinon les 400 derniers jours (Alpha Vantage, qui ne prend pas de bornes et rend « tout »).
+ */
+function equityDays(url: URL): string[] {
+  const from = url.searchParams.get('start_date');
+  const to = url.searchParams.get('end_date');
+  const end = to ? Date.parse(`${to}T00:00:00Z`) : Date.now();
+  const start = from ? Date.parse(`${from}T00:00:00Z`) : end - 400 * 86_400_000;
+  const days: string[] = [];
+  for (let t = start; t <= end && days.length < 1200; t += 86_400_000) {
+    days.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return days;
+}
+
 export async function stubNetwork(context: BrowserContext): Promise<void> {
   await context.route(/^https?:\/\/(?!127\.0\.0\.1|localhost)/, async (route) => {
     const url = new URL(route.request().url());
@@ -308,6 +324,17 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
     // privait `heldAssets` des titres restait invisible (décision n° 119).
     if (url.hostname === 'api.twelvedata.com') {
       if (url.pathname === '/logo') return json({ url: null });
+      // Historique quotidien d'un titre : une serie plate au meme cours que le spot, pour que la
+      // courbe du volet Actions ait des points et cesse d'etre estimee au cout.
+      if (url.pathname === '/time_series') {
+        return json({
+          meta: { symbol: url.searchParams.get('symbol'), currency: 'EUR' },
+          values: equityDays(url).map((day) => ({
+            datetime: day,
+            close: String(EQUITY_PRICE_EUR),
+          })),
+        });
+      }
       const symbols = (url.searchParams.get('symbol') ?? '').split(',').filter(Boolean);
       const quote = (s: string): unknown => ({
         symbol: s,
@@ -317,8 +344,17 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
       if (symbols.length === 1) return json(quote(symbols[0]!));
       return json(Object.fromEntries(symbols.map((s) => [s, quote(s)])));
     }
-    if (url.hostname === 'www.alphavantage.co')
+    if (url.hostname === 'www.alphavantage.co') {
+      if (url.searchParams.get('function') === 'TIME_SERIES_DAILY') {
+        const days = equityDays(url);
+        return json({
+          'Time Series (Daily)': Object.fromEntries(
+            days.map((day) => [day, { '4. close': String(EQUITY_PRICE_EUR) }]),
+          ),
+        });
+      }
       return json({ 'Global Quote': { '05. price': String(EQUITY_PRICE_EUR) } });
+    }
     if (url.hostname.startsWith('api.frankfurter.')) return json(frankfurterRates(url));
     // Contexte de marché (opt-in) : valeur fixe, pour que l'écran soit reproductible.
     if (url.hostname === 'api.alternative.me')
