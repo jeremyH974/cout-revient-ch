@@ -33,7 +33,7 @@
  */
 import { buildValueGap, type GapMetric, type GapSource, type ValueGap } from './gap';
 import type { TraceTarget } from './engine/trace';
-import type { PortfolioReport, PositionReport } from './engine/report';
+import { closedExcept, type PortfolioReport, type PositionReport } from './engine/report';
 import { D, type Big, type DecimalString } from './money';
 import type { TaxLedger } from './tax-fr';
 import type { AssetCode, NaiveDateTime } from './types';
@@ -640,10 +640,16 @@ export function ourFiguresFrom(input: OurFiguresInput): OurFigure[] {
     trace: TraceTarget | null,
   ): void => void out.push({ metric, asset, at, value, trace });
 
+  /**
+   * **Les titres sont exclus À DESSEIN, pas par oubli.** Le second avis confronte nos chiffres à
+   * ceux d'un outil crypto (Koinly, Waltio) : ces formats ne connaissent ni action ni ETF, et une
+   * ligne absente de l'export tiers serait lue comme un écart alors qu'elle est hors sujet. Le
+   * `closedExcept` dit la même chose du passé que le premier filtre du présent (décision n° 123).
+   */
   const positions: PositionReport[] = [
     ...input.report.positions,
     ...input.report.stablecoins,
-    ...input.report.closed,
+    ...closedExcept(input.report, 'equity'),
     ...input.report.blocked,
   ];
   for (const p of positions) {

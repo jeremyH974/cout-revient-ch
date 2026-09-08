@@ -3,6 +3,7 @@
   import { COINHOUSE_FEES, ZERO_FEE, breakEvenSellPrice, type FeeRate } from '$lib/domain/fees';
   import { nowIso } from '$lib/clock';
   import { D, parseDecimal, type Big } from '$lib/domain/money';
+  import { isEquityCode } from '$lib/domain/assets';
   import { previewCession } from '$lib/domain/tax-fr';
   import { projectDca } from '$lib/domain/project';
   import {
@@ -112,6 +113,8 @@
     discreet ? fmtMasked('EUR') : fmtMoney(value, 'EUR', { sign });
 
   const position = $derived(app.positionEur(asset));
+  /** Un titre n'entre pas dans l'assiette du 150 VH bis : le volet fiscal doit le dire. */
+  const isEquity = $derived(isEquityCode(asset));
   const discreet = $derived(app.state.ui.discreet);
   const cur = $derived(app.currency);
   const usdPerEur = $derived(app.usdPerEurToday);
@@ -487,7 +490,20 @@
             </p>
           {/if}
         </div>
-        {#if sellFeeChoice === 'sell-eur'}
+        {#if sellFeeChoice === 'sell-eur' && isEquity}
+          <!--
+            Un titre relève de l'article 150-0 D — prix moyen pondéré PAR LIGNE — et non du
+            150 VH bis, dont l'assiette est le portefeuille d'actifs numériques entier. Les deux
+            méthodes n'ont pas de dénominateur commun. Afficher ici l'estimation crypto donnerait un
+            chiffre faux, et n'en afficher aucune sans le dire laisserait croire qu'il n'y a rien à
+            déclarer (décision n° 123).
+          -->
+          <p class="muted small tax-out">
+            <strong>Fiscalité non estimée pour un titre.</strong> Vos actions et ETF relèvent de l'article
+            150-0 D — plus-value par ligne, formulaire 2074 — et non du régime des actifs numériques estimé
+            ici. Ce n'est pas « zéro à déclarer » : c'est un calcul que l'application ne fait pas encore.
+          </p>
+        {:else if sellFeeChoice === 'sell-eur'}
           <details class="tax" bind:open={taxOpen}>
             <summary>Estimation fiscale française (avant de vendre)</summary>
             {#if taxLoading}

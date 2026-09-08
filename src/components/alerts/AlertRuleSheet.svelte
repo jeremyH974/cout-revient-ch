@@ -17,6 +17,7 @@
   import { assetName } from '$lib/pricing/tickers';
   import Sheet from '../shared/Sheet.svelte';
   import ThresholdGauge from './ThresholdGauge.svelte';
+  import { isEquityCode } from '$lib/domain/assets';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -238,7 +239,16 @@
     open = false;
   }
 
-  const KINDS: readonly FormKind[] = ['below-pct', 'above-pct', 'net-pct', 'price'];
+  const ALL_KINDS: readonly FormKind[] = ['below-pct', 'above-pct', 'net-pct', 'price'];
+  /**
+   * « Objectif net de frais » déduit la grille de frais **Coinhouse** (`domain/fees.ts`), qui n'a
+   * aucun sens chez un courtier actions : le seuil serait calculé avec les frais d'une plateforme
+   * où le titre n'est pas détenu. On le retire tant qu'aucune grille de courtier n'existe —
+   * proposer un réglage faux vaut moins que ne pas le proposer (décision n° 123).
+   */
+  const KINDS = $derived(
+    isEquityCode(formAsset) ? ALL_KINDS.filter((k) => k !== 'net-pct') : ALL_KINDS,
+  );
   const KIND_LABELS: Record<FormKind, string> = {
     'below-pct': 'Repli sous le PRU',
     'above-pct': 'Objectif au-dessus du PRU',
