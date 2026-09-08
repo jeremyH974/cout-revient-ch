@@ -247,7 +247,7 @@ function sameAlertStates(
 
 export class AppState {
   state = $state<StoredStateV1>(emptyState());
-  loadStatus = $state<'empty' | 'ok' | 'corrupt'>('empty');
+  loadStatus = $state<'empty' | 'ok' | 'corrupt' | 'sealed' | 'locked'>('empty');
   loadError = $state<string | null>(null);
   saveError = $state<string | null>(null);
   /**

@@ -21,7 +21,7 @@ export interface DiagnosticInput {
     standalone: boolean | null;
   };
   storage: {
-    status: 'empty' | 'ok' | 'corrupt';
+    status: 'empty' | 'ok' | 'corrupt' | 'sealed' | 'locked';
     saveError: string | null;
     persisted: boolean | null;
     usageBytes: number | null;
