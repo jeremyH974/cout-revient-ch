@@ -1,9 +1,9 @@
 /**
  * Le relevé eToro de démonstration, de bout en bout : classeur → lignes pivot → événements →
  * rapport. La fixture est **entièrement inventée** (`scripts/generate-etoro-fixture.ts`), jamais
- * dérivée d'un relevé réel (décision n° 17), et porte volontairement les particularités du format :
- * préfixe `x:`, chaîne partagée fragmentée, cibles absolues, deux instantanés empilés, une position
- * à effet de levier et un contrat pour différence.
+ * dérivée d'un relevé réel (décision n° 17), et porte volontairement les pièges du format : préfixe
+ * `x:`, chaîne partagée fragmentée, cibles absolues, deux photos empilées, **une position ouverte
+ * après la dernière photo**, une position à effet de levier et un contrat pour différence.
  */
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -31,17 +31,23 @@ async function imported() {
 }
 
 describe('relevé eToro de démonstration', () => {
-  it('ne retient que le dernier instantané, et écarte levier et CFD en les nommant', async () => {
+  it('lit le grand livre, écarte levier et CFD en les nommant', async () => {
     const result = await imported();
-    // 3 positions du dernier instantané + 1 position fermée (achat puis vente) = 5 lignes.
-    expect(result.rows).toHaveLength(5);
+    // 5 ouvertures retenues + 1 vente ; le CFD et la position à levier sont écartés.
+    // 5 ouvertures + 1 vente + 1 fractionnement ; le CFD et le levier sont écartés.
+    expect(result.rows).toHaveLength(7);
     expect(result.skipped).toBe(2);
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('levier');
     expect(motifs).toContain('hors périmètre');
   });
 
-  it('donne à chaque actif la classe déclarée par la source', async () => {
+  it('ne signale aucun écart entre le grand livre et la photo', async () => {
+    const result = await imported();
+    expect(result.issues.map((i) => i.message).join(' ')).not.toContain('quantité reconstituée');
+  });
+
+  it('donne à chaque actif la classe déclarée, et son nom quand la photo le porte', async () => {
     const result = await imported();
     const codes = [
       ...new Set(
@@ -50,12 +56,15 @@ describe('relevé eToro de démonstration', () => {
         ),
       ),
     ].sort();
-    expect(codes).toEqual(['btc', 'eq:xx0000000001', 'eq:xx0000000002', 'usd']);
-    expect(assetClass('eq:xx0000000001')).toBe('equity');
+    expect(codes).toEqual(['btc', 'eq:demo', 'eq:idx.de', 'eq:newco', 'usd']);
+    expect(assetClass('eq:demo')).toBe('equity');
     expect(assetClass('btc')).toBe('crypto');
+    expect(result.labels['eq:demo']).toBe('Demo Industries Inc.');
+    // Absent des photos : il ne reste que son ticker, et c'est honnête.
+    expect(result.labels['eq:newco']).toBe('NEWCO');
   });
 
-  it('produit un portefeuille cohérent : deux titres, une crypto, rien à qualifier', async () => {
+  it('produit un portefeuille complet : la position ouverte après la photo en fait partie', async () => {
     const result = await imported();
     const ingested = ingestPivotRows(
       { rows: result.rows, issues: result.issues },
@@ -69,15 +78,19 @@ describe('relevé eToro de démonstration', () => {
     const report = computePortfolio({ events, prices: {}, settings: DEFAULT_ENGINE_SETTINGS });
 
     expect(report.equities.map((p) => p.asset).sort()).toEqual([
-      'eq:xx0000000001',
-      'eq:xx0000000002',
+      'eq:demo',
+      'eq:idx.de',
+      'eq:newco',
     ]);
     expect(report.positions.map((p) => p.asset)).toEqual(['btc']);
     expect(report.unqualified).toHaveLength(0);
-    // La position fermée a rapporté 240 pour 200 investis : le titre garde une plus-value réalisée.
-    const demo = report.equities.find((p) => p.asset === 'eq:xx0000000001');
+    // La vente de p-201 a rapporté 240 pour 200 investis : le titre garde une plus-value réalisée,
+    // et il reste les 10 unités de l'autre position.
+    const demo = report.equities.find((p) => p.asset === 'eq:demo');
     expect(demo && isPositive(demo.realized)).toBe(true);
-    expect(demo?.qty.toString()).toBe('10');
+    // Le fractionnement « 1:2 » a doublé la quantité sans toucher au coût.
+    expect(demo?.qty.toString()).toBe('20');
+    expect(demo?.lots).toHaveLength(2);
   });
 
   it('refuse un classeur qui n’est pas un relevé eToro', async () => {

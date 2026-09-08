@@ -42,6 +42,9 @@ interface KoinlyRow {
 const upper = (asset: string): string => asset.toUpperCase();
 
 function rowOf(event: LedgerEvent): KoinlyRow | null {
+  // Un fractionnement n'est ni un envoi ni une réception : le format Koinly n'a rien pour le
+  // dire, et en fabriquer une ligne fausserait le portefeuille de destination.
+  if (event.kind === 'split') return null;
   const ms = parisNaiveToMs(event.at);
   const base = {
     date: ms === null ? event.at.replace('T', ' ') : msToUtcString(ms),

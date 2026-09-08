@@ -4,7 +4,7 @@
  * du pipeline pivot. La clé d'une ligne est le hachage du CONTENU NATIF (décision n° 26) : une
  * correction de convertisseur ne crée jamais de doublon au ré-import.
  */
-import type { CountryCode, PivotAmount } from '../../domain/types';
+import type { CorporateAction, CountryCode, PivotAmount } from '../../domain/types';
 import type { CsvTable } from '../csv';
 import type { PivotIssue } from '../pivot/rows';
 
@@ -35,6 +35,8 @@ export interface PlatformDraft {
   label: string | null;
   description: string | null;
   txHash: string | null;
+  /** Action de société (fractionnement) : la ligne ne porte aucun montant. */
+  corporateAction?: CorporateAction | null;
 }
 
 export interface PlatformConversion {

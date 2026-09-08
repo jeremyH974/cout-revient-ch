@@ -99,6 +99,7 @@ const METRIC_FORMULAS: Record<TraceMetric, string> = {
 };
 
 const ROLE_LABELS: Record<TraceRole, string> = {
+  split: 'fractionnement',
   metric: 'Résultat',
   'cost-basis': 'Coût des unités détenues',
   quantity: 'Quantité détenue',

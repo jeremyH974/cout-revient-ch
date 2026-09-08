@@ -138,7 +138,8 @@ function unqualified(row: RawPivotRow, reason: string): UnqualifiedEvent {
 
 /** `null` = ligne 100 % fiat, hors modèle (comptée « ignorée »). */
 function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
-  const day = row.at.slice(0, 10);
+  // Action de société : ni jambe envoyée ni jambe reçue, rien à valoriser. Elle passe avant
+  // tout le reste, car la suite suppose partout qu'une ligne porte un montant.
   const base = {
     id: row.key,
     at: row.at,
@@ -148,6 +149,11 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
     rowKeys: [row.key],
     warnings: [] as string[],
   };
+  const corporate = row.corporateAction;
+  if (corporate) {
+    return { ...base, kind: 'split', asset: corporate.asset, ratio: corporate.ratio };
+  }
+  const day = row.at.slice(0, 10);
   const sides = [row.sent, row.received].filter((s): s is PivotAmount => s !== null);
   const feeLabelled = row.sent !== null && row.received === null && FEE_LABELS.has(row.label ?? '');
   // Lignes 100 % fiat hors modèle (dépôt/retrait d'euros…), SAUF une sortie étiquetée « frais ».

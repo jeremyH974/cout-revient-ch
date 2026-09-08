@@ -45,7 +45,7 @@ export function draftsToPivotRows(
       issues.push({ lineNo: draft.lineNo, message: localIssues.join(' ') });
       continue;
     }
-    if (sent === null && received === null) {
+    if (sent === null && received === null && !draft.corporateAction) {
       issues.push({
         lineNo: draft.lineNo,
         message: 'Ligne sans montant envoyé ni reçu : ignorée.',
@@ -73,6 +73,7 @@ export function draftsToPivotRows(
       label: label === '' ? null : label,
       description: description === '' ? null : description,
       txHash: txHash === '' ? null : txHash,
+      corporateAction: draft.corporateAction ?? null,
     });
   }
   return { rows, issues };

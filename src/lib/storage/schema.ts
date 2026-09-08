@@ -24,7 +24,7 @@ import {
   type StoredColumnMapping,
   type RowKey,
 } from '../domain/types';
-import type { PivotAmount } from '../domain/types';
+import type { CorporateAction, PivotAmount } from '../domain/types';
 import type { TransferOverride } from '../domain/transfers';
 import type { DuplicateReview } from '../domain/reconciliation';
 
@@ -386,7 +386,22 @@ function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
     label: text(r['label'], 40),
     description: text(r['description'], 500),
     txHash: text(r['txHash'], 120),
+    corporateAction: sanitizeCorporateAction(r['corporateAction']),
   };
+}
+
+/**
+ * Action de société d'une ligne pivot. Un ratio non décimal ou nul rend la ligne inexploitable :
+ * mieux vaut la relire comme une ligne ordinaire que fractionner par une valeur inventée.
+ */
+function sanitizeCorporateAction(raw: unknown): CorporateAction | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const value = raw as Record<string, unknown>;
+  if (value['kind'] !== 'split') return null;
+  const asset = typeof value['asset'] === 'string' ? value['asset'].trim() : '';
+  const ratio = typeof value['ratio'] === 'string' ? value['ratio'].trim() : '';
+  if (asset === '' || !isDecimal(ratio) || Number(ratio) <= 0) return null;
+  return { kind: 'split', asset, ratio };
 }
 
 const EVENT_ID = /^[A-Za-z0-9:._#+-]{1,200}$/;
