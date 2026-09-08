@@ -19,6 +19,15 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   ramasse que `*.test.ts`. Le garde-fou qui tourne, lui, ne chronomètre rien — il compte des
   grandeurs déterministes (décisions n° 85 et 87).
 - `npm run build` / `npm run preview`
+- `npm run prive` / `npm run prive:build` / `npm run prive:serve` — **variante personnelle locale**
+  (décision n° 119) : origine dédiée `http://crch.localhost:7331` au lieu de `localhost:5173`, qui
+  est partagée avec tout autre projet Vite de la machine ; **sortie réseau coupée** (`fetch` et
+  `WebSocket` emballés dans `src/lib/net/local-only.ts`, verrou fermé par `__PRIVATE_BUILD__`) ;
+  pas de service worker, dont le `fetch` s'exécuterait hors du verrou. `prive:serve` sert `dist/`
+  sur `127.0.0.1` seul et pose la CSP en **en-tête HTTP**, ce qui ajoute `frame-ancestors 'none'`.
+  Voir `docs/variante-personnelle.md`.
+- `npm run hooks:install` — pose `core.hooksPath` sur `.githooks` (refus de commiter un relevé
+  réel). **Obligatoirement explicite** : `ignore-scripts` rend tout `prepare` npm inerte ici.
 - `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
 - `npm run fixture:etoro` — régénère le relevé eToro de démonstration
   (`tests/fixtures/etoro/releve-demo.xlsx`). Le classeur est **écrit par le script**, jamais déposé :

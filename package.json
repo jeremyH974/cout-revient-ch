@@ -21,6 +21,7 @@
     "prive": "vite --mode prive",
     "prive:build": "vite build --mode prive",
     "prive:serve": "node scripts/serve-prive.ts",
+    "hooks:install": "node scripts/install-hooks.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

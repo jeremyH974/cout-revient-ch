@@ -137,6 +137,30 @@ l'adresse est envoyée, et uniquement à `api.hyperliquid.xyz` ; détails dans
 des actifs que vous détenez ; il se coupe dès que l'onglet passe en arrière-plan et ne modifie jamais
 le cache de prix normal.
 
+## Variante personnelle (locale)
+
+Le même code, servi depuis votre machine, sur une origine à lui, **sans aucune sortie réseau** et
+derrière un mot de passe.
+
+```bash
+npm run prive:build && npm run prive:serve
+```
+
+Puis `http://crch.localhost:7331` — pas `localhost`, qui serait une origine partagée avec tout autre
+projet de la machine.
+
+- **L'état est chiffré au repos** (Argon2id + AES-GCM, paramètres OWASP). Le site public, lui, écrit
+  en clair dans le stockage du navigateur : c'est indiqué, mais un profil copié suffit à le relire.
+- **Rien ne sort**, `fetch` et `WebSocket` compris, sauf si vous l'autorisez explicitement — pour
+  cette session seulement, jamais durablement.
+- **Pas de service worker**, dont le `fetch` s'exécute hors du verrou.
+
+Contrepartie : sans réseau, pas de cours du jour. Le PRU, les plus et moins-values réalisées, les
+rapports et les exports se calculent intégralement hors ligne.
+
+Tout est détaillé dans **[docs/variante-personnelle.md](docs/variante-personnelle.md)** — y compris
+ce que cette variante **ne** protège **pas**, qui est la partie à lire.
+
 ## Aide et retours
 
 Un fichier refusé, un chiffre douteux, une idée : **Réglages → Aide et retours → « Signaler

@@ -1,0 +1,184 @@
+# La variante personnelle
+
+Le même code que le site public, servi depuis votre machine, avec vos vraies données, sur une
+origine à lui, sans aucune sortie réseau et derrière un mot de passe.
+
+Ce document dit **comment la lancer**, **ce qu'elle protège**, et surtout **ce qu'elle ne protège
+pas**. Cette dernière partie est la plus importante : une protection dont on surestime la portée est
+plus dangereuse que pas de protection du tout.
+
+---
+
+## Lancer
+
+```bash
+npm run prive
+```
+
+Ouvre le serveur de développement sur **`http://crch.localhost:7331`**. C'est l'adresse à visiter —
+pas `localhost:7331`, qui serait une autre origine, donc un autre stockage.
+
+Pour la version compilée, celle qu'on utilise au quotidien :
+
+```bash
+npm run prive:build && npm run prive:serve
+```
+
+Le serveur n'écoute que sur `127.0.0.1` : rien n'est joignable depuis votre réseau Wi-Fi.
+
+### Pourquoi `crch.localhost` et pas `localhost`
+
+Parce que `localhost:5173` est le port par défaut de Vite, donc une origine **partagée** avec
+n'importe quel autre projet que vous lancez sur cette machine. Le stockage d'un navigateur est
+cloisonné par **origine**, pas par projet : un autre chantier démarré sur 5173 pourrait lire la base
+`crch-state`. Le suffixe `.localhost` est résolu en boucle locale par le navigateur lui-même
+(RFC 6761) — rien à ajouter au fichier `hosts` — et reste un contexte sécurisé, donc `crypto.subtle`
+fonctionne et le coffre aussi.
+
+---
+
+## Installer le coffre
+
+**Faites d'abord une sauvegarde chiffrée** (Réglages → Sauvegarde). Un mot de passe perdu n'est pas
+récupérable : il n'existe ni compte, ni service, ni question secrète capable de rouvrir le coffre.
+Cette sauvegarde est votre seul recours, et c'est le prix du tout-local sans compte.
+
+Ensuite : Réglages → **Coffre** → Installer le coffre. Choisissez une phrase, pas un mot compliqué —
+douze caractères au minimum, mais une phrase entière vaut mieux.
+
+Ce qui se passe alors : une clé est tirée au hasard, scellée sous votre mot de passe, et tout l'état
+est immédiatement réécrit **chiffré** par-dessus les copies en clair. Si cette réécriture échoue,
+l'installation est défaite plutôt que de laisser un coffre posé sur des données restées lisibles.
+
+À la réouverture, l'application affiche une porte et **rien d'autre** : elle n'a pas chargé l'état,
+pas installé sa sauvegarde automatique, pas posé d'écouteur. Il n'y a rien à masquer, il n'y a rien.
+
+Compter environ **3 secondes** pour ouvrir. C'est le coût d'Argon2id aux paramètres OWASP, payé une
+fois par session. Il n'est pas négociable : c'est exactement ce coût qui rend une attaque hors ligne
+sur un disque volé impraticable.
+
+### Changer de mot de passe
+
+Réglages → Coffre → Changer le mot de passe. L'opération ne relit ni ne réécrit vos données : elle
+re-scelle 32 octets. C'est instantané quel que soit le volume, et rien ne peut rester à moitié
+converti.
+
+---
+
+## La sortie réseau
+
+Dans cette variante, `fetch` et `WebSocket` sont emballés au démarrage et **refusent toute origine
+externe**. Ce n'est pas un réglage à cocher : c'est l'état de départ, à chaque lancement.
+
+Conséquence à connaître : sans sortie réseau, l'application **ne peut pas coter vos actifs**. Les
+montants latents reposent alors sur les derniers cours connus ou sur les prix saisis à la main. Tout
+le reste — PRU, plus et moins-values réalisées, rapports, exports, réconciliation — se calcule
+intégralement hors ligne.
+
+Pour obtenir des cours : Réglages → **Sortie réseau** → cocher « Autoriser les appels sortants
+pendant cette session ». Ce réglage **n'est pas enregistré**. Il expire à la fermeture de l'onglet,
+délibérément : une case cochée en mars s'appliquerait encore en novembre, à un import qu'on n'avait
+pas en tête.
+
+Le même écran détaille ce que chaque famille d'origines apprendrait de vous. À retenir : les
+**explorateurs de chaînes** reçoivent vos adresses publiques, donc l'intégralité des soldes et de
+l'historique qui y sont attachés. C'est, de très loin, ce qui en dit le plus long sur vous — bien
+plus que la liste de vos tickers envoyée aux fournisseurs de cours.
+
+---
+
+## Ce qui change, et ce qui ne change pas
+
+| Menace                                                      | Site public  | Variante personnelle                              |
+| ----------------------------------------------------------- | ------------ | ------------------------------------------------- |
+| Compromission du site publié ou de la chaîne de déploiement | présente     | **disparaît**                                     |
+| Éviction du stockage par le navigateur                      | présente     | **disparaît**                                     |
+| Fuite vers un tiers via une origine autorisée               | présente     | **disparaît** (verrou fermé)                      |
+| Lecture du profil de navigateur sur le disque               | **présente** | **disparaît** (coffre)                            |
+| Vol de la machine                                           | présente     | couvert par BitLocker, pas par l'application      |
+| Sauvegarde en clair dans un dossier synchronisé             | présente     | inchangée — chiffrez vos exports                  |
+| Dépendance npm compromise                                   | présente     | **présente, et pire** : le code a accès au disque |
+| Processus malveillant sous votre compte Windows             | présente     | **présente**                                      |
+
+Les deux dernières lignes méritent d'être lues deux fois.
+
+**La dépendance compromise reste la menace principale.** Elle est même aggravée en local. Ce qui la
+tient : `.npmrc` refuse les scripts d'installation et impose un délai de publication, les actions
+GitHub sont épinglées par empreinte, et la CSP plus Trusted Types limitent ce qu'un code injecté
+pourrait faire. Voir la décision n° 13.
+
+**Rien ne protège d'un processus tournant sous votre propre compte Windows.** Ni le coffre, ni
+DPAPI, ni le Credential Manager, ni le TPM. C'est le modèle du système d'exploitation, pas un défaut
+d'implémentation. Un voleur d'identifiants exécuté sous votre session lit la mémoire de
+l'application déverrouillée.
+
+### Vérifiez BitLocker
+
+Le coffre protège le stockage du navigateur ; il ne chiffre pas le reste du disque. Sous
+Windows 11 24H2, le chiffrement automatique est bien plus largement activé — mais Microsoft le dit
+noir sur blanc : _si l'appareil n'utilise que des comptes locaux, il reste non protégé même si les
+données sont chiffrées_, faute d'avoir retiré la clé claire.
+
+Vérifiez avec `msinfo32.exe` → **Prise en charge du chiffrement de l'appareil**.
+
+---
+
+## Le dépôt privé miroir
+
+Le dépôt public reste la source du code. Le dépôt privé sert à ce qui ne doit jamais y remonter :
+vos exports, vos configurations, vos essais.
+
+Mise en place, une fois :
+
+```bash
+gh repo create cout-revient-ch-perso --private
+git remote add perso https://github.com/<vous>/cout-revient-ch-perso.git
+git push perso main
+```
+
+Ensuite, récupérer les évolutions publiques est un `git pull` ordinaire :
+
+```bash
+git pull origin main && git push perso main
+```
+
+**Une branche privée dans le dépôt public est le seul schéma à écarter.** Tout ce qui est poussé
+dans un dépôt public est public, y compris une branche qu'on croit oubliée : les objets restent
+accessibles par leur empreinte même après suppression de la référence.
+
+### Le garde-fou qui compte
+
+`scripts/check-no-personal-exports.js` fait échouer `npm run lint` si un relevé (`.csv`, `.xlsx`,
+`.xls`, `.xlsm`) suivi par git se trouve hors de `tests/fixtures/`. C'est plus pertinent qu'un
+scanner de secrets générique : ceux-ci cherchent des motifs de jetons d'API, pas un export de
+portefeuille.
+
+Pour qu'il agisse **avant** que le commit n'existe plutôt qu'après :
+
+```bash
+npm run hooks:install
+```
+
+Attention : les hooks de cycle de vie npm sont inertes dans ce dépôt (`ignore-scripts` dans
+`.npmrc`, décision n° 13). L'installation doit donc être explicite — c'est le sens de cette commande.
+
+---
+
+## Ce que la variante personnelle ne fait délibérément pas
+
+- **Pas de déverrouillage par Windows Hello.** L'extension WebAuthn `prf` permettrait de dériver la
+  clé depuis une passkey. La spécification est stable (WebAuthn niveau 3, recommandation W3C
+  d'août 2026) et l'API Windows expose `hmac-secret`, mais le chemin complet côté Windows Hello
+  reste mal établi — chez Bitwarden, l'incident « impossible de créer une passkey compatible PRF
+  sur Windows Hello » est ouvert depuis mars 2026. Et une passkey liée au TPM ne quitte pas la
+  machine : elle ne peut donc jamais être l'unique dépositaire. À reconsidérer quand le support
+  sera net, **en surcouche** du mot de passe, jamais à sa place.
+- **Pas de binaire Tauri.** Son seul apport ici serait d'écrire sur le disque sans dialogue, contre
+  une chaîne Rust complète et plusieurs minutes de compilation à chaque build. Il ne répond pas à la
+  menace qui reste (§ processus sous le même compte).
+- **Pas d'OPFS.** Mêmes quotas, même éviction, aucun chiffrement implicite, et un Worker dédié en
+  plus. Pour quelques mégaoctets d'état, IndexedDB fait mieux.
+- **Pas d'Argon2id natif.** Il n'existe pas : au 8 septembre 2026, la proposition WICG qui
+  l'ajouterait à WebCrypto n'est pas sur la voie standard, et l'intention d'implémentation de Chrome
+  (version 154) ne le contient pas. L'implémentation en JS pur de `@noble/hashes` est le seul chemin,
+  et elle ne coûte aucune dépendance nouvelle.

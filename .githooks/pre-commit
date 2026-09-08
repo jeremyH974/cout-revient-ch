@@ -1,0 +1,10 @@
+#!/bin/sh
+# Refuse un commit qui embarquerait un relevé de courtier réel.
+#
+# Le même contrôle tourne déjà dans `npm run lint` — mais après coup, sur ce qui est DÉJÀ suivi par
+# git. Ici il agit avant que le commit n'existe, donc avant qu'un `git push` distrait ne l'expose.
+#
+# Ce hook n'est pas installé tout seul : `.npmrc` refuse les scripts d'installation (décision
+# n° 13), donc aucun `prepare` npm ne s'exécute ici. Il faut `npm run hooks:install`, une fois.
+set -e
+node scripts/check-no-personal-exports.js
