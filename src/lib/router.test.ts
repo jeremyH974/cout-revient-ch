@@ -123,3 +123,19 @@ describe('toHash / parseHash — aller-retour', () => {
     expect(parseHash(toHash(route))).toEqual(route);
   });
 });
+
+describe('déménagement de l’écran Prêts vers l’espace Patrimoine', () => {
+  it('le hash canonique est celui du Patrimoine', () => {
+    expect(toHash({ name: 'loans' })).toBe('#/wealth/loans');
+    expect(parseHash('#/wealth/loans')).toEqual({ name: 'loans' });
+  });
+
+  it('l’ancienne adresse continue de fonctionner : on ne casse jamais un lien', () => {
+    expect(parseHash('#/invest/loans')).toEqual({ name: 'loans' });
+  });
+
+  it('la racine du Patrimoine reste les titres', () => {
+    expect(parseHash('#/wealth')).toEqual({ name: 'titles' });
+    expect(parseHash('#/wealth/inconnu')).toEqual({ name: 'titles' });
+  });
+});

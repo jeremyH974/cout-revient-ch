@@ -34,7 +34,7 @@ test.beforeEach(async ({ context }) => {
 test('sans données, l’écran dit où trouver l’export au lieu d’afficher des zéros', async ({
   page,
 }) => {
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await expect(page.getByRole('heading', { name: 'Aucun prêt importé' })).toBeVisible();
   await expect(page.getByText(/sans filtre/)).toBeVisible();
   // Aucun chiffre inventé tant que rien n'est importé.
@@ -68,7 +68,7 @@ test('import puis lecture : les chiffres de l’écran sont ceux du moteur', asy
 test('le tableau fiscal vise la case 2TT et nomme le régime de prélèvement', async ({ page }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
 
   const block = page.locator('details', { hasText: 'Déclaration de revenus' });
   await block.getByText('Déclaration de revenus — estimation').click(); // ouvre le <details>
@@ -86,7 +86,7 @@ test('les prêts survivent au rechargement', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
   await page.reload();
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
 
@@ -162,7 +162,7 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
 }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   // Le constat vit dans un bloc repliable : il faut l'ouvrir pour le voir.
   await page.getByText('Comment lire ces chiffres').click();
   // Sans contrat, le moteur DIT qu'il ne peut pas calculer les courus.
@@ -179,28 +179,26 @@ test('un contrat complete le pret : les interets courus cessent d etre hors de p
   // Un seul prêt de la fixture porte ce numéro de contrat.
   await expect(card).toContainText('1 prêt(s) complété(s)');
 
-  await page.goto('#/invest/loans');
+  await page.goto('#/wealth/loans');
   await page.getByText('Comment lire ces chiffres').click();
   await expect(page.getByText(/intérêts courus non échus ne sont pas comptés/)).toHaveCount(0);
 });
 
-test('avec des prêts et AUCUNE crypto, l’écran Prêts reste atteignable par l’interface', async ({
-  page,
-}) => {
+test('avec des prêts et AUCUNE crypto, le patrimoine s’ouvre et les compte', async ({ page }) => {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', FIXTURE);
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
-  // `hasData` ne compte que la crypto : un compte qui n'a QUE des prêts est renvoyé à l'accueil.
+  // Les prêts sont des données comme les autres : la Vue d'ensemble s'ouvre au lieu de renvoyer
+  // à l'accueil, et son total les compte — c'est le sens de « les prêts entrent dans le patrimoine ».
   await page.goto('#/');
-  await expect(page.getByRole('heading', { level: 1, name: /PRU par crypto/ })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: "Vue d'ensemble" })).toBeVisible();
+  await expect(page.getByTestId('net-worth-hero')).toContainText(eur(summary.value));
 
-  // Depuis l'accueil, un lien direct.
-  await page.getByRole('link', { name: /Voir mes \d+ prêts/ }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+  // La « Répartition » itère les producteurs : les prêts y ont leur ligne, sans code dédié.
+  await expect(page.locator('section.spaces')).toContainText('Prêts');
 
-  // Et par la navigation principale, sans connaître l'adresse.
-  await page.goto('#/');
+  // Et l'écran reste atteignable par la navigation, sans connaître l'adresse.
   await page.getByRole('link', { name: 'Plus' }).click();
   await page.getByRole('link', { name: 'Prêts' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();

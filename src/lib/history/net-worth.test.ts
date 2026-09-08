@@ -13,11 +13,13 @@ import {
   roiOf,
   tradingEquityContribution,
   valueSeriesContribution,
+  lendingContribution,
   type Contribution,
   type Liability,
 } from './net-worth';
 import type { FlowPoint, ValuePoint } from './series';
 import type { DayString } from './types';
+import type { LoanEvent, WalletMovement } from '../domain/lending/types';
 
 const days = (...list: string[]): DayString[] => list as DayString[];
 
@@ -745,6 +747,119 @@ describe('une valeur non établie ne produit aucun résultat (décision n° 97)'
     expect(contribution('-10').valueAt('2026-09-03' as DayString)?.unreconciled).toBe(false);
     // Avant le jour de l'instantané, l'écart ne dit rien de la valeur servie ce jour-là.
     expect(contribution('-950').valueAt('2026-09-02' as DayString)?.unreconciled).toBe(false);
+  });
+});
+
+describe('lendingContribution', () => {
+  const sub = (id: string, at: string, amount: string): LoanEvent => ({
+    id: `s:${id}:${at}`,
+    loanId: id,
+    at,
+    kind: 'subscription',
+    amount,
+  });
+  const rep = (
+    id: string,
+    at: string,
+    principal: string,
+    interest: string,
+    withheld = '0',
+  ): LoanEvent => ({
+    id: `r:${id}:${at}`,
+    loanId: id,
+    at,
+    kind: 'repayment',
+    principal,
+    interest,
+    withheld,
+  });
+  const move = (at: string, kind: WalletMovement['kind'], amount: string): WalletMovement => ({
+    id: `w:${at}:${kind}`,
+    at,
+    kind,
+    amount,
+    label: kind,
+  });
+
+  const build = (over: Partial<Parameters<typeof lendingContribution>[0]> = {}) =>
+    lendingContribution({
+      id: 'lend',
+      label: 'Prêts',
+      events: [
+        sub('a', '2026-01-02T00:00:00', '800'),
+        rep('a', '2026-02-01T00:00:00', '300', '20'),
+      ],
+      wallet: [move('2026-01-01T00:00:00', 'deposit', '1000')],
+      live: null,
+      ...over,
+    });
+
+  it('vaut l’encours plus la trésorerie qui dort sur la plateforme', () => {
+    const c = build();
+    // 01/01 : 1 000 déposés, rien prêté.
+    expect(c.valueAt('2026-01-01')!.value.toString()).toBe('1000');
+    // 02/01 : 800 prêtés — la valeur ne bouge pas, l'argent a changé de poche.
+    expect(c.valueAt('2026-01-02')!.value.toString()).toBe('1000');
+    // 01/02 : 300 de capital et 20 d'intérêts encaissés → encours 500, trésorerie 520.
+    expect(c.valueAt('2026-02-01')!.value.toString()).toBe('1020');
+  });
+
+  it('ne compte comme apport que les dépôts et les retraits', () => {
+    const c = build();
+    expect(c.valueAt('2026-02-01')!.contributed.toString()).toBe('1000');
+    // Le gain, c'est l'écart : les 20 € d'intérêts, et rien d'autre.
+    expect(
+      c.valueAt('2026-02-01')!.value.minus(c.valueAt('2026-02-01')!.contributed).toString(),
+    ).toBe('20');
+  });
+
+  it('range la prime de la plateforme dans le gain, jamais dans les apports', () => {
+    const c = build({
+      wallet: [
+        move('2026-01-01T00:00:00', 'deposit', '1000'),
+        move('2026-01-03T00:00:00', 'bonus', '5'),
+      ],
+    });
+    expect(c.valueAt('2026-01-03')!.value.toString()).toBe('1005');
+    expect(c.valueAt('2026-01-03')!.contributed.toString()).toBe('1000');
+  });
+
+  it('retranche un retrait des apports comme de la trésorerie', () => {
+    const c = build({
+      wallet: [
+        move('2026-01-01T00:00:00', 'deposit', '1000'),
+        move('2026-01-04T00:00:00', 'withdrawal', '-200'),
+      ],
+    });
+    expect(c.valueAt('2026-01-04')!.value.toString()).toBe('800');
+    expect(c.valueAt('2026-01-04')!.contributed.toString()).toBe('800');
+  });
+
+  it('ignore l’impôt porté par une ligne autonome : il est déjà ventilé par prêt', () => {
+    const withTax = build({
+      events: [
+        sub('a', '2026-01-02T00:00:00', '800'),
+        rep('a', '2026-02-01T00:00:00', '300', '20', '6'),
+      ],
+      wallet: [
+        move('2026-01-01T00:00:00', 'deposit', '1000'),
+        move('2026-02-01T00:00:00', 'tax', '-6'),
+      ],
+    });
+    // 500 d'encours + (1000 − 800 + 300 + 20 − 6) de trésorerie : l'impôt n'est retranché qu'une fois.
+    expect(withTax.valueAt('2026-02-01')!.value.toString()).toBe('1014');
+  });
+
+  it('remplace le point du jour par la valeur exacte du moteur', () => {
+    const c = build({ live: { day: '2026-02-01', value: '1027.02' } });
+    expect(c.valueAt('2026-02-01')!.value.toString()).toBe('1027.02');
+    // Les jours antérieurs gardent leur valeur reconstituée.
+    expect(c.valueAt('2026-01-01')!.value.toString()).toBe('1000');
+  });
+
+  it('n’existe pas avant son premier mouvement', () => {
+    expect(build().firstDay).toBe('2026-01-01');
+    expect(build().valueAt('2025-12-31')).toBeNull();
   });
 });
 

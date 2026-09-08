@@ -195,10 +195,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
     résultats de nature différente) : `overview`, `welcome`.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
-    `secondOpinion`, `alerts`, `loans`.
+    `secondOpinion`, `alerts`.
   - **Patrimoine** (`#/wealth`) : `titles`, l’écran des actions et fonds indiciels — classe
     d’actif et régime fiscal distincts de la crypto (décisions n° 103 et 106).
-    `loans` (`#/invest/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
+    `loans` (`#/wealth/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
     de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
     chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
     pour ne pas se lire comme un investissement.

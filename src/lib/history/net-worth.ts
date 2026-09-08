@@ -39,7 +39,8 @@
  *   On l'affiche — c'est ce que la plateforme répond — et on n'en déduit **aucun résultat**
  *   (décision n° 97).
  */
-import { Big, D, ZERO } from '../domain/money';
+import type { LoanEvent, WalletMovement } from '../domain/lending/types';
+import { Big, D, ZERO, max } from '../domain/money';
 import type { DecimalString } from '../domain/types';
 import { addDays } from './days';
 import {
@@ -643,4 +644,130 @@ export function netWorthPartChanges(
 
 function partsOf(point: NetWorthPoint): Map<string, NetWorthPart> {
   return new Map(point.parts.map((part) => [part.id, part]));
+}
+
+export interface LendingContributionInput {
+  id: string;
+  label: string;
+  /** Événements de prêt, dans n'importe quel ordre. */
+  events: readonly LoanEvent[];
+  /** Mouvements du portefeuille de la plateforme (dépôts, retraits, primes, impôt). */
+  wallet: readonly WalletMovement[];
+  /**
+   * Valeur du jour servie par le moteur. Elle inclut les intérêts courus, que la série quotidienne
+   * ne recalcule pas jour par jour — sans ce remplacement, le dernier point divergerait du total
+   * affiché sur l'écran Prêts. Même raison, et même remède, que pour l'équité de trading.
+   */
+  live: { day: DayString; value: DecimalString } | null;
+}
+
+/**
+ * Les prêts de financement participatif comme producteur de patrimoine.
+ *
+ * **La valeur, c'est l'encours plus la trésorerie qui dort sur la plateforme.** Elle se reconstitue
+ * en rejouant les événements une seule fois, en sommes cumulées : recalculer le moteur pour chacun
+ * des huit cents jours de l'historique coûterait cent fois plus pour le même résultat.
+ *
+ * **Les apports, ce sont les dépôts moins les retraits — et rien d'autre.** Ni le capital prêté,
+ * qui est le même argent recyclé, ni les primes de la plateforme, qui sont un gain. C'est ce qui
+ * garantit que `apports nets + résultat = patrimoine` reste vrai une fois les prêts inclus.
+ *
+ * **Ce que la série quotidienne omet** : les intérêts courus non échus, qui demanderaient la
+ * convention de jours de chaque prêt à chaque date. L'écart est de l'ordre de quelques euros sur
+ * plusieurs milliers, et le point du jour — le seul que l'utilisateur compare à un autre écran —
+ * est remplacé par la valeur exacte du moteur.
+ */
+export function lendingContribution({
+  id,
+  label,
+  events,
+  wallet,
+  live,
+}: LendingContributionInput): Contribution {
+  const sorted = [...events].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+  const movements = [...wallet].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
+
+  const outstanding = new Map<string, Big>();
+  let cash = ZERO;
+  let contributed = ZERO;
+  const daily = new Map<DayString, { value: Big; contributed: Big }>();
+  const snapshot = (day: DayString): void => {
+    let owed = ZERO;
+    for (const left of outstanding.values()) owed = owed.plus(left);
+    daily.set(day, { value: owed.plus(cash), contributed });
+  };
+
+  let e = 0;
+  let w = 0;
+  while (e < sorted.length || w < movements.length) {
+    const nextEvent = sorted[e]?.at;
+    const nextMove = movements[w]?.at;
+    const at =
+      nextEvent === undefined
+        ? nextMove!
+        : nextMove === undefined
+          ? nextEvent
+          : nextEvent <= nextMove
+            ? nextEvent
+            : nextMove;
+    const day = at.slice(0, 10);
+    while (e < sorted.length && sorted[e]!.at.slice(0, 10) <= day) {
+      const event = sorted[e]!;
+      const left = outstanding.get(event.loanId) ?? ZERO;
+      switch (event.kind) {
+        case 'subscription':
+          outstanding.set(event.loanId, left.plus(D(event.amount)));
+          cash = cash.minus(D(event.amount));
+          break;
+        case 'repayment':
+        case 'recovery': {
+          const principal = D(event.principal);
+          outstanding.set(event.loanId, max(ZERO, left.minus(principal)));
+          cash = cash.plus(principal).plus(D(event.interest)).minus(D(event.withheld));
+          break;
+        }
+        case 'write-off':
+          outstanding.set(event.loanId, ZERO);
+          break;
+        case 'secondary-sale':
+          outstanding.set(event.loanId, ZERO);
+          cash = cash.plus(D(event.proceeds));
+          break;
+        default:
+          break; // `late` et `default` sont des constats : ils ne déplacent aucun euro.
+      }
+      e += 1;
+    }
+    while (w < movements.length && movements[w]!.at.slice(0, 10) <= day) {
+      const move = movements[w]!;
+      const amount = D(move.amount).abs();
+      // L'impôt autonome est ignoré : son effet est déjà porté par `withheld`, ventilé par prêt.
+      if (move.kind === 'deposit') {
+        cash = cash.plus(amount);
+        contributed = contributed.plus(amount);
+      } else if (move.kind === 'withdrawal') {
+        cash = cash.minus(amount);
+        contributed = contributed.minus(amount);
+      } else if (move.kind === 'bonus') {
+        cash = cash.plus(amount);
+      }
+      w += 1;
+    }
+    snapshot(day);
+  }
+
+  const days = [...daily.keys()].sort();
+  const series = days.map((day) => ({ day, ...daily.get(day)! }));
+
+  return {
+    id,
+    label,
+    firstDay: series[0]?.day ?? null,
+    valueAt(day) {
+      const point = lastAtOrBefore(series, day);
+      if (point === null) return null;
+      const exact = live !== null && day >= live.day ? D(live.value) : point.value;
+      return { value: exact, contributed: point.contributed, estimated: false };
+    },
+  };
 }

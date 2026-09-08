@@ -30,6 +30,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   prélèvement retenu entre acompte et prélèvements sociaux — en lisant le taux effectivement
   appliqué plutôt qu'en le présumant, de sorte qu'une année sous dispense n'affiche pas un crédit
   d'impôt que vous n'avez jamais payé. Estimation, jamais une déclaration ni un conseil fiscal.
+- **Vos prêts comptent dans votre patrimoine.** Ils rejoignent l'Investissement et le Trading dans
+  le total de la Vue d'ensemble, dans la répartition par espace et dans la carte « D'où vient ce
+  chiffre » — avec leurs apports, pour que « apports nets + résultat = patrimoine » reste vrai. Un
+  compte qui n'a que des prêts ouvre désormais son tableau de bord au lieu d'être renvoyé à
+  l'accueil. L'écran lui-même vit maintenant dans l'espace **Patrimoine**, aux côtés des titres ;
+  l'ancienne adresse continue de fonctionner.
 
 ## [2.17.0] - 2026-09-05
 
