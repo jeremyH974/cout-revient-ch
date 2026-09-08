@@ -41,6 +41,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Votre compte de trading ne vaut plus le double dès que vous avez une position ouverte.** La
+  plateforme gage votre trésorerie en collatéral et la renvoie alors des deux côtés — équité et
+  solde spot. L'application les additionnait. Seule la part **libre** s'ajoute désormais, et la
+  valeur affichée retombe au centime sur celle d'Hyperliquid.
+- **La Vue d'ensemble ne prend plus vos Prêts pour un compte de trading.** Leur ligne annonçait un
+  nombre de fills, menait à l'écran Trading, et la légende de la courbe comptait un compte de
+  trading de trop. Chaque espace a maintenant son libellé, son lien et son décompte — et un compte
+  de trading affiche **ses** fills, pas le total de tous.
 - **Votre courbe de patrimoine ne perd plus ses couleurs à cause d'un seul jeton.** Il suffisait
   qu'un actif détenu n'ait aucune cotation pour que la journée entière passe pour une estimation :
   la courbe devenait grise, sans gain ni perte lisibles, sur toute la période où cet actif était

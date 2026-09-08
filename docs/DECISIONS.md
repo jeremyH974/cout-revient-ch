@@ -2802,3 +2802,42 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      **Contre-épreuve** (décision n° 75) : le stub rendu de nouveau aveugle à l'actif,
      `tests/e2e/helpers/network.test.ts` rougit en nommant l'écart — « expected 26749999 to be less
      than 0.15 » pour PEPE coté 107 € au lieu de quatre millionièmes.
+
+117. **Le collatéral gagé ne compte qu'une fois : la plateforme le rend des deux côtés**
+     (08/09/2026).
+
+     La décision n° 100 avait corrigé un compte de trading affiché à zéro en posant
+     `valeur du compte = équité perps + avoirs spot`. Elle a été validée sur un compte **à plat**,
+     sans position ouverte — et c'était précisément l'angle mort. Dès qu'une position s'ouvre,
+     Hyperliquid gage la trésorerie spot et la rend **dans les deux états** : mesuré le 08/09/2026
+     sur un compte réel, `clearinghouseState.accountValue` = 28 220,689416 et le solde spot USDC
+     `total` = 28 220,689416, avec `hold` égal au total. Le même argent, au millionième près.
+     L'écran annonçait donc 48 163,64 € pour un compte qui en valait la moitié.
+
+     **L'arbitre est la plateforme elle-même** : sa série `portfolio` n'annonçait le montant
+     qu'une fois, et ses vues `allTime` (perps + spot) et `perpAllTime` rendaient le même nombre.
+     La règle devient : pour la devise de cotation, seule la part **libre** (`total − hold`)
+     s'ajoute à `accountValue` ; la part gagée est exposée à part (`spotPledged`) parce qu'elle
+     existe, mais elle est déjà comptée. Les autres jetons gardent leur `total` : un jeton bloqué
+     par un ordre de vente reste possédé.
+
+     **Ce que la réconciliation a fait de juste** : elle a refusé d'établir un résultat. Son test
+     — « l'écart est-il aussi gros que le résultat annoncé ? » (n° 97) — était vrai (28 280 contre
+     25 879), et l'écran a dit « ne se recoupe pas » au lieu d'afficher un gain de +120 %. Le
+     garde-fou n'a pas empêché le bug, il a empêché le **mensonge**. Après correction, l'écart
+     retombe à −2,16 USDC sur 30 678 de flux, et la valeur du compte tombe **au centime** sur
+     celle de la plateforme.
+
+     **Trois défauts d'affichage de la même famille**, tombés avec l'arrivée des Prêts (n° 115) :
+     la Vue d'ensemble opposait `invest` à « tout le reste = trading ». La ligne Prêts annonçait
+     donc « 724 fills · journal, statistiques », son lien menait à l'écran Trading, et la légende
+     de la courbe comptait « 2 comptes de trading » là où il n'y en a qu'un. Chaque producteur a
+     désormais son libellé, sa destination et son décompte — et le sous-titre d'un compte de
+     trading donne **ses** fills, non le total consolidé.
+
+     **Leçon de méthode** : une correction validée sur un seul état d'un système en a deux. Le
+     compte à plat et le compte en position sont deux régimes, et la n° 100 n'en avait vu qu'un.
+
+     **Contre-épreuve** (décision n° 75) : le collatéral de nouveau additionné,
+     `compute.test.ts` rougit en nommant le doublon — « expected '10350' to be '0' » pour la part
+     libre, « expected '10350' to be '350' » pour un gage partiel.

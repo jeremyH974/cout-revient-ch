@@ -56,7 +56,22 @@
 
   const latest = $derived(latestNetWorth(visible));
   const incomplete = $derived(hasUnavailable(visible));
-  const tradingCount = $derived(history.netWorthContributions.length - 1);
+  /*
+   * Les COMPTES DE TRADING, et non « tous les producteurs sauf le premier » : depuis que les Prêts
+   * sont un producteur, ce décompte annonçait « 2 comptes de trading » là où il n'y en a qu'un
+   * (décision n° 117).
+   */
+  const tradingCount = $derived(app.hlAccounts.length);
+  /** Ce que la courbe additionne, nommé — et non « Investissement + le reste ». */
+  const sources = $derived.by((): string => {
+    const parts = ['Investissement'];
+    if (tradingCount > 0)
+      parts.push(`${tradingCount} compte${tradingCount > 1 ? 's' : ''} de trading`);
+    if (app.hasLending) parts.push('Prêts');
+    return parts.length === 1
+      ? 'Espace Investissement seul — aucun autre producteur.'
+      : `${parts.join(' + ')}. `;
+  });
   /**
    * Actifs qui privent CETTE courbe de cotation, sur la fenêtre affichée. Rien ne les nommait ici,
    * et la trame restait donc une énigme : on voyait que quelque chose manquait, jamais quoi ni où
@@ -119,12 +134,9 @@
       </p>
     {/if}
     <p class="legend">
-      {#if tradingCount > 0}
-        Investissement + {tradingCount} compte{tradingCount > 1 ? 's' : ''} de trading. L'équité de trading
-        est ramenée à un point par jour : la courbe de l'écran Trading, non amincie, reste la référence
-        pour lire un épisode violent.
-      {:else}
-        Espace Investissement seul — aucun compte de trading synchronisé.
+      {sources}{#if tradingCount > 0}
+        L'équité de trading est ramenée à un point par jour : la courbe de l'écran Trading, non
+        amincie, reste la référence pour lire un épisode violent.
       {/if}
     </p>
     {#if noQuote.length > 0 || shortQuote.length > 0}

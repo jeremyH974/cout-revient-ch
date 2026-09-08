@@ -161,10 +161,22 @@
   function changeOf(id: string) {
     return partChanges.find((c) => c.id === id) ?? null;
   }
-  const HREF_OF: Record<string, { name: 'portfolio' } | { name: 'trading' }> = {
+  /*
+   * Chaque producteur a sa destination. Le repli sur `trading` valait tant que la courbe n'avait
+   * que deux producteurs ; depuis que les Prêts en sont un, il envoyait « Prêts → » sur l'écran
+   * Trading (décision n° 117). Seuls les comptes de trading, dont l'identifiant est celui du
+   * compte, tombent encore dans le repli — et c'est bien pour eux qu'il existe.
+   */
+  const HREF_OF: Record<string, { name: 'portfolio' } | { name: 'trading' } | { name: 'loans' }> = {
     invest: { name: 'portfolio' },
+    lending: { name: 'loans' },
   };
   const routeOf = (id: string) => router.href(HREF_OF[id] ?? { name: 'trading' });
+  const loanCount = $derived(Object.keys(app.state.lending.loans).length);
+  /** Fills du compte de trading de la ligne — et non le total consolidé de tous les comptes. */
+  const fillsOf = (id: string): number =>
+    app.tradingReport.accounts.find((a) => a.accountId === id)?.totals.fills ??
+    trading.totals.fills;
 </script>
 
 <AppBar title="Vue d'ensemble" />
@@ -383,7 +395,7 @@
       {#each reconciliation.lines as line (line.id)}
         {@const share = shareOf(line.value)}
         {@const moved = changeOf(line.id)}
-        <li class={line.id === 'invest' ? 'invest' : 'trading'}>
+        <li class={line.id === 'invest' ? 'invest' : line.id === 'lending' ? 'lending' : 'trading'}>
           <a href={routeOf(line.id)}>
             <span class="name">{line.label}</span>
             <span class="amount"><Money value={line.value} /></span>
@@ -401,10 +413,16 @@
             <span class="go" aria-hidden="true">→</span>
           </a>
           <p class="muted small sub">
+            <!--
+              Un sous-titre par producteur, et non « invest ou trading » : la ligne des Prêts
+              annonçait « 724 fills · journal, statistiques », le décompte des comptes de trading.
+            -->
             {#if line.id === 'invest'}
               {openCount} position{openCount > 1 ? 's' : ''} · PRU, plus-values, lots
+            {:else if line.id === 'lending'}
+              {loanCount} prêt{loanCount > 1 ? 's' : ''} · échéances, retards, TRI
             {:else}
-              {trading.totals.fills} fill{trading.totals.fills > 1 ? 's' : ''} · journal, statistiques
+              {fillsOf(line.id)} fill{fillsOf(line.id) > 1 ? 's' : ''} · journal, statistiques
             {/if}
             {#if moved && !moved.contributions.eq(ZERO)}
               · apports <Delta value={moved.contributions} size="sm" />
