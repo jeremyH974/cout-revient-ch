@@ -107,6 +107,12 @@ export function convertEvent(event: LedgerEvent, rate: DecimalString): LedgerEve
       };
     case 'fee':
       return { ...event, amountEur: mul(event.amountEur, rate) };
+    case 'income':
+      return {
+        ...event,
+        grossEur: mul(event.grossEur, rate),
+        withheldEur: mul(event.withheldEur, rate),
+      };
     case 'reward':
       return { ...event, fairValueEur: mulOrNull(event.fairValueEur, rate) };
     case 'deposit':

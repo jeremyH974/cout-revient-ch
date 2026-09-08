@@ -4,6 +4,7 @@
  * (l'export tableur maison reste `csv-export.ts`). Les valeurs EUR de l'app remplissent
  * `Net Worth` ; l'id d'événement part dans `TxHash` (dédoublonnage stable au ré-import).
  */
+import { D, ZERO } from '../domain/money';
 import { isFiat } from '../domain/assets';
 import type { LedgerEvent, Leg } from '../domain/types';
 import { msToUtcString, parisNaiveToMs } from '../import/time';
@@ -107,6 +108,23 @@ function rowOf(event: LedgerEvent): KoinlyRow | null {
         label: 'cost',
         description: event.label,
       };
+    case 'income':
+      // Koinly connait « income » et « cost » : un revenu s'exporte, un frais aussi, et le signe
+      // decide lequel. La retenue a la source n'a pas de colonne dans ce format -- elle reste dans
+      // l'application, et c'est une perte connue du format, pas un oubli (decision n 130).
+      return D(event.grossEur).lt(ZERO)
+        ? {
+            ...base,
+            sent: { asset: 'eur', qty: D(event.grossEur).abs().toString() },
+            label: 'cost',
+            description: event.label,
+          }
+        : {
+            ...base,
+            received: { asset: 'eur', qty: event.grossEur },
+            label: 'income',
+            description: event.label,
+          };
     case 'unqualified':
       return null;
   }

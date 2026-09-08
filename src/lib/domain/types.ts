@@ -89,6 +89,14 @@ export interface RawPivotRow {
   txHash: string | null;
   /** Action de société : la ligne ne porte alors aucun montant. */
   corporateAction?: CorporateAction | null;
+  /**
+   * Retenue à la source prélevée par le payeur sur un revenu.
+   *
+   * Champ **additif** (décision n° 66) : une sauvegarde antérieure n'en a pas, et le relire absent
+   * vaut « aucune retenue ». Il n'existe pas de place ailleurs — un `received` net perdrait le brut,
+   * et c'est le brut qui se déclare (décision n° 130).
+   */
+  withheld?: PivotAmount | null;
 }
 
 /** Une jambe d'opération : quantité strictement positive, le sens est donné par `out`/`in`. */
@@ -252,6 +260,40 @@ export interface FeeEvent extends EventBase {
   label: string;
 }
 
+/**
+ * Nature d'un revenu. Pas `source` : `EventBase` réserve ce mot à la PROVENANCE de la ligne
+ * (quel fichier l'a produite), et confondre les deux ferait mentir l'un des deux.
+ */
+export type IncomeNature = 'dividend' | 'interest' | 'conversion-fee';
+
+/**
+ * Revenu (ou frais) **en espèces**, sans contrepartie en actif.
+ *
+ * Symétrique de `FeeEvent`, avec deux différences qui justifient un type à part :
+ *
+ * 1. **Il porte un actif quand on le connaît.** Un dividende appartient à la ligne qui l'a produit ;
+ *    des intérêts de trésorerie ou des frais de conversion n'appartiennent à aucune. `asset` nul
+ *    signifie « au compte », et ces montants ne touchent alors **aucun prix de revient** — les y
+ *    répartir serait arbitraire (décision n° 130).
+ * 2. **Il distingue le brut de la retenue.** Un dividende étranger arrive net d'une retenue à la
+ *    source ; c'est le brut qui se déclare, et la retenue qui ouvre le crédit d'impôt conventionnel.
+ *    Ni `RewardEvent` ni `FeeEvent` ne portaient ce champ, et sans lui la fiscalité des titres
+ *    serait à reprendre entièrement.
+ *
+ * Un montant NÉGATIF est un coût (frais de conversion) : le signe porte le sens, comme partout.
+ */
+export interface IncomeEvent extends EventBase {
+  kind: 'income';
+  /** Ligne à laquelle le revenu appartient ; `null` = au compte, hors de tout PRU. */
+  asset: AssetCode | null;
+  /** Montant AVANT retenue à la source. Négatif pour un frais. */
+  grossEur: DecimalString;
+  /** Retenue à la source prélevée par le payeur, positive. Zéro quand il n'y en a pas. */
+  withheldEur: DecimalString;
+  nature: IncomeNature;
+  label: string;
+}
+
 /** Récompense (staking, airdrop) : entrée sans contrepartie. */
 export interface RewardEvent extends EventBase {
   kind: 'reward';
@@ -306,6 +348,7 @@ export type LedgerEvent =
   | MigrationEvent
   | SplitEvent
   | FeeEvent
+  | IncomeEvent
   | RewardEvent
   | DepositEvent
   | WithdrawalEvent

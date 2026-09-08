@@ -419,6 +419,7 @@ function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
     description: text(r['description'], 500),
     txHash: text(r['txHash'], 120),
     corporateAction: sanitizeCorporateAction(r['corporateAction']),
+    withheld: sanitizePivotAmount(r['withheld']) ?? null,
   };
 }
 

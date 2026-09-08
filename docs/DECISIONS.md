@@ -3264,3 +3264,35 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      - **après** : « `Type 'IncomeEvent' is not assignable to type 'never'` » dans
        `declarations-fr.ts` **et** dans `tax-fr.ts`, plus trois erreurs nommées dans
        `import/pivot/index.ts`. Chaque garde réclame la décision qui lui revient.
+
+130. **Un revenu en espèces n'avait aucun chemin, et le rendement s'en trouvait faussé**
+     (08/09/2026). Le pipeline pivot jetait toute ligne 100 % fiat, sauf une sortie étiquetée
+     « frais » : un dividende encaissé en euros disparaissait dans un compteur. Mesuré sur le relevé
+     de l'utilisateur : **64 dividendes, 89,66 € bruts, 21,56 € de retenue à la source**, plus
+     189,31 € d'intérêts de trésorerie et 297,52 € de frais de conversion — tous absents.
+     **`IncomeEvent`, symétrique de `FeeEvent`, avec deux différences qui justifient un type à
+     part.** Il porte un **actif quand on le connaît** — un dividende appartient à la ligne qui l'a
+     produit, des intérêts de trésorerie n'appartiennent à aucune, et `asset: null` signifie « au
+     compte », hors de tout prix de revient : les y répartir serait arbitraire. Et il distingue le
+     **brut de la retenue** : c'est le brut qui se déclare, la retenue qui ouvre le crédit d'impôt
+     conventionnel, et l'agréger au net la perdrait. Ni `RewardEvent` ni `FeeEvent` ne portaient ce
+     champ.
+     **L'invariant du moteur s'étend, et c'est le point structurel** :
+     `total = valeur + Σ produits + Σ revenus − Σ achats`. Le terme « revenus » manquait — `total`
+     incluait `otherIncome` depuis toujours, mais aucun produit ne le portait. L'invariant ne tenait
+     que parce que les récompenses valent zéro par défaut ; un dividende non nul l'aurait cassé, et
+     l'auto-vérification aurait accusé le moteur au lieu de sa propre formule.
+     **La date d'un dividende n'a pas d'heure.** La lecture exigeait `jj/mm/aaaa hh:mm:ss` et
+     rejetait donc les 64 lignes en silence — le premier essai en a capté zéro. L'heure devient
+     facultative, minuit par convention : un dividende ne se compare à aucune opération du jour.
+     **Changement de comportement assumé** : le module Ghostfolio documentait le revenu en espèces
+     comme « volontairement ignoré ». Il ne l'est plus. Sa spec, qui figeait `skippedCash: 1`, dit
+     désormais `incomes: 1` — et l'ancien chiffre était le symptôme, pas la règle.
+     **Recoupement sur le relevé réel** : 64 dividendes captés, 89,66 € bruts, 21,56 € de retenue,
+     68,10 € nets — exactement les montants mesurés dans le fichier avant d'écrire une ligne de code.
+     **Contre-épreuves** (décision n° 75) : le net compté au lieu du brut, « expected '85' to be
+     '100' » ; un revenu de compte versé sur une position, « expected '0' to be '189.31' » ; les
+     revenus de compte sortis du résultat, « expected '0' to be '-297.52' ». **La quatrième a
+     d'abord refusé de rougir** : requalifier un revenu en cession ne changeait aucun chiffre faute
+     de valeur globale du portefeuille dans le cas de test. Le garde-fou interroge maintenant la
+     fonction **qui décide** — « expected 'cession' to be 'ignored' » — et non son seul effet.
