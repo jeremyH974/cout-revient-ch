@@ -1,8 +1,10 @@
 <script lang="ts">
   import { assetSymbol } from '$lib/domain/assets';
-  import type { PositionReport } from '$lib/domain/engine';
+  import { allocationOf, type PositionReport } from '$lib/domain/engine';
   import { ZERO } from '$lib/domain/money';
   import { router } from '$lib/router.svelte';
+  import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
+  import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
   import InvestTabs from '../../components/invest/InvestTabs.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import AssetRow from '../../components/portfolio/AssetRow.svelte';
@@ -32,6 +34,18 @@
   const total = $derived(
     [...held, ...closed].reduce((acc, p) => acc.plus(p.total ?? p.realized), ZERO),
   );
+  /**
+   * Investi, latent et realise des SEULS titres.
+   *
+   * `report.totals` ne convient pas : il agrege toutes les classes depuis la decision n 119, et
+   * l'afficher sous un titre « Titres » donnerait le total crypto+titres. Meme raison pour
+   * `SummaryHeader`, qui le lit.
+   */
+  const invested = $derived(held.reduce((acc, p) => acc.plus(p.costBasis), ZERO));
+  const unrealized = $derived(held.reduce((acc, p) => acc.plus(p.unrealized ?? ZERO), ZERO));
+  const realized = $derived([...held, ...closed].reduce((acc, p) => acc.plus(p.realized), ZERO));
+  /** Répartition des seuls titres : `report.allocation` mélange les classes (décision n° 119). */
+  const allocation = $derived(allocationOf(held));
   const unpriced = $derived(held.filter((p) => p.value === null).length);
   /** Sans clé, aucun cours de titre ne peut arriver : le message ne dit pas la même chose. */
   const hasMarketKey = $derived((app.state.ui.twelveDataApiKey ?? '') !== '');
@@ -47,9 +61,21 @@
   <p class="muted small">Actions et fonds indiciels, hors actifs numériques.</p>
   <div class="figures">
     <div><span class="label">Valeur</span><Money {value} strong /></div>
+    <div><span class="label">Investi</span><Money value={invested} /></div>
+    <div><span class="label">Latent</span><Money value={unrealized} sign colored /></div>
+    <div><span class="label">Réalisé</span><Money value={realized} sign colored /></div>
     <div><span class="label">Résultat</span><Money value={total} sign colored strong /></div>
   </div>
 </section>
+
+<EvolutionCard scope="equities" title="Évolution des titres" />
+
+{#if allocation.length > 1}
+  <section class="card">
+    <h2 class="section">Répartition</h2>
+    <AllocationDonut entries={allocation} />
+  </section>
+{/if}
 
 {#if unpriced > 0}
   <p class="small muted note">

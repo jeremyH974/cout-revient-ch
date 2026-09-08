@@ -20,5 +20,5 @@ export {
   type TraceTarget,
   type TraceUnit,
 } from './trace';
-export { allPositions, closedExcept, closedOfClass, holdings } from './report';
+export { allPositions, allocationOf, closedExcept, closedOfClass, holdings } from './report';
 export type * from './report';

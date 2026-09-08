@@ -1,6 +1,6 @@
 /** Types de sortie du moteur (valeurs en Big, jamais persistées). */
 import type { AssetClass } from '../assets';
-import type { Big, DecimalString } from '../money';
+import { ZERO, type Big, type DecimalString } from '../money';
 import type {
   AccountId,
   AssetCode,
@@ -251,6 +251,28 @@ export function allPositions(report: PortfolioReport): PositionReport[] {
 /** Positions clôturées d'une classe donnée : un titre cédé n'a rien à faire au portefeuille crypto. */
 export function closedOfClass(report: PortfolioReport, wanted: AssetClass): PositionReport[] {
   return report.closed.filter((p) => p.assetClass === wanted);
+}
+
+/**
+ * Répartition de la valeur d'un SOUS-ENSEMBLE de positions.
+ *
+ * `PortfolioReport.allocation` couvre tout le portefeuille et mélange donc les classes depuis la
+ * décision n° 119. Un camembert « Titres » bâti dessus calculerait des parts sur un dénominateur
+ * crypto + titres : chaque part serait juste au regard du total général, et fausse au regard de ce
+ * que son titre annonce. D'où une fonction qui reçoit ses positions plutôt que le rapport entier.
+ *
+ * Les lignes sans cotation sont écartées : elles n'ont pas de valeur à répartir, et les compter à
+ * zéro laisserait croire qu'elles ne pèsent rien.
+ */
+export function allocationOf(positions: readonly PositionReport[]): AllocationEntry[] {
+  const priced = positions.filter((p) => p.value !== null);
+  const total = priced.reduce((acc, p) => acc.plus(p.value ?? ZERO), ZERO);
+  if (!total.gt(ZERO)) return [];
+  return priced.map((p) => ({
+    asset: p.asset,
+    value: p.value ?? ZERO,
+    share: (p.value ?? ZERO).div(total),
+  }));
 }
 
 /** Positions clôturées hors d'une classe donnée. */
