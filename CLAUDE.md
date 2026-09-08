@@ -26,6 +26,12 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   pas de service worker, dont le `fetch` s'exécuterait hors du verrou. `prive:serve` sert `dist/`
   sur `127.0.0.1` seul et pose la CSP en **en-tête HTTP**, ce qui ajoute `frame-ancestors 'none'`.
   Voir `docs/variante-personnelle.md`.
+- `npm run prive:app` / `npm run prive:raccourci` — **Windows** : lanceur en un double-clic
+  (`lancer-prive.cmd`) qui reconstruit, sert et ouvre une fenêtre Chromium en mode `--app=`, et
+  raccourci du menu Démarrer. Pas d'empaquetage Tauri/Electron, à dessein (décision n° 131) : il
+  ferait tomber le bac à sable, la CSP en en-tête et Trusted Types, et donnerait au code un accès
+  **permanent** au disque. Le lanceur **refuse de servir un `dist/` public** depuis l'origine
+  privée — `dist/` est partagé entre les deux builds.
 - `npm run hooks:install` — pose `core.hooksPath` sur `.githooks` (refus de commiter un relevé
   réel). **Obligatoirement explicite** : `ignore-scripts` rend tout `prepare` npm inerte ici.
 - `npm run fixture` — régénère le jeu de démonstration synthétique (`tests/fixtures/coinhouse/export-demo.csv`)
