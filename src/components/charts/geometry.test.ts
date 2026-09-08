@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { eachDay } from '$lib/history/days';
-import { layoutX, markerIndex, nearestIndex, niceTicks, segmentsOf, tickIndices } from './geometry';
+import {
+  layoutX,
+  markerIndex,
+  nearestIndex,
+  niceTicks,
+  segmentsOf,
+  spansOf,
+  tickIndices,
+} from './geometry';
 
 describe('abscisses proportionnelles au temps', () => {
   it('un jour omis devient un trou, l’écart reste proportionnel (92 jours = 92 px)', () => {
@@ -67,5 +75,33 @@ describe('graduations, survol et marqueurs', () => {
     expect(niceTicks(-12, 37, 3)).toEqual([0, 20]);
     expect(niceTicks(1234, 5678, 3)).toEqual([2000, 4000]);
     expect(niceTicks(5, 5, 3)).toEqual([]);
+  });
+});
+
+describe('spansOf — plages hachurées', () => {
+  const flags = [false, true, true, false, true, false];
+
+  it('rend les plages contiguës, bornes comprises', () => {
+    expect(spansOf(flags.length, (i) => flags[i] === true)).toEqual([
+      { from: 1, to: 2 },
+      { from: 4, to: 4 },
+    ]);
+  });
+
+  /*
+   * C'est TOUTE la raison d'être de cette fonction. `segmentsOf` trace des polylignes : un point
+   * isolé n'a pas de segment, il le jette. Une zone hachurée d'une seule journée, elle, se dessine
+   * très bien — et si on l'avait perdue, la trame aurait sauté exactement les jours les plus
+   * discrets, ceux qu'on ne remarque pas manquants.
+   */
+  it('garde une plage d’un seul point, là où segmentsOf la rejette', () => {
+    const holes = flags.map(() => false);
+    expect(segmentsOf(flags.length, holes, (i) => flags[i] === true)).toEqual([{ from: 1, to: 2 }]);
+    expect(spansOf(flags.length, (i) => flags[i] === true)).toContainEqual({ from: 4, to: 4 });
+  });
+
+  it('une plage ouverte à la fin se referme sur le dernier point', () => {
+    expect(spansOf(3, () => true)).toEqual([{ from: 0, to: 2 }]);
+    expect(spansOf(0, () => true)).toEqual([]);
   });
 });

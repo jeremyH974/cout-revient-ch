@@ -12,8 +12,16 @@
     primary: number;
     secondary: number | null;
     extras?: ChartExtra[];
-    /** Valeur estimée au coût (aucune cotation) : tracée en neutre, sans gain ni perte. */
-    estimated?: boolean;
+    /**
+     * Part de `primary` portée à son coût faute de cotation, de 0 à 1 (absent = 0).
+     *
+     * C'était un booléen, et la courbe passait alors en neutre : un seul jeton marginal sans cours
+     * suffisait à effacer le gain et la perte d'une journée entière — sur les deux tiers d'un
+     * historique, dans le cas qui a motivé le changement. La notation sémantique (IBCS, ISO
+     * 24896:2026) tranche autrement : un estimé se **hachure**, il ne se décolore pas. La couleur
+     * reste donc, et la trame dit où — et l'infobulle, de combien (décision n° 114).
+     */
+    estimated?: number;
   }
   export interface ChartMarker {
     day: string;
@@ -40,6 +48,7 @@
     nearestIndex,
     niceTicks,
     segmentsOf,
+    spansOf,
     tickIndices,
     type Segment,
   } from './geometry';
@@ -142,12 +151,21 @@
   /** Coordonnée SVG au dixième de pixel (géométrie, pas un montant). */
   const r1 = (v: number): number => Math.round(v * 10) / 10;
   const pt = (i: number, v: number): string => `${r1(x(i))},${r1(y(v))}`;
-  /** Référence d'un point : 0 (latent) ou la courbe secondaire ; null = pas de référence (ou estimé). */
+  /** Référence d'un point : 0 (latent) ou la courbe secondaire ; null = pas de référence. */
   const ref = (i: number): number | null => {
     const p = points[i];
-    if (!p || p.estimated) return null;
+    if (!p) return null;
     return zeroLine ? 0 : p.secondary;
   };
+  /** Part portée au coût, de 0 à 1. */
+  const shareAt = (i: number): number => points[i]?.estimated ?? 0;
+  /**
+   * « 12,0 % » — sans signe : une part n'est ni un gain ni une perte. Sous la résolution
+   * d'affichage, on écrit « moins de 0,1 % » plutôt que « 0,0 % » : annoncer zéro à côté d'une
+   * zone hachurée ferait mentir l'un des deux.
+   */
+  const shareText = (v: number): string =>
+    v > 0 && v < 0.001 ? 'moins de 0,1 %' : fmtPct(D(dec(v)), { sign: false });
   const linePath = $derived(
     points
       .map((p, i) => {
@@ -170,6 +188,26 @@
   const hasHoles = $derived(layout.holeBefore.some(Boolean));
   /** Plages contiguës (sans trou) disposant d'une référence : gain/perte colorables. */
   const segments = $derived(segmentsOf(points.length, layout.holeBefore, (i) => ref(i) !== null));
+  /** Plages où une part de la valeur est portée au coût : elles se hachurent, sans se décolorer. */
+  const estimatedSpans = $derived(spansOf(points.length, (i) => shareAt(i) > 0));
+  /** Part la plus forte de la fenêtre : ce qu'annonce la légende, donc le pire cas et non un flou. */
+  const worstShare = $derived(points.reduce((acc, p) => Math.max(acc, p.estimated ?? 0), 0));
+  /** « jusqu'à 12,0 % de la valeur », ou le plancher quand la part est sous la résolution. */
+  const worstShareText = $derived(
+    worstShare > 0 && worstShare < 0.001
+      ? 'moins de 0,1 % de la valeur'
+      : `jusqu'à ${shareText(worstShare)} de la valeur`,
+  );
+  /**
+   * Rectangle d'une plage estimée. Bornes prises aux demi-intervalles voisins : un jour occupe sa
+   * case, pas son seul point — sans quoi une journée isolée serait large de zéro pixel.
+   */
+  const spanBox = (s: Segment): { x: number; w: number } => {
+    const left = s.from === 0 ? x(0) : (x(s.from - 1) + x(s.from)) / 2;
+    const last = points.length - 1;
+    const right = s.to === last ? x(last) : (x(s.to) + x(s.to + 1)) / 2;
+    return { x: r1(left), w: r1(Math.max(right - left, 1)) };
+  };
   /** Polygone entre la courbe et sa référence sur une plage. */
   const bandPath = (s: Segment): string => {
     const fwd: string[] = [];
@@ -248,7 +286,7 @@
     if (labels.secondary && p.secondary !== null)
       parts.push(`${labels.secondary} ${fmt(p.secondary)}`);
     for (const e of p.extras ?? []) parts.push(`${e.label} ${fmtAs(e.value, e.format, true)}`);
-    if (p.estimated) parts.push('estimation au coût, aucune cotation');
+    if (p.estimated) parts.push(`${shareText(p.estimated)} de la valeur portée au coût`);
     return parts.join(', ');
   };
 
@@ -295,6 +333,17 @@
           <clipPath id="{uid}-above-{s.from}"><path d={clipPath(s, 'above')} /></clipPath>
           <clipPath id="{uid}-below-{s.from}"><path d={clipPath(s, 'below')} /></clipPath>
         {/each}
+        {#if estimatedSpans.length > 0}
+          <pattern
+            id="{uid}-hatch"
+            width="7"
+            height="7"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line x1="0" y1="0" x2="0" y2="7" class="hatch" />
+          </pattern>
+        {/if}
       </defs>
       {#each yTicks as v (v)}
         <line x1={PAD.left} x2={width - PAD.right} y1={y(v)} y2={y(v)} class="grid" />
@@ -325,6 +374,23 @@
       {#each segments as s (s.from)}
         <path d={bandPath(s)} class="band gain" clip-path="url(#{uid}-above-{s.from})" />
         <path d={bandPath(s)} class="band loss" clip-path="url(#{uid}-below-{s.from})" />
+      {/each}
+      <!--
+        Zones portées au coût. Elles se posent SOUS les courbes : la trame situe l'incertitude
+        sans jamais gêner la lecture du tracé, exactement le rôle que lui donne la notation
+        sémantique. Purement décoratives (`aria-hidden`) — `describe()` porte l'équivalent textuel,
+        avec la part chiffrée que la trame ne peut pas dire.
+      -->
+      {#each estimatedSpans as s (s.from)}
+        {@const box = spanBox(s)}
+        <rect
+          x={box.x}
+          y={PAD.top}
+          width={box.w}
+          height={Math.max(bottom - PAD.top, 0)}
+          fill="url(#{uid}-hatch)"
+          aria-hidden="true"
+        />
       {/each}
       {#if secondaryPath}<path d={secondaryPath} class="secondary" class:emphasis={band} />{/if}
       <path
@@ -419,8 +485,8 @@
       {#if labels.secondary && secondaryPath}<li>
           <span class="swatch secondary-swatch" class:emphasis={band}></span>{labels.secondary}
         </li>{/if}
-      {#if points.some((p) => p.estimated)}<li>
-          <span class="swatch line-swatch"></span>estimé au coût (aucune cotation)
+      {#if estimatedSpans.length > 0}<li>
+          <span class="swatch hatch-swatch"></span>porté au coût, faute de cotation ({worstShareText})
         </li>{/if}
       {#if resolvedMarkers.length > 0}<li><span class="swatch marker-swatch buy"></span>achat</li>
         <li><span class="swatch marker-swatch sell"></span>vente</li>{/if}
@@ -435,7 +501,8 @@
         {#each p.extras ?? [] as e (e.label)}<br /><span class="muted"
             >{e.label} {fmtAs(e.value, e.format, true)}</span
           >{/each}
-        {#if p.estimated}<br /><span class="muted">Estimation au coût (aucune cotation)</span>{/if}
+        {#if p.estimated}<br /><span class="muted">{shareText(p.estimated)} porté au coût</span
+          >{/if}
       </div>
     {/if}
   {/if}
@@ -541,6 +608,15 @@
     fill: var(--loss);
     opacity: 0.2;
   }
+  /*
+   * Trame des zones portées au coût : assez visible pour signaler, assez discrète pour ne pas
+   * concurrencer les bandes gain/perte qu'elle recouvre.
+   */
+  .hatch {
+    stroke: var(--fg-muted);
+    stroke-width: 1;
+    opacity: 0.45;
+  }
   .marker.buy {
     fill: var(--gain);
     stroke: var(--bg);
@@ -639,6 +715,19 @@
     height: 10px;
     border: 0;
     opacity: 0.45;
+  }
+  /* Même trame que le graphique, à la même inclinaison : la pastille montre ce qu'elle nomme. */
+  .hatch-swatch {
+    height: 10px;
+    border: 0;
+    background-image: repeating-linear-gradient(
+      45deg,
+      var(--fg-muted) 0,
+      var(--fg-muted) 1px,
+      transparent 1px,
+      transparent 5px
+    );
+    opacity: 0.75;
   }
   .band-swatch.gain {
     background: var(--gain);

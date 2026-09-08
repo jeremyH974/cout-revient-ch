@@ -30,7 +30,8 @@
  *
  * - normal : tout est valorisé ;
  * - `estimated` : une contribution est portée à son coût faute de cotation. Le total reste
- *   comparable aux apports, il est seulement approché ;
+ *   comparable aux apports, il est seulement approché — et `estimatedValue` dit **de combien**,
+ *   parce qu'un point coté à 97 % ne se lit pas comme un point entièrement deviné (n° 114) ;
  * - `unavailable` : une contribution n'a **pas pu** être valorisée. Le total est alors
  *   **incomplet, donc trop bas** — pas approché. Il doit se signaler, jamais se fondre dans la
  *   courbe ;
@@ -57,6 +58,13 @@ export interface ContributionValue {
   contributed: Big;
   /** Portée à son coût faute de cotation : comparable aux apports, mais approchée. */
   estimated: boolean;
+  /**
+   * Part de `value` réellement portée au coût. Absent = tout `value` si `estimated`, sinon zéro —
+   * un producteur qui ne sait pas ventiler reste donc décrit exactement comme avant.
+   */
+  estimatedValue?: Big;
+  /** Ce qui, nommément, est porté au coût : l'écran peut alors désigner le coupable. */
+  estimatedAssets?: readonly string[];
   /**
    * La valeur est servie, mais elle **ne se recoupe pas** avec le grand livre dont elle sort :
    * on l'affiche, on n'en déduit aucun résultat (décision n° 97). Cas typique : une plateforme
@@ -102,6 +110,10 @@ export interface NetWorthPart {
   contributed: Big;
   /** `true` : porté au coût faute de cotation. */
   estimated: boolean;
+  /** Part de `value` portée au coût (≤ `value`) : ce que `estimated` seul ne dit pas. */
+  estimatedValue: Big;
+  /** Ce qui est porté au coût, nommément. */
+  estimatedAssets: readonly string[];
   /** `true` : non valorisable — la part vaut zéro et le total est incomplet. */
   unavailable: boolean;
   /** `true` : valeur servie mais non recoupée avec son grand livre — aucun résultat n'en sort. */
@@ -120,6 +132,21 @@ export interface NetWorthPoint {
   contributed: Big;
   /** Contributions portées à leur coût ce jour-là (identifiants). */
   estimated: readonly string[];
+  /**
+   * Σ des parts portées au coût, en euros. Rapportée à `gross`, elle donne **l'ampleur** de
+   * l'estimation — la seule chose qui permette de dire « 3 % au coût » au lieu de décolorer une
+   * journée entière parce qu'un jeton marginal n'a pas de cours (décision n° 114).
+   */
+  estimatedValue: Big;
+  /**
+   * Ce qui est porté au coût ce jour-là, nommément et sans doublon.
+   *
+   * L'écran nommait auparavant les actifs que le CHARGEUR de prix avait ratés — une liste qui
+   * couvre aussi les symboles de trading, absents de cette courbe. Il désignait donc des coupables
+   * qui n'y étaient pour rien. La liste vient maintenant du même calcul que la trame : les deux ne
+   * peuvent plus se contredire.
+   */
+  estimatedAssets: readonly string[];
   /** Contributions non valorisables : `net` est INCOMPLET ce jour-là, pas approché. */
   unavailable: readonly string[];
   /** Détail par producteur : `Σ parts.value = gross` et `Σ parts.contributed = contributed`. */
@@ -141,7 +168,9 @@ export function netWorthSeries({
   return days.map((day) => {
     let gross = ZERO;
     let contributed = ZERO;
+    let estimatedValue = ZERO;
     const estimated: string[] = [];
+    const estimatedAssets: string[] = [];
     const unavailable: string[] = [];
     const parts: NetWorthPart[] = [];
 
@@ -156,13 +185,25 @@ export function netWorthSeries({
           value: ZERO,
           contributed: ZERO,
           estimated: false,
+          estimatedValue: ZERO,
+          estimatedAssets: [],
           unavailable: true,
           unreconciled: false,
         });
         continue;
       }
+      /*
+       * Un producteur qui ne ventile pas est réputé estimé EN ENTIER quand il se déclare estimé :
+       * c'est la lecture prudente, et elle garde le comportement d'avant pour tout producteur qui
+       * ne connaît pas encore ce champ.
+       */
+      const partEstimated = at.estimated ? (at.estimatedValue ?? at.value) : ZERO;
+      const partAssets = at.estimated ? (at.estimatedAssets ?? []) : [];
       gross = gross.plus(at.value);
       contributed = contributed.plus(at.contributed);
+      estimatedValue = estimatedValue.plus(partEstimated);
+      for (const asset of partAssets)
+        if (!estimatedAssets.includes(asset)) estimatedAssets.push(asset);
       if (at.estimated) estimated.push(contribution.id);
       parts.push({
         id: contribution.id,
@@ -170,6 +211,8 @@ export function netWorthSeries({
         value: at.value,
         contributed: at.contributed,
         estimated: at.estimated,
+        estimatedValue: partEstimated,
+        estimatedAssets: partAssets,
         unavailable: false,
         unreconciled: at.unreconciled === true,
       });
@@ -185,10 +228,22 @@ export function netWorthSeries({
       net: gross.minus(owed),
       contributed,
       estimated,
+      estimatedValue,
+      estimatedAssets: [...estimatedAssets].sort(),
       unavailable,
       parts,
     };
   });
+}
+
+/**
+ * Part du patrimoine portée au coût ce jour-là, de 0 à 1. Zéro quand rien n'est estimé **ou**
+ * quand il n'y a rien à valoriser : une division par un total nul ne dit rien.
+ */
+export function estimatedShare(point: NetWorthPoint): Big {
+  if (!point.gross.gt(ZERO)) return ZERO;
+  const share = point.estimatedValue.div(point.gross);
+  return share.gt(D('1')) ? D('1') : share;
 }
 
 /** Dernier élément dont le jour est ≤ `day` (série triée croissante), ou `null`. */
@@ -259,6 +314,8 @@ export function valueSeriesContribution(
         value: point.value,
         contributed: contributedAt(day),
         estimated: point.missing.length > 0,
+        estimatedValue: point.estimatedValue,
+        estimatedAssets: point.missing,
       };
     },
   };
@@ -471,6 +528,8 @@ export function netWorthChange(
             net: ZERO,
             contributed: ZERO,
             estimated: [],
+            estimatedValue: ZERO,
+            estimatedAssets: [],
             unavailable: [],
             parts: [],
           },
@@ -483,6 +542,7 @@ export function netWorthChange(
     value: p.net,
     cost: p.contributed,
     missing: [],
+    estimatedValue: ZERO,
   }));
   // Les flux sont la marche de la courbe d'apports : aucune source parallèle, donc rien qui puisse
   // diverger de la courbe affichée. Un jour sans mouvement ne produit pas de flux.
@@ -555,7 +615,13 @@ export function netWorthPartChanges(
     for (const [index, step] of window.entries()) {
       const at = step.parts.get(part.id);
       const contributed = at?.contributed ?? ZERO;
-      values.push({ day: step.day, value: at?.value ?? ZERO, cost: contributed, missing: [] });
+      values.push({
+        day: step.day,
+        value: at?.value ?? ZERO,
+        cost: contributed,
+        missing: [],
+        estimatedValue: at?.estimatedValue ?? ZERO,
+      });
       if (index > 0) {
         const amount = contributed.minus(previous);
         if (!amount.eq(ZERO)) flows.push({ day: step.day, amountEur: amount });

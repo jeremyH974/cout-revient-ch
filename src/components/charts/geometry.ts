@@ -66,6 +66,25 @@ export function segmentsOf(
   return out;
 }
 
+/**
+ * Plages contiguës d'indices vérifiant `flag`, **y compris longues d'un seul point**. C'est ce qui
+ * la distingue de `segmentsOf` : celle-ci trace des polylignes et rejette donc un point isolé,
+ * alors qu'une zone hachurée d'une seule journée se dessine parfaitement.
+ */
+export function spansOf(count: number, flag: (i: number) => boolean): Segment[] {
+  const out: Segment[] = [];
+  let start: number | null = null;
+  for (let i = 0; i < count; i++) {
+    if (flag(i)) start ??= i;
+    else if (start !== null) {
+      out.push({ from: start, to: i - 1 });
+      start = null;
+    }
+  }
+  if (start !== null) out.push({ from: start, to: count - 1 });
+  return out;
+}
+
 /** Index du point dont l'abscisse est la plus proche de `px` (`xs` croissants), −1 si vide. */
 export function nearestIndex(xs: readonly number[], px: number): number {
   const n = xs.length;

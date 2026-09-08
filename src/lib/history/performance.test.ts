@@ -54,6 +54,7 @@ describe('computePerformance', () => {
     qty: null,
     price: null,
     estimated: false,
+    estimatedValue: D('0'),
   }));
   const cashFlows = [flow('achat', `${days[1]!}T00:00:00`, '-1000')];
 

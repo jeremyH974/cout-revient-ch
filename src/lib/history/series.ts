@@ -132,6 +132,13 @@ export interface ValuePoint {
    * investi plein. Le graphique signale ces points comme estimés.
    */
   missing: AssetCode[];
+  /**
+   * Part de `value` portée au coût faute de cotation : la somme des coûts des actifs de `missing`.
+   * `missing` dit **lesquels**, celui-ci dit **combien** — et c'est ce qui sépare un point approché
+   * à la marge d'un point entièrement deviné. Sans lui, un seul actif marginal sans cours faisait
+   * passer la journée entière pour une estimation.
+   */
+  estimatedValue: Big;
 }
 
 export interface ValueSeriesInput {
@@ -142,14 +149,15 @@ export interface ValueSeriesInput {
 
 /**
  * Valeur et coût du portefeuille pour chaque jour demandé. Un actif sans prix ce jour-là prend
- * son dernier prix connu ; sans aucun prix antérieur il est compté à son coût et listé dans
- * `missing`.
+ * son dernier prix connu ; sans aucun prix antérieur il est compté à son coût, listé dans
+ * `missing`, et son coût s'ajoute à `estimatedValue` — la part du total qui n'est pas cotée.
  */
 export function valueSeries({ holdings, prices, days }: ValueSeriesInput): ValuePoint[] {
   const entries = Object.entries(holdings);
   return days.map((day) => {
     let value = ZERO;
     let cost = ZERO;
+    let estimatedValue = ZERO;
     const missing: AssetCode[] = [];
     for (const [asset, step] of entries) {
       const state = step(day);
@@ -158,10 +166,11 @@ export function valueSeries({ holdings, prices, days }: ValueSeriesInput): Value
       if (point === null) {
         missing.push(asset);
         value = value.plus(state.cost);
+        estimatedValue = estimatedValue.plus(state.cost);
       } else value = value.plus(state.qty.times(D(point.priceEur)));
       cost = cost.plus(state.cost);
     }
-    return { day, value, cost, missing };
+    return { day, value, cost, missing, estimatedValue };
   });
 }
 
@@ -181,13 +190,17 @@ export function assetMetricPoints({ step, points, days }: AssetSeriesInput): Met
     const state = step(day);
     const point = lastPointAtOrBefore(points, day);
     const price = point === null ? null : D(point.priceEur);
+    const estimated = price === null && state.qty.gt(ZERO);
     return {
       day,
       value: price === null ? state.cost : state.qty.times(price),
+      // Un actif seul n'a rien à ventiler : sans cours, c'est la TOTALITÉ de sa valeur qui est
+      // portée au coût.
+      estimatedValue: estimated ? state.cost : ZERO,
       cost: state.cost,
       qty: state.qty,
       price,
-      estimated: price === null && state.qty.gt(ZERO),
+      estimated,
     };
   });
 }
