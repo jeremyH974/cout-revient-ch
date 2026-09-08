@@ -7,6 +7,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Un coffre : vos données chiffrées sur cet appareil, derrière un mot de passe.** Jusqu'ici, vos
+  opérations étaient enregistrées **en clair** dans le stockage de votre navigateur — seule la
+  sauvegarde que vous téléchargiez pouvait être chiffrée. Un profil de navigateur copié, un disque
+  non chiffré ou une extension qui lit ce site suffisaient donc à tout relire. Réglages → Coffre :
+  l'application chiffre alors vos données au repos et vous demande votre mot de passe à chaque
+  ouverture, en un quart de seconde. Changer ce mot de passe est instantané, quel que soit le volume
+  de vos données. **Faites une sauvegarde chiffrée d'abord** : personne — pas même cette application
+  — ne peut retrouver ni réinitialiser un mot de passe perdu, et il n'existe aucun compte pour le
+  faire à votre place. Le coffre protège vos données quand l'application est fermée ; il ne protège
+  pas un écran déjà déverrouillé.
 - **Un onglet Prêts, pour vos placements en financement participatif.** Importez l'export de
   votre espace BienPrêter et l'application vous dit ce que vous avez réellement apporté, ce que
   ça vaut aujourd'hui, et ce que ça rapporte — en euros et en pourcentage, plus un TRI annualisé.
