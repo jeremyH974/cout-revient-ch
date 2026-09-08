@@ -137,20 +137,113 @@ const closed = (
   '',
 ];
 
+const DIVIDEND_HEADER = [
+  'Date du paiement',
+  "Nom de l'instrument",
+  'Dividende net reçu (USD)',
+  'Dividende net reçu (EUR)',
+  'Montant du prélèvement à la source (EUR)',
+  'Identifiant de position',
+  'ISIN',
+];
+
+/** Une ligne de dividende : date SANS heure, net encaissé, retenue à part, ISIN de l'instrument. */
+const dividend = (
+  date: string,
+  instrument: string,
+  netEur: string,
+  withheldEur: string,
+  id: string,
+  isin: string,
+): string[] => [date, instrument, '0', netEur, withheldEur, id, isin];
+
 function book(
   activity: string[][],
   holdings: string[][] = [],
   closedRows: string[][] = [],
   names = ['Holdings', 'Activité du compte', 'Positions fermées'],
+  dividends: string[][] = [],
 ): Workbook {
   return {
     sheets: [
       { name: names[0]!, rows: [HOLDINGS_HEADER, ...holdings] },
       { name: names[1]!, rows: [ACTIVITY_HEADER, ...activity] },
       { name: names[2]!, rows: [CLOSED_HEADER, ...closedRows] },
+      ...(dividends.length > 0
+        ? [{ name: 'Dividendes', rows: [DIVIDEND_HEADER, ...dividends] }]
+        : []),
     ],
   };
 }
+
+describe('rattacher un dividende à sa ligne', () => {
+  const opened = open('01/02/2025 10:00:00', 'AAPL/USD', '2000', '10', 'p1', 'Actions');
+  const divOf = (result: ReturnType<typeof convertEtoroWorkbook>) =>
+    result.drafts.filter((d) => d.label === 'dividend');
+
+  it('suit l’identifiant de position quand le grand livre le connaît', () => {
+    const result = convertEtoroWorkbook(
+      book([opened], [], [], undefined, [
+        dividend('02/04/2025', 'Apple Inc.', '0.85', '0.15', 'p1', 'US0378331005'),
+      ]),
+    );
+    expect(divOf(result).map((d) => d.relatedAsset)).toEqual(['eq:aapl']);
+    // Le BRUT : 0,85 encaissé + 0,15 retenu.
+    expect(divOf(result)[0]?.received?.amount).toBe('1');
+  });
+
+  it('passe par l’ISIN quand seule la photo connaît la position', () => {
+    // « p9 » n'a pas de ligne d'ouverture — position antérieure à la fenêtre du relevé. Son ISIN
+    // est celui que la photo attache à « p1 », que le grand livre sait nommer.
+    const result = convertEtoroWorkbook(
+      book([opened], [snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks')], [], undefined, [
+        dividend('02/04/2025', 'Apple Inc.', '0.85', '0.15', 'p9', 'US0378331005'),
+      ]),
+    );
+    expect(divOf(result).map((d) => d.relatedAsset)).toEqual(['eq:aapl']);
+  });
+
+  it('REFUSE un ISIN que deux codes se disputent, au lieu d’en choisir un', () => {
+    // Un rattachement faux est pire qu'un rattachement absent : il fausserait le rendement de deux
+    // lignes au lieu d'une, et rien à l'écran ne le signalerait.
+    const result = convertEtoroWorkbook(
+      book(
+        [opened, open('01/03/2025 10:00:00', 'MSFT/USD', '900', '3', 'p2', 'Actions')],
+        [
+          snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks', 'SHARED000001'),
+          snap('46023', 'Microsoft Corp.', 'p2', '3', 'Stocks', 'SHARED000001'),
+        ],
+        [],
+        undefined,
+        [dividend('02/04/2025', 'Apple Inc.', '0.85', '0.15', 'p9', 'SHARED000001')],
+      ),
+    );
+    expect(divOf(result).map((d) => d.relatedAsset)).toEqual([null]);
+    expect(result.issues.map((i) => i.message).join(' ')).toContain(
+      "dividende(s) dont la position n'est plus identifiable",
+    );
+  });
+
+  it('n’invente rien d’un « - » : la colonne ISIN des cryptos n’est pas un identifiant', () => {
+    // Dix actifs partagent ce « - » dans un relevé réel. Le prendre pour un ISIN rattacherait
+    // n'importe quel dividende à n'importe quelle crypto.
+    //
+    // Ce qui protège ici est `reader.get`, qui rend « - » comme une absence dans tout le relevé —
+    // et non un contrôle propre au rattachement. La contre-épreuve porte donc là : rendre « - » tel
+    // quel au lecteur fait rougir ce test. Le vérifier importait, car une garde ajoutée en double
+    // dans `normalizeIsin` aurait fait passer ce test pour une raison qui n'était pas la sienne.
+    const result = convertEtoroWorkbook(
+      book(
+        [opened],
+        [snap('46023', 'Bitcoin', 'p1', '10', 'Crypto Currencies', '-')],
+        [],
+        undefined,
+        [dividend('02/04/2025', 'Apple Inc.', '0.85', '0.15', 'p9', '-')],
+      ),
+    );
+    expect(divOf(result).map((d) => d.relatedAsset)).toEqual([null]);
+  });
+});
 
 describe('détection d’un relevé eToro', () => {
   it('reconnaît les onglets en français comme en anglais', () => {

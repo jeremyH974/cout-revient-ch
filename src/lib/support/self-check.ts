@@ -118,11 +118,20 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       detail: 'Aucune donnée importée pour le moment.',
     });
   } else {
-    // 1. Invariant comptable, actif par actif : total = valeur + Σ produits − Σ achats.
+    // 1. Invariant comptable, actif par actif :
+    //      total = valeur + Σ produits + Σ revenus − Σ achats.
+    //
+    // **Le terme « revenus » manquait.** `total` inclut `otherIncome` depuis toujours, mais aucun
+    // produit ne le portait : l'invariant ne tenait que parce que les récompenses valent zéro par
+    // défaut. Un dividende non nul l'aurait cassé — et l'auto-vérification aurait accusé le moteur
+    // au lieu de sa propre formule (décision n° 132).
     const priced = allPositions(report).filter((p) => p.total !== null && p.value !== null);
     const broken = priced.filter(
       (p) =>
-        !p.total!.minus(p.value!.plus(p.proceedsTotal).minus(p.investedTotal)).abs().lte(TOLERANCE),
+        !p
+          .total!.minus(p.value!.plus(p.proceedsTotal).plus(p.otherIncome).minus(p.investedTotal))
+          .abs()
+          .lte(TOLERANCE),
     );
     checks.push(
       broken.length === 0
@@ -151,10 +160,17 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
         if (flow.amountEur.lt(ZERO)) negative = negative.plus(flow.amountEur);
         else positive = positive.plus(flow.amountEur);
       }
-      const investedSide = report.totals.investedTotal.plus(report.totals.subscriptionsEur);
+      // Un revenu de compte emet un flux date : il doit donc se retrouver du bon cote. Un montant
+      // negatif (frais de conversion) grossit les sorties, un positif (interets) les entrees.
+      const account = report.totals.accountIncomeEur;
+      const accountOut = account.lt(ZERO) ? account.neg() : ZERO;
+      const accountIn = account.gt(ZERO) ? account : ZERO;
+      const investedSide = report.totals.investedTotal
+        .plus(report.totals.subscriptionsEur)
+        .plus(accountOut);
       const flowsOk =
         negative.neg().minus(investedSide).abs().lte(TOLERANCE) &&
-        positive.minus(report.totals.proceedsTotal).abs().lte(TOLERANCE);
+        positive.minus(report.totals.proceedsTotal.plus(accountIn)).abs().lte(TOLERANCE);
       checks.push(
         flowsOk
           ? {

@@ -5,8 +5,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
+  **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
+  classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
+  de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
+
 ### Added
 
+- **Vos dividendes s'affichent désormais sur la ligne qui les a versés**, et non plus au compte : le
+  rendement d'un titre inclut enfin ce qu'il vous a rapporté. Les 64 dividendes du relevé sont tous
+  rattachés, y compris ceux d'une position ouverte avant la période du relevé — l'ISIN sert alors de
+  lien. Quand deux titres partagent un identifiant, l'application **ne choisit pas** : le dividende
+  reste au compte et l'import le dit.
+- **La retenue à la source d'un dividende était lue puis perdue** en chemin : elle est maintenant
+  conservée, et c'est elle qui ouvrira le crédit d'impôt.
+- **Vos dividendes sont enfin comptés.** Un dividende encaissé en euros n'avait aucun chemin dans
+  l'application : il disparaissait dans un compteur de lignes ignorées. Le relevé eToro en portait 64. Ils apparaissent désormais dans le résultat, **en brut**, avec la retenue à la source suivie
+  séparément — c'est le brut qui se déclare, et la retenue qui ouvrira le crédit d'impôt. Ils sont
+  pour l'instant portés au compte plutôt qu'à la ligne qui les a produits.
 - **L'écran Prêts se lit enfin d'un coup d'œil.** Deux anneaux — capital remboursé face au capital
   encore prêté, intérêts déjà reçus face à ceux que vos contrats annoncent — et un calendrier des
   douze prochains mois, capital et intérêts empilés. Le tout se déduit de vos contrats : ce n'est
@@ -66,6 +84,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le calendrier de P&L dit enfin combien de trades vous avez ouverts et fermés.** Le nombre sous
+  chaque case comptait les positions ayant réalisé quelque chose ce jour-là — frais et **funding
+  compris**. Sept positions ouvertes tout un été affichaient donc « 7 » chaque jour sans qu'aucune
+  ne s'ouvre ni ne se ferme. Les cases annoncent maintenant les ouvertures et les clôtures, et une
+  journée où vous n'avez fait que payer votre funding porte son montant sans décompte.
 - **La liste des trades comptait vos positions intermédiaires comme autant de trades.** Un ordre un
   peu gros ne s'exécute pas d'un bloc : il se remplit par tranches, parfois plusieurs dizaines dans
   la même milliseconde. L'application rangeait ces tranches par leur numéro d'exécution, qui n'est

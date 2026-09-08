@@ -697,3 +697,35 @@ test('la courbe de patrimoine finit sur le total de la Vue d’ensemble', async 
   expect(abbreviated(heroText), 'valeur abrégée en millions : comparaison impossible').toBe(false);
   expect(toNumber(curveText)).toBeCloseTo(toNumber(heroText), abbreviated(heroText) ? 0 : 1);
 });
+
+/**
+ * Le nombre affiché sous chaque case du calendrier disait « trades » en comptant les aller-retours
+ * ayant réalisé quelque chose — funding compris. Sur un compte réel, sept positions ouvertes tout
+ * l'été affichaient sept « trades » par jour sans qu'aucun ne s'ouvre ni ne se ferme. Il annonce
+ * désormais les ouvertures et les clôtures, et cette garde les recoupe avec la liste des trades :
+ * deux écrans, un seul compte (décision n° 135).
+ */
+test('Trading : les clôtures du calendrier = les trades clos de la liste', async ({ page }) => {
+  test.skip(Boolean(REAL_CSV), 'espace Trading : jeu de démonstration seulement');
+  await openDemo(page);
+
+  await page.goto('#/trading/trades');
+  const header = page.locator('.head p.count');
+  await expect(header).toBeVisible();
+  const closedInList = Number(plain(await header.innerText()).match(/·\s*(\d+)\s*clos/)![1]);
+  expect(closedInList).toBeGreaterThan(0);
+
+  // Maille année : toute l'histoire du compte tient dans la grille, sans navigation.
+  await page.goto('#/trading/stats');
+  await page.getByRole('radio', { name: 'Année' }).click();
+  const counts = await page.locator('.tiles .tile .count').allInnerTexts();
+  let closedInCalendar = 0;
+  let opened = 0;
+  for (const raw of counts) {
+    closedInCalendar += Number(plain(raw).match(/(\d+)\s*clos/)?.[1] ?? 0);
+    opened += Number(plain(raw).match(/(\d+)\s*ouv\./)?.[1] ?? 0);
+  }
+  expect(closedInCalendar).toBe(closedInList);
+  // Et il s'ouvre au moins autant de trades qu'il s'en ferme : le dernier peut rester ouvert.
+  expect(opened).toBeGreaterThanOrEqual(closedInCalendar);
+});

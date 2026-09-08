@@ -37,6 +37,10 @@ export interface PlatformDraft {
   txHash: string | null;
   /** Action de société (fractionnement) : la ligne ne porte aucun montant. */
   corporateAction?: CorporateAction | null;
+  /** Retenue à la source d'un revenu, dans sa devise ; `received` porte alors le BRUT. */
+  withheld?: PivotAmount | null;
+  /** Actif auquel rattacher un montant sans jambe (dividende → sa ligne) ; absent = au compte. */
+  relatedAsset?: string | null;
 }
 
 export interface PlatformConversion {

@@ -61,6 +61,8 @@ const EMPTY_REPORT = {
     feesEur: D('0'),
     rebatesEur: D('0'),
     subscriptionsEur: D('0'),
+    withheldEur: D('0'),
+    accountIncomeEur: D('0'),
     unpricedAssets: [],
   },
   allocation: [],

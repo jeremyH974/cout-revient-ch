@@ -105,6 +105,9 @@ function applyLegs(balances: Map<string, Big>, event: LedgerEvent): void {
     case 'fee':
       // Frais Coinhouse (abonnement) : jamais rattaché à un actif suivi ici.
       return;
+    case 'income':
+      // Revenu en especes : aucune quantite d'actif ne bouge, le solde du compte est inchange.
+      return;
     case 'split':
       // **Ce cas manquait, et personne ne l'a vu.** Le fractionnement est né la veille (décision
       // n° 111) et ce `switch` ne l'a jamais appris : sans `default` mais sans garde non plus,

@@ -123,15 +123,20 @@ describe('realizedEvents — attribution au jour de réalisation', () => {
     expect(trips[0]!.trip.netPnl.eq(total)).toBe(true);
   });
 
-  it('ignore le spot (les aller-retours sont des perps) et les montants nuls sans clôture', () => {
+  it('ignore le spot, et les montants nuls qui n’ouvrent ni ne clôturent rien', () => {
     const spot = fill(3, 'buy', '1', '10', { market: 'spot', symbol: 'PURR', fee: '0.05' });
-    const free = fill(4, 'buy', '1', '100'); // fill perp sans frais ni P&L : rien à dater
+    // Deux fills perp sans frais ni P&L : le premier OUVRE l'aller-retour et mérite d'être daté
+    // (décision n° 135), le second ne fait que renforcer la position et n'a rien à dire.
+    const opening = fill(4, 'buy', '1', '100');
+    const adding = fill(5, 'buy', '1', '100', { startPosition: '1' });
     const events = realizedEvents(
-      journaledTrips(buildRoundTrips([free]), [], {}),
-      [spot, free],
+      journaledTrips(buildRoundTrips([opening, adding]), [], {}),
+      [spot, opening, adding],
       [],
     );
-    expect(events).toEqual([]);
+    expect(events).toHaveLength(1);
+    expect(events[0]!).toMatchObject({ day: '2026-08-04', opens: true, closes: false });
+    expect(events[0]!.amount.toString()).toBe('0');
   });
 
   it('un trade manuel n’a pas d’exécution : son net est daté de la clôture saisie', () => {
@@ -155,10 +160,40 @@ describe('realizedEvents — attribution au jour de réalisation', () => {
       {},
     );
     const events = realizedEvents(trips, [], []);
-    expect(events).toHaveLength(1);
-    expect(events[0]!.day).toBe('2026-08-09');
-    expect(events[0]!.amount.toString()).toBe('19');
-    expect(events[0]!.closes).toBe(true);
+    // Deux marqueurs : l'ouverture saisie, à zéro, et le net au jour de clôture. Sans le premier,
+    // un trade saisi à la main ne serait jamais compté parmi les trades ouverts du jour.
+    expect(events).toHaveLength(2);
+    expect(events[0]!).toMatchObject({ day: '2026-08-03', opens: true, closes: false });
+    expect(events[0]!.amount.toString()).toBe('0');
+    expect(events[1]!).toMatchObject({ day: '2026-08-09', opens: false, closes: true });
+    expect(events[1]!.amount.toString()).toBe('19');
+  });
+
+  it('un trade manuel encore ouvert est compté le jour où il a été ouvert', () => {
+    const trips = journaledTrips(
+      [],
+      [
+        {
+          id: 'm2',
+          accountId: 'man:trading',
+          symbol: 'ETH',
+          direction: 'long',
+          qty: '2',
+          entryPrice: '100',
+          exitPrice: null,
+          openedAt: '2026-08-03T10:00:00',
+          closedAt: null,
+          fees: '1',
+          quote: 'EUR',
+        },
+      ],
+      {},
+    );
+    const month = calendarMonth(realizedEvents(trips, [], []), '2026-08', identity);
+    const days = flatDays(month.weeks);
+    expect(days.find((d) => d?.day === '2026-08-03')).toMatchObject({ opened: 1, closed: 0 });
+    expect(month.opened).toBe(1);
+    expect(month.closed).toBe(0);
   });
 });
 
@@ -169,6 +204,7 @@ const ev = (day: string, amount: string, over: Partial<RealizedEvent> = {}): Rea
   amount: D(amount),
   tripId: `rt:${day}:${amount}`,
   closes: false,
+  opens: false,
   ...over,
 });
 
@@ -422,5 +458,56 @@ describe('propriété — les trois mailles ne peuvent pas diverger', () => {
         },
       ),
     );
+  });
+});
+
+/*
+ * Le nombre affiché sous le montant disait « trades » en comptant les aller-retours ayant réalisé
+ * QUELQUE CHOSE — funding compris. Sur un compte réel, sept positions ouvertes tout l'été
+ * affichaient sept « trades » chaque jour sans qu'aucun ne soit ouvert ni fermé. Ces tests tiennent
+ * la distinction (décision n° 135).
+ */
+describe('ouverts et clos, distincts des jours de simple funding', () => {
+  it('date l’ouverture au premier fill et la clôture au dernier, funding exclu', () => {
+    const { events } = scaleOut();
+    const month = calendarMonth(events, '2026-08', identity);
+    const days = flatDays(month.weeks);
+    const on = (day: string): CalendarDay | null | undefined => days.find((d) => d?.day === day);
+
+    expect(on('2026-08-03')).toMatchObject({ opened: 1, closed: 0 });
+    // Le 4 n'a qu'un paiement de funding : la case porte un montant, mais AUCUNE activité.
+    expect(on('2026-08-04')).toMatchObject({ count: 1, opened: 0, closed: 0 });
+    // Le 5 allège la position sans la solder : ni ouverture, ni clôture.
+    expect(on('2026-08-05')).toMatchObject({ count: 1, opened: 0, closed: 0 });
+    expect(on('2026-08-07')).toMatchObject({ opened: 0, closed: 1 });
+    expect(month.opened).toBe(1);
+    expect(month.closed).toBe(1);
+  });
+
+  it('un aller-retour dont l’ouverture n’a pas été vue n’est compté nulle part', () => {
+    // `startPosition` annonce 3 BTC déjà en position : l'historique ne couvre pas l'ouverture, et
+    // la dater au premier fill connu inventerait une activité ce jour-là.
+    const executions = [
+      fill(3, 'sell', '3', '120', { closedPnl: '60', startPosition: '3', fee: '0.3' }),
+    ];
+    const trips = journaledTrips(buildRoundTrips(executions), [], {});
+    expect(trips[0]!.trip.incomplete).toBe(true);
+    const month = calendarMonth(realizedEvents(trips, executions, []), '2026-08', identity);
+    const day = flatDays(month.weeks).find((d) => d?.day === '2026-08-03');
+    expect(day).toMatchObject({ opened: 0, closed: 1 });
+    expect(month.opened).toBe(0);
+  });
+
+  it('les mailles mois et année comptent les mêmes ouvertures que les jours', () => {
+    const { events } = scaleOut();
+    const months = calendarMonths(events, '2026', identity);
+    const years = calendarYears(events, identity);
+    expect(months.buckets.find((b) => b.key === '2026-08')).toMatchObject({
+      opened: 1,
+      closed: 1,
+    });
+    expect(months.opened).toBe(1);
+    expect(years.buckets.find((b) => b.key === '2026')).toMatchObject({ opened: 1, closed: 1 });
+    expect(years.opened).toBe(1);
   });
 });

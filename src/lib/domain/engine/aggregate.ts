@@ -143,7 +143,12 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
   const investedTotal = sumBy(live, (p) => p.investedTotal);
   const proceedsTotal = sumBy(live, (p) => p.proceedsTotal);
   const value = sumBy(priced, (p) => p.value);
-  let total = realized.plus(unrealized).plus(otherIncome);
+  // Les revenus et frais DE COMPTE entrent dans le resultat sur leur propre ligne : interets de
+  // tresorerie et frais de conversion sont bien gagnes ou payes, mais n'appartiennent a aucune
+  // position -- les repartir sur les PRU serait arbitraire (decision n 132). Contrairement aux
+  // abonnements, ils ne dependent d'aucun reglage : ce sont des mouvements du compte, pas une
+  // convention de presentation.
+  let total = realized.plus(unrealized).plus(otherIncome).plus(run.accountIncomeEur);
   if (input.settings.includeSubscriptionsInPnl) total = total.minus(run.subscriptionsEur);
   const roiBase = isPositive(run.cashEngagedMax) ? run.cashEngagedMax : investedTotal;
   // « Investi » partage le périmètre de « Valeur » (positions cotées) pour que Latent = Valeur − Investi
@@ -170,6 +175,8 @@ export function computePortfolio(input: ComputeInput): PortfolioReport {
     feesEur: sumBy(live, (p) => p.feesEur),
     rebatesEur: sumBy(live, (p) => p.rebatesEur),
     subscriptionsEur: run.subscriptionsEur,
+    accountIncomeEur: run.accountIncomeEur,
+    withheldEur: run.withheldEur,
     unpricedAssets: unpriced.map((p) => p.asset),
   };
   const allocation: AllocationEntry[] = isPositive(value)

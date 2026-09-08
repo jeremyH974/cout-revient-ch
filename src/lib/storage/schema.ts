@@ -419,6 +419,8 @@ function sanitizePivotRow(key: string, raw: unknown): RawPivotRow | null {
     description: text(r['description'], 500),
     txHash: text(r['txHash'], 120),
     corporateAction: sanitizeCorporateAction(r['corporateAction']),
+    withheld: sanitizePivotAmount(r['withheld']) ?? null,
+    relatedAsset: text(r['relatedAsset'], 40),
   };
 }
 
@@ -474,7 +476,19 @@ function sanitizeManual(id: string, raw: unknown): ManualEvent | null {
   };
 }
 
-const ACCOUNT_ID = /^[a-z]{2,3}:[A-Za-z0-9._-]{1,80}$/;
+/**
+ * Identifiant de compte : un préfixe en minuscules, deux-points, un suffixe.
+ *
+ * Le préfixe acceptait **deux à trois lettres**, et rien ne disait pourquoi. Or l'application en
+ * fabrique de plus longs — `etoro:main` (5) et `lend:bienpreter` (4) : leurs comptes, et pour eToro
+ * **toutes les lignes importées**, étaient écartés à chaque relecture de l'état. Sans erreur, sans
+ * message : l'assainisseur fait son travail, et son travail était de les jeter.
+ *
+ * La borne n'est plus qu'un garde contre une entrée pathologique ; c'est le test d'exhaustivité
+ * (`storage.test.ts`) qui garantit que chaque identifiant réellement produit passe, en obligeant
+ * tout genre de compte nouveau à fournir son exemple.
+ */
+const ACCOUNT_ID = /^[a-z]{2,16}:[A-Za-z0-9._-]{1,80}$/;
 
 // --- Journal de trading et trades manuels (P21) -----------------------------------------------
 
