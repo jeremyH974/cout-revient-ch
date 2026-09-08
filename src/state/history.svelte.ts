@@ -140,7 +140,12 @@ export class HistoryState {
     // couche à coter en dollars (décision n° 42). On lit `fx.rates.USD` directement : `app.fxLookup`
     // suit la **devise d'affichage** et serait vide dès que l'utilisateur affiche en euros, alors
     // que la série USD est chargée dans tous les cas (elle sert déjà aux prix spot en dollars).
-    return defaultHistoryProviders(overrides, toEurAtDay(app.state.fx.rates.USD ?? {}));
+    // Les clés de l'utilisateur : sans elles, les fournisseurs de titres ne contactent rien
+    // (décision n° 125). Elles sont celles du prix spot — une clé saisie sert les deux.
+    return defaultHistoryProviders(overrides, toEurAtDay(app.state.fx.rates.USD ?? {}), {
+      twelveDataApiKey: app.state.ui.twelveDataApiKey,
+      alphaVantageApiKey: app.state.ui.alphaVantageApiKey,
+    });
   }
 
   /** Erreurs du chargement quotidien suivies des erreurs intraday encore d'actualité. */

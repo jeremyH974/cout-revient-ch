@@ -146,6 +146,12 @@ test('le volet Actions a sa courbe et sa répartition, sur ses seuls titres', as
   await expect(evolution).toBeVisible();
   await expect(evolution.getByRole('heading', { name: /Évolution des titres/ })).toBeVisible();
 
+  // La courbe n'est PAS hachurée : c'est la seule chose que l'historique boursier change.
+  // Sans fournisseur, la ligne serait valorisée au coût et la légende annoncerait « porté au
+  // coût, faute de cotation » -- un chiffre s'afficherait quand meme (décision n° 114), donc
+  // l'exiger ne prouverait rien. La contre-épreuve l'a montré : elle refusait de rougir.
+  await expect(evolution.getByText(/porté au coût/)).toHaveCount(0);
+
   // La répartition ne paraît que s'il y a plusieurs lignes cotées, et ses parts somment à 100 %.
   const donut = page.locator('section', { hasText: 'Répartition' }).last();
   await expect(donut).toBeVisible();

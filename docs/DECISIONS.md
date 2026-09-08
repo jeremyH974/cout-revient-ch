@@ -3111,3 +3111,31 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      **Contre-épreuves** (décision n° 75) : la courbe rendue au périmètre « portefeuille », la spec
      ne trouve plus son titre — « element(s) not found » ; les parts divisées par un dénominateur
      élargi, « expected [ '0.25', …(1) ] to deeply equal [ '0.75', '0.25' ] ».
+125. **L'historique d'un titre se charge en un appel, et se convertit au taux de chaque jour**
+     (08/09/2026). `history/providers/` ne contenait que des sources crypto : la courbe d'un titre
+     n'avait de valeur qu'au dernier point, les précédents étant portés au coût et hachurés
+     (décision n° 114). Honnête, mais approximatif.
+     **Twelve Data rend la devise de la série** (`meta.currency`), là où son `/quote` la tait. Le
+     fournisseur n'a donc rien à deviner : un euro est pris tel quel, un dollar est converti **au
+     taux du jour de CHAQUE point** — une série de deux ans convertie au cours d'aujourd'hui serait
+     une autre courbe — et toute autre devise fait repartir l'actif sans point. Un jour sans taux
+     BCE est écarté plutôt qu'emprunté au voisin : une série a le droit d'avoir des trous, pas
+     d'avoir un point converti au taux d'un autre jour.
+     **Alpha Vantage, lui, ne dit toujours pas la devise.** Seul `alphaVantageSymbol()` décide donc
+     de ce qui est interrogé — jamais Londres, qui cote tantôt en pence tantôt en dollars sans le
+     signaler. Et `outputsize=full` plutôt que `compact` : **le quota commande la conception**, vingt
+     cinq requêtes par jour partagées avec le prix spot ne permettent pas de revenir chercher la
+     suite d'une série.
+     **Les deux sources sont toujours dans la chaîne, inertes sans clé.** Les omettre quand la clé
+     manque ferait dépendre la _forme_ de la chaîne d'un réglage : deux configurations, deux ordres,
+     deux comportements à éprouver. Elles se taisent par `supports`, comme DefiLlama se tait sans
+     convertisseur — et DefiLlama reste dernier, la décision n° 42 tient.
+     **Contre-épreuves** (décision n° 75) : taux figé au même jour pour tous les points, « expected
+     […] to deeply equal […] » sur deux points distincts ; devise inconnue prise pour un euro,
+     quatre tests rougissent ; Londres réadmise, « expected true to be false ». Et en bout de chaîne,
+     les deux fournisseurs retirés : la courbe des titres retrouve sa hachure, « Expected: 0 ·
+     Received: 1 ».
+     **Une contre-épreuve a d'abord refusé de rougir, et elle avait raison.** J'exigeais un chiffre
+     sur la courbe ; sans historique, la ligne est valorisée au coût et affiche donc un chiffre
+     quand même. L'assertion ne distinguait rien. Ce que l'historique change vraiment, c'est la
+     **hachure** — c'est elle qu'il fallait viser.
