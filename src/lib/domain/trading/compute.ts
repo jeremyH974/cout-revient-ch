@@ -220,7 +220,9 @@ export function computeTradingAccount(
   input: TradingAccountInput,
   spotPrice: SpotPrice = () => null,
 ): TradingAccountReport {
-  const executions = [...input.executions].sort(byTime);
+  // Les exécutions se trient par instant SEUL : leur ordre dans la milliseconde porte déjà la
+  // séquence de la plateforme, qu'un départage par identifiant détruirait (décision n° 130).
+  const executions = [...input.executions].sort((a, b) => a.time - b.time);
   const funding = [...input.funding].sort(byTime);
   const cashFlows = [...input.cashFlows].sort(byTime);
   const totals = computeTotals(executions, funding, cashFlows);

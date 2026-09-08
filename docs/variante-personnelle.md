@@ -34,7 +34,7 @@ Pose un raccourci **« Coût de revient CH »** dans le menu Démarrer (ajoutez 
 l'avoir aussi sur le Bureau). Il lance `lancer-prive.cmd`, qui reconstruit, démarre le serveur et
 ouvre une fenêtre de navigateur **sans barre d'adresse ni onglets**, avec sa propre entrée dans la
 barre des tâches. Ça ressemble à une application de bureau, sans en être une — et c'est délibéré
-(décision n° 128).
+(décision n° 131).
 
 `npm run prive:app` fait la même chose sans passer par le raccourci. `-Rapide` saute la
 reconstruction, mais **seulement** si `dist/` porte déjà un build privé.

@@ -28,7 +28,7 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   Voir `docs/variante-personnelle.md`.
 - `npm run prive:app` / `npm run prive:raccourci` — **Windows** : lanceur en un double-clic
   (`lancer-prive.cmd`) qui reconstruit, sert et ouvre une fenêtre Chromium en mode `--app=`, et
-  raccourci du menu Démarrer. Pas d'empaquetage Tauri/Electron, à dessein (décision n° 130) : il
+  raccourci du menu Démarrer. Pas d'empaquetage Tauri/Electron, à dessein (décision n° 131) : il
   ferait tomber le bac à sable, la CSP en en-tête et Trusted Types, et donnerait au code un accès
   **permanent** au disque. Le lanceur **refuse de servir un `dist/` public** depuis l'origine
   privée — `dist/` est partagé entre les deux builds.
