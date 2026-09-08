@@ -3210,3 +3210,28 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      commande ; disclosure remplacée par une section ordinaire, le test ne trouve plus de quoi
      replier. La cinquième s'est produite d'elle-même : le nouvel audit axe a rougi sur
      `target-size` avant le correctif.
+128. **La page qui promet la confidentialité n'était gardée par rien** (08/09/2026).
+     La CSP a son test, le catalogue des sources a le sien, `ARCHITECTURE.md` croise cinq listes
+     avec le code. **L'écran Confidentialité, lui, ne croisait rien** — et c'est pourtant celui qui
+     engage le plus l'utilisateur.
+     La preuve par l'usage : les deux flux ajoutés le jour même (cours de titres chez Twelve Data et
+     Alpha Vantage) n'y figuraient pas. Le garde-fou écrit ensuite en a trouvé **quatre autres**,
+     antérieurs : Kraken, DefiLlama, le second hôte de Coinbase, et l'indice de sentiment. La page
+     disait « CoinGecko puis Coinbase » quand quatre services étaient interrogés.
+     **Toutes les origines ne se valent pas, et la page doit le dire.** Un appel à CoinGecko est
+     anonyme — il ne livre qu'une adresse IP. Une requête à Twelve Data ou Alpha Vantage porte **la
+     clé de l'utilisateur**, rattachée à son inscription : ces services peuvent associer la liste de
+     ses titres à un compte identifié. Ranger les deux sous « ces services voient votre adresse IP »
+     aurait été exact et trompeur à la fois.
+     Le garde-fou compare `KNOWN_ORIGINS` (usage `connect`) au texte de la page, avec une table
+     d'exemptions **explicites et justifiées** — un repli couvert par la phrase d'à côté, une source
+     qui ne reçoit rien de personnel. Une exemption muette rouvrirait le trou qu'on ferme ; une
+     exemption périmée serait du bruit qui finit par couvrir une vraie omission, d'où le troisième
+     test qui les fait expirer avec leur origine.
+     **Contre-épreuves** (décision n° 75) : origines des titres retirées de la page, « origines
+     contactées mais absentes de la page : api.twelvedata.com, www.alphavantage.co » ; distinction
+     effacée, le test la réclame ; exemption sans origine, « exemptions sans origine correspondante :
+     api.disparue.example ».
+     **Vérification incomplète, et il faut le dire** : le contrôle visuel n'a pas pu se faire, le
+     port de développement étant tenu par le serveur d'une autre session qui servait un ancien
+     bundle — le même piège que la décision n° 122. Les tests, eux, lisent le fichier sur le disque.

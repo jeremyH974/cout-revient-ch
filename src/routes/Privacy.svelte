@@ -18,9 +18,34 @@
   <h2>Qu'est-ce qui sort de votre appareil ?</h2>
   <ul>
     <li>
-      La liste des cryptos que vous détenez (pas les quantités), envoyée à CoinGecko puis Coinbase
-      pour obtenir les prix. Ces services voient votre adresse IP. Désactivable dans les réglages
-      (prix manuels).
+      La liste des cryptos que vous détenez (pas les quantités), envoyée pour obtenir les prix — du
+      jour comme passés — à CoinGecko (<code>api.coingecko.com</code>), Coinbase (<code
+        >api.coinbase.com</code
+      >, <code>api.exchange.coinbase.com</code>), Kraken (<code>api.kraken.com</code>) et DefiLlama
+      (<code>coins.llama.fi</code>). Chacun n'est interrogé que pour les actifs que les précédents
+      n'ont pas su coter. Ces services voient votre adresse IP, et rien d'autre qui vous désigne.
+      Désactivable dans les réglages (prix manuels).
+    </li>
+    <li>
+      La liste des <strong>actions et ETF</strong> que vous détenez (pas les quantités), envoyée à
+      <code>api.twelvedata.com</code> et, pour les places européennes, à
+      <code>www.alphavantage.co</code> — pour leurs cours du jour, leur historique et leurs logos.
+      <strong>Ces deux-là ne sont pas anonymes</strong> : votre clé accompagne chaque requête, et elle
+      est rattachée à votre inscription chez eux. Là où CoinGecko ne voit qu'une adresse IP, ces services
+      peuvent associer la liste de vos titres à un compte identifié. La différence est réelle, et c'est
+      le prix d'un cours d'action : aucune source gratuite ne les cote sans clé. Ne rien saisir suffit
+      à couper ces deux flux — les titres restent alors au prix que vous indiquez vous-même.
+    </li>
+    <li>
+      Quand un relevé de courtier identifie un titre par son <strong>ISIN</strong> plutôt que par
+      son ticker, cet ISIN est envoyé à <code>api.twelvedata.com</code> pour être résolu. Il désigne l'instrument
+      plus précisément qu'un ticker ; le résultat est mémorisé pour ne pas redemander.
+    </li>
+    <li>
+      Si vous activez le <strong>contexte de marché</strong> (décoché par défaut), l'indice Fear
+      &amp; Greed est demandé à <code>api.alternative.me</code>. Cette requête ne porte
+      <strong>rien de vous</strong> : c'est un chiffre public, identique pour tout le monde, et elle ne
+      dit ni ce que vous détenez ni combien.
     </li>
     <li>Le téléchargement du site lui-même depuis GitHub Pages (qui voit votre adresse IP).</li>
     <li>
