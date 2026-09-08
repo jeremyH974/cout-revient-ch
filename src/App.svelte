@@ -26,7 +26,7 @@
   import Loans from './routes/wealth/Loans.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
-  import Titles from './routes/wealth/Titles.svelte';
+  import Titles from './routes/invest/Titles.svelte';
   import Report from './routes/invest/Report.svelte';
   import SecondOpinion from './routes/invest/SecondOpinion.svelte';
   import { recordError } from '$lib/support/errors';

@@ -71,6 +71,8 @@ function parseInvest(sub: string | undefined, arg: string | undefined): Route {
       return { name: 'secondOpinion' };
     case 'alerts':
       return { name: 'alerts' };
+    case 'titles':
+      return { name: 'titles' };
     case 'loans':
       return { name: 'loans' };
     default:
@@ -78,13 +80,18 @@ function parseInvest(sub: string | undefined, arg: string | undefined): Route {
   }
 }
 
-/** Sous-chemins de l'espace Patrimoine : `#/wealth`, `#/wealth/loans`… */
+/**
+ * Sous-chemins de l'espace Patrimoine : `#/wealth`, `#/wealth/loans`…
+ *
+ * `#/wealth/titles` reste compris et mène aux titres, bien que ceux-ci aient rejoint
+ * l'Investissement : un lien partagé ne casse pas — même règle que les hashes v1.
+ */
 function parseWealth(sub: string | undefined): Route {
   switch (sub) {
-    case 'loans':
-      return { name: 'loans' };
-    default:
+    case 'titles':
       return { name: 'titles' };
+    default:
+      return { name: 'loans' };
   }
 }
 
@@ -164,7 +171,7 @@ export function toHash(route: Route): string {
     case 'loans':
       return '#/wealth/loans';
     case 'titles':
-      return '#/wealth';
+      return '#/invest/titles';
     case 'trades':
       return '#/trading/trades';
     case 'trade':

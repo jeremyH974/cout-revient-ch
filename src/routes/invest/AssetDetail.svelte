@@ -4,6 +4,7 @@
   import { downloadText } from '$lib/export/download';
   import { fmtRelative, localDay } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
+  import { isEquityCode } from '$lib/domain/assets';
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import AlertRuleSheet from '../../components/alerts/AlertRuleSheet.svelte';
@@ -12,6 +13,7 @@
   import HistoryTab from '../../components/asset/HistoryTab.svelte';
   import LotsTab from '../../components/asset/LotsTab.svelte';
   import EvolutionCard from '../../components/charts/EvolutionCard.svelte';
+  import InvestTabs from '../../components/invest/InvestTabs.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import CoinBadge from '../../components/shared/CoinBadge.svelte';
   import Money from '../../components/shared/Money.svelte';
@@ -40,6 +42,12 @@
   let alertSheet = $state(false);
   let simulateSheet = $state(false);
   const assetAlertCount = $derived(app.alertRules.filter((r) => r.asset === asset).length);
+  /**
+   * La fiche sert les deux volets de l'espace : l'onglet actif et la cible du retour se dérivent
+   * donc de la CLASSE de l'actif, pas de la route. Sans cela, ouvrir LVMH allumerait « Crypto » et
+   * proposerait de revenir au portefeuille crypto.
+   */
+  const isEquity = $derived(isEquityCode(asset));
 
   const position = $derived(
     [
@@ -86,7 +94,8 @@
   }
 </script>
 
-<AppBar title={asset.toUpperCase()} back />
+<AppBar title={asset.toUpperCase()} back={isEquity ? { name: 'titles' } : true} />
+<InvestTabs active={isEquity ? 'titles' : 'portfolio'} />
 
 {#if !position}
   <p class="empty muted">

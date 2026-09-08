@@ -2898,3 +2898,32 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      celui qui manquait : `heldAssets` remis dans son état d'origine, l'écran Titres garde
      « Prix indisponible » et la spec le nomme. Aucun stub de Twelve Data n'existait dans les tests
      de bout en bout — c'est pourquoi rien n'a jamais rougi.
+120. **Crypto et actions sont deux volets d'un même espace, pas deux espaces** (08/09/2026).
+     L'espace Investissement porte désormais **Crypto** et **Actions et ETF** ; le Patrimoine garde
+     le **non-coté** — les prêts, et l'immobilier demain. La ligne de partage est la façon dont un
+     actif se valorise, pas son nom : elle survit à l'arrivée d'obligations (→ Investissement)
+     comme d'une résidence (→ Patrimoine), là où « crypto contre bourse » aurait fallu retrancher
+     à chaque nouvelle classe.
+     Ce qui rapproche crypto et titres est plus fort que ce qui les sépare : même moteur, même prix
+     de revient moyen pondéré, mêmes écrans, mêmes lots. Ce qui les sépare est leur **régime
+     fiscal** (décision n° 119), et un régime fiscal ne justifie pas une seconde barre de
+     navigation — il justifie un second module de calcul.
+     **La route `asset` est partagée, et c'est le point délicat.** L'onglet actif et la cible du
+     retour s'y dérivent de la **classe de l'actif affiché**, jamais de la route : sans cela,
+     ouvrir LVMH allumerait « Crypto » et proposerait de revenir au portefeuille crypto,
+     c'est-à-dire ailleurs que d'où l'utilisateur vient. `AppBar` acceptait déjà une cible
+     explicite, rien n'a été ajouté au composant.
+     `#/wealth` désigne maintenant les prêts, et `#/invest/titles` les titres. **`#/wealth/titles`
+     reste compris** : cette adresse n'a vécu qu'une journée, mais la règle des hashes v1 ne se
+     négocie pas au cas par cas — un favori ne tombe jamais sur le mauvais écran.
+     **Contre-épreuves** (décision n° 75) : `titles` remis dans le Patrimoine, « expected 'wealth'
+     to be 'invest' » et, à l'écran, la barre du bas n'allume plus l'Investissement ; alias retiré,
+     « expected { name: 'loans' } to deeply equal { name: 'titles' } » ; onglet de la fiche codé en
+     dur, « Expected: "page" · Received: "" ».
+     **Et une leçon de méthode qui vaut la décision elle-même.** Cette dernière contre-épreuve a
+     refusé de rougir trois fois : code faussé, build refait, bundle vérifié sur disque. J'ai
+     conclu à un test creux et réécrit un test qui était juste. La cause était le harnais —
+     `playwright.config.ts` pose `reuseExistingServer: !CI`, et un serveur de prévisualisation
+     d'un autre worktree tenait le port 4173 en servant un bundle périmé. **Un `npx playwright
+test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui ne rougit pas
+     accuse d'abord le harnais, pas le test.

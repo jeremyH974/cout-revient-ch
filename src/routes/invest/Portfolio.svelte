@@ -6,6 +6,7 @@
   import { assetName } from '$lib/pricing/tickers';
   import { router } from '$lib/router.svelte';
   import { nowMs } from '$lib/clock';
+  import InvestTabs from '../../components/invest/InvestTabs.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import AssetRow from '../../components/portfolio/AssetRow.svelte';
   import QualifySheet from '../../components/portfolio/QualifySheet.svelte';
@@ -69,6 +70,7 @@
 </script>
 
 <AppBar />
+<InvestTabs active="portfolio" />
 <SummaryHeader />
 <EvolutionCard scope="portfolio" />
 

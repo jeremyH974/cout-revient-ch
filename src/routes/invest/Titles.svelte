@@ -3,6 +3,7 @@
   import type { PositionReport } from '$lib/domain/engine';
   import { D, ZERO } from '$lib/domain/money';
   import { router } from '$lib/router.svelte';
+  import InvestTabs from '../../components/invest/InvestTabs.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import AssetRow from '../../components/portfolio/AssetRow.svelte';
   import Delta from '../../components/shared/Delta.svelte';
@@ -40,6 +41,7 @@
 </script>
 
 <AppBar />
+<InvestTabs active="titles" />
 
 <section class="card summary">
   <h1>Titres</h1>
