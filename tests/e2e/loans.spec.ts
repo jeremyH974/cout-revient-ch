@@ -6,12 +6,14 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { computeLending } from '../../src/lib/domain/lending/compute';
+import { lendingOutlook } from '../../src/lib/domain/lending/outlook';
 import { lendingSummary } from '../../src/lib/domain/lending/summary';
 import { lendingTaxFr } from '../../src/lib/domain/lending/tax-fr';
 import { D } from '../../src/lib/domain/money';
 import { fmtMoney, fmtRatio } from '../../src/lib/format/fr';
 import { parseBienPreter } from '../../src/lib/import/bienpreter/parse';
 import { parseCsvText } from '../../src/lib/import/csv';
+import { expectNoViolations } from './helpers/axe';
 import { normalize } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
 
@@ -99,8 +101,14 @@ function latin1(text: string): Uint8Array {
   return out;
 }
 
+/**
+ * Chaque phrase sur SA ligne — une matrice de texte par ligne, 16 points plus bas à chaque fois.
+ * L'ancienne version les posait toutes au même endroit, ce qui les fondait en une seule ligne :
+ * indifférent pour une phrase de taux, fatal pour un échéancier, qui se lit ligne par ligne.
+ */
 function contractPdf(sentences: readonly string[]): Uint8Array {
-  const content = latin1(`BT /F1 12 Tf 1 0 0 1 10 700 Tm (${sentences.join(') Tj (')}) Tj ET`);
+  const body = sentences.map((text, i) => `1 0 0 1 10 ${700 - i * 16} Tm (${text}) Tj`).join('\n');
+  const content = latin1(`BT /F1 12 Tf\n${body}\nET`);
   const head = latin1(
     [
       '%PDF-1.7',
@@ -235,4 +243,133 @@ test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
   await nav.getByRole('link', { name: 'Patrimoine' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+});
+
+// --- Les blocs visuels : anneaux, calendrier, liste repliable ---------------------------------
+
+test('les anneaux disent le capital et les intérêts, et l’absence quand elle est réelle', async ({
+  page,
+}) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await page.goto('#/wealth/loans');
+
+  const rings = page.locator('section.rings');
+  // Le centre du premier anneau porte le capital PRÊTÉ — jamais les apports, qui sont plus bas.
+  await expect(rings).toContainText(eur(report.totals.disbursed));
+  await expect(rings).toContainText(eur(report.totals.principalRepaid));
+  await expect(rings).toContainText(eur(report.totals.outstanding));
+  await expect(rings).toContainText(eur(summary.interestNet));
+
+  // Sans contrat, aucun échéancier : les intérêts attendus sont INCONNUS, pas nuls.
+  await expect(rings).toContainText(/Les intérêts attendus demandent l.échéancier/);
+  // Et le calendrier n'existe pas du tout : un graphique vide se lirait comme « rien à venir ».
+  await expect(page.getByRole('heading', { name: 'Mes remboursements' })).toHaveCount(0);
+});
+
+test('la liste des prêts se replie et se rouvre', async ({ page }) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await page.goto('#/wealth/loans');
+
+  const list = page.locator('details.list');
+  const table = list.locator('table');
+  // Ouverte par défaut : la trouver fermée serait une perte, la replier est un choix.
+  await expect(table).toBeVisible();
+  await list.locator('summary').click();
+  await expect(table).toBeHidden();
+  await list.locator('summary').click();
+  await expect(table).toBeVisible();
+});
+
+// --- Un contrat qui porte un ÉCHÉANCIER, donc un calendrier -----------------------------------
+
+/** `dd/MM/yyyy` du 15 du mois, `n` mois après aujourd'hui : toujours dans le futur. */
+function futureDue(n: number): { fr: string; month: string } {
+  const now = new Date();
+  const at = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + n, 15));
+  const yyyy = at.getUTCFullYear();
+  const mm = String(at.getUTCMonth() + 1).padStart(2, '0');
+  return { fr: `15/${mm}/${yyyy}`, month: `${yyyy}-${mm}` };
+}
+
+const PLAN = [1, 2, 3].map((n, i) => ({
+  ...futureDue(n),
+  principal: [100, 100, 200][i]!,
+  interest: [10, 9, 8][i]!,
+}));
+
+/** L'euro en WinAnsi : l'octet 0x80, que `latin1` écrira tel quel — jamais deux octets d'UTF-8. */
+const EURO = String.fromCharCode(0x80);
+
+const CONTRACT_WITH_PLAN = contractPdf([
+  'Le taux fixe annuel de 12 %.',
+  "Ces intérêts sont calculés sur la base d'une année civile.",
+  ...PLAN.map(
+    (row) =>
+      // Trois dates — facture, prélèvement, échéance — puis capital, intérêts, restant dû.
+      `${row.fr} ${row.fr} ${row.fr} ${row.principal},00 ${EURO} ${row.interest},00 ${EURO} 0,00 ${EURO}`,
+  ),
+]);
+
+test('un contrat qui porte un échéancier fait apparaître le calendrier des remboursements', async ({
+  page,
+}) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await page.setInputFiles('input[type="file"]', {
+    name: 'contracts.zip',
+    mimeType: 'application/zip',
+    buffer: storedZip('C-001.pdf', CONTRACT_WITH_PLAN),
+  });
+  const read = page.locator('section', { hasText: 'Contrats lus' });
+  await expect(read).toContainText('1 prêt(s) complété(s)');
+
+  await page.goto('#/wealth/loans');
+  await expect(page.getByRole('heading', { name: 'Mes remboursements' })).toBeVisible();
+
+  // L'attendu vient du MOTEUR, rejoué ici sur les mêmes termes — jamais d'un littéral d'écran.
+  const withPlan = Object.fromEntries(parsed.loans.map((l) => [l.id, l]));
+  const target = withPlan['bp:C-001'];
+  expect(target, 'la fixture doit porter le contrat C-001').toBeDefined();
+  withPlan['bp:C-001'] = {
+    ...target!,
+    schedule: PLAN.map((row) => ({
+      due: `${row.month}-15T00:00:00`,
+      principal: String(row.principal),
+      interest: String(row.interest),
+      outstanding: '0',
+    })),
+  };
+  const replayed = computeLending({
+    loans: Object.values(withPlan),
+    events: parsed.events,
+    asOf,
+  });
+  const ahead = lendingOutlook({ report: replayed, months: 12 });
+  expect(Number(ahead.expectedPrincipal)).toBeGreaterThan(0);
+
+  const card = page.locator('section', { hasText: 'Mes remboursements' });
+  await expect(card).toContainText(eur(ahead.expectedPrincipal));
+  await expect(card).toContainText(eur(ahead.expectedInterest));
+  // Et l'anneau des intérêts cesse de dire que l'attendu est hors de portée.
+  await expect(page.locator('section.rings')).not.toContainText(/demandent l.échéancier/);
+});
+
+test('axe ne trouve rien sur l’écran Prêts CHARGÉ, anneaux et calendrier compris', async ({
+  page,
+}) => {
+  // La boucle de routes d'`a11y.spec.ts` visite cet écran à vide : elle n'y voyait donc ni anneau
+  // ni graphique. C'est ici, une fois les données ET les contrats importés, que les blocs
+  // visuels passent devant axe.
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await page.setInputFiles('input[type="file"]', {
+    name: 'contracts.zip',
+    mimeType: 'application/zip',
+    buffer: storedZip('C-001.pdf', CONTRACT_WITH_PLAN),
+  });
+  await page.goto('#/wealth/loans');
+  await expect(page.getByRole('heading', { name: 'Mes remboursements' })).toBeVisible();
+  await expectNoViolations(page, '#/wealth/loans (chargé)');
 });

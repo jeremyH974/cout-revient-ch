@@ -35,7 +35,45 @@ interface Font {
   cmap: Map<number, string> | null;
   /** `Identity-H` code sur deux octets. */
   twoByte: boolean;
+  /** La police déclare `/WinAnsiEncoding` : la plage 0x80–0x9F n'est PAS du Latin-1. */
+  winAnsi: boolean;
 }
+
+/**
+ * WinAnsi (cp1252) diffère de Latin-1 sur les trente-deux codes 0x80–0x9F, que Latin-1 laisse aux
+ * caractères de commande. C'est là que vit le **signe euro** (0x80) — et sans cette table, un
+ * montant d'un contrat WinAnsi rendait, à la place de l'euro, le caractère de commande U+0080 :
+ * invisible à l'œil, mais toute expression régulière cherchant « € » échouait alors en silence.
+ */
+const WIN_ANSI_HIGH: Readonly<Record<number, string>> = {
+  0x80: '€',
+  0x82: '‚',
+  0x83: 'ƒ',
+  0x84: '„',
+  0x85: '…',
+  0x86: '†',
+  0x87: '‡',
+  0x88: 'ˆ',
+  0x89: '‰',
+  0x8a: 'Š',
+  0x8b: '‹',
+  0x8c: 'Œ',
+  0x8e: 'Ž',
+  0x91: '‘',
+  0x92: '’',
+  0x93: '“',
+  0x94: '”',
+  0x95: '•',
+  0x96: '–',
+  0x97: '—',
+  0x98: '˜',
+  0x99: '™',
+  0x9a: 'š',
+  0x9b: '›',
+  0x9c: 'œ',
+  0x9e: 'ž',
+  0x9f: 'Ÿ',
+};
 
 const HEX_RUN = /<([0-9A-Fa-f\s]*)>/g;
 
@@ -85,6 +123,7 @@ function fontTable(objects: Map<number, PdfObject>): Map<string, Font> {
     return {
       cmap: target?.stream ? toUnicodeMap(latin1(target.stream)) : null,
       twoByte: head.includes('Identity-H') || head.includes('/Type0'),
+      winAnsi: head.includes('/WinAnsiEncoding'),
     };
   };
   for (const object of objects.values()) {
@@ -155,6 +194,8 @@ function decodeString(token: string, font: Font | null): string {
     for (let i = 0; i + 1 < bytes.length; i += 2) codes.push((bytes[i]! << 8) | bytes[i + 1]!);
   else codes.push(...bytes);
   if (font?.cmap) return codes.map((code) => font.cmap!.get(code) ?? '').join('');
+  if (font?.winAnsi)
+    return codes.map((code) => WIN_ANSI_HIGH[code] ?? String.fromCharCode(code)).join('');
   return codes.map((code) => String.fromCharCode(code)).join('');
 }
 

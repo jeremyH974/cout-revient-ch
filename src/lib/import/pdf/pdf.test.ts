@@ -40,6 +40,13 @@ function pdf(bodies: readonly (string | Uint8Array)[]): ArrayBuffer {
   return out.buffer;
 }
 
+/** Un octet par caractère : c'est ainsi qu'un PDF WinAnsi code son contenu. */
+function latin1Bytes(text: string): Uint8Array {
+  const out = new Uint8Array(text.length);
+  for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i) & 0xff;
+  return out;
+}
+
 const plainStream = (content: string): string =>
   `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
 
@@ -168,6 +175,22 @@ describe('pdfTextRows', () => {
       ]),
     );
     expect(rows).toEqual(['ajuste']);
+  });
+
+  it('rend l’euro d’une police WinAnsi, que Latin-1 place dans les commandes', async () => {
+    // 0x80 : l'euro en cp1252, un caractere de commande en Latin-1. Sans la table, le montant
+    // portait un caractere invisible, et toute recherche de « euro » echouait sans bruit.
+    const rows = await pdfTextRows(
+      pdf([
+        '<< /Font << /F1 2 0 R >> >>',
+        WIN_ANSI,
+        // Encodé en latin-1 : l'assembleur écrit de l'UTF-8, où 0x80 deviendrait DEUX octets.
+        latin1Bytes(
+          plainStream(`BT /F1 12 Tf 1 0 0 1 10 700 Tm (100,00 ${String.fromCharCode(0x80)}) Tj ET`),
+        ),
+      ]),
+    );
+    expect(rows).toEqual(['100,00 €']);
   });
 
   it('lit les échappements d’une chaîne littérale', async () => {

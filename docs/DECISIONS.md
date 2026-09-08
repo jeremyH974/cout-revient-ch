@@ -3139,6 +3139,7 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      sur la courbe ; sans historique, la ligne est valorisée au coût et affiche donc un chiffre
      quand même. L'assertion ne distinguait rien. Ce que l'historique change vraiment, c'est la
      **hachure** — c'est elle qu'il fallait viser.
+
 126. **Le spread eToro est facturé à part, donc il manquait au prix de revient** (08/09/2026).
      Mesuré sur un relevé réel : `Position ouverte PLTR/USD montant 153,22` — soit le cours
      d'ouverture 76,61 multiplié par 2 unités, **exactement** — et, à la même seconde,
@@ -3166,7 +3167,50 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      dernière n'a rougi qu'à la seconde tentative** : mon premier test ne comparait qu'un total, et
      confondait donc les deux côtés. Un garde-fou qui mesure la somme ne prouve rien sur la
      répartition.
-127. **La page qui promet la confidentialité n'était gardée par rien** (08/09/2026).
+
+127. **Un graphique de prêts se lit deux fois : à l'œil, et au lecteur d'écran** (08/09/2026).
+     L'écran Prêts était juste et austère : des chiffres alignés, aucune forme. L'espace
+     investisseur de la plateforme, lui, montre deux anneaux et un calendrier d'échéances, et c'est
+     cette lecture-là qui manquait — pas des chiffres de plus.
+     **Trois blocs, et un quatrième refusé.** Anneau du capital (remboursé / à recevoir / passé en
+     perte, le centre portant le capital **prêté**, jamais les apports) ; anneau des intérêts
+     (reçus / attendus) ; calendrier des douze prochains mois. **La répartition sectorielle et
+     géographique n'a pas été faite** : l'export ne porte ni secteur ni pays (`sector` vaut
+     toujours `null`), et une répartition inventée serait pire qu'aucune (décision n° 54).
+     **`outlook.ts` ne prédit rien.** Il additionne les lignes d'échéancier que les contrats
+     portent déjà, avec trois exclusions délibérées : les prêts soldés — un remboursement anticipé
+     laisse derrière lui des échéances qui n'arriveront jamais —, les échéances déjà dues, qui sont
+     des faits et non des perspectives, et les prêts sans échéancier, **comptés** dans `unscheduled`
+     plutôt que traités comme vides (décision n° 9). Sans contrat, l'anneau des intérêts attendus
+     affiche « inconnu » et le calendrier n'existe pas du tout : un graphique vide se lirait comme
+     « rien à venir ».
+     **Un second composant d'anneau, assumé.** `AllocationDonut` prend des parts déjà calculées par
+     actif, regroupe la queue en « autres » et n'affiche que des pourcentages. `SplitRing` affiche
+     des **montants** peu nombreux autour d'un total central. Les fondre donnerait un composant à
+     deux modes, qui n'en ferait bien aucun.
+     **Le patron d'accessibilité est celui des guides de visualisation** : le dessin est décoratif
+     (`aria-hidden`), et l'information vit ailleurs — dans la légende pour l'anneau, dans un
+     **tableau équivalent** masqué visuellement pour le calendrier. La couleur ne distingue jamais
+     seule (WCAG 1.4.1) : chaque part est nommée et chiffrée à côté de sa pastille.
+     **Deux défauts trouvés en route, tous deux invisibles jusque-là.** (1) Le décodeur PDF rendait
+     l'euro d'une police `/WinAnsiEncoding` comme le caractère de commande **U+0080** : Latin-1
+     n'a pas d'euro, cp1252 le place en 0x80, et toute expression cherchant « € » échouait donc en
+     silence sur un contrat de ce type. La table des trente-deux codes hauts est désormais lue.
+     (2) La case « Afficher les prêts soldés » mesurait 13 px, sous le minimum de 24 px du critère
+     2.5.8 — le défaut existait, mais l'audit axe ne visitait cet écran **qu'à vide**, sans elle.
+     `expectNoViolations` est donc sorti d'`a11y.spec.ts` dans un helper partagé, et l'écran Prêts
+     **chargé** passe désormais devant axe.
+     **La liste des prêts se replie** (`<details>`, ouverte par défaut) : la trouver fermée serait
+     une perte, la replier est un choix. L'animation d'ouverture n'est pas tentée — `::details-content`
+     et `interpolate-size` ne sont pas encore portables, et une transition pilotée en JavaScript
+     coûterait plus qu'elle ne rapporte.
+     **Contre-épreuves** (décision n° 75), quatre : part « à recevoir » mise à zéro, le test nomme
+     « 800,00 € » ; garde des échéances déjà dues retiré, « expected '200' to be '100' » ; table
+     WinAnsi retirée, le test oppose le montant attendu en euro à celui qui porte le caractère de
+     commande ; disclosure remplacée par une section ordinaire, le test ne trouve plus de quoi
+     replier. La cinquième s'est produite d'elle-même : le nouvel audit axe a rougi sur
+     `target-size` avant le correctif.
+128. **La page qui promet la confidentialité n'était gardée par rien** (08/09/2026).
      La CSP a son test, le catalogue des sources a le sien, `ARCHITECTURE.md` croise cinq listes
      avec le code. **L'écran Confidentialité, lui, ne croisait rien** — et c'est pourtant celui qui
      engage le plus l'utilisateur.

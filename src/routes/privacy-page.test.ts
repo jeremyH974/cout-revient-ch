@@ -5,7 +5,7 @@
  * et Alpha Vantage — envoient la liste des actions détenues, accompagnée d'une clé qui rattache la
  * requête à un compte identifié, là où l'appel crypto reste anonyme. La page n'en disait rien, et
  * rien ne l'obligeait à le dire : la CSP et le catalogue des sources ont chacun leur garde-fou,
- * pas elle (décision n° 127).
+ * pas elle (décision n° 128).
  *
  * Une origine ajoutée sans un mot sur cette page ne provoque aucune erreur. Elle élargit
  * simplement, en silence, ce que l'utilisateur laisse voir de lui.

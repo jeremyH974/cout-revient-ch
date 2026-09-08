@@ -12,6 +12,7 @@ import {
   fmtRelative,
   localDay,
   roundsToZero,
+  fmtMonth,
 } from './fr';
 
 /** Espaces insécables d'Intl (U+00A0, U+202F) → espace simple, sans caractère invisible dans la source. */
@@ -135,5 +136,20 @@ describe('jour local et masque', () => {
     expect(nbsp(fmtMasked('EUR'))).toBe('•••• €');
     expect(nbsp(fmtMasked('USD'))).toBe('•••• $');
     expect(fmtMasked()).toBe('••••');
+  });
+});
+
+describe('fmtMonth', () => {
+  it('écrit le mois en toutes lettres, et sa forme courte pour un axe', () => {
+    expect(fmtMonth('2026-09')).toBe('septembre 2026');
+    expect(fmtMonth('2026-09', { short: true })).toBe('sept. 26');
+    expect(fmtMonth('2027-01')).toBe('janvier 2027');
+    expect(fmtMonth('2026-12', { short: true })).toBe('déc. 26');
+  });
+
+  it('rend la chaîne d’origine plutôt qu’un « undefined » sur un mois hors bornes', () => {
+    expect(fmtMonth('2026-13')).toBe('2026-13');
+    expect(fmtMonth('2026-00')).toBe('2026-00');
+    expect(fmtMonth('')).toBe('');
   });
 });
