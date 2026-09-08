@@ -2,6 +2,7 @@ import type { BrowserContext } from '@playwright/test';
 import { generateHlFixture } from '../../../scripts/generate-hl-fixture';
 import { addDays } from '../../../src/lib/fx/service';
 import { answerInfo } from '../../../src/lib/import/hyperliquid/fixture-client';
+import { TICKERS } from '../../../src/lib/pricing/tickers';
 
 /**
  * Aucune requête ne sort vers Internet pendant les tests : chaque appel externe reçoit une réponse
@@ -95,33 +96,64 @@ function fnv(text: string): number {
   return hash >>> 0;
 }
 
-function stubPrice(seconds: number): number {
-  // Cours synthétique, strictement positif, qui varie d'un jour à l'autre.
-  return 100 + ((Math.floor(seconds / DAY_S) * 7) % 23);
+/**
+ * Prix EUR de référence d'un identifiant CoinGecko : la table quand il y figure, sinon un prix
+ * déterministe dérivé du nom — un identifiant hors fixture (export réel local) doit avoir un cours,
+ * pas une exception.
+ */
+function refPriceOf(id: string): number {
+  return STUB_PRICES_EUR[id] ?? 0.5 + (fnv(id) % 2000) / 100;
+}
+
+/** Symbole Coinbase → identifiant CoinGecko (`BTC` → `bitcoin`), depuis la table de l'application. */
+const COINGECKO_BY_COINBASE: Record<string, string> = Object.fromEntries(
+  Object.values(TICKERS)
+    .filter((t) => t.coinbase !== null && t.coingeckoId !== null)
+    .map((t) => [t.coinbase as string, t.coingeckoId as string]),
+);
+
+/**
+ * Cours historique synthétique **à l'échelle de l'actif**.
+ *
+ * Il valait 100 à 122 € pour tout le monde, sans regarder de quel jeton il s'agissait. Un actif
+ * détenu en milliards d'unités valorisait alors le portefeuille de démonstration à deux millions
+ * d'euros, et toute proportion mesurée dessus — la part d'un actif, un pourcentage d'allocation,
+ * une valeur estimée — devenait une fiction. La FORME reste la même pour tous, un cours qui bouge
+ * d'un jour à l'autre ; seule l'ÉCHELLE devient celle du jeton (décision n° 116).
+ */
+function stubPrice(seconds: number, refEur: number): number {
+  const wobble = ((Math.floor(seconds / DAY_S) * 7) % 23) / 100;
+  return refEur * (0.9 + wobble);
 }
 
 /** Chandelles Coinbase `[time, low, high, open, close, volume]`, du plus récent au plus ancien. */
-function coinbaseCandles(url: URL): number[][] {
+export function coinbaseCandles(url: URL): number[][] {
   const granularity = Number(url.searchParams.get('granularity') ?? DAY_S);
   const start = Math.floor(new Date(url.searchParams.get('start') ?? 0).getTime() / 1000);
   const end = Math.floor(new Date(url.searchParams.get('end') ?? Date.now()).getTime() / 1000);
+  const symbol = url.pathname.split('/products/')[1]?.split('-')[0] ?? 'BTC';
+  const ref = refPriceOf(COINGECKO_BY_COINBASE[symbol] ?? symbol.toLowerCase());
   const rows: number[][] = [];
   const first = Math.floor(start / granularity) * granularity;
   for (let t = Math.floor(end / granularity) * granularity; t >= first; t -= granularity) {
-    const close = stubPrice(t);
-    rows.unshift([t, close - 1, close + 1, close, close, 1000]);
+    const close = stubPrice(t, ref);
+    // Bande proportionnelle, et non ±1 € : sur un jeton coté quatre millionièmes d'euro, un écart
+    // absolu rendrait un plus bas négatif.
+    rows.unshift([t, close * 0.99, close * 1.01, close, close, 1000]);
     if (rows.length >= 300) break;
   }
   return rows.reverse();
 }
 
-function coingeckoMarketChart(url: URL): { prices: number[][] } {
+export function coingeckoMarketChart(url: URL): { prices: number[][] } {
   const days = Math.min(365, Number(url.searchParams.get('days') ?? 365));
+  const id = decodeURIComponent(url.pathname.split('/coins/')[1]?.split('/')[0] ?? '');
+  const ref = refPriceOf(id);
   const now = Date.now();
   const prices: number[][] = [];
   for (let i = days; i >= 0; i--) {
     const ms = now - i * DAY_S * 1000;
-    prices.push([ms, stubPrice(ms / 1000)]);
+    prices.push([ms, stubPrice(ms / 1000, ref)]);
   }
   return { prices };
 }
@@ -213,9 +245,7 @@ export async function stubNetwork(context: BrowserContext): Promise<void> {
         for (const id of ids) {
           // Force la bascule vers les fournisseurs suivants pour cet actif (FALLTHROUGH_ASSET).
           if (id === FALLTHROUGH_ASSET.coingeckoId) continue;
-          // Identifiant hors fixture (export réel local) : prix déterministe, strictement positif.
-          const price = STUB_PRICES_EUR[id] ?? 0.5 + (fnv(id) % 2000) / 100;
-          body[id] = { eur: price, last_updated_at: now };
+          body[id] = { eur: refPriceOf(id), last_updated_at: now };
         }
         return json(body);
       }
