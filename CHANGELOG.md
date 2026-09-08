@@ -7,6 +7,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **L'écran Prêts se lit enfin d'un coup d'œil.** Deux anneaux — capital remboursé face au capital
+  encore prêté, intérêts déjà reçus face à ceux que vos contrats annoncent — et un calendrier des
+  douze prochains mois, capital et intérêts empilés. Le tout se déduit de vos contrats : ce n'est
+  pas une prévision, et un remboursement anticipé, un retard ou un défaut n'y sont pas devinés.
+  Sans contrat importé, l'application le dit au lieu d'afficher un zéro. La liste des prêts se
+  replie d'un clic.
+- **Un contrat PDF dont l'euro est codé en WinAnsi se lit désormais correctement.** Le montant
+  portait à sa place un caractère invisible, et l'échéancier de ces contrats-là restait ignoré en
+  silence.
 - **Un coffre : vos données chiffrées sur cet appareil, derrière un mot de passe.** Jusqu'ici, vos
   opérations étaient enregistrées **en clair** dans le stockage de votre navigateur — seule la
   sauvegarde que vous téléchargiez pouvait être chiffrée. Un profil de navigateur copié, un disque

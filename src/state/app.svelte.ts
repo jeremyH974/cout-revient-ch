@@ -65,6 +65,7 @@ import { xirrEur, type XirrResult } from '$lib/domain/xirr';
 import { realizedEvents, type RealizedEvent } from '$lib/domain/trading/calendar';
 import { computeTrading, type TradingReport } from '$lib/domain/trading/compute';
 import { computeLending } from '$lib/domain/lending/compute';
+import { lendingOutlook as computeOutlook, type LendingOutlook } from '$lib/domain/lending/outlook';
 import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending/performance';
 import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
 import { lendingTaxFr, type LendingTaxLedger } from '$lib/domain/lending/tax-fr';
@@ -416,6 +417,15 @@ export class AppState {
   /** Apports, valeur, résultat — `apports nets + résultat = valeur` (décision n° 51). */
   lending = $derived.by((): LendingSummary =>
     lendingSummary(this.lendingReport, Object.values(this.state.lending.wallet)),
+  );
+
+  /**
+   * Ce que les contrats annoncent pour la suite, agrégé par mois. Douze mois : la fenêtre que
+   * l'espace investisseur de la plateforme retient, et celle qui tient à l'écran sans défiler.
+   * Ce n'est PAS une prévision — voir `domain/lending/outlook.ts`.
+   */
+  lendingOutlook = $derived.by((): LendingOutlook =>
+    computeOutlook({ report: this.lendingReport, months: 12 }),
   );
 
   lendingPerf = $derived.by((): LendingPerformance =>
