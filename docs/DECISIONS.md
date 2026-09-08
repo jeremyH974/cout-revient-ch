@@ -3264,3 +3264,45 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      - **après** : « `Type 'IncomeEvent' is not assignable to type 'never'` » dans
        `declarations-fr.ts` **et** dans `tax-fr.ts`, plus trois erreurs nommées dans
        `import/pivot/index.ts`. Chaque garde réclame la décision qui lui revient.
+
+130. **Un identifiant n'est pas un rang : les fills d'un même instant étaient rejoués dans le
+     désordre** (08/09/2026).
+     L'écran Trades annonçait **667 aller-retours dont 67 clos** sur un compte qui ne porte
+     qu'**une** position ouverte. Les 600 lignes en trop étaient toutes badgées « historique
+     partiel », sans entrée moyenne et sans résultat ; leurs tailles — 1,90577, 2,73175, 5,13215 —
+     n'étaient pas des trades mais les **positions intermédiaires** du compte pendant qu'il montait
+     vers 6 BTC.
+     La cause tenait à un tri. `sortedFills` départageait les fills du même instant par leur `tid`,
+     et le moteur re-départageait par `id` (`hl:<tid>`). Or le `tid` est un identifiant, **pas un
+     rang** : quand un ordre traverse le carnet, la plateforme rend des dizaines d'exécutions à la
+     même milliseconde — **32 relevées** sur le compte réel, 693 fills sur 785 dans un paquet
+     partagé. Rejouées dans l'ordre des `tid`, la position reconstruite ne recollait plus avec le
+     `startPosition` annoncé par la plateforme : **644 ruptures**, et le garde-fou de
+     `buildRoundTrips` ouvrait à chaque fois un aller-retour « incomplet » plutôt que d'afficher une
+     entrée moyenne fausse. Le garde-fou n'a pas menti — il a crié au loup 644 fois parce qu'on lui
+     présentait les exécutions à l'envers.
+     **Le rang manquant était déjà dans la donnée** : `startPosition` EST la séquence, la position
+     d'arrivée d'un fill étant le `startPosition` du suivant. `chainByPosition` repart de la seule
+     position de départ qu'aucun fill du paquet ne produit — la tête — puis suit la chaîne. Mesuré
+     sur les 785 fills réels : **94 paquets sur 94** remis en ordre, **0 rupture** restante, et
+     l'écran passe de 667 lignes à **68 aller-retours dont 1 ouvert** (BTC ×6, la position affichée)
+     et **0 historique partiel**. Les 67 clos, eux, n'ont pas bougé : ils étaient déjà justes, ce
+     qui situait le défaut du côté des ouvertures.
+     **Le refus compte autant que le succès.** Un paquet qui revient à sa position de départ
+     (ouverture ET clôture dans la milliseconde) n'a pas de tête ; une chaîne trouée par une purge
+     de l'API se casse. Dans ces deux cas on rend l'ordre reçu sans rien deviner, et c'est le
+     garde-fou `startPosition` qui tranche — bruyamment, mais honnêtement. Une chaîne devinée
+     produirait des entrées moyennes fausses **sans le dire**, ce qui est strictement pire que 600
+     lignes visiblement absurdes.
+     **Corollaire pour le moteur** : le tri des exécutions se fait désormais par instant SEUL, et il
+     est stable (ES2019). Dans une milliseconde, l'ordre reçu EST l'ordre d'exécution ; c'est la
+     normalisation qui l'établit, et tout départage ultérieur le détruirait. La correction en deux
+     endroits (`round-trips.ts`, `compute.ts`) était nécessaire : remettre les fills d'aplomb à
+     l'import ne servait à rien tant que le moteur les re-mélangeait.
+     **Contre-épreuves** (décision n° 75), quatre, chacune vue rouge puis restaurée : chaînage
+     retiré de `sortedFills`, « expected ['7','6','5',…] to deeply equal ['0','1','2',…] » et 8
+     aller-retours au lieu d'un ; départage par `id` rendu au moteur, 8 aller-retours au lieu d'un ;
+     chaîne rendue devineresse (tête arbitraire, trou recousu), les deux tests de refus rougissent
+     ensemble ; symboles mélangés dans l'instant, la chaîne du BTC repart à l'envers.
+     **Aucune migration** : les fills bruts sont conservés tels quels et l'ordre se recalcule à
+     chaque lecture — l'écran se corrige tout seul sur les données déjà importées.

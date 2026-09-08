@@ -149,7 +149,14 @@ export function buildRoundTrips(
   const trips: RoundTrip[] = [];
 
   for (const list of bySymbol.values()) {
-    list.sort((a, b) => a.time - b.time || (a.id < b.id ? -1 : 1));
+    /*
+     * Tri par instant SEUL, et stable (ES2019) : dans une même milliseconde, l'ordre reçu EST
+     * l'ordre d'exécution — c'est la normalisation qui l'établit, en rejouant la chaîne des
+     * `startPosition` (décision n° 130). Départager par identifiant, comme ici auparavant, revenait
+     * à rejouer un ordre qui traverse le carnet dans le désordre : la position reconstruite ne
+     * recollait plus, et le garde-fou ci-dessous ouvrait un aller-retour « incomplet » par fill.
+     */
+    list.sort((a, b) => a.time - b.time);
     let position = ZERO;
     let current: Building | null = null;
     let seq = 0;
