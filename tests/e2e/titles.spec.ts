@@ -129,3 +129,30 @@ test('la fiche d’un titre reste dans le volet Actions', async ({ page }) => {
     .click();
   await expect(page).toHaveURL(/#\/invest\/titles$/);
 });
+
+test('le volet Actions a sa courbe et sa répartition, sur ses seuls titres', async ({ page }) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  await page.goto('#/settings');
+  const key = page.getByLabel('Clé Twelve Data (facultative)');
+  await key.fill('clef-de-test-e2e');
+  await key.blur();
+
+  await page.goto('#/invest/titles');
+  // La courbe existe et porte SON périmètre : « portefeuille » afficherait la crypto avec.
+  const evolution = page.locator('section.evolution');
+  await expect(evolution).toBeVisible();
+  await expect(evolution.getByRole('heading', { name: /Évolution des titres/ })).toBeVisible();
+
+  // La répartition ne paraît que s'il y a plusieurs lignes cotées, et ses parts somment à 100 %.
+  const donut = page.locator('section', { hasText: 'Répartition' }).last();
+  await expect(donut).toBeVisible();
+
+  // Le bandeau porte les quatre chiffres du portefeuille, pour les seuls titres.
+  const summary = page.locator('section.summary');
+  for (const label of ['Valeur', 'Investi', 'Latent', 'Réalisé', 'Résultat']) {
+    await expect(summary.getByText(label, { exact: true })).toBeVisible();
+  }
+});

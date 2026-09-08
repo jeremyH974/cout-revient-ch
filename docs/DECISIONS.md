@@ -3094,3 +3094,20 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      cohérence échoue sur « nombre illisible : « — » ». Cette dernière n'a rougi qu'à la deuxième
      tentative : n'en fausser que deux laissait le choix de métrique correct, donc le test vert —
      **une contre-épreuve partielle ne prouve rien.**
+124. **Un camembert intitulé « Titres » ne se calcule pas sur le total du portefeuille** (08/09/2026).
+     `PortfolioReport.allocation` couvre tout le portefeuille, et mélange les classes depuis la
+     décision n° 119. Bâtir la répartition du volet Actions dessus donnerait des parts justes au
+     regard du total général et **fausses au regard de ce que leur titre annonce** — et personne ne
+     le verrait : les parts sommeraient à moins de cent pour cent, ce qu'un anneau ne montre pas.
+     `allocationOf(positions)` reçoit donc ses positions plutôt que le rapport entier. Même raison
+     pour le bandeau : `SummaryHeader` lit `report.totals`, l'afficher ici annoncerait le total
+     crypto + titres sous le mot « Titres ». Les quatre chiffres sont recalculés sur place.
+     **Les lignes sans cotation sont écartées, pas comptées à zéro.** Une part de « 0 % » dans une
+     légende se lit « cette ligne ne pèse rien » ; la vérité est qu'on ignore ce qu'elle pèse.
+     **Correction à mon propre plan** : j'y annonçais que CoinGecko et DefiLlama interrogeaient
+     inutilement les codes `eq:`, faute de garde. C'est faux — les quatre fournisseurs d'historique
+     en ont un, simplement écrit en fonction fléchée (`idOf(asset) !== null`) là où mon relevé
+     cherchait `async supports`. Aucune requête n'était gaspillée, et il n'y avait rien à corriger.
+     **Contre-épreuves** (décision n° 75) : la courbe rendue au périmètre « portefeuille », la spec
+     ne trouve plus son titre — « element(s) not found » ; les parts divisées par un dénominateur
+     élargi, « expected [ '0.25', …(1) ] to deeply equal [ '0.75', '0.25' ] ».
