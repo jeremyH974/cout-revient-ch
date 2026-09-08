@@ -2745,3 +2745,34 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      perd la journée isolée ; le repli prudent remplacé par zéro fait tomber la part d'un producteur
      non ventilé ; et surtout, `ref()` remis à `null` sur un point estimé fait chuter à **zéro** le
      nombre de tronçons colorés du parcours E2E — la régression exacte que cette décision répare.
+
+115. **Un stub de prix cote l'actif qu'on lui demande, sinon il fabrique des invariants faux**
+     (08/09/2026).
+
+     Le stub réseau des tests E2E rendait, pour l'historique quotidien, le même cours synthétique
+     (100 à 122 €) à **tous** les actifs : ni `coingeckoMarketChart` ni `coinbaseCandles` ne
+     regardaient l'identifiant que l'URL leur donnait. Conséquence mesurée sur le jeu de
+     démonstration : un jeton détenu en milliards d'unités portait le patrimoine à **deux millions
+     d'euros** pour 25 000 € d'apports, et la part de n'importe quel autre actif tombait à
+     quelques cent-millièmes.
+
+     Les spot, eux, étaient déjà justes (`STUB_PRICES_EUR`), si bien que rien ne clochait à
+     l'écran du jour : l'artefact ne vivait que dans le passé, là où aucune spec n'allait mesurer
+     de **proportion**. C'est ce qui l'a laissé passer, et c'est ce qui le rend coûteux — la
+     première spec à vouloir vérifier une part (décision n° 114) n'a pas mesuré l'application,
+     elle a mesuré le stub, et il a fallu deux itérations pour s'en apercevoir.
+
+     Le stub garde donc la même **forme** pour tous — un cours qui bouge d'un jour à l'autre, ±11 %
+     autour d'une référence — et prend l'**échelle** de l'actif demandé. Le symbole Coinbase se
+     résout en identifiant CoinGecko par la table de l'application elle-même, pas par une seconde
+     table à tenir. La bande haut/bas des chandelles devient proportionnelle : ±1 € rendait un plus
+     bas négatif sur un jeton coté quatre millionièmes d'euro.
+
+     **Règle générale** : un double de test qui ignore l'un de ses arguments ne simplifie pas, il
+     ment. Tant qu'on ne lui demande qu'une valeur, ça ne se voit pas ; dès qu'on lui demande un
+     rapport, tout ce qui en découle est faux — et faux d'une manière qui ressemble à un vrai
+     résultat.
+
+     **Contre-épreuve** (décision n° 75) : le stub rendu de nouveau aveugle à l'actif,
+     `tests/e2e/helpers/network.test.ts` rougit en nommant l'écart — « expected 26749999 to be less
+     than 0.15 » pour PEPE coté 107 € au lieu de quatre millionièmes.

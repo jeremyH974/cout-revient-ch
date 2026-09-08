@@ -10,9 +10,7 @@
  * Le montage prive `pepe` de tout historique quotidien (CoinGecko et Coinbase ; Kraken ne connaît que
  * BTC/ETH/SOL, DefiLlama est inerte en E2E) sans toucher à sa cotation du jour — `openDemo` attend
  * justement que plus aucun prix ne manque. PEPE est une position de l'espace Investissement, donc un
- * producteur de CETTE courbe, et sa part y pèse : le stub d'historique rend le même cours synthétique
- * pour tous les actifs (`stubPrice`), si bien qu'un jeton à très grosse quantité domine le total.
- * Viser un actif marginal ne prouverait rien — sa part retomberait sous le seuil d'affichage.
+ * producteur de CETTE courbe, et sa part y pèse assez pour se voir.
  */
 import { expect, test, type Page } from '@playwright/test';
 import { openDemo } from './helpers/demo';
@@ -87,8 +85,10 @@ test('un actif sans historique : la zone est hachurée, la couleur reste, et l�
   await expect(legend).toContainText(/porté au coût, faute de cotation/);
   // « 0,0 % » à côté d'une zone hachurée ferait mentir l'un des deux : sous la résolution
   // d'affichage, la légende dit « moins de 0,1 % ».
-  await expect(legend).toContainText(/(jusqu'à \d+[,.]\d+|moins de 0,1) % de la valeur/);
-  await expect(legend).not.toContainText(/0,0 % de la valeur/);
+  // `\s` et non une espace ordinaire : `fmtPct` sépare le nombre du signe par une espace fine
+  // insécable (U+202F), comme le veut la typographie française.
+  await expect(legend).toContainText(/(jusqu'à \d+[,.]\d+|moins de 0,1)\s% de la valeur/);
+  await expect(legend).not.toContainText(/0[,.]0\s% de la valeur/);
 });
 
 test('rien de significatif au coût : aucune trame, aucun actif nommé', async ({ page }) => {
