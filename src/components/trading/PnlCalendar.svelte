@@ -180,22 +180,35 @@
   function dayNumber(day: string): string {
     return String(Number(day.slice(8, 10)));
   }
-  // Appelé uniquement pour un jour à trades (day.count > 0, cf. le bouton dans le gabarit).
+  /**
+   * Ce que la case annonce sous le montant : les trades OUVERTS et CLOS. Le décompte d'avant
+   * comptait les aller-retours ayant réalisé quelque chose — funding compris — et une position
+   * ouverte tout l'été s'y comptait chaque jour sans que rien ne s'ouvre ni ne se ferme
+   * (décision n° 131).
+   */
+  const plural = (n: number, word: string): string => `${n} ${word}${n > 1 ? 's' : ''}`;
+  function activityLabel(counts: { opened: number; closed: number }): string {
+    const parts: string[] = [];
+    if (counts.opened > 0) parts.push(plural(counts.opened, 'trade ouvert'));
+    if (counts.closed > 0) parts.push(`${counts.closed} clos`);
+    return parts.length > 0 ? parts.join(', ') : 'aucun trade ouvert ni clos';
+  }
+  // Appelé uniquement pour un jour à montant (day.count > 0, cf. le bouton dans le gabarit).
   function dayAriaLabel(day: CalendarDay): string {
     const label = `${dayNumber(day.day)} ${monthName(month)}`;
-    return `${label} : ${amountText(day.pnl)}, ${day.count} trade${day.count > 1 ? 's' : ''}`;
+    return `${label} : ${amountText(day.pnl)}, ${activityLabel(day)}`;
   }
   // Idem pour une case large : le clic descend d'un cran, l'étiquette le dit.
   function bucketAriaLabel(bucket: CalendarBucket): string {
-    const trades = `${bucket.count} trade${bucket.count > 1 ? 's' : ''}`;
     const action = grain === 'year' ? 'voir les mois' : 'voir les jours';
-    return `${bucketLabel(bucket)} : ${amountText(bucket.pnl)}, ${trades} — ${action}`;
+    return `${bucketLabel(bucket)} : ${amountText(bucket.pnl)}, ${activityLabel(bucket)} — ${action}`;
   }
 </script>
 
 <p class="muted small note">
   P&L réalisé net au jour où il l'a été (frais et funding compris, y compris ceux d'une position
-  encore ouverte) ; le latent n'y figure pas.
+  encore ouverte) ; le latent n'y figure pas. Sous le montant : les trades ouverts et clos ce
+  jour-là — une position qui n'a fait que payer son funding porte un montant sans décompte.
   {#if excludedCount > 0}
     {excludedCount} trade{excludedCount > 1 ? 's' : ''} en devise non convertie exclu{excludedCount >
     1
@@ -260,9 +273,12 @@
           >
             <span class="tile-name">{bucketShort(bucket)}</span>
             <Money value={bucket.pnl} sign colored compact />
-            <span class="count" aria-hidden="true"
-              >{bucket.count} trade{bucket.count > 1 ? 's' : ''}</span
-            >
+            {#if bucket.opened > 0 || bucket.closed > 0}
+              <span class="count" aria-hidden="true">
+                {#if bucket.opened > 0}<span>{bucket.opened} ouv.</span>{/if}
+                {#if bucket.closed > 0}<span>{bucket.closed} clos</span>{/if}
+              </span>
+            {/if}
           </button>
         {/if}
       </li>
@@ -312,7 +328,12 @@
                   >
                     <span class="day-num">{dayNumber(day.day)}</span>
                     <Money value={day.pnl} sign colored compact />
-                    <span class="count" aria-hidden="true">{day.count}</span>
+                    {#if day.opened > 0 || day.closed > 0}
+                      <span class="count" aria-hidden="true">
+                        {#if day.opened > 0}<span>{day.opened} ouv.</span>{/if}
+                        {#if day.closed > 0}<span>{day.closed} clos</span>{/if}
+                      </span>
+                    {/if}
                   </button>
                 {/if}
               </td>
@@ -442,7 +463,12 @@
   .tile.empty {
     border-style: dashed;
   }
-  .tile .count {
+  .tile .count,
+  .day .count {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0 var(--space-1);
     font-size: var(--fs-xs);
     color: var(--fg-muted);
   }
@@ -531,10 +557,7 @@
   .day[aria-pressed='true'] {
     box-shadow: inset 0 0 0 2px var(--accent-trading);
   }
-  .day .count {
-    font-size: var(--fs-xs);
-    color: var(--fg-muted);
-  }
+
   .week-total {
     font-size: var(--fs-sm);
   }
