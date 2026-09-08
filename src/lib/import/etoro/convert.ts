@@ -45,15 +45,19 @@ const ACCOUNT_CURRENCY = 'usd';
  * taux de change, que pour une opération de fin de soirée.
  */
 export function etoroDateToMs(raw: string): number | null {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(raw.trim());
+  // **L'heure est facultative.** Le grand livre horodate à la seconde, mais la feuille des
+  // dividendes ne porte qu'un jour de paiement (« 02/04/2025 ») : la refuser faisait disparaître
+  // les 64 dividendes en silence. Minuit est la convention, et elle est ici sans conséquence — un
+  // dividende ne se compare à aucune opération de la même journée (décision n° 132).
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(raw.trim());
   if (!m) return null;
   const at = Date.UTC(
     Number(m[3]),
     Number(m[2]) - 1,
     Number(m[1]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6]),
+    Number(m[4] ?? '0'),
+    Number(m[5] ?? '0'),
+    Number(m[6] ?? '0'),
   );
   return Number.isFinite(at) ? at : null;
 }
@@ -120,6 +124,22 @@ const HOLDINGS_COLUMNS = {
   units: ['units', 'unités'],
   type: ['type', 'type d’actif', "type d'actif"],
   isin: ['isin'],
+};
+
+/**
+ * Feuille des dividendes. eToro donne le NET encaisse et la retenue separement, dans les deux
+ * devises : on prend les colonnes en euros, ce qui evite une conversion et son taux.
+ */
+const DIVIDEND_COLUMNS = {
+  date: ['date du paiement', 'date of payment'],
+  instrument: ["nom de l'instrument", 'nom de l’instrument', 'instrument name'],
+  netEur: ['dividende net recu (eur)', 'dividende net reçu (eur)', 'net dividend received (eur)'],
+  withheldEur: [
+    'montant du prelevement a la source (eur)',
+    'montant du prélèvement à la source (eur)',
+    'withholding tax amount (eur)',
+  ],
+  positionId: ['identifiant de position', 'position id'],
 };
 
 const CLOSED_COLUMNS = {
@@ -365,6 +385,52 @@ function collectOpenings(book: Workbook, out: Collected): void {
  * Le produit de la vente est le montant investi augmenté du profit : c'est la définition même de
  * la colonne, et cela évite de reconstruire un cours de clôture dont la devise n'est pas fiable.
  */
+/**
+ * Dividendes. Le releve donne le NET encaisse et la retenue a la source ; **le brut est la somme
+ * des deux**, et c'est lui qui compte comme revenu — la retenue ouvre le credit d'impot
+ * conventionnel, et l'agreger au net la perdrait (decision n 130).
+ *
+ * L'alias de feuille existait depuis l'ecriture du convertisseur et n'etait appele nulle part : le
+ * crochet etait pose, il attendait son code.
+ */
+function collectDividends(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.dividends);
+  if (!sheet) return;
+  const read = reader(sheet, DIVIDEND_COLUMNS);
+  if (read.missing.length > 0) {
+    out.issues.push({
+      lineNo: 1,
+      message: `Dividendes, colonnes introuvables : ${read.missing.join(', ')}.`,
+    });
+    return;
+  }
+  sheet.rows.forEach((row, i) => {
+    const lineNo = i + 2;
+    const net = read.get(row, 'netEur');
+    const timeMs = etoroDateToMs(read.get(row, 'date'));
+    if (net === '' || timeMs === null) return;
+    const withheldRaw = read.get(row, 'withheldEur');
+    const withheld = withheldRaw === '' ? ZERO : D(withheldRaw);
+    const gross = D(net).plus(withheld);
+    if (!isPositive(gross)) return;
+    const positionId = read.get(row, 'positionId');
+    const instrument = read.get(row, 'instrument');
+    out.drafts.push({
+      lineNo,
+      nativeContent: `etoro:dividend:${positionId}:${read.get(row, 'date')}:${net}`,
+      timeMs,
+      sent: null,
+      received: { amount: gross.toString(), currency: 'eur' },
+      fee: null,
+      withheld: isPositive(withheld) ? { amount: withheld.toString(), currency: 'eur' } : null,
+      netWorth: null,
+      label: 'dividend',
+      description: instrument === '' ? 'Dividende' : `Dividende ${instrument}`,
+      txHash: null,
+    });
+  });
+}
+
 function collectClosings(book: Workbook, out: Collected): void {
   const sheet = findSheet(book, SHEET_ALIASES.closed);
   if (!sheet) return;
@@ -514,6 +580,7 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
   collectSpreads(book, out);
   collectOpenings(book, out);
   collectClosings(book, out);
+  collectDividends(book, out);
   auditAgainstSnapshot(book, out);
   reportUntreated(out);
   return { drafts: out.drafts, issues: out.issues, skipped: out.skipped, labels: out.labels };

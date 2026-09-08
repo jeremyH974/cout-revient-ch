@@ -191,6 +191,14 @@ export interface PortfolioTotals {
   feesEur: Big;
   rebatesEur: Big;
   subscriptionsEur: Big;
+  /**
+   * Revenus et frais du COMPTE : interets de tresorerie, frais de conversion de devise. Ils
+   * entrent dans le resultat sur leur propre ligne et ne touchent aucun prix de revient -- les y
+   * repartir serait arbitraire (decision n 130).
+   */
+  accountIncomeEur: Big;
+  /** Retenues a la source prelevees sur les revenus, positives. */
+  withheldEur: Big;
   /** Actifs détenus sans prix : exclus de `value`, `unrealized` et `total`. */
   unpricedAssets: AssetCode[];
 }

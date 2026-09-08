@@ -109,6 +109,7 @@ export function ingestPivotRows(
     deposits: 0,
     withdrawals: 0,
     fees: 0,
+    incomes: 0,
     unqualified: 0,
     skippedCash,
     skippedInternal: context.skippedInternal ?? 0,
@@ -129,6 +130,7 @@ export function ingestPivotRows(
     // Ni acquisition ni cession : le rapport d'import n'a pas de case pour eux, à dessein. Le
     // compilateur a d'ailleurs trouvé `opening-balance` du même coup — la chaîne de `else if`
     // en ignorait trois, pas un.
+    income: 'incomes',
     migration: null,
     split: null,
     'opening-balance': null,

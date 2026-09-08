@@ -155,7 +155,11 @@ describe('importGhostfolioJson — export complet', () => {
       trades: 3,
       rewards: 1,
       fees: 1,
-      skippedCash: 1,
+      // Le dividende en especes n'est plus « ignore cash » : il devient un revenu (decision
+      // n 130). C'est un CHANGEMENT DE COMPORTEMENT voulu -- cette ligne disparaissait
+      // auparavant dans un compteur, et le rendement s'en trouvait sous-estime.
+      incomes: 1,
+      skippedCash: 0,
       skippedInternal: 1,
     });
     expect(result.report.assets).toEqual(['btc', 'eth', 'eur']);
