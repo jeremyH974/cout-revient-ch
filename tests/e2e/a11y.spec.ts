@@ -1,18 +1,7 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { expectNoViolations } from './helpers/axe';
 import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
-
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
-
-async function expectNoViolations(page: Page, label: string): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map(
-    (v) =>
-      `${v.id} (${v.impact ?? '?'}) : ${v.help} — ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`,
-  );
-  expect(summary, `violations axe sur ${label}`).toEqual([]);
-}
 
 test.beforeEach(async ({ context }) => {
   await stubNetwork(context);

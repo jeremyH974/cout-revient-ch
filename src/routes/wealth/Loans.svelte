@@ -15,11 +15,13 @@
    * de place française — le référentiel de Financement Participatif France n'en donne aucune —
    * c'est plus défendable qu'un seuil inventé.
    */
-  import { D } from '$lib/domain/money';
+  import { D, type Big } from '$lib/domain/money';
   import { fmtPct, fmtRatio } from '$lib/format/fr';
   import type { LoanStatus } from '$lib/domain/lending/types';
   import { TAX_BOXES } from '$lib/domain/lending/tax-fr';
   import AppBar from '../../components/layout/AppBar.svelte';
+  import OutlookBars from '../../components/charts/OutlookBars.svelte';
+  import SplitRing, { type RingSlice } from '../../components/charts/SplitRing.svelte';
   import Delta from '../../components/shared/Delta.svelte';
   import Money from '../../components/shared/Money.svelte';
   import Pct from '../../components/shared/Pct.svelte';
@@ -30,6 +32,76 @@
   const report = $derived(app.lendingReport);
   const perf = $derived(app.lendingPerf);
   const tax = $derived(app.lendingTax);
+  const outlook = $derived(app.lendingOutlook);
+  const eur = (value: string | null): Big | null => app.displayFromEur(value);
+
+  /**
+   * Anneau du capital. Le centre porte le capital PRÊTÉ cumulé — pas les apports : c'est le
+   * dénominateur naturel de « remboursé / restant dû », et l'écart avec les apports est déjà
+   * nommé, chiffré et expliqué par le facteur de recyclage juste au-dessous.
+   */
+  const capitalSlices = $derived.by((): RingSlice[] => [
+    {
+      key: 'repaid',
+      label: 'Capital remboursé',
+      value: eur(report.totals.principalRepaid),
+      color: 'var(--accent)',
+    },
+    {
+      key: 'outstanding',
+      label: 'Capital à recevoir',
+      value: eur(report.totals.outstanding),
+      color: 'var(--gain)',
+      hint: 'encore prêté',
+    },
+    ...(D(report.totals.writtenOff).gt('0')
+      ? [
+          {
+            key: 'written-off',
+            label: 'Passé en perte',
+            value: eur(report.totals.writtenOff),
+            color: 'var(--loss)',
+          } satisfies RingSlice,
+        ]
+      : []),
+  ]);
+
+  /**
+   * Anneau des intérêts. « Attendus » vient des ÉCHÉANCIERS, donc des contrats : sans eux la part
+   * n'existe pas, et elle vaut `null` plutôt que zéro (décision n° 9). Le message sous l'anneau
+   * dit alors de combien de prêts on ne parle pas.
+   */
+  const expectedInterest = $derived(outlook.scheduled > 0 ? outlook.expectedInterest : null);
+  const interestSlices = $derived.by((): RingSlice[] => [
+    {
+      key: 'received',
+      label: 'Intérêts nets reçus',
+      value: eur(s.interestNet),
+      color: 'var(--accent)',
+      hint: 'prélèvements déduits',
+    },
+    {
+      key: 'expected',
+      label: 'Intérêts bruts attendus',
+      value: eur(expectedInterest),
+      color: 'var(--gain)',
+      hint: 'ce que vos contrats annoncent',
+    },
+  ]);
+
+  /** Colonnes du calendrier, déjà converties : un graphique ne convertit pas de devise. */
+  const bars = $derived.by(() =>
+    outlook.months.flatMap((m) => {
+      const principal = eur(m.principal);
+      const interest = eur(m.interest);
+      const total = eur(m.total);
+      return principal && interest && total ? [{ month: m.month, principal, interest, total }] : [];
+    }),
+  );
+  const peak = $derived(eur(outlook.peak));
+  const hasOutlook = $derived(
+    bars.length > 0 && peak !== null && D(outlook.expectedPrincipal).gt('0'),
+  );
 
   const STATUS: Record<LoanStatus, string> = {
     pending: 'En attente',
@@ -49,6 +121,8 @@
     'no-convergence': 'non calculable',
   };
 
+  /** La liste s'ouvre par défaut : la replier est un choix, la trouver fermée serait une perte. */
+  let listOpen = $state(true);
   let showClosed = $state(false);
   const rows = $derived(
     report.loans
@@ -143,6 +217,65 @@
       </p>
     </section>
 
+    <section class="card rings" aria-labelledby="rings-title">
+      <h2 id="rings-title">Détails de mon compte</h2>
+      <div class="two">
+        <div class="ring-block">
+          <SplitRing
+            slices={capitalSlices}
+            centreLabel="Capital prêté"
+            centre={eur(report.totals.disbursed)}
+          />
+        </div>
+        <div class="ring-block">
+          <SplitRing slices={interestSlices} centreLabel="Intérêts" />
+          {#if expectedInterest === null}
+            <p class="muted small">
+              Les intérêts attendus demandent l'échéancier de vos contrats. Déposez l'archive de
+              contrats depuis <strong>Importer</strong> : sans elle, cette part reste inconnue — elle
+              ne vaut pas zéro.
+            </p>
+          {:else if outlook.unscheduled > 0}
+            <p class="muted small">
+              Calculé sur {outlook.scheduled} prêt{outlook.scheduled > 1 ? 's' : ''} ;
+              {outlook.unscheduled} autre{outlook.unscheduled > 1 ? 's n’ont' : ' n’a'} pas d'échéancier
+              connu et n'y {outlook.unscheduled > 1 ? 'figurent' : 'figure'} pas.
+            </p>
+          {/if}
+        </div>
+      </div>
+      <p class="muted small">
+        Le centre du premier anneau porte le capital <strong>prêté</strong>, pas vos apports : c'est
+        lui que « remboursé » et « à recevoir » se partagent. L'écart avec vos apports est le
+        recyclage, expliqué juste en dessous.
+      </p>
+    </section>
+
+    {#if hasOutlook && peak !== null}
+      <section class="card" aria-labelledby="outlook-title">
+        <h2 id="outlook-title">Mes remboursements</h2>
+        <p class="muted small">
+          Les douze prochains mois, tels que vos contrats les annoncent. <strong
+            >Ce n'est pas une prévision</strong
+          > : un remboursement anticipé, un retard ou un défaut ne se devinent pas.
+        </p>
+        <OutlookBars {bars} {peak} />
+        <dl class="totals">
+          <div>
+            <dt>Capital attendu</dt>
+            <dd><Money value={eur(outlook.expectedPrincipal)} /></dd>
+          </div>
+          <div>
+            <dt>Intérêts bruts attendus</dt>
+            <dd><Money value={eur(outlook.expectedInterest)} /></dd>
+          </div>
+        </dl>
+        <p class="muted small">
+          Ces totaux couvrent <strong>tout</strong> l'échéancier restant, au-delà des douze mois affichés.
+        </p>
+      </section>
+    {/if}
+
     <details class="card">
       <summary>Comment lire ces chiffres</summary>
       <p>
@@ -212,6 +345,13 @@
               <span class="who">{row.key}</span>
               <Money value={app.displayFromEur(row.outstanding)} />
               <span class="muted">({fmtPct(D(row.weight), { sign: false })})</span>
+              <!-- La barre RÉPÈTE le poids déjà écrit à côté : elle le rend comparable d'un coup
+                   d'œil, elle ne le remplace pas. D'où `aria-hidden`. -->
+              <span
+                class="bar"
+                aria-hidden="true"
+                style="--w: {Math.min(100, Number(D(row.weight).times('100').toString()))}%"
+              ></span>
             </li>
           {/each}
         </ul>
@@ -279,9 +419,9 @@
       </details>
     {/if}
 
-    <section class="card">
+    <details class="card list" bind:open={listOpen}>
+      <summary><h2>Prêts ({rows.length})</h2></summary>
       <div class="head">
-        <h2>Prêts ({rows.length})</h2>
         <label>
           <input type="checkbox" bind:checked={showClosed} />
           Afficher les prêts soldés
@@ -322,7 +462,7 @@
           </tbody>
         </table>
       </div>
-    </section>
+    </details>
 
     <p class="muted small note">
       Chiffres calculés à partir de vos propres opérations. Les performances passées ne préjugent
@@ -335,6 +475,61 @@
   .page {
     display: grid;
     gap: 1rem;
+  }
+  /*
+   * Cible tactile de 24 px (WCAG 2.5.8, niveau AA en 2.2). La case native fait 13 px : sans
+   * cette taille explicite, axe la refuse — et un doigt la rate. Le défaut existait déjà ; il
+   * n'apparaissait pas parce que l'audit ne visitait cet écran QU'À VIDE, sans la case.
+   */
+  .list .head input[type='checkbox'] {
+    width: 24px;
+    height: 24px;
+    accent-color: var(--accent);
+  }
+  .list .head label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 24px;
+  }
+  .rings .two {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+    gap: var(--space-5);
+    margin: var(--space-4) 0;
+  }
+  .ring-block {
+    display: grid;
+    gap: var(--space-2);
+    align-content: start;
+  }
+  .totals {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: var(--space-3);
+    margin: var(--space-4) 0 var(--space-2);
+  }
+  .totals dt {
+    font-size: var(--fs-sm);
+    color: var(--fg-muted);
+  }
+  .totals dd {
+    margin: 0;
+    font-weight: 600;
+  }
+  /* La liste repliable : le titre vit DANS le résumé, pour que le triangle le commande. */
+  .list > summary h2 {
+    display: inline;
+    font-size: var(--fs-lg);
+  }
+  .list > summary {
+    cursor: pointer;
+  }
+  .top li .bar {
+    grid-column: 1 / -1;
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(to right, var(--accent) 0 var(--w), var(--bg-sunken) var(--w) 100%);
   }
   .headline {
     display: grid;
@@ -398,8 +593,10 @@
     gap: 0.3rem;
   }
   .top li {
-    display: flex;
-    gap: 0.6rem;
+    /* Grille, et non flex : la barre doit passer SOUS la ligne en occupant toute la largeur. */
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.2rem 0.6rem;
     align-items: baseline;
   }
   .who {

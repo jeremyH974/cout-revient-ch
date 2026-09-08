@@ -182,6 +182,50 @@ export function fmtDate(naive: NaiveDateTime): string {
   return `${d}/${m}/${y}`;
 }
 
+/** Noms de mois, index 1-12. Écrits ici plutôt que tirés d'`Intl` : un `NaiveDateTime` ne passe */
+/** jamais par un `Date`, et la casse française d'`Intl` varie d'un moteur à l'autre. */
+const MONTHS = [
+  'janvier',
+  'février',
+  'mars',
+  'avril',
+  'mai',
+  'juin',
+  'juillet',
+  'août',
+  'septembre',
+  'octobre',
+  'novembre',
+  'décembre',
+] as const;
+const MONTHS_SHORT = [
+  'janv.',
+  'févr.',
+  'mars',
+  'avr.',
+  'mai',
+  'juin',
+  'juil.',
+  'août',
+  'sept.',
+  'oct.',
+  'nov.',
+  'déc.',
+] as const;
+
+/**
+ * « 2026-09 » → « septembre 2026 », ou « sept. 26 » en forme courte (axe d'un graphique, où douze
+ * libellés doivent tenir côte à côte). Un mois hors bornes rend la chaîne d'origine : jamais un
+ * « undefined » affiché.
+ */
+export function fmtMonth(month: string, opts: { short?: boolean } = {}): string {
+  const year = month.slice(0, 4);
+  const index = Number(month.slice(5, 7));
+  const name = opts.short ? MONTHS_SHORT[index - 1] : MONTHS[index - 1];
+  if (name === undefined || year.length !== 4) return month;
+  return opts.short ? `${name} ${year.slice(2)}` : `${name} ${year}`;
+}
+
 /** « il y a 2 min », « il y a 3 h », « il y a 5 j » à partir d'une date ISO. */
 export function fmtRelative(iso: string, nowMs: number): string {
   const diff = Math.max(0, nowMs - Date.parse(iso));
