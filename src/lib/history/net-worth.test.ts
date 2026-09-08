@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../domain/money';
 import {
   cumulativeContributions,
+  estimatedShare,
   hasUnavailable,
   latestNetWorth,
   netWorthChange,
@@ -38,7 +39,13 @@ const dayOfMs = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 const at = (iso: string): number => Date.parse(iso);
 
 function vp(day: string, value: string, cost: string, missing: string[] = []): ValuePoint {
-  return { day: day as DayString, value: D(value), cost: D(cost), missing: missing as never[] };
+  return {
+    day: day as DayString,
+    value: D(value),
+    cost: D(cost),
+    missing: missing as never[],
+    estimatedValue: ZERO,
+  };
 }
 
 /** Contribution constante, sans dépendance externe : sert de témoin. */
@@ -853,5 +860,60 @@ describe('lendingContribution', () => {
   it('n’existe pas avant son premier mouvement', () => {
     expect(build().firstDay).toBe('2026-01-01');
     expect(build().valueAt('2025-12-31')).toBeNull();
+  });
+});
+
+describe('estimatedShare — l’ampleur, pas seulement le fait', () => {
+  const jour = days('2026-08-01');
+  /** Contribution qui se déclare estimée, en ventilant (ou non) la part concernée. */
+  const partielle = (id: string, value: string, part: string | null): Contribution => ({
+    id,
+    label: id,
+    firstDay: null,
+    valueAt: () => ({
+      value: D(value),
+      contributed: ZERO,
+      estimated: true,
+      ...(part === null ? {} : { estimatedValue: D(part) }),
+    }),
+  });
+
+  it('rapporte la part estimée au patrimoine brut', () => {
+    const [p] = netWorthSeries({
+      contributions: [partielle('invest', '900', '90'), flat('trading', '100')],
+      days: jour,
+    });
+    expect(p!.estimatedValue.toString()).toBe('90');
+    expect(estimatedShare(p!).toString()).toBe('0.09');
+  });
+
+  /*
+   * Un producteur qui se dit estimé sans ventiler est réputé estimé EN ENTIER. C'est la lecture
+   * prudente, et c'est ce qui garantit qu'un futur producteur (immobilier, assurance-vie) branché
+   * sans connaître ce champ ne se retrouve pas déclaré coté par omission.
+   */
+  it('sans ventilation, la contribution est estimée en entier', () => {
+    const [p] = netWorthSeries({
+      contributions: [partielle('invest', '900', null), flat('trading', '100')],
+      days: jour,
+    });
+    expect(p!.estimatedValue.toString()).toBe('900');
+    expect(estimatedShare(p!).toString()).toBe('0.9');
+  });
+
+  it('vaut zéro sans estimation, et zéro sur un patrimoine nul (aucune division)', () => {
+    const [coté] = netWorthSeries({ contributions: [flat('invest', '900')], days: jour });
+    expect(estimatedShare(coté!).toString()).toBe('0');
+    const [vide] = netWorthSeries({ contributions: [flat('invest', '0')], days: jour });
+    expect(estimatedShare(vide!).toString()).toBe('0');
+  });
+
+  it('la part se retrouve dans le détail par producteur', () => {
+    const [p] = netWorthSeries({
+      contributions: [partielle('invest', '900', '90'), flat('trading', '100')],
+      days: jour,
+    });
+    const parts = Object.fromEntries(p!.parts.map((x) => [x.id, x.estimatedValue.toString()]));
+    expect(parts).toEqual({ invest: '90', trading: '0' });
   });
 });

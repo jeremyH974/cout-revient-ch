@@ -26,6 +26,7 @@ const point = (day: string, value: string): ValuePoint => ({
   value: D(value),
   cost: ZERO,
   missing: [],
+  estimatedValue: ZERO,
 });
 
 describe('holdingOpsOf — virements internes appariés', () => {
@@ -272,5 +273,52 @@ describe('périodes', () => {
     const zeroBase = periodPerformance([point('2026-08-18', '0'), point('2026-08-19', '10')], []);
     expect(zeroBase!.gain.toString()).toBe('10');
     expect(zeroBase!.pct).toBeNull();
+  });
+});
+
+describe('valueSeries — part portée au coût', () => {
+  /*
+   * Le cas qui a motivé la mesure : un portefeuille coté à 90 %, avec un seul jeton sans cours.
+   * Le booléen `missing.length > 0` disait « journée estimée » et l'écran décolorait tout ;
+   * `estimatedValue` dit la vérité — 100 € sur 1 100 €, soit 9 %.
+   */
+  const days = ['2026-01-01'];
+  const holdings = holdingsByDay({
+    btc: [op('2026-01-01T00:00:00', '1', '900')],
+    obscur: [op('2026-01-01T00:00:00', '10', '10')],
+  });
+
+  it('ne compte que le coût des actifs sans cotation, pas la valeur entière', () => {
+    const [p] = valueSeries({
+      holdings,
+      prices: { btc: { points: [{ day: '2026-01-01', priceEur: '1000' }] } },
+      days,
+    });
+    expect(p!.missing).toEqual(['obscur']);
+    expect(p!.value.toString()).toBe('1100');
+    expect(p!.estimatedValue.toString()).toBe('100');
+  });
+
+  it('vaut zéro quand tout est coté, et la valeur entière quand rien ne l’est', () => {
+    const tout = valueSeries({
+      holdings,
+      prices: {
+        btc: { points: [{ day: '2026-01-01', priceEur: '1000' }] },
+        obscur: { points: [{ day: '2026-01-01', priceEur: '10' }] },
+      },
+      days,
+    });
+    expect(tout[0]!.estimatedValue.toString()).toBe('0');
+    const rien = valueSeries({ holdings, prices: {}, days });
+    expect(rien[0]!.estimatedValue.toString()).toBe(rien[0]!.value.toString());
+  });
+
+  it('ignore un actif soldé : sans quantité, il ne manque à personne', () => {
+    const solde = holdingsByDay({
+      obscur: [op('2025-12-01T00:00:00', '10', '10'), op('2025-12-31T00:00:00', '0', null)],
+    });
+    const [p] = valueSeries({ holdings: solde, prices: {}, days });
+    expect(p!.missing).toEqual([]);
+    expect(p!.estimatedValue.toString()).toBe('0');
   });
 });

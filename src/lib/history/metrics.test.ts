@@ -10,6 +10,7 @@ const points: MetricPoint[] = [
     qty: D('0'),
     price: D('100'),
     estimated: false,
+    estimatedValue: D('0'),
   },
   {
     day: '2026-01-02',
@@ -18,6 +19,7 @@ const points: MetricPoint[] = [
     qty: D('1'),
     price: D('120'),
     estimated: false,
+    estimatedValue: D('0'),
   },
   {
     day: '2026-01-03',
@@ -26,6 +28,7 @@ const points: MetricPoint[] = [
     qty: D('1'),
     price: D('90'),
     estimated: false,
+    estimatedValue: D('0'),
   },
 ];
 
@@ -56,16 +59,15 @@ describe('métriques', () => {
       qty: D('1'),
       price: null,
       estimated: true,
+      estimatedValue: D('100'),
     };
+    // La part portée au coût, et non plus un booléen : 0 partout, 1 sur le point sans cotation.
     expect(metricSeries([...points, estimated], 'value').map((p) => p.estimated)).toEqual([
-      false,
-      false,
-      false,
-      true,
+      0, 0, 0, 1,
     ]);
     expect(metricSeries([estimated], 'unrealized')[0]).toMatchObject({
       primary: 0,
-      estimated: true,
+      estimated: 1,
     });
     expect(metricSeries([estimated], 'unrealizedPct')[0]).toMatchObject({ primary: 0 });
     expect(metricSeries([estimated], 'pru')).toEqual([]);

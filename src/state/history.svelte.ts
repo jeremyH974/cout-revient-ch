@@ -471,6 +471,7 @@ export class HistoryState {
         qty: null,
         price: null,
         estimated: p.missing.length > 0,
+        estimatedValue: p.estimatedValue,
       }));
     }
     const positions = this.positionsFor(scope);
@@ -557,6 +558,7 @@ export class HistoryState {
       qty,
       price: qty && qty.gt('0') ? p.value.div(qty) : null,
       estimated: false,
+      estimatedValue: ZERO,
     }));
   }
 

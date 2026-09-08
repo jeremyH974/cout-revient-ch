@@ -2707,7 +2707,47 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      […] to have a length of 2 but got 4 » — cette dernière a d'abord révélé un test creux, qui
      comptait les cours au lieu des appels et restait vert dans les deux cas.
 
-114. **Les prêts entrent dans le patrimoine** (08/09/2026).
+114. **Un estimé se hachure, il ne se décolore pas — et il se chiffre** (08/09/2026).
+
+     La courbe de patrimoine marquait `estimated` toute journée où **au moins un** actif détenu
+     n'avait aucune cotation, et le graphique rendait alors sa référence nulle : ni bande gain/perte,
+     ni couleur, un tracé neutre. Sur un portefeuille réel, un seul jeton sans cours a suffi à
+     effacer la lecture du résultat sur **les deux tiers de l'historique** — un gris continu jusqu'au
+     jour où ce jeton est tombé à zéro, puis les couleurs d'un coup. La légende, elle, annonçait
+     « estimé au coût » d'un point coté à 97 %.
+
+     Trois corrections, indissociables :
+
+     - **Mesurer.** `ValuePoint.estimatedValue` porte la somme des coûts des actifs sans cotation, et
+       `NetWorthPoint.estimatedValue` l'agrège. `missing` disait _lesquels_, celui-ci dit _combien_.
+       Un producteur qui se déclare estimé sans ventiler est réputé estimé **en entier** : c'est la
+       lecture prudente, et elle préserve le comportement des producteurs à venir.
+     - **Marquer sans effacer.** La notation sémantique (IBCS, ISO 24896:2026) traite l'incertitude
+       par une **trame**, pas par une perte de sens : la couleur reste, une zone hachurée dit où la
+       valeur est portée au coût, l'infobulle et la légende disent de combien. `ChartPoint.estimated`
+       est donc une part de 0 à 1, et non plus un booléen. Sous 0,1 %, la légende écrit « moins de
+       0,1 % » plutôt que « 0,0 % » — annoncer zéro à côté d'une zone hachurée ferait mentir l'un des
+       deux.
+     - **Nommer.** La Vue d'ensemble ne disait pas quel actif privait la courbe de cotation ; on
+       voyait qu'il manquait quelque chose, jamais quoi, ni où le corriger. Elle le nomme désormais,
+       et distingue « sans cotation » (désigner une source depuis la fiche actif) d'« historique
+       partiel » (rien à faire). La liste vient de **la série elle-même**, pas du chargeur de prix :
+       `history.status` ignore la fenêtre affichée et couvre les symboles de trading, qui ne sont pas
+       des producteurs de cette courbe. Elle partage en outre le seuil de la trame — un actif dont la
+       part est imperceptible n'est ni hachuré ni accusé, sans quoi le texte contredirait le dessin.
+
+     **Ce que ça ne corrige pas** : un actif sans cotation reste compté à son coût, donc la valeur de
+     ces jours-là demeure approchée. C'est assumé — la remplacer par un trou ferait tomber la courbe
+     à zéro face à un investi plein (décision n° 51). Le remède reste de donner une source à l'actif ;
+     l'écran dit maintenant lequel, et ce que ça pèse.
+
+     **Contre-épreuve** (décision n° 75), quatre fois : `estimatedValue` gonflé à la valeur entière
+     rougit en nommant « expected '1100' to be '100' » ; `spansOf` privé des plages d'un seul point
+     perd la journée isolée ; le repli prudent remplacé par zéro fait tomber la part d'un producteur
+     non ventilé ; et surtout, `ref()` remis à `null` sur un point estimé fait chuter à **zéro** le
+     nombre de tronçons colorés du parcours E2E — la régression exacte que cette décision répare.
+
+115. **Les prêts entrent dans le patrimoine** (08/09/2026).
      L'écran Prêts existait, ses chiffres étaient justes, et la Vue d'ensemble les ignorait : un
      compte qui n'aurait eu que des prêts était renvoyé à l'accueil, devant un « aucune donnée »
      démenti par l'écran d'à côté. Les prêts deviennent donc un **producteur de patrimoine** comme

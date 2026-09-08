@@ -128,6 +128,7 @@ describe('exports CSV', () => {
             qty: D('1'),
             price: D('250'),
             estimated: false,
+            estimatedValue: D('0'),
           },
         ],
         'EUR',
@@ -147,6 +148,7 @@ describe('exports CSV', () => {
           qty: D('1'),
           price: D('250'),
           estimated: false,
+          estimatedValue: D('0'),
         },
         {
           day: '2026-08-22T12:45:00.000Z',
@@ -155,6 +157,7 @@ describe('exports CSV', () => {
           qty: D('1'),
           price: null,
           estimated: true,
+          estimatedValue: D('150'),
         },
       ]),
     );

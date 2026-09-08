@@ -30,11 +30,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   prélèvement retenu entre acompte et prélèvements sociaux — en lisant le taux effectivement
   appliqué plutôt qu'en le présumant, de sorte qu'une année sous dispense n'affiche pas un crédit
   d'impôt que vous n'avez jamais payé. Estimation, jamais une déclaration ni un conseil fiscal.
+- **Vos prêts comptent dans votre patrimoine.** Ils rejoignent l'Investissement et le Trading dans
+  le total de la Vue d'ensemble, dans la répartition par espace et dans la carte « D'où vient ce
+  chiffre » — avec leurs apports, pour que « apports nets + résultat = patrimoine » reste vrai. Un
+  compte qui n'a que des prêts ouvre désormais son tableau de bord au lieu d'être renvoyé à
+  l'accueil. L'écran lui-même vit maintenant dans l'espace **Patrimoine**, aux côtés des titres ;
+  l'ancienne adresse continue de fonctionner.
 
 ## [2.17.0] - 2026-09-05
 
 ### Fixed
 
+- **Votre courbe de patrimoine ne perd plus ses couleurs à cause d'un seul jeton.** Il suffisait
+  qu'un actif détenu n'ait aucune cotation pour que la journée entière passe pour une estimation :
+  la courbe devenait grise, sans gain ni perte lisibles, sur toute la période où cet actif était
+  détenu. Désormais la couleur reste, la période concernée est **hachurée**, et la légende dit
+  quelle part de la valeur est portée au coût — 3 % ne se lit pas comme 100 %.
+- **La Vue d'ensemble vous dit enfin quel actif n'est pas coté.** Elle le nomme sous la courbe, et
+  distingue les deux causes : « sans cotation » — désignez sa source depuis sa fiche et la courbe le
+  valorisera — et « historique partiel », qui ne demande rien. Seuls les actifs qui pèsent
+  réellement sur la courbe sont nommés.
 - **Un explorateur qui hoquette ne vous réclame plus une clé.** L'import d'une adresse EVM
   réessaie une fois un fournisseur qui ne répond pas (panne réseau ou erreur serveur) avant de
   passer au suivant. Un seul `500` de Blockscout suffisait à épuiser le chemin sans clé — sur Base,

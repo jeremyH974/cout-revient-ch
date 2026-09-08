@@ -3,7 +3,12 @@
   import { nowMs } from '$lib/clock';
   import { fmtDate, fmtMoney } from '$lib/format/fr';
   import { periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
-  import { hasUnavailable, latestNetWorth, type NetWorthPoint } from '$lib/history/net-worth';
+  import {
+    estimatedShare,
+    hasUnavailable,
+    latestNetWorth,
+    type NetWorthPoint,
+  } from '$lib/history/net-worth';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
   import Info from '../shared/Info.svelte';
@@ -27,22 +32,57 @@
   );
 
   /**
+   * Part portée au coût, jour par jour, arrondie une seule fois — la trame ET le texte la lisent
+   * ici, et ne peuvent donc pas se contredire à l'arrondi près. Une part inférieure au millionième
+   * retombe à zéro : elle ne se dessine ni ne s'annonce, parce qu'elle ne change rien.
+   */
+  const shares = $derived(visible.map((p) => Number(estimatedShare(p).toFixed(6))));
+
+  /**
    * Courbe principale : la valeur nette. Courbe secondaire : les apports nets cumulés. L'écart
    * entre les deux EST le gain — c'est ce qui distingue cette courbe d'un solde de compte, où un
    * virement ressemble à une performance.
    */
   const points = $derived<ChartPoint[]>(
-    visible.map((p) => ({
+    visible.map((p, i) => ({
       day: p.day,
       primary: Number(p.net.toFixed(2)),
       secondary: Number(p.contributed.toFixed(2)),
-      estimated: p.estimated.length > 0,
+      // La PART portée au coût, et non plus le seul fait qu'il y en ait une : un jeton marginal
+      // sans cours ne doit plus effacer le gain et la perte de toute la journée (décision n° 114).
+      estimated: shares[i] ?? 0,
     })),
   );
 
   const latest = $derived(latestNetWorth(visible));
   const incomplete = $derived(hasUnavailable(visible));
   const tradingCount = $derived(history.netWorthContributions.length - 1);
+  /**
+   * Actifs qui privent CETTE courbe de cotation, sur la fenêtre affichée. Rien ne les nommait ici,
+   * et la trame restait donc une énigme : on voyait que quelque chose manquait, jamais quoi ni où
+   * aller le corriger (décision n° 114).
+   *
+   * La liste vient de la série elle-même, et non du chargeur de prix : `history.status` ignore la
+   * fenêtre affichée et couvre aussi les symboles de trading, qui ne sont pas des producteurs de
+   * cette courbe.
+   *
+   * Et seuls les jours **hachurés** comptent, au même seuil : un actif dont la part est
+   * imperceptible ne déplace pas la courbe, et le nommer sous un dessin où rien n'est marqué ne
+   * fait qu'inquiéter sans rien apprendre — le cas s'est présenté tel quel sur le jeu de
+   * démonstration. C'est ce partage de seuil qui interdit au texte et à la trame de diverger.
+   */
+  const guilty = $derived.by((): string[] => {
+    const out: string[] = [];
+    visible.forEach((p, i) => {
+      if ((shares[i] ?? 0) <= 0) return;
+      for (const a of p.estimatedAssets) if (!out.includes(a)) out.push(a);
+    });
+    return out.sort();
+  });
+  /** Aucun historique du tout, contre un historique qui commence trop tard : deux remèdes. */
+  const noQuote = $derived(guilty.filter((a) => history.status.missing.includes(a)));
+  const shortQuote = $derived(guilty.filter((a) => !history.status.missing.includes(a)));
+  const upper = (list: readonly string[]): string => list.map((a) => a.toUpperCase()).join(', ');
 </script>
 
 <section class="card group" aria-labelledby="net-worth-title">
@@ -87,6 +127,19 @@
         Espace Investissement seul — aucun compte de trading synchronisé.
       {/if}
     </p>
+    {#if noQuote.length > 0 || shortQuote.length > 0}
+      <p class="legend" data-testid="net-worth-quotes">
+        {#if noQuote.length > 0}
+          <strong>Sans cotation :</strong>
+          {upper(noQuote)} — la position est comptée à son coût. Désignez sa source depuis sa fiche pour
+          que la courbe la valorise.
+        {/if}
+        {#if shortQuote.length > 0}
+          <strong>Historique partiel :</strong>
+          {upper(shortQuote)} — coté seulement à partir d'une certaine date, au coût avant elle.
+        {/if}
+      </p>
+    {/if}
     {#if incomplete}
       <p class="warn" role="status">
         Certains jours sont <strong>incomplets</strong> : un compte n'a pas pu être converti en euros
