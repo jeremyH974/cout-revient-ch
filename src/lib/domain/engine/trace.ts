@@ -563,12 +563,30 @@ function operationNode(
 
 // --- Découpes ------------------------------------------------------------------------------------
 
-const ACQUISITIONS: ReadonlySet<HistoryKind> = new Set([
-  'buy',
-  'deposit',
-  'opening-balance',
-  'migration-in',
-]);
+/**
+ * Mouvements qui contribuent à « Σ acquisitions ».
+ *
+ * **Une table plutôt qu'un ensemble** : un `Set<HistoryKind>` ne prouve rien sur sa couverture, et
+ * un mouvement neuf y serait simplement absent — `investedContribution` rendrait alors `null` en
+ * silence, et le panneau « pourquoi ce chiffre ? » perdrait une ligne sans le dire. Le `satisfies`
+ * force à trancher pour chaque mouvement (décision n° 129).
+ */
+const ACQUISITION_BY_KIND = {
+  buy: true,
+  deposit: true,
+  'opening-balance': true,
+  'migration-in': true,
+  sell: false,
+  withdrawal: false,
+  reward: false,
+  'migration-out': false,
+  // Un fractionnement ne fait rien entrer : il redistribue ce qui est déjà là.
+  split: false,
+} satisfies Record<HistoryKind, boolean>;
+
+const ACQUISITIONS: ReadonlySet<HistoryKind> = new Set(
+  (Object.keys(ACQUISITION_BY_KIND) as HistoryKind[]).filter((k) => ACQUISITION_BY_KIND[k]),
+);
 
 interface Slice {
   asset: AssetCode | null;

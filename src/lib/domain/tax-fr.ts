@@ -172,9 +172,19 @@ export function taxKindOf(event: LedgerEvent): TaxEventKind {
       return 'external-out';
     case 'opening-balance':
       return 'acquisition';
-    // Migration (coût reporté), frais d'abonnement, lignes à qualifier : sans effet sur le PTA.
-    default:
+    // Sans effet sur le prix total d'acquisition : coût reporté, frais de compte, ligne à qualifier.
+    case 'migration':
+    case 'split':
+    case 'fee':
+    case 'unqualified':
       return 'ignored';
+    default: {
+      // **Un `default` valant « ignoré » rendrait un type d'événement neuf fiscalement invisible**,
+      // sans erreur ni message : le chiffre serait simplement un peu faux. Chaque type doit donc
+      // être nommé, et le compilateur refuse tout oubli ici (décision n° 129).
+      const missing: never = event;
+      throw new Error(`Type d'événement sans régime fiscal : ${JSON.stringify(missing)}`);
+    }
   }
 }
 

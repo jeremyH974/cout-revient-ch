@@ -3235,7 +3235,37 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      **Vérification incomplète, et il faut le dire** : le contrôle visuel n'a pas pu se faire, le
      port de développement étant tenu par le serveur d'une autre session qui servait un ancien
      bundle — le même piège que la décision n° 122. Les tests, eux, lisent le fichier sur le disque.
-129. **Un identifiant n'est pas un rang : les fills d'un même instant étaient rejoués dans le
+129. **Six modules décidaient du sort d'un événement ; trois seulement le réclamaient** (08/09/2026).
+     Avant d'ajouter un type d'événement pour les dividendes, j'ai cherché si le moteur savait se
+     défendre. Il ne savait pas, et la preuve était déjà là : **`applyLegs`
+     (`domain/declarations-fr.ts`) énumérait huit des neuf types du grand livre, sans `default`.
+     `split` manquait.** Ajouté la veille (décision n° 111), ce `switch` ne l'a jamais appris — ni
+     compilateur, ni test, ni écran n'ont bronché. L'effet était nul, cette fois : le solde du
+     3916-bis ne regarde que « détient-on encore quelque chose ? ». **C'est le hasard qui a tenu
+     lieu de garde-fou.**
+     Le compilateur a trouvé le reste tout seul : la chaîne de `else if` du rapport d'import
+     n'ignorait pas un type mais **trois** — `migration`, `split` et `opening-balance`.
+     Le remède existait déjà dans le dépôt, employé six fois : `const missing: never = x` en fin de
+     `switch`, ou `satisfies Record<Union, …>` sur une table. Rien à inventer, tout à généraliser.
+     Deux formes valaient mieux que l'ensemble qu'elles remplacent : un `ReadonlySet<HistoryKind>`
+     ne prouve **rien** sur sa couverture, alors qu'une table `satisfies Record<…, boolean>` oblige
+     à trancher pour chaque valeur, puis se convertit en `Set` par commodité.
+     **Le pire n'était pas le silence de l'affichage, mais celui du stockage.** `MANUAL_KINDS`,
+     `QUALIFICATION_KINDS` et `ACCOUNT_KINDS` étaient des `Set<string>` tenus à la main : une valeur
+     ajoutée à l'union sans mise à jour ici aurait été **refusée à la relecture d'une sauvegarde**,
+     sans message — l'utilisateur aurait perdu une saisie. Ces ensembles dérivent désormais des
+     unions elles-mêmes.
+     **Contre-épreuve** (décision n° 75), conduite en ajoutant un `IncomeEvent` factice à l'union et
+     en comparant les deux états :
+
+     - **sur `main`** : quatre modules réclament une décision — `compute.ts`, `koinly-csv.ts`,
+       `fx/convert.ts`, et `tax-fr.ts` **pour une raison sans rapport** (un détail de forme du type
+       factice). `taxKindOf` serait resté muet, et le dividende fiscalement invisible.
+     - **après** : « `Type 'IncomeEvent' is not assignable to type 'never'` » dans
+       `declarations-fr.ts` **et** dans `tax-fr.ts`, plus trois erreurs nommées dans
+       `import/pivot/index.ts`. Chaque garde réclame la décision qui lui revient.
+
+130. **Un identifiant n'est pas un rang : les fills d'un même instant étaient rejoués dans le
      désordre** (08/09/2026).
      L'écran Trades annonçait **667 aller-retours dont 67 clos** sur un compte qui ne porte
      qu'**une** position ouverte. Les 600 lignes en trop étaient toutes badgées « historique

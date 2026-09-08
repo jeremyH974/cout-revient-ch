@@ -2,7 +2,7 @@
  * Ordre des fills : un ordre qui traverse le carnet produit des dizaines d'exécutions à la MÊME
  * milliseconde, et leur `tid` ne dit pas laquelle est passée en premier. Ces tests tiennent la règle
  * qui remet la séquence d'aplomb (`startPosition`), et surtout son refus — un paquet dont la chaîne
- * ne se prouve pas est rendu tel quel, jamais deviné. Décision n° 129.
+ * ne se prouve pas est rendu tel quel, jamais deviné. Décision n° 130.
  */
 import { describe, expect, it } from 'vitest';
 import { buildRoundTrips } from '../../domain/trading/round-trips';

@@ -152,7 +152,7 @@ export function buildRoundTrips(
     /*
      * Tri par instant SEUL, et stable (ES2019) : dans une même milliseconde, l'ordre reçu EST
      * l'ordre d'exécution — c'est la normalisation qui l'établit, en rejouant la chaîne des
-     * `startPosition` (décision n° 129). Départager par identifiant, comme ici auparavant, revenait
+     * `startPosition` (décision n° 130). Départager par identifiant, comme ici auparavant, revenait
      * à rejouer un ordre qui traverse le carnet dans le désordre : la position reconstruite ne
      * recollait plus, et le garde-fou ci-dessous ouvrait un aller-retour « incomplet » par fill.
      */

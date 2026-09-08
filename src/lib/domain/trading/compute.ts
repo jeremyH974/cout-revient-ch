@@ -221,7 +221,7 @@ export function computeTradingAccount(
   spotPrice: SpotPrice = () => null,
 ): TradingAccountReport {
   // Les exécutions se trient par instant SEUL : leur ordre dans la milliseconde porte déjà la
-  // séquence de la plateforme, qu'un départage par identifiant détruirait (décision n° 129).
+  // séquence de la plateforme, qu'un départage par identifiant détruirait (décision n° 130).
   const executions = [...input.executions].sort((a, b) => a.time - b.time);
   const funding = [...input.funding].sort(byTime);
   const cashFlows = [...input.cashFlows].sort(byTime);

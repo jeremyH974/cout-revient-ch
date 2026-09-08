@@ -102,7 +102,7 @@ const arrivalOf = (f: HlFill): string =>
  * (ouverture ET clôture dans la même milliseconde) n'a pas de tête, et un paquet troué casse la
  * chaîne. Dans ces deux cas on ne devine pas, on rend l'ordre reçu, et c'est le garde-fou
  * `startPosition` de la reconstruction des aller-retours qui tranchera — bruyamment, mais
- * honnêtement. Décision n° 129.
+ * honnêtement. Décision n° 130.
  */
 function chainByPosition(packet: readonly HlFill[]): HlFill[] | null {
   const byStart = new Map<string, HlFill[]>();
