@@ -21,6 +21,8 @@ export interface MetricPoint {
   price: Big | null;
   /** Valeur estimée au coût : au moins un actif détenu n'a aucune cotation connue ce jour-là. */
   estimated: boolean;
+  /** Part de `value` portée au coût. `estimated` dit **si**, celui-ci dit **combien** (n° 114). */
+  estimatedValue: Big;
 }
 
 export interface MetricExtra {
@@ -35,7 +37,8 @@ export interface MetricSeriesPoint {
   secondary: number | null;
   /** Valeurs complémentaires affichées dans l'infobulle (PRU, prix, écart…). */
   extras: MetricExtra[];
-  estimated: boolean;
+  /** Part de la valeur portée au coût, de 0 à 1 — la trame du graphique, pas un booléen. */
+  estimated: number;
 }
 
 export interface MetricSpec {
@@ -143,7 +146,13 @@ export function metricSeries(points: readonly MetricPoint[], metric: Metric): Me
   const out: MetricSeriesPoint[] = [];
   for (const p of points) {
     const extras = extrasOf(p, metric);
-    const estimated = p.estimated;
+    // Part portée au coût. Un point sans valeur ne se divise pas : il est estimé en entier ou
+    // pas du tout, et c'est `estimated` qui tranche.
+    const estimated = !p.estimated
+      ? 0
+      : p.value.gt(ZERO)
+        ? Math.min(1, num(p.estimatedValue.div(p.value)))
+        : 1;
     switch (metric) {
       case 'value':
         out.push({ day: p.day, primary: num(p.value), secondary: num(p.cost), extras, estimated });

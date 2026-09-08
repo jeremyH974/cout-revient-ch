@@ -59,7 +59,13 @@
     period === '1d'
       ? null
       : periodPerformance(
-          visibleDaily.map((p) => ({ day: p.day, value: p.value, cost: p.cost, missing: [] })),
+          visibleDaily.map((p) => ({
+            day: p.day,
+            value: p.value,
+            cost: p.cost,
+            missing: [],
+            estimatedValue: p.estimatedValue,
+          })),
           history.flows(scope),
         ),
   );
