@@ -7,7 +7,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { ETORO_FIXTURE, etoroAssets } from './helpers/expected';
-import { EQUITY_PRICE_EUR, stubNetwork } from './helpers/network';
+import { stubNetwork } from './helpers/network';
 
 test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
@@ -74,7 +74,13 @@ test('avec une clé, les titres reçoivent un cours et une valeur', async ({ pag
   const list = page.getByRole('list', { name: 'Titres détenus' });
   await expect(list).toBeVisible();
   // Un prix, pas « Prix indisponible » : c'est la différence entre un fournisseur écrit et un
-  // fournisseur atteint.
+  // fournisseur atteint. Et plus aucune ligne sans cours — la note du haut disparaît.
   await expect(list.getByText('Prix indisponible').first()).toBeHidden({ timeout: 15000 });
-  await expect(page.getByText(`${EQUITY_PRICE_EUR},00`).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/sans cours/)).toBeHidden({ timeout: 15000 });
+  // La VALEUR, pas le prix : sous 768 px la colonne « Prix » est masquée par la mise en page
+  // (`AssetRow.svelte`, `.price { display: none }`), et l'assertion ne tenait qu'en desktop.
+  // La valeur, elle, est affichée sur les deux — et c'est bien elle que l'utilisateur attend.
+  await expect(list.getByText('Valeur').first()).toBeVisible();
+  const first = list.getByRole('listitem').first();
+  await expect(first).toContainText('€');
 });
