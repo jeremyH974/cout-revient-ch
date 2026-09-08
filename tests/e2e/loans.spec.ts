@@ -206,3 +206,20 @@ test('avec des prêts et AUCUNE crypto, l’écran Prêts reste atteignable par 
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
+
+test('avec de la crypto ET des prêts, le portefeuille porte une passerelle vers les prêts', async ({
+  page,
+}) => {
+  // Un export Coinhouse d'abord : sans lui, l'écran Portefeuille renvoie à l'accueil.
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', 'tests/fixtures/coinhouse/export-demo.csv');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
+
+  await page.goto('#/invest');
+  const bridge = page.locator('a.bridge');
+  await expect(bridge).toContainText('Prêts');
+  await expect(bridge).toContainText(eur(summary.value));
+  await bridge.click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
+});
