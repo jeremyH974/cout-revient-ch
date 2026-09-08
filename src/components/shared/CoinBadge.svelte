@@ -9,7 +9,9 @@
      * partagé y prendrait le logo d'une autre classe d'actif (décision n° 103).
      */
     logo = true,
-  }: { asset: string; size?: number; logo?: boolean } = $props();
+    /** Logo déjà résolu ailleurs (titres) : il prime sur la bibliothèque locale. */
+    url = null,
+  }: { asset: string; size?: number; logo?: boolean; url?: string | null } = $props();
   const hue = $derived([...asset].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7));
   const label = $derived(asset.slice(0, 4).toUpperCase());
   /** 0 = premier chargement ; 1 = réessai en contournant les caches (navigateur, service worker). */
@@ -17,6 +19,8 @@
   /** Actif dont le logo n'a pas pu être chargé malgré le réessai : repli sur les initiales. */
   let failedAsset = $state<string | null>(null);
   const src = $derived.by(() => {
+    if (url !== null)
+      return attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}`;
     if (!logo) return null;
     const base = iconUrl(asset);
     if (base === null) return null;

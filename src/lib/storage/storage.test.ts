@@ -178,7 +178,7 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       assetSettings: Object.fromEntries(
         Object.entries(envelope.state.assetSettings).map(([code, settings]) => [
           code,
-          { ...settings, label: null },
+          { ...settings, logo: null, label: null },
         ]),
       ),
       priceCache: {
@@ -530,6 +530,7 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
       manualPriceAt: '2026-01-01',
       coingeckoId: 'bitcoin',
       label: 'Bitcoin',
+      logo: { url: 'https://api.twelvedata.com/logo/bitcoin.org', at: '2026-01-01T00:00:00.000Z' },
     };
     s.accounts['man:trading'] = {
       id: 'man:trading',
