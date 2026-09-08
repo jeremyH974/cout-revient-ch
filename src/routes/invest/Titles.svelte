@@ -1,12 +1,11 @@
 <script lang="ts">
   import { assetSymbol } from '$lib/domain/assets';
   import type { PositionReport } from '$lib/domain/engine';
-  import { D, ZERO } from '$lib/domain/money';
+  import { ZERO } from '$lib/domain/money';
   import { router } from '$lib/router.svelte';
   import InvestTabs from '../../components/invest/InvestTabs.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import AssetRow from '../../components/portfolio/AssetRow.svelte';
-  import Delta from '../../components/shared/Delta.svelte';
   import Money from '../../components/shared/Money.svelte';
   import { app } from '../../state/app.svelte';
 
@@ -51,33 +50,6 @@
     <div><span class="label">Résultat</span><Money value={total} sign colored strong /></div>
   </div>
 </section>
-
-{#if app.hasLending}
-  <!--
-    Passerelle vers les Prêts. Elle vivait sur l'écran Investissement, où elle n'était pas chez
-    elle : les prêts participatifs ne sont pas des actifs numériques, et ils appartiennent à cet
-    espace-ci — celui du patrimoine hors crypto (décision n° 118). Elle ne porte que le chiffre
-    qui donne envie de cliquer ; la lecture détaillée est sur l'écran dédié.
-  -->
-  <a class="bridge" href={router.href({ name: 'loans' })}>
-    <span class="what">
-      <strong>Prêts</strong>
-      <span class="muted small"
-        >{app.lendingReport.loans.length} contrats · financement participatif</span
-      >
-    </span>
-    <span class="figures">
-      <Money value={app.displayFromEur(app.lending.value)} strong />
-      <Delta
-        value={app.displayFromEur(app.lending.result)}
-        pct={app.lending.returnOnContributions === null
-          ? null
-          : D(app.lending.returnOnContributions)}
-        size="sm"
-      />
-    </span>
-  </a>
-{/if}
 
 {#if unpriced > 0}
   <p class="small muted note">
@@ -161,29 +133,6 @@
 {/if}
 
 <style>
-  .bridge {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin: 0 var(--space-3) var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
-    border-radius: var(--radius, 8px);
-    text-decoration: none;
-    color: inherit;
-  }
-  .bridge .what {
-    display: grid;
-  }
-  .bridge .figures {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-
   .summary {
     display: grid;
     gap: var(--space-2);
