@@ -104,6 +104,16 @@ export const DATA_SOURCES: readonly DataSource[] = [
     emits: ['Twelve Data'],
   },
   {
+    id: 'alphavantage',
+    label: 'Alpha Vantage',
+    role: 'Cours du jour des titres européens, sur la clé gratuite que vous fournissez.',
+    url: 'https://www.alphavantage.co',
+    notice: null,
+    duty: 'unverified',
+    terms: null,
+    emits: ['Alpha Vantage'],
+  },
+  {
     id: 'hyperliquid',
     label: 'Hyperliquid',
     role: 'Cours des jetons Hyperliquid, et lecture d’un compte suivi par son adresse publique.',

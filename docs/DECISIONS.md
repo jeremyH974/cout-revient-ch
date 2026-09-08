@@ -2666,3 +2666,42 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      replie proprement, mais le résultat ne se constatera qu'avec une vraie clé.
      **Contre-épreuve** (décision n° 75) : privé de son filtre d'origine, le service accepte une URL
      étrangère et le test le nomme.
+113. **Les titres européens ont leur propre source, parce qu'aucune n'en cote deux** (08/09/2026).
+     Le palier gratuit de Twelve Data ne cote que les places américaines. Ce n'est pas une erreur de
+     symbologie : `symbol=MC&mic_code=XPAR` est la syntaxe exacte, et la réponse est un péage —
+     « This symbol is available starting with the Grow or Venture plan ». Les quatre points d'entrée
+     de prix (`quote`, `price`, `eod`, `time_series`) répondent la même chose. Les **données de
+     référence**, elles, restent gratuites : `symbol_search` résout `IE00B4L5Y983` en `SWDA`/XLON,
+     `IWDA`/XLON et `EUNL`/XETR. La proposition du 06/09 confondait les deux, et annonçait une
+     couverture qui n'existait que pour l'identité des titres, jamais pour leur prix.
+     **Vingt sources sondées avec un en-tête `Origin` réel**, le CORS étant le critère éliminatoire
+     d'une application sans serveur. Une seule passe à la fois le CORS, la gratuité et l'Europe :
+     **Alpha Vantage**. Éliminées : EODHD, Tiingo, justETF, Yahoo, Boerse Frankfurt, iShares et
+     OpenFIGI (aucun en-tête CORS) ; Finnhub, Financial Modeling Prep, Polygon et marketstack
+     (États-Unis seulement sur le palier gratuit) ; Stooq (endpoint mort et défi anti-robot).
+     Deux cas méritent d'être nommés parce qu'ils étaient techniquement supérieurs et refusés
+     quand même : **Euronext** sert son propre flux avec `ACAO: *`, mais **chiffre la charge
+     utile** — la déchiffrer serait contourner une protection délibérée ; **onvista** cote les huit
+     lignes en euros avec un CORS ouvert, mais ses conditions interdisent explicitement
+     l'interrogation automatisée. La supériorité technique ne rend pas une source utilisable.
+     **`GLOBAL_QUOTE` ne rend pas la devise.** Le prix n'est donc pris pour un euro que sur les
+     places dont la cotation en euros est certaine (`.PAR`, `.DEX`, `.FRK`), vérifiées par
+     `SYMBOL_SEARCH` qui, lui, la donne. **Londres est exclue à dessein** : elle cote tantôt en
+     pence, tantôt en dollars, et rien dans la réponse ne le dit — un facteur cent silencieux, et
+     un prix faux est pire qu'un prix absent (décision n° 54).
+     **La table curée prime sur la traduction mécanique**, sur le patron de `tickers.ts`. `.PA` et
+     `.DE` se traduisent sans entretien ; `SWDA` (Londres, en pence) et `EUNL` (XETRA, en euros)
+     sont le **même fonds** — choisir la ligne en euros supprime la conversion et le facteur cent
+     qui va avec. Un symbole qu'on ne sait pas placer ne reçoit aucune correspondance.
+     **Le quota choisit le rythme** : vingt-cinq cotations par jour, cinq par minute, et
+     `GLOBAL_QUOTE` ne groupe rien. Le fournisseur s'arrête à cinq par rafraîchissement et **cesse
+     de demander dès que le quota se ferme** — insister ne rapporterait rien et brûlerait la
+     journée. Même famille de clé que les précédentes (décision n° 32, étendue par la n° 104) :
+     données de marché en lecture seule, saisie par l'utilisateur, jamais committée.
+     **Vérifié sur les huit lignes réelles** : LVMH 431,20 €, Kering 241,40 €, Sodexo 57,10 €,
+     Eutelsat 1,842 €, 2CRSi 29,10 €, et les trois ETF pris à Francfort (714,02 €, 127,33 €,
+     1 460,40 €). Sept concordent au centime avec une source indépendante.
+     **Contre-épreuves** (décision n° 75) : Londres réadmise, « expected 'VOD.LON' to be null » ;
+     table curée ignorée, « expected null to be 'EUNL.DEX' » ; sortie sur quota retirée, « expected
+     […] to have a length of 2 but got 4 » — cette dernière a d'abord révélé un test creux, qui
+     comptait les cours au lieu des appels et restait vert dans les deux cas.

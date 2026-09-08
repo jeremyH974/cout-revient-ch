@@ -66,6 +66,11 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     img: true,
   },
   {
+    origin: 'https://www.alphavantage.co',
+    use: 'connect',
+    why: "Cours du jour des titres européens, que le palier gratuit de Twelve Data ne cote pas. Contactée uniquement si l'utilisateur a saisi sa propre clé.",
+  },
+  {
     origin: 'https://api.exchange.coinbase.com',
     use: 'connect',
     why: 'Chandelles quotidiennes pour la courbe de patrimoine.',

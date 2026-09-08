@@ -158,12 +158,14 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
       // fichier gelé, lui, n'est pas retouché.
       // Et un troisième depuis (P102, clé Twelve Data) : la fixture a rougi dès sa déclaration,
       // et constate qu'une sauvegarde de 2026 gagne un réglage vide de plus, sans montée de
-      // schéma ni déplacement de la moindre donnée.
+      // schéma ni déplacement de la moindre donnée. Puis un quatrième (décision n° 113, clé
+      // Alpha Vantage) : les titres européens ont leur propre source, donc leur propre clé.
       ui: {
         ...envelope.state.ui,
         aiEnabled: false,
         aiModelId: null,
         twelveDataApiKey: null,
+        alphaVantageApiKey: null,
       },
       // Un quatrième champ additif (décision n° 109) : le nom commercial d’un actif, que le
       // relevé d'un courtier fournit et qu'une sauvegarde de 2026 ne pouvait pas connaître.
