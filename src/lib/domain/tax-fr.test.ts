@@ -309,3 +309,55 @@ describe('dac8Summary — contrôler ce que la plateforme déclarera', () => {
     expect(dac8Summary(events, 2025).lines[0]!.grossProceedsEur).toBe('9999');
   });
 });
+
+describe('les valeurs mobilières ne sont pas des actifs numériques', () => {
+  // Décision n° 114. L'assiette du 150 VH bis est le portefeuille entier ; celle du 150-0 D est la
+  // ligne. Mélanger les deux ne donne pas une approximation, mais un chiffre faux — et il
+  // s'affichait sur trois écrans et dans le PDF, présenté comme une estimation fiscale.
+
+  it('l’achat d’une action ne gonfle pas le prix total d’acquisition', () => {
+    const withEquity = ledger([
+      buy('2026-01-02T10:00:00', 'btc', '1000'),
+      buy('2026-01-03T10:00:00', 'eq:aapl', '5000'),
+    ]);
+    const cryptoOnly = ledger([buy('2026-01-02T10:00:00', 'btc', '1000')]);
+    expect(withEquity.ptaAfter).toBe(cryptoOnly.ptaAfter);
+    expect(withEquity.ptaAfter).toBe('1000');
+  });
+
+  it('la vente d’une action n’est pas une cession de l’assiette crypto', () => {
+    const l = ledger(
+      [
+        buy('2026-01-02T10:00:00', 'btc', '1000'),
+        buy('2026-01-03T10:00:00', 'eq:aapl', '5000'),
+        sell('2026-06-01T10:00:00', 'eq:aapl', '9000'),
+      ],
+      { closingValueAt: closing({ '2026-06-01': '2000' }) },
+    );
+    expect(l.cessions).toEqual([]);
+  });
+
+  it('un échange action → crypto n’est pas un sursis d’imposition', () => {
+    // Le code le classait « sursis » (deux actifs non-fiat), ce qui est juridiquement faux : une
+    // cession de titre est un fait générateur. Hors de cette assiette, il n'y est plus du tout.
+    const l = ledger([
+      buy('2026-01-02T10:00:00', 'eq:aapl', '5000'),
+      trade('2026-06-01T10:00:00', 'eq:aapl', 'btc', '9000'),
+    ]);
+    expect(l.ptaAfter).toBe('0');
+    expect(l.cessions).toEqual([]);
+  });
+
+  it('la crypto du même grand livre reste imposée normalement', () => {
+    // Le filtre écarte les titres, il ne doit rien retirer d'autre.
+    const l = ledger(
+      [
+        buy('2026-01-02T10:00:00', 'btc', '1000'),
+        buy('2026-01-03T10:00:00', 'eq:aapl', '5000'),
+        sell('2026-06-01T10:00:00', 'btc', '3000'),
+      ],
+      { closingValueAt: closing({ '2026-06-01': '0' }) },
+    );
+    expect(l.cessions).toHaveLength(1);
+  });
+});

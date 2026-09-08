@@ -7,7 +7,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { ETORO_FIXTURE, etoroAssets } from './helpers/expected';
-import { stubNetwork } from './helpers/network';
+import { EQUITY_PRICE_EUR, stubNetwork } from './helpers/network';
 
 test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
@@ -54,4 +54,27 @@ test('la barre de navigation mène au Patrimoine', async ({ page }) => {
   await expect(nav.getByRole('link', { name: 'Patrimoine' })).toBeVisible();
   await nav.getByRole('link', { name: 'Patrimoine' }).click();
   await expect(page).toHaveURL(/#\/wealth$/);
+});
+
+test('avec une clé, les titres reçoivent un cours et une valeur', async ({ page }) => {
+  // LE test qui manquait. Les fournisseurs de cours étaient corrects et éprouvés isolément, mais
+  // `heldAssets` ne leur soumettait aucun code `eq:` : aucun titre n'a jamais eu de prix dans
+  // l'application. Rien ne le voyait — cette spec ne vérifiait que des libellés (décision n° 114).
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  // La clé se saisit comme l'utilisateur le ferait : c'est elle qui arme le fournisseur.
+  await page.goto('#/settings');
+  const key = page.getByLabel('Clé Twelve Data (facultative)');
+  await key.fill('clef-de-test-e2e');
+  await key.blur();
+
+  await page.goto('#/wealth');
+  const list = page.getByRole('list', { name: 'Titres détenus' });
+  await expect(list).toBeVisible();
+  // Un prix, pas « Prix indisponible » : c'est la différence entre un fournisseur écrit et un
+  // fournisseur atteint.
+  await expect(list.getByText('Prix indisponible').first()).toBeHidden({ timeout: 15000 });
+  await expect(page.getByText(`${EQUITY_PRICE_EUR},00`).first()).toBeVisible({ timeout: 15000 });
 });

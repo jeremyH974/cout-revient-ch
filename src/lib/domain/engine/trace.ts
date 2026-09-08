@@ -36,6 +36,7 @@ import type {
   RowKey,
   ValueEurSource,
 } from '../types';
+import { holdings } from './report';
 import type {
   HistoryEntry,
   HistoryKind,
@@ -707,9 +708,9 @@ function lotSlice(p: PositionReport, lot: LotReport): Slice {
   };
 }
 
+/** Toutes classes : un titre ouvert restait muet dans le panneau « pourquoi ce chiffre ». */
 const livePositions = (report: PortfolioReport): PositionReport[] => [
-  ...report.positions,
-  ...report.stablecoins,
+  ...holdings(report),
   ...report.closed,
 ];
 
