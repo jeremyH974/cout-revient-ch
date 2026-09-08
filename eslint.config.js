@@ -38,6 +38,7 @@ export default ts.config(
         ...globals.node,
         __APP_VERSION__: 'readonly',
         __BUILD_SHA__: 'readonly',
+        __PRIVATE_BUILD__: 'readonly',
       },
     },
   },

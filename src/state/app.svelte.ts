@@ -177,6 +177,17 @@ import {
   mirrorStateSync,
   savePersistedState,
 } from '$lib/storage/state-store';
+import { CORRUPT_BACKUP_KEY } from '$lib/storage/local-storage';
+import { createVault, rewrapVault, unlockVault } from '$lib/storage/vault';
+import {
+  armVault,
+  armedVaultMeta,
+  deleteVaultMeta,
+  disarmVault,
+  isVaultLocked,
+  readVaultMeta,
+  writeVaultMeta,
+} from '$lib/storage/vault-session';
 import {
   MAX_ALERT_EVENTS,
   emptyState,
@@ -249,7 +260,13 @@ function sameAlertStates(
 
 export class AppState {
   state = $state<StoredStateV1>(emptyState());
-  loadStatus = $state<'empty' | 'ok' | 'corrupt'>('empty');
+  loadStatus = $state<'empty' | 'ok' | 'corrupt' | 'sealed' | 'locked'>('empty');
+  /**
+   * Un coffre existe sur cet appareil (ouvert ou fermé). Pilote l'écran des réglages, pas l'accès.
+   */
+  vaultInstalled = $state(false);
+  /** Le coffre existe et n'est pas ouvert : l'application n'a rien chargé et ne doit rien montrer. */
+  vaultLocked = $state(false);
   loadError = $state<string | null>(null);
   saveError = $state<string | null>(null);
   /**
@@ -1070,8 +1087,29 @@ export class AppState {
    * automatique débouncée. Appelée (et attendue) avant le montage de l'application.
    */
   async init(): Promise<void> {
+    /*
+     * Coffre fermé : on sort AVANT d'avoir installé quoi que ce soit — ni effet de sauvegarde, ni
+     * écouteur de fermeture, ni reprise des prix. C'est ce qui rend `init()` rejouable après
+     * déverrouillage sans rien enregistrer deux fois, et c'est aussi ce qui garantit qu'aucune
+     * écriture ne part tant que la clé n'est pas là.
+     */
+    this.vaultInstalled = (await readVaultMeta()) !== null;
+    if (await isVaultLocked()) {
+      this.vaultLocked = true;
+      this.loadStatus = 'locked';
+      return;
+    }
     const loaded = await loadPersistedState();
     this.state = loaded.state;
+    /*
+     * La porte ne s'efface qu'ICI, une fois l'état en place — jamais avant.
+     *
+     * Le faire plus tôt affichait une application vide pendant l'hydratation, et l'effet de garde
+     * d'`App.svelte` (« pas de données ⇒ retour à l'accueil ») s'y déclenchait : on déverrouillait
+     * son coffre pour atterrir sur l'écran de bienvenue. Le symptôme était intermittent, donc
+     * invisible en développement ; c'est un test de bout en bout instable qui l'a fait sortir.
+     */
+    this.vaultLocked = false;
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
     if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
@@ -1150,6 +1188,103 @@ export class AppState {
     this.updateAppBadge();
     void this.ingestSwFires();
     void this.initFolderBackup();
+  }
+
+  // --- Coffre : chiffrement au repos -----------------------------------------------------------
+
+  /**
+   * Installe le coffre, puis réécrit **immédiatement** l'état scellé par-dessus les copies en clair.
+   *
+   * Si cette réécriture échoue, on défait l'installation. Un coffre posé sur des données restées en
+   * clair serait le pire des deux mondes : l'utilisateur croirait ses données protégées, et elles
+   * seraient à la fois lisibles sur le disque et inaccessibles à l'application.
+   */
+  async installVault(passphrase: string): Promise<void> {
+    const { meta, key } = await createVault(passphrase);
+    await writeVaultMeta(meta);
+    armVault(meta, key);
+    const result = await savePersistedState($state.snapshot(this.state), nowIso());
+    if (!result.ok) {
+      await deleteVaultMeta();
+      disarmVault();
+      this.vaultInstalled = false;
+      throw new Error(result.error ?? "L'état n'a pas pu être enregistré chiffré.");
+    }
+    this.vaultInstalled = true;
+    this.vaultLocked = false;
+    this.saveError = null;
+    this.mirrorError = result.mirrorError;
+    this.forgetClearResidue();
+  }
+
+  /**
+   * Ouvre le coffre et démarre l'application. Lève si le mot de passe est faux — l'écran de
+   * déverrouillage reste alors affiché, ce qui est le comportement voulu.
+   */
+  async unlockVaultWith(
+    passphrase: string,
+    onProgress?: (fraction: number) => void,
+  ): Promise<void> {
+    const meta = await readVaultMeta();
+    if (meta === null) {
+      // Le coffre a été retiré depuis un autre onglet : plus rien à ouvrir.
+      this.vaultLocked = false;
+      await this.init();
+      return;
+    }
+    armVault(meta, await unlockVault(meta, passphrase, onProgress ? { onProgress } : {}));
+    // `init()` baisse lui-même `vaultLocked`, et seulement une fois l'état chargé. Le faire ici
+    // rouvrirait la course que le commentaire d'`init()` décrit.
+    await this.init();
+  }
+
+  /**
+   * Referme le coffre. Recharger la page est **le geste, pas un effet de bord** : c'est la seule
+   * façon de garantir qu'aucune copie de l'état ne reste en mémoire, dans un composant monté ou
+   * dans un calcul dérivé. Effacer `this.state` n'en dirait rien des autres.
+   */
+  lockVault(): void {
+    disarmVault();
+    this.vaultLocked = true;
+    if (typeof location !== 'undefined') location.reload();
+  }
+
+  /** Change le mot de passe. Les données ne sont ni relues ni réécrites (voir `vault.ts`). */
+  async changeVaultPassphrase(current: string, next: string): Promise<void> {
+    const meta = armedVaultMeta() ?? (await readVaultMeta());
+    if (meta === null) throw new Error("Aucun coffre n'est installé sur cet appareil.");
+    await writeVaultMeta(await rewrapVault(meta, current, next));
+  }
+
+  /**
+   * Retire le coffre et remet l'état en clair. Le mot de passe est exigé : sans lui, quiconque
+   * passe devant un écran déverrouillé pourrait ôter la protection en deux clics.
+   */
+  async removeVault(passphrase: string): Promise<void> {
+    const meta = await readVaultMeta();
+    if (meta === null) {
+      this.vaultInstalled = false;
+      return;
+    }
+    await unlockVault(meta, passphrase);
+    const snapshot = $state.snapshot(this.state);
+    await deleteVaultMeta();
+    disarmVault();
+    this.vaultInstalled = false;
+    const result = await savePersistedState(snapshot, nowIso());
+    this.saveError = result.ok ? null : result.error;
+  }
+
+  /**
+   * Efface la copie de secours qu'un chargement raté avait laissée en clair. Elle n'est pas
+   * recouverte par la réécriture scellée : elle vit sous sa propre clé.
+   */
+  private forgetClearResidue(): void {
+    try {
+      localStorage.removeItem(CORRUPT_BACKUP_KEY);
+    } catch {
+      /* stockage indisponible : rien à effacer */
+    }
   }
 
   // --- Sauvegarde automatique dans un dossier ---------------------------------------------------

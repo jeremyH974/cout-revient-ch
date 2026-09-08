@@ -6,17 +6,29 @@
  * `history/cache.ts` : ouverture unique, transactions résolues sur `oncomplete`.
  */
 import type { StoredStateV1 } from './schema';
+import { isSealedBlob, type SealedBlob } from './vault';
 
 export const STATE_DB = 'crch-state';
 const STATE_STORE = 'state';
 const META_STORE = 'meta';
 const STATE_KEY = 'v1';
 
-export interface StateSnapshot {
-  state: StoredStateV1;
-  /** ISO 8601 de l'enregistrement : départage IndexedDB et miroir localStorage au chargement. */
-  savedAt: string;
-}
+/**
+ * Deux formes, jamais mélangées : l'état en clair (sans coffre) ou le même état scellé. Le
+ * discriminant est explicite plutôt que déduit de la présence d'un champ — une base à moitié
+ * réécrite ne doit pas pouvoir se faire passer pour l'autre forme.
+ *
+ * `SealedBlob` ne porte que des `Uint8Array` : IndexedDB les clone tels quels, sans passer par du
+ * base64, donc sans le tiers de volume qu'il coûterait.
+ */
+export type StateSnapshot =
+  | {
+      kind?: undefined;
+      state: StoredStateV1;
+      /** ISO 8601 de l'enregistrement : départage IndexedDB et miroir localStorage au chargement. */
+      savedAt: string;
+    }
+  | { kind: 'sealed'; sealed: SealedBlob; savedAt: string };
 
 export function isIndexedDbAvailable(): boolean {
   return typeof indexedDB !== 'undefined' && indexedDB !== null;
@@ -67,11 +79,14 @@ function run<T>(
   );
 }
 
-const isSnapshot = (v: unknown): v is StateSnapshot =>
-  typeof v === 'object' &&
-  v !== null &&
-  typeof (v as StateSnapshot).savedAt === 'string' &&
-  typeof (v as StateSnapshot).state === 'object';
+const isSnapshot = (v: unknown): v is StateSnapshot => {
+  if (typeof v !== 'object' || v === null) return false;
+  const record = v as Record<string, unknown>;
+  if (typeof record['savedAt'] !== 'string') return false;
+  if (record['kind'] === 'sealed') return isSealedBlob(record['sealed']);
+  // Forme historique : pas de discriminant, un état en clair. Elle reste lisible telle quelle.
+  return record['kind'] === undefined && typeof record['state'] === 'object';
+};
 
 export async function idbLoadSnapshot(): Promise<StateSnapshot | null> {
   const value = await run<unknown>(STATE_STORE, 'readonly', (s) => s.get(STATE_KEY));

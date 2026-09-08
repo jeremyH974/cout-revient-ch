@@ -2898,3 +2898,128 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      celui qui manquait : `heldAssets` remis dans son état d'origine, l'écran Titres garde
      « Prix indisponible » et la spec le nomme. Aucun stub de Twelve Data n'existait dans les tests
      de bout en bout — c'est pourquoi rien n'a jamais rougi.
+
+120. **L'état au repos se chiffre, et le mot de passe ne chiffre jamais les données** (08/09/2026).
+
+     L'application se présentait comme « 100 % dans votre navigateur », ce qui est vrai et ne dit
+     rien de la confidentialité. `StoredStateV1` était écrit **en clair** dans IndexedDB et dans le
+     miroir `localStorage` ; seule la sauvegarde _exportée_ pouvait être chiffrée. Un profil de
+     navigateur copié, un disque non chiffré ou une extension lisant l'origine suffisaient à relire
+     tout le patrimoine. OWASP le formule sans détour : « do not assume client-side storage
+     provides confidentiality », et nomme le remède — une clé « not itself recoverable from the
+     browser », dérivée d'une phrase jamais persistée, ou une `CryptoKey` non extractible.
+
+     **Enveloppe, jamais chiffrement direct.** Le mot de passe dérive une clé (KEK) dont l'unique
+     rôle est de sceller une clé tirée au hasard (DEK) ; c'est la DEK qui chiffre l'état. Le gain
+     n'est pas théorique : changer de mot de passe re-scelle **32 octets** au lieu de re-chiffrer
+     plusieurs mégaoctets. Sans enveloppe, une interruption au mauvais moment — onglet fermé,
+     batterie — laisserait un état à moitié converti, c'est-à-dire perdu.
+
+     **Argon2id, et l'argument qui est tombé.** `encryption.ts` justifiait PBKDF2 par « Argon2id
+     n'existe qu'en WebAssembly ou en JS pur ici — une dépendance de plus dans le chemin critique ».
+     Ce n'est plus vrai : `@noble/hashes` est **déjà** une dépendance de production (clés publiques
+     étendues, empreintes des cassettes) et expose `argon2id` en JS pur depuis sa v2. Le coût
+     d'entrée est nul. Or la différence va dans un seul sens : PBKDF2 ne coûte que du **temps**,
+     qu'une carte graphique parallélise pour presque rien ; Argon2id coûte de la **mémoire**,
+     46 Mio par tentative, ce qu'un attaquant ne parallélise pas à bon marché. Face à un disque
+     volé attaqué hors ligne, sans limite de tentatives, c'est la seule propriété qui compte.
+     Paramètres : la première ligne du tableau OWASP (m=47104, t=1, p=1), **écrits dans l'en-tête**
+     et non supposés à la lecture — les relever un jour n'invalidera aucun coffre existant.
+
+     `p: 1` n'est pas une économie. La dérivation est mono-fil en JavaScript : annoncer `p: 4`
+     coûterait le même temps **chez nous** tout en divisant par quatre le travail qu'un attaquant
+     multi-cœurs doit fournir. Réclamer un parallélisme qu'on n'exécute pas, c'est s'affaiblir en
+     croyant se renforcer.
+
+     **Coût mesuré — et une mesure d'abord fausse, gardée ici parce qu'elle instruit.** ~250 ms
+     sous Node ; **222 ms pour installer le coffre et 236 ms pour l'ouvrir** dans Chromium,
+     chronométrés de bout en bout à travers l'interface. Une première mesure annonçait 3,5 s et
+     avait conduit à écrire, dans cette décision et dans la documentation, qu'il fallait « compter
+     environ 3 secondes ». Elle avait été prise dans un navigateur **embarqué, onglet masqué,
+     processus de rendu déprioritisé** : elle mesurait cet environnement, pas l'application. Ce que
+     l'incident enseigne : un chiffre de performance sans son environnement n'est pas un chiffre,
+     et celui-ci a bien failli faire descendre les paramètres pour « gagner deux secondes ».
+
+     Le plancher OWASP n'est de toute façon pas une variable d'ajustement, et il reste de la marge
+     au-dessus — les paramètres vivant dans l'en-tête, les relever un jour ne coûtera qu'une ligne
+     et n'invalidera aucun coffre existant. `asyncTick` passe de 10 à 100 ms : un rendu par dixième
+     de seconde suffit à une barre de progression, et un tick court multiplie le coût quand
+     l'onglet passe en arrière-plan, où les minuteurs sont bridés à la seconde.
+
+     **Deux pièges d'intégration, chacun avec sa contre-épreuve.**
+
+     - Coffre fermé, `loadPersistedState` rend **`locked`**, jamais `empty`. `empty` ferait démarrer
+       l'application sur du vide, et la première sauvegarde automatique écraserait les données
+       chiffrées par un état neuf. La contre-épreuve fait rougir trois tests d'un coup.
+     - Le refus d'écrire en clair dépend de « un coffre est **installé** », pas de « une clé est
+       **armée** ». Sans cette distinction, verrouiller pendant qu'une sauvegarde débouncée est en
+       vol réécrivait le patrimoine en clair — à la seconde exacte où l'utilisateur croit le mettre
+       à l'abri. D'où `disarmVault()` qui conserve l'en-tête en mémoire.
+
+     Le miroir synchrone de fermeture ne peut pas sceller (`crypto.subtle` est asynchrone) : il
+     réécrit le **dernier état scellé**, avec **son** horodatage. Écrire l'heure courante lui ferait
+     gagner l'arbitrage du prochain chargement en portant l'état le plus vieux — le plus ancien se
+     déclarerait le plus récent. Retard maximal : une fenêtre de debounce, 300 ms, sur un chemin qui
+     n'existe que pour le cas « l'écriture asynchrone n'a jamais abouti ».
+
+     Si sceller échoue, **rien** n'est écrit : retomber sur du clair déposerait le patrimoine à
+     l'endroit exact que le coffre est censé protéger, et personne ne le verrait.
+
+     **Ce que le coffre ne fait pas**, et qu'il faut dire : il ne protège pas un écran déjà
+     déverrouillé — à ce moment-là l'état est en mémoire, en clair, par nécessité. Un coffre dont on
+     surestime la portée est plus dangereux qu'une absence de coffre.
+
+121. **La variante personnelle a sa propre origine, et ne sort pas** (08/09/2026).
+
+     Le site public et la variante locale ne se distinguent pas par leur code mais par trois
+     propriétés, dont une seule est cosmétique.
+
+     **Une origine à elle.** `localhost:5173` est le port par défaut de Vite : une origine
+     **partagée** avec tout autre projet lancé sur la machine. Le stockage d'un navigateur est
+     cloisonné par origine, pas par projet — un autre chantier sur 5173 lisait donc `crch-state`.
+     La variante personnelle vit à la racine de `http://crch.localhost:7331`. Le suffixe
+     `.localhost` est résolu en boucle locale par le navigateur lui-même (RFC 6761), sans entrée
+     dans le fichier `hosts`, et reste un **contexte sécurisé** — vérifié : `crypto.subtle` répond,
+     donc le coffre fonctionne.
+
+     **Un verrou de sortie, posé avant tout le reste.** `fetch` et `WebSocket` sont emballés au
+     démarrage dans les **deux** variantes ; seule la personnelle ferme le verrou. Les emballer même
+     verrou levé n'est pas du zèle : un module qui capture `fetch` au chargement en garderait
+     autrement la version d'origine, et une fermeture ultérieure ne le concernerait plus. Un `if`
+     par appelant aurait demandé qu'on n'oublie aucun des dix modules concernés — aujourd'hui, et à
+     chaque module ajouté. Ici, un appel oublié est refusé **par construction**, y compris dans du
+     code que personne n'a relu : une dépendance compromise comprise, qui reste la menace la plus
+     concrète de ce projet (n° 13).
+
+     Le verrou complète la CSP, il ne la remplace pas. La CSP est appliquée par le navigateur et
+     survivrait à ce module, mais n'est injectée qu'au build — donc absente en développement.
+     Inversement, le verrou fonctionne partout mais vit dans le même contexte que ce qu'il
+     surveille. Ensemble, ils couvrent ce que ni l'un ni l'autre ne couvre seul.
+
+     **Pas de service worker** (`disable: isPrivate`). Le poids — 1,8 Mio de précache pour une
+     application servie depuis le disque — n'est pas la raison. Son `fetch` s'exécute dans une
+     **autre portée** que la page, donc hors du verrou, et il interroge CoinGecko pour vérifier les
+     alertes application fermée. Le garder, c'était laisser une porte de sortie que le mode local
+     prétend avoir fermée.
+
+     **Le réglage « autoriser les appels sortants » n'est pas enregistré**, et c'est le seul de
+     l'application dans ce cas avec la clé Anthropic (n° 69). Même raison : ce qu'on enregistre finit
+     par s'appliquer un jour où on n'y pense plus. Coché en mars, il s'appliquerait encore en
+     novembre, à un import qu'on n'avait pas en tête. En mémoire vive, l'état de départ est toujours
+     le même — rien ne sort — et l'ouverture est un geste conscient qui expire à la fermeture de
+     l'onglet.
+
+     **Un serveur local plutôt que `vite preview`**, dont la documentation dit « Do not use this as
+     a production server ». Ce n'est pas une question de charge mais de ce qu'il n'envoie pas.
+     `scripts/serve-prive.ts` écoute sur `127.0.0.1` **uniquement** — jamais `0.0.0.0`, qui
+     exposerait le patrimoine à tout le réseau Wi-Fi — et pose la CSP en **vrai en-tête HTTP**, ce
+     que GitHub Pages ne permet pas. D'où `frame-ancestors 'none'`, l'une des trois directives
+     qu'une balise `<meta>` ne peut pas porter. La politique vient de `csp.ts` : un serveur avec sa
+     propre liste aurait divergé au premier ajout.
+
+     **Ce que la variante locale ne change pas.** Elle supprime la compromission du site publié et
+     l'éviction du stockage ; elle ne supprime **ni** une dépendance npm compromise (pire en local,
+     où le code a accès au disque), **ni** un processus malveillant tournant sous le même compte
+     Windows — que ni DPAPI, ni le Credential Manager, ni le TPM n'adressent. Écarté pour cette
+     raison : Tauri, dont le seul apport ici serait l'écriture disque sans dialogue, contre une
+     chaîne Rust complète et des minutes de compilation.

@@ -1,6 +1,7 @@
 /** Persistance locale : une seule clé, préfixée (origine *.github.io partagée). */
 import { migrateState } from './migrations';
 import { emptyState, type StoredStateV1 } from './schema';
+import { looksSealed } from './vault';
 
 export const STORAGE_KEY = 'crch:v1:state';
 
@@ -18,11 +19,22 @@ function preserveCorrupt(storage: Storage, raw: string): void {
 export type LoadResult =
   | { status: 'empty'; state: StoredStateV1 }
   | { status: 'ok'; state: StoredStateV1 }
-  | { status: 'corrupt'; state: StoredStateV1; error: string; raw: string };
+  | { status: 'corrupt'; state: StoredStateV1; error: string; raw: string }
+  /**
+   * Miroir chiffré par le coffre. Ce module est **synchrone** et `crypto.subtle` ne l'est pas : il
+   * ne peut que constater. C'est `state-store.ts`, asynchrone, qui ouvrira le bloc.
+   */
+  | { status: 'sealed'; state: StoredStateV1; raw: string };
 
 export function loadState(storage: Storage = localStorage): LoadResult {
   const raw = storage.getItem(STORAGE_KEY);
   if (raw === null) return { status: 'empty', state: emptyState() };
+  /*
+   * Avant toute tentative de lecture JSON : un miroir scellé n'est pas du JSON, et le prendre pour
+   * un état corrompu déclencherait `preserveCorrupt`, qui recopierait le chiffré dans une seconde
+   * clé — du bruit, et une copie de plus de ce qu'on cherche justement à ne pas répandre.
+   */
+  if (looksSealed(raw)) return { status: 'sealed', state: emptyState(), raw };
   try {
     const migrated = migrateState(JSON.parse(raw));
     if (migrated.ok) return { status: 'ok', state: migrated.state };
@@ -41,6 +53,22 @@ export function saveState(state: StoredStateV1, storage: Storage = localStorage)
   try {
     storage.setItem(STORAGE_KEY, json);
     return { ok: true, bytes: json.length };
+  } catch (error) {
+    return {
+      ok: false,
+      error: `Impossible d'enregistrer (espace insuffisant ?) : ${String(error)}`,
+    };
+  }
+}
+
+/**
+ * Écrit un miroir déjà scellé. Passe par le même chemin que `saveState` (même clé, même gestion du
+ * quota) mais sans sérialiser : le texte reçu est du chiffré, et ce module ne détient aucune clé.
+ */
+export function saveSealed(text: string, storage: Storage = localStorage): SaveResult {
+  try {
+    storage.setItem(STORAGE_KEY, text);
+    return { ok: true, bytes: text.length };
   } catch (error) {
     return {
       ok: false,

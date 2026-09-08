@@ -163,7 +163,8 @@ describe('state-store', () => {
       expect(result.mirrorError, 'l’échec du miroir doit être visible').toMatch(/enregistrer/i);
 
       const snapshot = await idbLoadSnapshot();
-      expect(snapshot?.state).toEqual(state);
+      expect(snapshot?.kind).toBeUndefined();
+      expect(snapshot && 'state' in snapshot ? snapshot.state : null).toEqual(state);
     });
 
     it('les deux réussissent => aucune erreur de miroir', async () => {
