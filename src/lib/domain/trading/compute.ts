@@ -66,13 +66,18 @@ export interface TradingAccountReport extends TradingAccountInput {
   spotUnpriced: string[];
   /** Latent des avoirs spot hors devise de cotation (`valeur − notionnel d'entrée`). */
   spotUnrealized: Big;
+  /** Devise de cotation gagée en collatéral : déjà dans `accountValue`, jamais ajoutée (n° 117). */
+  spotPledged: Big;
   /**
-   * **Valeur du compte : équité perps + avoirs spot** (décision n° 100), `null` sans instantané.
+   * **Valeur du compte : équité perps + avoirs spot LIBRES** (décisions n° 100 et 117), `null` sans
+   * instantané.
    *
-   * La version précédente ne comptait que `accountValue`, l'équité du compte perps. Or un compte
-   * sans position ouverte a une équité perps NULLE et tout son argent du côté spot : l'app
-   * affichait donc zéro — et une perte de 100 % des apports — pour l'état le plus banal qui soit,
-   * celui d'un compte entre deux trades.
+   * Deux erreurs symétriques, corrigées l'une après l'autre. La première ne comptait que
+   * `accountValue`, l'équité perps : un compte sans position ouverte a une équité perps NULLE et
+   * tout son argent du côté spot, et l'app affichait donc zéro — une perte de 100 % des apports —
+   * pour l'état le plus banal qui soit. La seconde, née de la correction de la première, ajoutait
+   * le spot ENTIER : dès qu'une position s'ouvre, la plateforme gage la trésorerie spot et la rend
+   * alors des deux côtés, si bien que la valeur du compte doublait.
    */
   equity: Big | null;
   reconciliation: Reconciliation | null;
@@ -168,18 +173,35 @@ export interface SpotValuation {
   unpriced: string[];
   /** `valeur − notionnel d'entrée` des jetons hors devise de cotation : le latent du spot. */
   unrealized: Big;
+  /**
+   * Devise de cotation déjà gagée en collatéral, donc **déjà comprise dans `accountValue`** et
+   * volontairement exclue de `value` : le même argent ne peut pas compter deux fois.
+   */
+  pledged: Big;
 }
 
 export function spotValueOf(snapshot: TradingSnapshot | null, price: SpotPrice): SpotValuation {
-  if (!snapshot) return { value: ZERO, unpriced: [], unrealized: ZERO };
+  if (!snapshot) return { value: ZERO, unpriced: [], unrealized: ZERO, pledged: ZERO };
   let value = ZERO;
   let unrealized = ZERO;
+  let pledged = ZERO;
   const unpriced: string[] = [];
   for (const holding of snapshot.spot) {
     const qty = D(holding.qty);
     if (holding.asset === QUOTE_ASSET) {
-      // De la trésorerie : elle vaut sa quantité, et n'a par construction aucun latent.
-      value = value.plus(qty);
+      /*
+       * Trésorerie : elle vaut sa quantité, sans latent — mais seulement la part LIBRE.
+       *
+       * La plateforme rend le collatéral des perps **dans les deux états** : `accountValue` le
+       * contient déjà, et le solde spot le répète en le marquant `hold`. Mesuré sur un compte réel
+       * le 08/09/2026 : `accountValue` 28 220,689416 et USDC spot `total` 28 220,689416 avec `hold`
+       * égal au total — le même argent, au millionième près. Les additionner doublait la valeur du
+       * compte, et la série `portfolio` de la plateforme, elle, n'annonçait qu'une fois le montant.
+       * Le défaut ne se voyait pas sur un compte à plat, où rien n'est gagé (décision n° 117).
+       */
+      const free = qty.minus(holding.hold ?? ZERO);
+      value = value.plus(free.gt(ZERO) ? free : ZERO);
+      pledged = pledged.plus(free.gt(ZERO) ? qty.minus(free) : qty);
       continue;
     }
     const quote = price(holding.asset);
@@ -191,7 +213,7 @@ export function spotValueOf(snapshot: TradingSnapshot | null, price: SpotPrice):
     value = value.plus(amount);
     unrealized = unrealized.plus(amount.minus(holding.entryNotional ?? ZERO));
   }
-  return { value, unpriced, unrealized };
+  return { value, unpriced, unrealized, pledged };
 }
 
 export function computeTradingAccount(
@@ -237,6 +259,7 @@ export function computeTradingAccount(
     spotValue: spot.value,
     spotUnpriced: spot.unpriced,
     spotUnrealized: spot.unrealized,
+    spotPledged: spot.pledged,
     equity,
     reconciliation,
   };

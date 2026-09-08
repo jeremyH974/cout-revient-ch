@@ -296,3 +296,65 @@ describe('compte à plat sur les perps : la valeur est du côté spot (décision
     expect(coté.reconciliation?.gap.toString()).toBe('0');
   });
 });
+
+describe('position ouverte : le collatéral spot ne compte pas deux fois (décision n° 117)', () => {
+  /*
+   * Le cas réel qui a manqué à la décision n° 100, validée sur un compte à PLAT — là où rien n'est
+   * gagé. Dès qu'une position s'ouvre, Hyperliquid rend la même trésorerie des deux côtés :
+   * `accountValue` la contient, et le solde spot la répète en la marquant `hold`. Mesuré le
+   * 08/09/2026 : 28 220,689416 des deux côtés, au millionième près, et la série `portfolio` de la
+   * plateforme n'annonçait le montant qu'UNE fois. L'addition doublait la valeur du compte.
+   */
+  const engage = (total: string, hold: string) => ({
+    accountId: 'hl:a',
+    executions: [exec({ closedPnl: '500', fee: '100', direction: 'Close Long' })],
+    funding: [funding({ amount: '-50' })],
+    cashFlows: [flow({ kind: 'deposit', amount: '10000' })],
+    snapshot: {
+      at: '2026-09-08T00:00:00.000Z',
+      accountValue: '10350',
+      withdrawable: '0',
+      marginUsed: '4000',
+      positions: [
+        {
+          symbol: 'BTC',
+          side: 'short' as const,
+          size: '-6',
+          entryPrice: '78465.6',
+          value: '470000',
+          unrealizedPnl: '0',
+          leverage: 40,
+          leverageType: 'cross' as const,
+          liquidationPrice: null,
+          marginUsed: '4000',
+          fundingSinceOpen: null,
+        },
+      ],
+      spot: [{ asset: 'usdc', qty: total, hold, entryNotional: '0' }],
+    } satisfies TradingSnapshot,
+  });
+
+  it('tout le spot gagé : la valeur est l’équité perps, et rien de plus', () => {
+    const report = computeTradingAccount(engage('10350', '10350'));
+    // 10 000 déposés + 500 réalisés − 100 de frais − 50 de funding = 10 350, une seule fois.
+    expect(report.spotValue.toString()).toBe('0');
+    expect(report.spotPledged.toString()).toBe('10350');
+    expect(report.equity?.toString()).toBe('10350');
+    expect(report.reconciliation?.gap.toString()).toBe('0');
+  });
+
+  it('gage partiel : seule la part LIBRE s’ajoute', () => {
+    // 350 libres sur 10 350 : le compte vaut l'équité perps plus ces 350 seulement.
+    const report = computeTradingAccount(engage('10350', '10000'));
+    expect(report.spotValue.toString()).toBe('350');
+    expect(report.spotPledged.toString()).toBe('10000');
+    expect(report.equity?.toString()).toBe('10700');
+  });
+
+  it('rien de gagé : le comportement du compte à plat est intact', () => {
+    const report = computeTradingAccount(engage('10350', '0'));
+    expect(report.spotValue.toString()).toBe('10350');
+    expect(report.spotPledged.toString()).toBe('0');
+    expect(report.equity?.toString()).toBe('20700');
+  });
+});
