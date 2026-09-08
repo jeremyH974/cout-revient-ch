@@ -280,6 +280,50 @@ const ACTIVITY: FixtureSheet = {
     ],
     ['02/06/2025 10:00:00', 'Position ouverte', 'OIL/USD', 60, 3, 0, 0, 3490, 'p-104', 'CFD', 0],
     ['15/07/2025 12:00:00', 'Frais overnight', 'OIL/USD', -2, '-', 0, 0, 3488, 'p-104', 'CFD', 0],
+    // Spreads : facturés À PART, jamais compris dans le montant de la position. Sans eux, le prix
+    // de revient est sous-estimé (décision n° 126). Un à l’ouverture, un à la clôture, et un sur le
+    // contrat pour différence — celui-là doit rester sans effet, la position étant écartée.
+    [
+      '12/02/2025 09:30:00',
+      'Spread d’ouverture et de clôture',
+      "À l'ouverture",
+      -4,
+      '-',
+      0,
+      0,
+      4596,
+      'p-101',
+      'Actions',
+      0,
+    ],
+    [
+      '18/08/2025 15:00:00',
+      'Spread d’ouverture et de clôture',
+      'À la fermeture',
+      -3,
+      '-',
+      0,
+      0,
+      4593,
+      'p-201',
+      'Actions',
+      0,
+    ],
+    [
+      '02/06/2025 10:00:00',
+      'Spread d’ouverture et de clôture',
+      "À l'ouverture",
+      -1,
+      '-',
+      0,
+      0,
+      3489,
+      'p-104',
+      'CFD',
+      0,
+    ],
+    // Une ligne qu’aucun code ne traite : elle doit être COMPTÉE et NOMMÉE, pas ignorée.
+    ['01/03/2025 09:00:00', 'Paiement des intérêts', '-', 1.5, '-', 1.5, 0, 4601, '', '-', 0],
     // Fractionnement postérieur à la photo : la quantité double, le coût ne bouge pas.
     [
       '30/06/2026 06:00:00',

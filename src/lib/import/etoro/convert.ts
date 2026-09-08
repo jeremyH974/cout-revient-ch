@@ -18,7 +18,7 @@
  * de quantité détenue derrière un CFD, et aucun moteur open source de référence n'en modélise une.
  */
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
-import { D, isPositive, ZERO } from '../../domain/money';
+import { D, isPositive, ZERO, type Big } from '../../domain/money';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
 import { excelSerialToNaive, type Workbook } from '../xlsx/index';
@@ -157,6 +157,27 @@ export function splitRatioOf(details: string): string | null {
 
 const OPEN_LABELS = new Set(['position ouverte', 'open position']);
 
+/**
+ * Spread eToro : une ligne d’activité À PART, jamais comprise dans le montant de la position.
+ * Vérifié sur un relevé réel le 08/09/2026 : `Position ouverte PLTR/USD montant 153,22` (= le cours
+ * d’ouverture 76,61 multiplié par 2 unités, exactement) et, a la meme seconde,
+ * `Spread à l’ouverture montant -1`. Le coût réel de la ligne est donc 154,22 EUR.
+ *
+ * Conséquence : sans lui, **le prix de revient est sous-estimé** -- et avec lui la plus-value
+ * imposable, puisque les frais d'acquisition majorent le prix moyen pondéré (BOFiP
+ * BOI-RPPM-PVBMI-20-10-20-10). Mesuré sur le relevé de l’utilisateur : 62 spreads d'ouverture pour
+ * 290 EUR et 24 de cloture pour 143 EUR, dont les trois quarts sur des cryptos.
+ */
+const SPREAD_LABELS = /^spread/i;
+/** Côté de l’opération où le spread s’applique : eToro l’écrit dans la colonne « Détails ». */
+const SPREAD_AT_OPEN = /ouvert/i;
+
+/** Spread d’une position, par identifiant, en valeur absolue et dans la devise du compte. */
+interface Spreads {
+  open: Map<string, Big>;
+  close: Map<string, Big>;
+}
+
 interface Collected {
   drafts: PlatformDraft[];
   issues: PivotIssue[];
@@ -164,6 +185,17 @@ interface Collected {
   /** Code d'actif par identifiant de position : le lien entre les trois feuilles. */
   codeByPosition: Map<string, string>;
   skipped: number;
+  /** Spreads facturés à part, à rattacher au coût d’ouverture ou au produit de clôture. */
+  spreads: Spreads;
+  /**
+   * Ce que le convertisseur a laissé de côté, par type d’opération.
+   *
+   * **Le silence était le vrai défaut.** Toute ligne du grand livre qui n'etait ni une ouverture ni
+   * un fractionnement disparaissait sans un mot : c’est ainsi que 86 lignes de spread, 64
+   * dividendes et 14 paiements d’intérêts sont restés invisibles. Compter et nommer ne les traite
+   * pas, mais les rend impossibles à ignorer.
+   */
+  untreated: Map<string, number>;
 }
 
 /**
@@ -227,6 +259,42 @@ function collectSplit(
  * Ouvertures de position, depuis le grand livre. C'est **la** source des acquisitions : la photo
  * des positions n'en couvre qu'une partie, et jamais les plus récentes.
  */
+/**
+ * Première passe sur le grand livre : les spreads, et le compte de ce qui n’est pas traité.
+ *
+ * Elle précède `collectOpenings` parce qu’une ouverture a besoin de SON spread au moment où elle
+ * se construit : le pivot ajoute le frais au coût d’un achat et le retranche du produit d’une
+ * vente (`pivot/events.ts`), il n’y a donc aucune arithmétique à refaire ici.
+ */
+function collectSpreads(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.activity);
+  if (!sheet) return;
+  const read = reader(sheet, ACTIVITY_COLUMNS);
+  if (read.missing.length > 0) return;
+  for (const row of sheet.rows) {
+    const kind = read.get(row, 'type');
+    if (!SPREAD_LABELS.test(kind)) {
+      // Tout ce qui n'est ni une ouverture, ni un fractionnement, ni un spread : compte et nomme.
+      const lower = kind.toLowerCase();
+      if (lower !== '' && !OPEN_LABELS.has(lower) && !SPLIT_LABELS.test(kind)) {
+        out.untreated.set(kind, (out.untreated.get(kind) ?? 0) + 1);
+      }
+      continue;
+    }
+    const positionId = read.get(row, 'positionId');
+    const amount = read.get(row, 'amount');
+    if (positionId === '' || amount === '') continue;
+    // Le montant est négatif dans le relevé ; un `PivotAmount` est toujours positif, le sens
+    // venant du champ qui le porte.
+    const value = D(amount).abs();
+    if (!isPositive(value)) continue;
+    const side = SPREAD_AT_OPEN.test(read.get(row, 'details'))
+      ? out.spreads.open
+      : out.spreads.close;
+    side.set(positionId, (side.get(positionId) ?? ZERO).plus(value));
+  }
+}
+
 function collectOpenings(book: Workbook, out: Collected): void {
   const sheet = findSheet(book, SHEET_ALIASES.activity);
   if (!sheet) {
@@ -272,13 +340,16 @@ function collectOpenings(book: Workbook, out: Collected): void {
     const positionId = read.get(row, 'positionId');
     if (positionId !== '') out.codeByPosition.set(positionId, resolved.code);
     out.labels[resolved.code] ??= ticker;
+    const spread = out.spreads.open.get(positionId);
     out.drafts.push({
       lineNo,
       nativeContent: `etoro:open:${positionId}`,
       timeMs,
       sent: { amount, currency: ACCOUNT_CURRENCY },
       received: { amount: units, currency: resolved.code },
-      fee: null,
+      // Le pivot AJOUTE ce frais au coût d’un achat : le montant reste celui du relevé, et le
+      // coût all-in se reconstitue sans que le convertisseur ne fasse d’arithmétique.
+      fee: spread ? { amount: spread.toString(), currency: ACCOUNT_CURRENCY } : null,
       netWorth: null,
       label: null,
       description: null,
@@ -351,13 +422,16 @@ function collectClosings(book: Workbook, out: Collected): void {
     }
     const profit = read.get(row, 'profit');
     const proceeds = D(amount).plus(profit === '' ? ZERO : D(profit));
+    const closeSpread = out.spreads.close.get(positionId);
     out.drafts.push({
       lineNo,
       nativeContent: `etoro:closed:sell:${positionId}`,
       timeMs: closeMs,
       sent: { amount: units, currency: resolved.code },
       received: { amount: proceeds.toString(), currency: ACCOUNT_CURRENCY },
-      fee: null,
+      // Sur une vente, le pivot RETRANCHE le frais du produit : le spread de clôture diminue donc
+      // la plus-value, comme il le doit.
+      fee: closeSpread ? { amount: closeSpread.toString(), currency: ACCOUNT_CURRENCY } : null,
       netWorth: null,
       label: null,
       description: null,
@@ -433,9 +507,33 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
     labels: {},
     codeByPosition: new Map(),
     skipped: 0,
+    spreads: { open: new Map(), close: new Map() },
+    untreated: new Map(),
   };
+  // Les spreads d'abord : une ouverture a besoin du sien au moment ou elle se construit.
+  collectSpreads(book, out);
   collectOpenings(book, out);
   collectClosings(book, out);
   auditAgainstSnapshot(book, out);
+  reportUntreated(out);
   return { drafts: out.drafts, issues: out.issues, skipped: out.skipped, labels: out.labels };
+}
+
+/**
+ * Nomme ce que le convertisseur n’a pas traité, par type et par nombre.
+ *
+ * Un poste absent ne se voit nulle part : il ne provoque ni erreur, ni ligne vide, ni total qui
+ * détonne — seulement un résultat un peu faux. C’est ce silence qui a laissé 64 dividendes et 14
+ * paiements d’intérêts hors du modèle pendant tout un lot de travail (décision n° 126).
+ */
+function reportUntreated(out: Collected): void {
+  if (out.untreated.size === 0) return;
+  const listed = [...out.untreated.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([kind, count]) => `${kind} (${count})`)
+    .join(', ');
+  out.issues.push({
+    lineNo: 0,
+    message: `Lignes du grand livre non traitées, sans effet sur vos chiffres : ${listed}.`,
+  });
 }

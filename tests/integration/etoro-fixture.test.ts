@@ -42,6 +42,45 @@ describe('relevé eToro de démonstration', () => {
     expect(motifs).toContain('hors périmètre');
   });
 
+  it('le spread entre dans le coût, il n’est pas jeté', async () => {
+    // Facturé À PART par eToro : sans lui, le prix de revient est sous-estimé de son montant, et
+    // avec lui la plus-value imposable (décision n° 126). La fixture porte 4 € à l'ouverture de
+    // p-101 et 3 € à la clôture de p-201.
+    const result = await imported();
+    const rows = Object.values(result.rows).filter((r) => r.fee !== null);
+    // LE CÔTÉ compte autant que le montant : à l'ouverture le spread MAJORE le coût, à la clôture
+    // il MINORE le produit. Ne vérifier que le total laissait les deux confondus — la
+    // contre-épreuve de la décision n° 75 l'a montré, en routant tout vers l'ouverture sans que
+    // rien ne rougisse.
+    const buy = rows.filter((r) => r.received !== null && r.received.currency.startsWith('eq:'));
+    const sell = rows.filter((r) => r.sent !== null && r.sent.currency.startsWith('eq:'));
+    // La devise est celle du compte : le pivot la convertit au taux BCE du jour, et signale
+    // « Frais en usd non convertis » si le taux manque — il ne les perd jamais en silence.
+    expect(buy.map((r) => r.fee!.amount)).toEqual(['4']);
+    expect(sell.map((r) => r.fee!.amount)).toEqual(['3']);
+  });
+
+  it('le spread d’un CFD ne s’applique à rien : la position est écartée', async () => {
+    // Le contrat pour différence n'entre pas dans le modèle ; son spread ne doit donc pas se
+    // raccrocher à une autre ligne, ni gonfler un coût au hasard.
+    const result = await imported();
+    const total = Object.values(result.rows).reduce(
+      (acc, r) => acc + (r.fee ? Number(r.fee.amount) : 0),
+      0,
+    );
+    expect(total).toBe(7);
+  });
+
+  it('nomme et compte ce qu’il ne traite pas, au lieu de se taire', async () => {
+    // Le silence est ce qui a laissé 64 dividendes et 14 paiements d'intérêts hors du modèle
+    // pendant tout un lot de travail. Un poste absent ne provoque ni erreur ni ligne vide.
+    const result = await imported();
+    const motifs = result.issues.map((i) => i.message).join(' | ');
+    expect(motifs).toContain('non traitées');
+    expect(motifs).toContain('Paiement des intérêts (1)');
+    expect(motifs).toContain('Frais overnight (1)');
+  });
+
   it('ne signale aucun écart entre le grand livre et la photo', async () => {
     const result = await imported();
     expect(result.issues.map((i) => i.message).join(' ')).not.toContain('quantité reconstituée');
