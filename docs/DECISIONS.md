@@ -3084,5 +3084,13 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      dessein** : il confronte nos chiffres à un export crypto, où une action absente serait lue
      comme un écart. Et le seuil d'alerte « objectif net de frais » disparaît pour un titre : sa
      grille est celle de Coinhouse, et proposer un réglage faux vaut moins que ne rien proposer.
+     **Un périmètre nommé ne suffit pas : il faut le reconnaître.** `EvolutionCard` comparait sept
+     fois `scope === 'portfolio'` pour demander « est-ce un agrégat ? ». La question était juste, la
+     formulation non : `'crypto'` y passait pour un code d'actif, la carte cherchait un actif de ce
+     nom, n'en trouvait pas, et affichait « — » sans rien signaler. D'où `isAggregate()`, qui pose
+     la vraie question, et `assetsOf()`, qui rend la liste qu'un `Scope` seul ne laisse pas deviner.
      **Contre-épreuve** (décision n° 75) : `'crypto'` rendu à tout, « expected [ Array(4) ] to
-     deeply equal [ 'btc', 'usdc' ] ».
+     deeply equal [ 'btc', 'usdc' ] » ; les sept comparaisons remises telles quelles, la spec de
+     cohérence échoue sur « nombre illisible : « — » ». Cette dernière n'a rougi qu'à la deuxième
+     tentative : n'en fausser que deux laissait le choix de métrique correct, donc le test vert —
+     **une contre-épreuve partielle ne prouve rien.**

@@ -226,6 +226,17 @@ export class HistoryState {
     return positionsInScope(this.allPositions, scope);
   }
 
+  /**
+   * Actifs **encore détenus** d'un périmètre : ce que la période 1J doit charger. Un agrégat en
+   * porte plusieurs, un code d'actif un seul — et c'est ce que l'appelant ne peut pas deviner
+   * depuis un `Scope` seul (décision n° 123).
+   */
+  assetsOf(scope: Scope): AssetCode[] {
+    return this.positionsFor(scope)
+      .filter((p) => p.qty.gt(ZERO))
+      .map((p) => p.asset);
+  }
+
   /** Multiplicateur devise du jour (1 en euros). */
   private rateOf(day: string): string {
     return app.currency === 'EUR' ? '1' : (app.fxLookup.rate(day) ?? '1');
