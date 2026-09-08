@@ -39,6 +39,12 @@ export interface RealizedEvent {
   tripId: string | null;
   /** Cet événement clôt son aller-retour : c'est lui qui compte un « trade clos » ce jour-là. */
   closes: boolean;
+  /**
+   * Cet événement OUVRE son aller-retour : c'est lui qui compte un « trade ouvert » ce jour-là.
+   * Faux sur un aller-retour « incomplet » — son ouverture n'a pas été observée, la dater serait
+   * inventer une activité ce jour-là (décision n° 135).
+   */
+  opens: boolean;
 }
 
 /**
@@ -68,7 +74,12 @@ export function realizedEvents(
     const trip = tripOfExecution.get(x.id);
     const closes =
       trip !== undefined && trip.closedTime === x.time && trip.executionIds.at(-1) === x.id;
-    if (amount.eq(ZERO) && !closes) continue;
+    const opens =
+      trip !== undefined &&
+      !trip.incomplete &&
+      trip.openedTime === x.time &&
+      trip.executionIds[0] === x.id;
+    if (amount.eq(ZERO) && !closes && !opens) continue;
     events.push({
       day: x.at.slice(0, 10),
       time: x.time,
@@ -76,6 +87,7 @@ export function realizedEvents(
       amount,
       tripId: trip?.id ?? null,
       closes,
+      opens,
     });
   }
   for (const f of funding) {
@@ -89,11 +101,27 @@ export function realizedEvents(
       amount,
       tripId: trip?.id ?? null,
       closes: false,
+      opens: false,
     });
   }
-  // Trades manuels : aucune exécution à dater, le net est rattaché au jour de clôture saisi.
+  /*
+   * Trades manuels : aucune exécution à dater. Le net est rattaché au jour de clôture saisi, et
+   * l'ouverture au jour d'ouverture saisi — un marqueur à zéro, sans lequel un trade saisi à la
+   * main ne serait jamais compté parmi les trades ouverts du jour. Un trade encore ouvert n'a que
+   * ce marqueur : il paraît sur le calendrier à 0, ce qui est exactement ce qu'il a réalisé.
+   */
   for (const { trip } of trips) {
-    if (trip.executionIds.length > 0 || trip.closedAt === null) continue;
+    if (trip.executionIds.length > 0) continue;
+    events.push({
+      day: trip.openedAt.slice(0, 10),
+      time: trip.openedTime,
+      quote: trip.quote,
+      amount: ZERO,
+      tripId: trip.id,
+      closes: false,
+      opens: true,
+    });
+    if (trip.closedAt === null) continue;
     events.push({
       day: trip.closedAt.slice(0, 10),
       time: trip.closedTime ?? 0,
@@ -101,6 +129,7 @@ export function realizedEvents(
       amount: trip.netPnl,
       tripId: trip.id,
       closes: true,
+      opens: false,
     });
   }
   return events.sort((a, b) => a.time - b.time);
@@ -118,9 +147,15 @@ export interface CalendarDay {
   day: string;
   /** P&L réalisé net ce jour-là (devise d'affichage), montants convertibles seulement. */
   pnl: Big;
-  /** Aller-retours ayant réalisé quelque chose ce jour-là (gain, perte, frais ou funding). */
+  /**
+   * Aller-retours ayant réalisé quelque chose ce jour-là (gain, perte, frais **ou funding**). Ce
+   * n'est PAS le nombre de trades ouverts ou fermés : une position qui n'a fait que payer son
+   * funding y figure. Il gouverne l'affichage du montant, pas le décompte d'activité.
+   */
   count: number;
-  /** Sous-ensemble de `count` : aller-retours clos ce jour-là. */
+  /** Aller-retours ouverts ce jour-là. */
+  opened: number;
+  /** Aller-retours clos ce jour-là. */
   closed: number;
   /** Identifiants de ces aller-retours, dans l'ordre de leur première réalisation du jour. */
   tripIds: string[];
@@ -140,6 +175,8 @@ export interface CalendarMonth {
   month: string;
   weeks: CalendarWeek[];
   total: Big;
+  /** Aller-retours ouverts dans le mois (compte sans doublon). */
+  opened: number;
   /** Aller-retours clos dans le mois (compte sans doublon, contrairement à `CalendarDay.count`). */
   closed: number;
   /** Aller-retours du mois dont la devise de cotation n'est pas convertible. */
@@ -150,6 +187,7 @@ interface Accumulator {
   pnl: Big;
   tripIds: string[];
   seen: Set<string>;
+  opened: number;
   closed: number;
   excluded: Set<string>;
 }
@@ -157,6 +195,8 @@ interface Accumulator {
 interface Grouping {
   /** Tranche → cumul, dans l'ordre de première apparition. */
   byKey: Map<string, Accumulator>;
+  /** Aller-retours ouverts, sans doublon, toutes tranches confondues. */
+  opened: Set<string>;
   /** Aller-retours clos, sans doublon, toutes tranches confondues. */
   closed: Set<string>;
   /** Aller-retours non convertibles, sans doublon. */
@@ -174,6 +214,7 @@ function groupEvents(
   toDisplay: QuoteToDisplay,
 ): Grouping {
   const byKey = new Map<string, Accumulator>();
+  const opened = new Set<string>();
   const closed = new Set<string>();
   const excluded = new Set<string>();
   for (const e of events) {
@@ -181,7 +222,7 @@ function groupEvents(
     if (slot === null) continue;
     let acc = byKey.get(slot);
     if (!acc) {
-      acc = { pnl: ZERO, tripIds: [], seen: new Set(), closed: 0, excluded: new Set() };
+      acc = { pnl: ZERO, tripIds: [], seen: new Set(), opened: 0, closed: 0, excluded: new Set() };
       byKey.set(slot, acc);
     }
     // Un même aller-retour peut réaliser plusieurs fois dans la tranche : il n'est listé qu'une fois.
@@ -189,6 +230,10 @@ function groupEvents(
     if (!acc.seen.has(trip)) {
       acc.seen.add(trip);
       acc.tripIds.push(trip);
+    }
+    if (e.opens) {
+      acc.opened++;
+      opened.add(trip);
     }
     if (e.closes) {
       acc.closed++;
@@ -200,7 +245,7 @@ function groupEvents(
       excluded.add(trip);
     } else acc.pnl = acc.pnl.plus(converted);
   }
-  return { byKey, closed, excluded };
+  return { byKey, opened, closed, excluded };
 }
 
 /** Additionne les jours d'une semaine (les cases `null`, hors mois, ne comptent pas). */
@@ -245,6 +290,7 @@ export function calendarMonth(
       day: dayStr,
       pnl: acc?.pnl ?? ZERO,
       count: acc?.tripIds.length ?? 0,
+      opened: acc?.opened ?? 0,
       closed: acc?.closed ?? 0,
       tripIds: acc?.tripIds ?? [],
       excluded: acc?.excluded.size ?? 0,
@@ -269,7 +315,14 @@ export function calendarMonth(
   let total = ZERO;
   for (const day of days) total = total.plus(day.pnl);
 
-  return { month, weeks, total, closed: grouped.closed.size, excluded: grouped.excluded.size };
+  return {
+    month,
+    weeks,
+    total,
+    opened: grouped.opened.size,
+    closed: grouped.closed.size,
+    excluded: grouped.excluded.size,
+  };
 }
 
 /** Maille du calendrier : une case par jour, par mois, ou par année. */
@@ -283,7 +336,9 @@ export interface CalendarBucket {
   pnl: Big;
   /** Aller-retours ayant réalisé quelque chose dans la tranche (gain, perte, frais ou funding). */
   count: number;
-  /** Sous-ensemble de `count` : aller-retours clos dans la tranche. */
+  /** Aller-retours ouverts dans la tranche. */
+  opened: number;
+  /** Aller-retours clos dans la tranche. */
   closed: number;
   /** Aller-retours de la tranche dont la devise de cotation n'est pas convertible. */
   excluded: number;
@@ -293,6 +348,8 @@ export interface CalendarBucket {
 export interface CalendarGrid {
   buckets: CalendarBucket[];
   total: Big;
+  /** Aller-retours ouverts dans la grille (sans doublon, contrairement à la somme des `opened`). */
+  opened: number;
   /** Aller-retours clos dans la grille (sans doublon, contrairement à la somme des `closed`). */
   closed: number;
   /** Aller-retours de la grille dont la devise de cotation n'est pas convertible. */
@@ -310,11 +367,18 @@ function buildGrid(keys: readonly string[], grouped: Grouping): CalendarGrid {
       key,
       pnl,
       count: acc?.tripIds.length ?? 0,
+      opened: acc?.opened ?? 0,
       closed: acc?.closed ?? 0,
       excluded: acc?.excluded.size ?? 0,
     };
   });
-  return { buckets, total, closed: grouped.closed.size, excluded: grouped.excluded.size };
+  return {
+    buckets,
+    total,
+    opened: grouped.opened.size,
+    closed: grouped.closed.size,
+    excluded: grouped.excluded.size,
+  };
 }
 
 /**

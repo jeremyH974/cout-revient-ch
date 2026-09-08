@@ -84,6 +84,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le calendrier de P&L dit enfin combien de trades vous avez ouverts et fermés.** Le nombre sous
+  chaque case comptait les positions ayant réalisé quelque chose ce jour-là — frais et **funding
+  compris**. Sept positions ouvertes tout un été affichaient donc « 7 » chaque jour sans qu'aucune
+  ne s'ouvre ni ne se ferme. Les cases annoncent maintenant les ouvertures et les clôtures, et une
+  journée où vous n'avez fait que payer votre funding porte son montant sans décompte.
 - **La liste des trades comptait vos positions intermédiaires comme autant de trades.** Un ordre un
   peu gros ne s'exécute pas d'un bloc : il se remplit par tranches, parfois plusieurs dizaines dans
   la même milliseconde. L'application rangeait ces tranches par leur numéro d'exécution, qui n'est

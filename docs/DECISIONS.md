@@ -3427,3 +3427,33 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      doit pas revenir à tout accepter.
      **La leçon dépasse ce motif** : une contrainte numérique sans justification écrite est une
      bombe à retardement, et celle-ci a explosé au premier préfixe de quatre lettres.
+135. **« 7 trades » un jour où rien ne s'est ouvert ni fermé : le calendrier comptait le funding**
+     (08/09/2026).
+     Une fois les aller-retours fantômes corrigés (décision n° 130), le nombre sous chaque case du
+     calendrier restait faux — d'une autre façon, et plus insidieuse. Il annonçait les aller-retours
+     ayant **réalisé quelque chose** ce jour-là : gain, perte, frais **ou funding**. Sur le compte
+     réel, sept positions ouvertes tout l'été affichaient donc `7` **chaque jour**, du 24 juillet au
+     18 août, sans qu'une seule ne s'ouvre ni ne se ferme. En juillet 2026, la somme des cases
+     donnait 165 quand le mois comptait 8 ouvertures et 2 clôtures.
+     Le décompte n'était pas faux, il répondait à une autre question. Il gouverne l'affichage du
+     montant — une journée de funding pur a bien un montant à montrer — et il reste dans
+     `CalendarDay.count` pour cela. Ce qui manquait, c'est ce que l'utilisateur venait y chercher :
+     **combien de trades ai-je ouverts, combien ai-je fermés ce jour-là.** `closed` existait déjà et
+     n'était pas affiché ; `opened` n'existait pas.
+     **L'ouverture se date au premier fill de l'aller-retour**, symétriquement à la clôture qui se
+     datait déjà au dernier — sauf sur un aller-retour « incomplet », dont l'ouverture n'a pas été
+     observée : la dater au premier fill connu inventerait une activité ce jour-là. Un trade saisi à
+     la main n'ayant aucune exécution, il reçoit un marqueur à zéro au jour d'ouverture saisi, sans
+     quoi il ne serait jamais compté parmi les ouvertures — y compris quand il est encore ouvert,
+     auquel cas il paraît au calendrier à 0,00 €, ce qui est exactement ce qu'il a réalisé.
+     **Une case sans ouverture ni clôture n'affiche plus rien** sous son montant, au lieu d'un
+     nombre trompeur. La note du calendrier le dit en toutes lettres, et le lecteur d'écran reçoit
+     la phrase complète (« 3 trades ouverts, 6 clos ») là où l'œil lit la forme courte.
+     **Contre-épreuves** (décision n° 75), trois, chacune vue rouge puis restaurée : garde
+     `incomplete` retirée, l'aller-retour dont l'ouverture n'a pas été vue se compte comme ouvert ;
+     `opened` recopiant le nombre d'aller-retours du jour, « expected { day: '2026-08-04' } to match
+     { count: 1, opened: 0, closed: 0 } » — la journée de funding pur, nommée ; marqueur du trade
+     manuel supprimé, les deux tests qui le suivent rougissent ensemble.
+     **Recoupement entre écrans** : une garde E2E compare la somme des clôtures du calendrier (maille
+     année) au « · N clos » de la liste des trades. Deux écrans, un seul compte — c'est ce
+     croisement qui manquait pour que la divergence se voie.
