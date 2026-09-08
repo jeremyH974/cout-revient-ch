@@ -20,6 +20,8 @@ const KIND_RANK: Record<LedgerEvent['kind'], number> = {
   migration: 3,
   split: 3,
   withdrawal: 4,
+  // Un revenu se regle APRES l'operation du jour : un dividende suit l'achat qui y donne droit.
+  income: 5,
   fee: 5,
   unqualified: 6,
 };
@@ -73,6 +75,10 @@ export interface LedgerRun {
   /** Plus haut niveau atteint par `cashIn − cashOut` : base du ROI du portefeuille. */
   cashEngagedMax: Big;
   subscriptionsEur: Big;
+  /** Revenus et frais RATTACHES AU COMPTE (asset nul) : jamais dans un PRU. */
+  accountIncomeEur: Big;
+  /** Retenues a la source prelevees sur ces revenus, positives. */
+  withheldEur: Big;
   /** Coût réellement sorti par retrait apparié (id du retrait) : il « voyage » vers le dépôt. */
   transferCosts: Map<EventId, Big>;
   /** Flux externes datés, miroir exact des opérations comptées (voir `CashFlow`) : base du XIRR. */
@@ -113,6 +119,8 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     cashOut: ZERO,
     cashEngagedMax: ZERO,
     subscriptionsEur: ZERO,
+    accountIncomeEur: ZERO,
+    withheldEur: ZERO,
     transferCosts: new Map(),
     cashFlows: [],
     coinhouseQty: new Map(),
@@ -352,6 +360,21 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
         run.subscriptionsEur = run.subscriptionsEur.plus(event.amountEur);
         flow(event, D(event.amountEur).neg());
         break;
+      case 'income': {
+        // Le BRUT compte comme revenu, la retenue est suivie a part : c'est elle qui ouvrira le
+        // credit d'impot conventionnel, et l'agreger au net la perdrait (decision n 132).
+        const gross = D(event.grossEur);
+        run.withheldEur = run.withheldEur.plus(event.withheldEur);
+        if (event.asset === null) {
+          // Interets de tresorerie, frais de conversion : au compte, hors de tout prix de revient.
+          run.accountIncomeEur = run.accountIncomeEur.plus(gross);
+        } else {
+          pos(event.asset).otherIncome = pos(event.asset).otherIncome.plus(gross);
+        }
+        // Le flux date suit l'argent : un revenu entre, un frais sort.
+        flow(event, gross);
+        break;
+      }
       case 'unqualified':
         run.unqualified.push(event);
         for (const leg of event.legs) pos(leg.asset).unqualifiedCount++;

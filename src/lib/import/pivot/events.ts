@@ -156,8 +156,46 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
   const day = row.at.slice(0, 10);
   const sides = [row.sent, row.received].filter((s): s is PivotAmount => s !== null);
   const feeLabelled = row.sent !== null && row.received === null && FEE_LABELS.has(row.label ?? '');
-  // Lignes 100 % fiat hors modèle (dépôt/retrait d'euros…), SAUF une sortie étiquetée « frais ».
-  if (!feeLabelled && sides.length > 0 && sides.every((s) => isFiat(s.currency))) return null;
+  /**
+   * **Revenu en espèces**, entrée seule étiquetée comme telle : dividende, intérêts, remise.
+   *
+   * Sans ce cas, la ligne tombait dans le filtre « 100 % fiat » ci-dessous et **disparaissait dans
+   * un compteur** — c'est ce qui a laissé 64 dividendes hors du modèle (décision n° 132). Le
+   * symétrique existait déjà pour les frais ; il manquait du côté des revenus.
+   */
+  const incomeLabelled =
+    row.received !== null && row.sent === null && REWARD_LABELS.has(row.label ?? '');
+  // Lignes 100 % fiat hors modèle (dépôt/retrait d'euros…), SAUF une sortie étiquetée « frais »
+  // ou une entrée étiquetée « revenu ».
+  if (!feeLabelled && !incomeLabelled && sides.length > 0 && sides.every((s) => isFiat(s.currency)))
+    return null;
+
+  if (incomeLabelled && row.received && isFiat(row.received.currency)) {
+    const gross = eurValue(row.received, day, usdRate);
+    if (gross === null) {
+      return unqualified(
+        row,
+        `Revenu en ${row.received.currency} non converti (taux BCE indisponible à cette date).`,
+      );
+    }
+    const withheld = row.withheld ? eurValue(row.withheld, day, usdRate) : null;
+    if (row.withheld && withheld === null) {
+      base.warnings.push(
+        `Retenue à la source en ${row.withheld.currency} non convertie : le brut est compté sans elle.`,
+      );
+    }
+    return {
+      ...base,
+      kind: 'income',
+      // Le convertisseur de plateforme est le seul à savoir de quelle ligne vient un encaissement
+      // en euros ; sans son indication, le revenu est au compte, jamais deviné.
+      asset: row.relatedAsset ?? null,
+      grossEur: toDecimalString(gross),
+      withheldEur: withheld === null ? '0' : toDecimalString(withheld),
+      nature: (row.label ?? '') === 'dividend' ? 'dividend' : 'interest',
+      label: row.description ?? row.label ?? 'Revenu',
+    };
+  }
 
   const feeValue = row.fee ? eurValue(row.fee, day, usdRate) : null;
   const fee = (): TradeFee | null => {

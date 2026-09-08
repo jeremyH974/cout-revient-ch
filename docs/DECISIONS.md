@@ -3344,7 +3344,90 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      **Contre-épreuves** (décision n° 75), deux : préfixe du discriminant altéré dans le script, le
      test le nomme (« expected '/cout-revient/assets/' to be '/cout-revient-ch/assets/' ») ; et
      `dist/` truqué en build public, le lanceur refuse `-Rapide` et reconstruit en disant pourquoi.
-132. **« 7 trades » un jour où rien ne s'est ouvert ni fermé : le calendrier comptait le funding**
+
+132. **Un revenu en espèces n'avait aucun chemin, et le rendement s'en trouvait faussé**
+     (08/09/2026). Le pipeline pivot jetait toute ligne 100 % fiat, sauf une sortie étiquetée
+     « frais » : un dividende encaissé en euros disparaissait dans un compteur. Mesuré sur le relevé
+     de l'utilisateur : **64 dividendes, 89,66 € bruts, 21,56 € de retenue à la source**.
+     **La portée s’arrête là, et il faut le dire** : les paiements d’intérêts (+189,31 €) et les
+     frais de conversion (−297,52 €) arrivent par le grand livre et non par une feuille dédiée ;
+     le convertisseur eToro ne leur pose pas encore d’étiquette de revenu, et
+     `etoro-fixture.test.ts` continue d’exiger qu’ils figurent parmi les lignes non traitées
+     (décision n° 126). De même, un dividende eToro atterrit **au compte** et non sur sa ligne :
+     le type et le moteur savent traiter le cas rattaché, le convertisseur ne le fournit pas
+     encore.
+     **`IncomeEvent`, symétrique de `FeeEvent`, avec deux différences qui justifient un type à
+     part.** Il porte un **actif quand on le connaît** — un dividende appartient à la ligne qui l'a
+     produit, des intérêts de trésorerie n'appartiennent à aucune, et `asset: null` signifie « au
+     compte », hors de tout prix de revient : les y répartir serait arbitraire. Et il distingue le
+     **brut de la retenue** : c'est le brut qui se déclare, la retenue qui ouvre le crédit d'impôt
+     conventionnel, et l'agréger au net la perdrait. Ni `RewardEvent` ni `FeeEvent` ne portaient ce
+     champ.
+     **L'invariant du moteur s'étend, et c'est le point structurel** :
+     `total = valeur + Σ produits + Σ revenus − Σ achats`. Le terme « revenus » manquait — `total`
+     incluait `otherIncome` depuis toujours, mais aucun produit ne le portait. L'invariant ne tenait
+     que parce que les récompenses valent zéro par défaut ; un dividende non nul l'aurait cassé, et
+     l'auto-vérification aurait accusé le moteur au lieu de sa propre formule.
+     **La date d'un dividende n'a pas d'heure.** La lecture exigeait `jj/mm/aaaa hh:mm:ss` et
+     rejetait donc les 64 lignes en silence — le premier essai en a capté zéro. L'heure devient
+     facultative, minuit par convention : un dividende ne se compare à aucune opération du jour.
+     **Changement de comportement assumé** : le module Ghostfolio documentait le revenu en espèces
+     comme « volontairement ignoré ». Il ne l'est plus. Sa spec, qui figeait `skippedCash: 1`, dit
+     désormais `incomes: 1` — et l'ancien chiffre était le symptôme, pas la règle.
+     **Recoupement sur le relevé réel** : 64 dividendes captés, 89,66 € bruts, 21,56 € de retenue,
+     68,10 € nets — exactement les montants mesurés dans le fichier avant d'écrire une ligne de code.
+     **Contre-épreuves** (décision n° 75) : le net compté au lieu du brut, « expected '85' to be
+     '100' » ; un revenu de compte versé sur une position, « expected '0' to be '189.31' » ; les
+     revenus de compte sortis du résultat, « expected '0' to be '-297.52' ». **La quatrième a
+     d'abord refusé de rougir** : requalifier un revenu en cession ne changeait aucun chiffre faute
+     de valeur globale du portefeuille dans le cas de test. Le garde-fou interroge maintenant la
+     fonction **qui décide** — « expected 'cession' to be 'ignored' » — et non son seul effet.
+133. **Un dividende appartient à une ligne, et le relevé sait laquelle** (08/09/2026).
+     La décision n° 132 a fait entrer les 64 dividendes du relevé, mais **au compte** : le pivot ne
+     sait pas d'où vient un encaissement en euros, puisqu'une entrée fiat n'a aucune jambe à lire.
+     Le rendement d'une ligne restait donc faux de son dividende.
+     **Le convertisseur, lui, sait.** Un champ additif `relatedAsset` sur la ligne pivot le lui fait
+     dire, plutôt que de laisser deviner : analyser la `description`, seul canal disponible
+     jusqu'ici, aurait été une devinette déguisée en lecture.
+     **Deux routes, et un refus.** L'identifiant de position d'abord, que le grand livre nomme. Puis
+     l'**ISIN**, que la feuille des dividendes porte et que la photo relie à une position connue —
+     une position ouverte AVANT la fenêtre du relevé n'a pas de ligne d'ouverture, et sans ce pont
+     son dividende tombait au compte alors que sa ligne existe. Un ISIN que deux codes se disputent
+     ne résout rien : on refuse plutôt que de choisir, un rattachement faux faussant le rendement de
+     deux lignes au lieu d'une. Mesuré sur le relevé réel : **61 dividendes sur 64 par l'identifiant,
+     les 3 derniers par l'ISIN, 0 laissé au compte, 0 ambiguïté**, répartis sur 16 lignes.
+     **Un défaut trouvé en chemin, et il annulait la moitié de la décision n° 132** :
+     `draftsToPivotRows` ne recopiait **pas** `withheld`. La retenue à la source était lue dans la
+     feuille, posée sur le brouillon, et perdue au passage suivant — 21,56 € qui n'atteignaient
+     jamais le moteur. Aucune erreur, aucun total qui détonne : seulement un crédit d'impôt qui
+     n'existait pas. Il manquait un test **de bout en bout** ; le voici, et c'est lui le vrai
+     livrable.
+     **La fixture gagne sa feuille Dividendes**, avec les trois issues du rattachement (identifiant,
+     ISIN, aucune) : jusqu'ici `collectDividends` n'était éprouvé que sur le relevé réel, en local,
+     et la CI n'aurait vu passer aucune régression.
+     **Une contre-épreuve creuse, débusquée** : le test « n'invente rien d'un « - » » passait alors
+     que le contrôle correspondant était **du code mort** — `reader.get` rend déjà « - » comme une
+     absence dans tout le relevé. La garde en double a été retirée et la contre-épreuve visée sur ce
+     qui protège réellement. Une garde ajoutée par prudence peut faire passer un test pour une
+     raison qui n'est pas la sienne.
+
+134. **Un compte dont le préfixe dépassait trois lettres disparaissait à chaque ouverture**
+     (08/09/2026).
+     `ACCOUNT_ID` valait `/^[a-z]{2,3}:…/`, sans un mot sur ce « 3 ». L'application produit pourtant
+     `etoro:main` (5 lettres) et `lend:bienpreter` (4) : l'assainisseur, qui tourne à **chaque
+     relecture de l'état**, les écartait — le compte, et pour eToro **toutes les lignes importées
+     avec lui**. Un relevé importé ne survivait donc pas à la fermeture de l'application.
+     Rien ne le signalait : ni erreur, ni message, ni ligne vide. L'assainisseur faisait son travail,
+     et son travail était de les jeter. `ch:`, `man:`, `hl:`, `oc:` et `csv:` passant tous, aucun
+     test ne l'a vu.
+     **La borne devient un simple garde contre une entrée pathologique** (`{2,16}`) ; ce qui empêche
+     la récidive est un test **exhaustif par le compilateur** — une table `satisfies Record<AccountKind,
+string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exemple, et vérifie
+     qu'il traverse l'assainissement. Un troisième test garde le garde-fou : élargir le préfixe ne
+     doit pas revenir à tout accepter.
+     **La leçon dépasse ce motif** : une contrainte numérique sans justification écrite est une
+     bombe à retardement, et celle-ci a explosé au premier préfixe de quatre lettres.
+135. **« 7 trades » un jour où rien ne s'est ouvert ni fermé : le calendrier comptait le funding**
      (08/09/2026).
      Une fois les aller-retours fantômes corrigés (décision n° 130), le nombre sous chaque case du
      calendrier restait faux — d'une autre façon, et plus insidieuse. Il annonçait les aller-retours

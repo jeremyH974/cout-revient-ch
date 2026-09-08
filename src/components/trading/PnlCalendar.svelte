@@ -184,7 +184,7 @@
    * Ce que la case annonce sous le montant : les trades OUVERTS et CLOS. Le décompte d'avant
    * comptait les aller-retours ayant réalisé quelque chose — funding compris — et une position
    * ouverte tout l'été s'y comptait chaque jour sans que rien ne s'ouvre ni ne se ferme
-   * (décision n° 132).
+   * (décision n° 135).
    */
   const plural = (n: number, word: string): string => `${n} ${word}${n > 1 ? 's' : ''}`;
   function activityLabel(counts: { opened: number; closed: number }): string {

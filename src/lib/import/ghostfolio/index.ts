@@ -6,10 +6,11 @@
  * frais) et `fee` partage la devise de `unitPrice` (`currency`) — jamais celle de l'actif (même règle
  * d'or que l'export Coinhouse : la contre-valeur est la jambe contrepartie, pas la jambe crypto).
  * `dataSource` (COINGECKO : `symbol` = slug CoinGecko ; YAHOO : `symbol` = ticker suffixé
- * `-EUR`/`-USD`/…) décide si une DIVIDEND/INTEREST est une récompense en nature (valorisée via
- * `netWorth`) ou un revenu cash pur (ligne 100 % fiat, volontairement « ignorée cash » en aval par
- * `pivotLedgerEvents`, comme tout le reste du pipeline pivot). Format vérifié dans le code source du
- * dépôt ghostfolio/ghostfolio, branche main, le 24/08/2026.
+ * `-EUR`/`-USD`/…) décide si une DIVIDEND/INTEREST est une récompense **en nature** (valorisée via
+ * `netWorth`) ou un revenu **en espèces**. Ce second cas était « ignoré cash » en aval, comme tout
+ * le reste du pipeline pivot ; il produit désormais un revenu (décision n° 132) — la ligne
+ * disparaissait dans un compteur, et le rendement s'en trouvait sous-estimé. Format vérifié dans le
+ * code source du dépôt ghostfolio/ghostfolio, branche main, le 24/08/2026.
  */
 import { normalizeAssetCode } from '../../domain/assets';
 import { D, ZERO } from '../../domain/money';
@@ -228,7 +229,7 @@ export function importGhostfolioJson(
             description: buildDescription(asset.note),
           });
         } else {
-          // Revenu cash pur (MANUAL ou source absente) : ligne 100 % fiat, « ignorée cash » en aval
+          // Revenu en especes (MANUAL ou source absente) : ligne 100 % fiat, comptee en revenu
           // (aucun modèle de trésorerie hors opération dans le pipeline pivot) — documenté et voulu.
           push({
             sent: null,

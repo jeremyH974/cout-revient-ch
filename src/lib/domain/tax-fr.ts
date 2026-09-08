@@ -178,6 +178,11 @@ export function taxKindOf(event: LedgerEvent): TaxEventKind {
     case 'fee':
     case 'unqualified':
       return 'ignored';
+    // Un revenu en especes n'est ni une acquisition ni une cession d'actif numerique : il ne
+    // touche pas au prix total d'acquisition. Son propre regime -- revenus de capitaux mobiliers
+    // pour un dividende -- est traite a part, jamais ici (decision n 132).
+    case 'income':
+      return 'ignored';
     default: {
       // **Un `default` valant « ignoré » rendrait un type d'événement neuf fiscalement invisible**,
       // sans erreur ni message : le chiffre serait simplement un peu faux. Chaque type doit donc
@@ -201,12 +206,13 @@ function acquisitionCost(event: LedgerEvent): Big {
  * euros, la vendre, ou l'échanger contre une crypto sont tous hors de l'assiette du 150 VH bis.
  */
 export function touchesEquity(event: LedgerEvent): boolean {
-  const legs: (AssetCode | undefined)[] = [
+  // `IncomeEvent.asset` vaut `null` quand le revenu appartient au compte et non a une ligne.
+  const legs: (AssetCode | null | undefined)[] = [
     'out' in event ? event.out.asset : undefined,
     'in' in event ? event.in.asset : undefined,
     'asset' in event ? event.asset : undefined,
   ];
-  return legs.some((code) => code !== undefined && isEquityCode(code));
+  return legs.some((code) => code != null && isEquityCode(code));
 }
 
 /**

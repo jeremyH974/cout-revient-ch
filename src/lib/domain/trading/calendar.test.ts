@@ -126,7 +126,7 @@ describe('realizedEvents — attribution au jour de réalisation', () => {
   it('ignore le spot, et les montants nuls qui n’ouvrent ni ne clôturent rien', () => {
     const spot = fill(3, 'buy', '1', '10', { market: 'spot', symbol: 'PURR', fee: '0.05' });
     // Deux fills perp sans frais ni P&L : le premier OUVRE l'aller-retour et mérite d'être daté
-    // (décision n° 132), le second ne fait que renforcer la position et n'a rien à dire.
+    // (décision n° 135), le second ne fait que renforcer la position et n'a rien à dire.
     const opening = fill(4, 'buy', '1', '100');
     const adding = fill(5, 'buy', '1', '100', { startPosition: '1' });
     const events = realizedEvents(
@@ -465,7 +465,7 @@ describe('propriété — les trois mailles ne peuvent pas diverger', () => {
  * Le nombre affiché sous le montant disait « trades » en comptant les aller-retours ayant réalisé
  * QUELQUE CHOSE — funding compris. Sur un compte réel, sept positions ouvertes tout l'été
  * affichaient sept « trades » chaque jour sans qu'aucun ne soit ouvert ni fermé. Ces tests tiennent
- * la distinction (décision n° 132).
+ * la distinction (décision n° 135).
  */
 describe('ouverts et clos, distincts des jours de simple funding', () => {
   it('date l’ouverture au premier fill et la clôture au dernier, funding exclu', () => {

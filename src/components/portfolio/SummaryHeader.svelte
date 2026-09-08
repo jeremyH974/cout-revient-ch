@@ -131,7 +131,20 @@
       {/if}
       {#if t.otherIncome.gt('0')}
         · Revenus <Money value={t.otherIncome} sign colored />
-        <span class="muted">(récompenses)</span>
+        <span class="muted">(récompenses et dividendes)</span>
+      {/if}
+      {#if !t.accountIncomeEur.eq('0')}
+        <!--
+          Intérêts de trésorerie et frais de conversion : gagnés ou payés pour de bon, mais
+          rattachés à AUCUNE ligne. Les répartir sur les prix de revient serait arbitraire ; ils
+          ont donc leur propre poste (décision n° 132).
+        -->
+        · Compte <Money value={t.accountIncomeEur} sign colored />
+        <span class="muted">(intérêts et frais de conversion)</span>
+      {/if}
+      {#if t.withheldEur.gt('0')}
+        · Retenue à la source <Money value={t.withheldEur.neg()} />
+        <span class="muted">(déjà déduite du net reçu)</span>
       {/if}
     </p>
     <p class="muted">

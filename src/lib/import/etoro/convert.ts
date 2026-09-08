@@ -45,15 +45,19 @@ const ACCOUNT_CURRENCY = 'usd';
  * taux de change, que pour une opération de fin de soirée.
  */
 export function etoroDateToMs(raw: string): number | null {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})[ T](\d{2}):(\d{2}):(\d{2})$/.exec(raw.trim());
+  // **L'heure est facultative.** Le grand livre horodate à la seconde, mais la feuille des
+  // dividendes ne porte qu'un jour de paiement (« 02/04/2025 ») : la refuser faisait disparaître
+  // les 64 dividendes en silence. Minuit est la convention, et elle est ici sans conséquence — un
+  // dividende ne se compare à aucune opération de la même journée (décision n° 132).
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})(?:[ T](\d{2}):(\d{2}):(\d{2}))?$/.exec(raw.trim());
   if (!m) return null;
   const at = Date.UTC(
     Number(m[3]),
     Number(m[2]) - 1,
     Number(m[1]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6]),
+    Number(m[4] ?? '0'),
+    Number(m[5] ?? '0'),
+    Number(m[6] ?? '0'),
   );
   return Number.isFinite(at) ? at : null;
 }
@@ -119,6 +123,23 @@ const HOLDINGS_COLUMNS = {
   positionId: ['position id', 'identifiant de position'],
   units: ['units', 'unités'],
   type: ['type', 'type d’actif', "type d'actif"],
+  isin: ['isin'],
+};
+
+/**
+ * Feuille des dividendes. eToro donne le NET encaisse et la retenue separement, dans les deux
+ * devises : on prend les colonnes en euros, ce qui evite une conversion et son taux.
+ */
+const DIVIDEND_COLUMNS = {
+  date: ['date du paiement', 'date of payment'],
+  instrument: ["nom de l'instrument", 'nom de l’instrument', 'instrument name'],
+  netEur: ['dividende net recu (eur)', 'dividende net reçu (eur)', 'net dividend received (eur)'],
+  withheldEur: [
+    'montant du prelevement a la source (eur)',
+    'montant du prélèvement à la source (eur)',
+    'withholding tax amount (eur)',
+  ],
+  positionId: ['identifiant de position', 'position id'],
   isin: ['isin'],
 };
 
@@ -365,6 +386,113 @@ function collectOpenings(book: Workbook, out: Collected): void {
  * Le produit de la vente est le montant investi augmenté du profit : c'est la définition même de
  * la colonne, et cela évite de reconstruire un cours de clôture dont la devise n'est pas fiable.
  */
+/**
+ * Dividendes. Le releve donne le NET encaisse et la retenue a la source ; **le brut est la somme
+ * des deux**, et c'est lui qui compte comme revenu — la retenue ouvre le credit d'impot
+ * conventionnel, et l'agreger au net la perdrait (decision n 132).
+ *
+ * L'alias de feuille existait depuis l'ecriture du convertisseur et n'etait appele nulle part : le
+ * crochet etait pose, il attendait son code.
+ */
+/**
+ * ISIN → code interne, pour rattacher un dividende que son identifiant de position ne suffit pas
+ * à situer.
+ *
+ * Une position ouverte AVANT la fenêtre du relevé n'a pas de ligne d'ouverture : `codeByPosition`
+ * l'ignore, et le dividende qu'elle verse tomberait au compte alors que sa ligne, elle, existe bel
+ * et bien au portefeuille. La feuille des dividendes porte l'ISIN de l'instrument ; la photo porte
+ * l'ISIN **et** l'identifiant d'une position que le grand livre, lui, sait nommer. **L'ISIN est la
+ * jointure**, et elle se fait dans le fichier, sans réseau ni table embarquée.
+ *
+ * Un ISIN que deux codes se disputent ne résout rien : on refuse plutôt que de choisir, comme la
+ * table des tickers refuse un symbole partagé — un rattachement faux est pire qu'un rattachement
+ * absent, puisqu'il fausserait le rendement de deux lignes au lieu d'une.
+ *
+ * Mesuré sur le relevé réel : 61 dividendes sur 64 se rattachent par l'identifiant de position, et
+ * **les 3 restants par ce pont** — une position LVMH ouverte en 2024, hors fenêtre. Aucun ISIN
+ * ambigu, aucun dividende laissé au compte.
+ */
+function codeByIsinFromSnapshot(book: Workbook, out: Collected): Map<string, string | null> {
+  /** `null` marque un ISIN que deux codes se disputent — et il le reste. */
+  const codeByIsin = new Map<string, string | null>();
+  const sheet = findSheet(book, SHEET_ALIASES.holdings);
+  if (!sheet) return codeByIsin;
+  const read = reader(sheet, HOLDINGS_COLUMNS);
+  if (read.missing.length > 0) return codeByIsin;
+  for (const row of sheet.rows) {
+    const isin = normalizeIsin(read.get(row, 'isin'));
+    const code = out.codeByPosition.get(read.get(row, 'positionId'));
+    if (isin === null || code === undefined) continue;
+    const known = codeByIsin.get(isin);
+    codeByIsin.set(isin, known === undefined || known === code ? code : null);
+  }
+  return codeByIsin;
+}
+
+/**
+ * Un ISIN exploitable, ou `null`.
+ *
+ * Le tiret que les cryptos portent dans cette colonne — un « identifiant » commun à dix actifs — est
+ * **déjà** rendu vide par `reader.get` (`sheets.ts`), qui traite « - » comme l'absence de valeur
+ * dans tout le relevé. Le retester ici serait du code mort sous couvert de prudence, et un test qui
+ * le couvrirait passerait pour une raison qui n'est pas la sienne.
+ */
+function normalizeIsin(raw: string): string | null {
+  const isin = raw.trim().toUpperCase();
+  return isin === '' ? null : isin;
+}
+
+function collectDividends(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.dividends);
+  if (!sheet) return;
+  const read = reader(sheet, DIVIDEND_COLUMNS);
+  if (read.missing.length > 0) {
+    out.issues.push({
+      lineNo: 1,
+      message: `Dividendes, colonnes introuvables : ${read.missing.join(', ')}.`,
+    });
+    return;
+  }
+  const codeByIsin = codeByIsinFromSnapshot(book, out);
+  let unattached = 0;
+  sheet.rows.forEach((row, i) => {
+    const lineNo = i + 2;
+    const net = read.get(row, 'netEur');
+    const timeMs = etoroDateToMs(read.get(row, 'date'));
+    if (net === '' || timeMs === null) return;
+    const withheldRaw = read.get(row, 'withheldEur');
+    const withheld = withheldRaw === '' ? ZERO : D(withheldRaw);
+    const gross = D(net).plus(withheld);
+    if (!isPositive(gross)) return;
+    const positionId = read.get(row, 'positionId');
+    const instrument = read.get(row, 'instrument');
+    const isin = normalizeIsin(read.get(row, 'isin'));
+    const code =
+      out.codeByPosition.get(positionId) ?? (isin === null ? null : codeByIsin.get(isin)) ?? null;
+    if (code === null) unattached += 1;
+    out.drafts.push({
+      lineNo,
+      nativeContent: `etoro:dividend:${positionId}:${read.get(row, 'date')}:${net}`,
+      timeMs,
+      sent: null,
+      received: { amount: gross.toString(), currency: 'eur' },
+      fee: null,
+      withheld: isPositive(withheld) ? { amount: withheld.toString(), currency: 'eur' } : null,
+      netWorth: null,
+      label: 'dividend',
+      description: instrument === '' ? 'Dividende' : `Dividende ${instrument}`,
+      txHash: null,
+      relatedAsset: code ?? null,
+    });
+  });
+  if (unattached > 0) {
+    out.issues.push({
+      lineNo: 0,
+      message: `${unattached} dividende(s) dont la position n'est plus identifiable : comptés au compte plutôt que sur une ligne.`,
+    });
+  }
+}
+
 function collectClosings(book: Workbook, out: Collected): void {
   const sheet = findSheet(book, SHEET_ALIASES.closed);
   if (!sheet) return;
@@ -514,6 +642,7 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
   collectSpreads(book, out);
   collectOpenings(book, out);
   collectClosings(book, out);
+  collectDividends(book, out);
   auditAgainstSnapshot(book, out);
   reportUntreated(out);
   return { drafts: out.drafts, issues: out.issues, skipped: out.skipped, labels: out.labels };

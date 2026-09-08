@@ -703,7 +703,7 @@ test('la courbe de patrimoine finit sur le total de la Vue d’ensemble', async 
  * ayant réalisé quelque chose — funding compris. Sur un compte réel, sept positions ouvertes tout
  * l'été affichaient sept « trades » par jour sans qu'aucun ne s'ouvre ni ne se ferme. Il annonce
  * désormais les ouvertures et les clôtures, et cette garde les recoupe avec la liste des trades :
- * deux écrans, un seul compte (décision n° 132).
+ * deux écrans, un seul compte (décision n° 135).
  */
 test('Trading : les clôtures du calendrier = les trades clos de la liste', async ({ page }) => {
   test.skip(Boolean(REAL_CSV), 'espace Trading : jeu de démonstration seulement');

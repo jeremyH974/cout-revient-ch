@@ -34,6 +34,8 @@ const EMPTY_TOTALS: PortfolioReport['totals'] = {
   feesEur: ZERO,
   rebatesEur: ZERO,
   subscriptionsEur: ZERO,
+  withheldEur: ZERO,
+  accountIncomeEur: ZERO,
   unpricedAssets: [],
 };
 
