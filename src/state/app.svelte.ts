@@ -133,6 +133,8 @@ import { ingestPivotRows, type PivotImportResult } from '$lib/import/pivot/index
 import { draftsToPivotRows } from '$lib/import/platforms/drafts';
 import { importAnyCsv, PLATFORM_CONVERTERS } from '$lib/import/platforms/index';
 import { defaultPriceProviders, refreshPrices } from '$lib/pricing';
+import { fetchLogos } from '$lib/pricing/logos';
+import { assetSymbol } from '$lib/domain/assets';
 import { parseMids } from '$lib/pricing/live';
 import { createLiveSocket, type LiveSocket, type LiveStatus } from '$lib/live/socket';
 import {
@@ -1445,6 +1447,32 @@ export class AppState {
     };
   }
 
+  /**
+   * Résout les logos des titres encore inconnus, après un rafraîchissement de cours. Un seul
+   * appel par symbole et pour toujours : l'absence de logo est mémorisée comme une réponse, sans
+   * quoi chaque affichage redépenserait un crédit du palier gratuit.
+   */
+  private async refreshLogos(): Promise<void> {
+    const key = this.state.ui.twelveDataApiKey;
+    if ((key ?? '') === '') return;
+    const wanted: Record<string, string> = {};
+    for (const position of this.report.equities) {
+      if (this.state.assetSettings[position.asset]?.logo) continue;
+      wanted[position.asset] = assetSymbol(position.asset).toUpperCase();
+    }
+    if (Object.keys(wanted).length === 0) return;
+    const found = await fetchLogos(wanted, { apiKey: key });
+    if (Object.keys(found).length === 0) return;
+    const settings = { ...this.state.assetSettings };
+    for (const [code, logo] of Object.entries(found)) {
+      const current = settings[code];
+      settings[code] = current
+        ? { ...current, logo }
+        : { manualPriceEur: null, manualPriceAt: null, coingeckoId: null, logo };
+    }
+    this.state.assetSettings = settings;
+  }
+
   /** Compte destinataire d'un import pivot (kind `csv`, espace Investissement). */
   /**
    * Importe un relevé eToro (classeur). Le fichier est **binaire** : il ne peut pas emprunter le
@@ -2515,6 +2543,8 @@ export class AppState {
       lastRefreshAt: nowIso(),
     };
     this.runAlertEvaluation();
+    // Les logos suivent les cours : même clé, même origine, et seulement pour ce qui manque.
+    void this.refreshLogos();
   }
 
   exportBackup(now = nowMs()): string {

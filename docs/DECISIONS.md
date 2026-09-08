@@ -2635,3 +2635,34 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      5 au lieu de monter à 20 — c'est très exactement le risque que le signalement décrit.
      Vérifié sur le relevé réel : le fractionnement du 29/06/2026 double la position concernée,
      dont le lot unique et sa date sont conservés.
+
+112. **Le logo d'un titre vient de la source qui en cote le cours** (08/09/2026).
+     Les titres s'affichaient sous des initiales, faute de logo : la bibliothèque du dépôt est
+     crypto, et l'y chercher par ticker rouvrirait la collision que la décision n° 103 ferme — un
+     titre `SOL` prendrait le logo de Solana.
+     **Retenu : l'endpoint `/logo` de Twelve Data**, parce qu'il ne coûte rien de neuf. L'origine
+     `api.twelvedata.com` est **déjà** contactée pour les cours et déjà déclarée ; la clé est **déjà**
+     saisie. Un appel rend une URL servie par cette même origine.
+     **Écartés** : Clearbit (fermé le 08/12/2025), Brandfetch (adressage par domaine, ou clé secrète
+     non embarquable pour l'adressage par ticker), Financial Modeling Prep (page « Legacy »,
+     inaccessible au test). logo.dev reste le repli crédible — jeton public prévu pour le
+     navigateur, adressage par ticker — s'il fallait une seconde source.
+     **`img-src` s'ouvre à une origine déjà autorisée**, par un booléen sur la table des origines
+     plutôt qu'un second usage : une même origine ne se déclare qu'une fois, le contrôle des
+     doublons y veille. L'élargissement n'ouvre aucune porte que `connect-src` ne laissait ouverte —
+     une image ne porte ni script ni charge utile.
+     **L'absence de logo est mémorisée comme une réponse.** Un titre sans logo redemandé à chaque
+     affichage dépenserait un crédit pour rien, et le palier gratuit en accorde huit cents par jour.
+     **Le fournisseur ne choisit pas où l'application va chercher** : seule une URL de l'origine
+     attendue est retenue. La CSP bloquerait le reste, mais autant ne pas l'écrire dans l'état de
+     l'utilisateur.
+     **Sur la marque** : un logo d'entreprise est une marque déposée, et son affichage relève de
+     l'usage nominatif — identifier l'émetteur à côté de son ticker, sans suggérer d'affiliation.
+     C'est la position que les fournisseurs de logos décrivent comme acceptable. Le repli sur les
+     initiales reste la norme dès qu'un logo manque, ce qui n'est pas un défaut mais le cas
+     ordinaire d'un ETF ou d'un titre à suffixe de place.
+     **Non vérifié, et il faut le dire** : la clé de démonstration ne résout qu'`AAPL`. La
+     couverture réelle des tickers européens (`.PA`, `.L`, `.DE`) n'a pas pu être testée — le code
+     replie proprement, mais le résultat ne se constatera qu'avec une vraie clé.
+     **Contre-épreuve** (décision n° 75) : privé de son filtre d'origine, le service accepte une URL
+     étrangère et le test le nomme.
