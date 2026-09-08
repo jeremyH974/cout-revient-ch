@@ -153,10 +153,13 @@ async function deriveKek(
     /*
      * Rend la main à l'ordonnanceur toutes les 100 ms : l'interface reste vivante (un rendu par
      * dixième de seconde suffit à une barre de progression) sans payer une reprise de tâche toutes
-     * les 10 ms. Mesuré : la dérivation coûte ~250 ms sous Node et quelques secondes dans un
-     * navigateur, où l'allocation des 46 Mio pèse bien plus lourd qu'en heap fraîche. Un `tick`
-     * court multipliait ce coût quand l'onglet passait en arrière-plan, où les minuteurs sont
-     * bridés à la seconde.
+     * les 10 ms — un tick court multiplie le coût quand l'onglet passe en arrière-plan, où les
+     * minuteurs sont bridés à la seconde.
+     *
+     * Coût mesuré de la dérivation : ~250 ms sous Node, ~230 ms dans Chromium (installation du
+     * coffre 222 ms, ouverture 236 ms, chronométrées de bout en bout à travers l'interface). Une
+     * première mesure annonçait 3,5 s : elle avait été prise dans un navigateur embarqué, onglet
+     * masqué et processus de rendu déprioritisé. Elle ne décrivait pas l'application.
      */
     asyncTick: 100,
     ...(onProgress ? { onProgress } : {}),

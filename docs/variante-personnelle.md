@@ -53,9 +53,10 @@ l'installation est défaite plutôt que de laisser un coffre posé sur des donn�
 À la réouverture, l'application affiche une porte et **rien d'autre** : elle n'a pas chargé l'état,
 pas installé sa sauvegarde automatique, pas posé d'écouteur. Il n'y a rien à masquer, il n'y a rien.
 
-Compter environ **3 secondes** pour ouvrir. C'est le coût d'Argon2id aux paramètres OWASP, payé une
-fois par session. Il n'est pas négociable : c'est exactement ce coût qui rend une attaque hors ligne
-sur un disque volé impraticable.
+Compter environ **un quart de seconde** pour ouvrir (236 ms mesurés dans Chromium). C'est le coût
+d'Argon2id aux paramètres OWASP, payé une fois par session — et c'est exactement ce coût, multiplié
+par les 46 Mio de mémoire qu'il exige à chaque tentative, qui rend une attaque hors ligne sur un
+disque volé impraticable.
 
 ### Changer de mot de passe
 

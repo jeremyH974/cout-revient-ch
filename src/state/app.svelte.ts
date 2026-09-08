@@ -1094,9 +1094,17 @@ export class AppState {
       this.loadStatus = 'locked';
       return;
     }
-    this.vaultLocked = false;
     const loaded = await loadPersistedState();
     this.state = loaded.state;
+    /*
+     * La porte ne s'efface qu'ICI, une fois l'état en place — jamais avant.
+     *
+     * Le faire plus tôt affichait une application vide pendant l'hydratation, et l'effet de garde
+     * d'`App.svelte` (« pas de données ⇒ retour à l'accueil ») s'y déclenchait : on déverrouillait
+     * son coffre pour atterrir sur l'écran de bienvenue. Le symptôme était intermittent, donc
+     * invisible en développement ; c'est un test de bout en bout instable qui l'a fait sortir.
+     */
+    this.vaultLocked = false;
     this.loadStatus = loaded.status;
     this.loadError = loaded.status === 'corrupt' ? loaded.error : null;
     if (this.state.ui.displayCurrency !== 'EUR') void this.ensureRates();
@@ -1220,7 +1228,8 @@ export class AppState {
       return;
     }
     armVault(meta, await unlockVault(meta, passphrase, onProgress ? { onProgress } : {}));
-    this.vaultLocked = false;
+    // `init()` baisse lui-même `vaultLocked`, et seulement une fois l'état chargé. Le faire ici
+    // rouvrirait la course que le commentaire d'`init()` décrit.
     await this.init();
   }
 

@@ -2874,15 +2874,20 @@ false` et `url: null` alors que l'article 150 ter existe bel et bien — parce q
      multi-cœurs doit fournir. Réclamer un parallélisme qu'on n'exécute pas, c'est s'affaiblir en
      croyant se renforcer.
 
-     **Coût mesuré, et pourquoi il ne se négocie pas.** ~250 ms sous Node, ~3,5 s dans un
-     navigateur — l'allocation des 46 Mio pèse bien plus lourd dans un onglet chargé qu'en heap
-     fraîche. Un microbenchmark générique donne 2,5× d'écart entre les deux environnements : le
-     reste vient de l'allocation, pas du paramétrage, et **toutes** les configurations OWASP
-     coûtent ici entre 2,7 et 3,5 s. Le plancher OWASP n'est donc pas une variable d'ajustement :
-     descendre en dessous serait vider l'opération de son sens pour gagner deux secondes une fois
-     par session. `asyncTick` passe de 10 à 100 ms — un rendu par dixième de seconde suffit à une
-     barre de progression, et un tick court multipliait le coût en arrière-plan, où les minuteurs
-     sont bridés à la seconde.
+     **Coût mesuré — et une mesure d'abord fausse, gardée ici parce qu'elle instruit.** ~250 ms
+     sous Node ; **222 ms pour installer le coffre et 236 ms pour l'ouvrir** dans Chromium,
+     chronométrés de bout en bout à travers l'interface. Une première mesure annonçait 3,5 s et
+     avait conduit à écrire, dans cette décision et dans la documentation, qu'il fallait « compter
+     environ 3 secondes ». Elle avait été prise dans un navigateur **embarqué, onglet masqué,
+     processus de rendu déprioritisé** : elle mesurait cet environnement, pas l'application. Ce que
+     l'incident enseigne : un chiffre de performance sans son environnement n'est pas un chiffre,
+     et celui-ci a bien failli faire descendre les paramètres pour « gagner deux secondes ».
+
+     Le plancher OWASP n'est de toute façon pas une variable d'ajustement, et il reste de la marge
+     au-dessus — les paramètres vivant dans l'en-tête, les relever un jour ne coûtera qu'une ligne
+     et n'invalidera aucun coffre existant. `asyncTick` passe de 10 à 100 ms : un rendu par dixième
+     de seconde suffit à une barre de progression, et un tick court multiplie le coût quand
+     l'onglet passe en arrière-plan, où les minuteurs sont bridés à la seconde.
 
      **Deux pièges d'intégration, chacun avec sa contre-épreuve.**
 
