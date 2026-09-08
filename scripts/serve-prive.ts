@@ -27,9 +27,9 @@
  * le même réseau. Le nom `crch.localhost` est résolu en boucle locale par le navigateur lui-même
  * (RFC 6761) et n'a besoin d'aucune entrée dans le fichier `hosts`.
  */
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, readdirSync } from 'node:fs';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { extname, join, normalize, resolve, sep } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildCsp } from '../src/lib/support/csp.ts';
 
@@ -74,23 +74,34 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 /**
- * Résout une URL en chemin de fichier **à l'intérieur** de `dist/`, ou `null`.
+ * Ce que le serveur accepte de rendre : une table `chemin d'URL → fichier`, construite **une fois**
+ * au démarrage en parcourant `dist/`.
  *
- * La normalisation puis la vérification du préfixe sont ce qui empêche `../../` de remonter hors du
- * dossier servi. Ce serveur n'écoute que la boucle locale, mais un traversal reste un traversal :
- * une extension de navigateur ou une page malveillante ouverte dans le même navigateur peut lui
- * adresser des requêtes.
+ * ## Pourquoi une liste blanche plutôt qu'une vérification de chemin
+ *
+ * La première version assemblait le chemin depuis l'URL, puis vérifiait que le résultat restait
+ * sous `dist/`. Le contrôle était correct — mais l'analyse statique du dépôt (CodeQL,
+ * `js/path-injection`) l'a signalé en sévérité haute, et elle avait raison de le faire : une
+ * vérification de confinement est un raisonnement, et un raisonnement se casse à la première
+ * retouche distraite. On en a vu quatre variantes s'écrire de travers dans l'écosystème.
+ *
+ * Ici, **aucune chaîne fournie par le client n'atteint le système de fichiers**. L'URL ne sert que
+ * de clé de recherche ; le chemin rendu provient exclusivement des valeurs de la table, écrites par
+ * ce fichier. Il n'y a plus rien à confiner, donc plus rien à casser — et `../../` ne désigne
+ * simplement aucune clé.
+ *
+ * Conséquence assumée : la table est figée au démarrage. Après un `npm run prive:build`, il faut
+ * relancer le serveur — ce que la séquence documentée fait de toute façon.
  */
-function resolveInsideRoot(urlPath: string): string | null {
-  let decoded: string;
-  try {
-    decoded = decodeURIComponent(urlPath.split('?')[0] ?? '/');
-  } catch {
-    return null;
+const FILES = new Map<string, string>();
+
+function indexDist(dir: string, prefix: string): void {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const absolute = join(dir, entry.name);
+    const urlPath = `${prefix}/${entry.name}`;
+    if (entry.isDirectory()) indexDist(absolute, urlPath);
+    else if (entry.isFile()) FILES.set(urlPath, absolute);
   }
-  const candidate = normalize(join(ROOT, decoded));
-  if (candidate !== ROOT && !candidate.startsWith(ROOT + sep)) return null;
-  return candidate;
 }
 
 function serve(request: IncomingMessage, response: ServerResponse): void {
@@ -101,16 +112,17 @@ function serve(request: IncomingMessage, response: ServerResponse): void {
     return;
   }
 
-  const resolved = resolveInsideRoot(request.url ?? '/');
-  if (resolved === null) {
+  let key: string;
+  try {
+    key = decodeURIComponent((request.url ?? '/').split('?')[0] ?? '/');
+  } catch {
     response.writeHead(400).end('Requête refusée.');
     return;
   }
 
   // Routeur à fragment (`#/...`) : toute URL inconnue rend `index.html`, comme sur Pages.
-  const isFile = existsSync(resolved) && statSync(resolved).isFile();
-  const file = isFile ? resolved : join(ROOT, 'index.html');
-  if (!existsSync(file)) {
+  const file = FILES.get(key) ?? FILES.get('/index.html');
+  if (file === undefined) {
     response.writeHead(404).end('Rien ici. Avez-vous lancé « npm run prive:build » ?');
     return;
   }
@@ -125,8 +137,14 @@ function serve(request: IncomingMessage, response: ServerResponse): void {
   createReadStream(file).pipe(response);
 }
 
-if (!existsSync(join(ROOT, 'index.html'))) {
-  console.error('Aucun build dans dist/. Lancez d’abord :\n  npm run prive:build');
+try {
+  indexDist(ROOT, '');
+} catch {
+  /* dossier absent : le message ci-dessous dit la même chose, une seule fois */
+}
+if (!FILES.has('/index.html')) {
+  console.error(`Aucun build dans dist/. Lancez d’abord :
+  npm run prive:build`);
   process.exit(1);
 }
 
