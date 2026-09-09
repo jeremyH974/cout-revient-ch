@@ -113,8 +113,11 @@ describe('relevantTo', () => {
     expect(staking.map((e) => e.id).sort()).toEqual([
       'airdrops',
       'case-2tt',
+      'case-8vl',
+      'formulaire-2047-cadre-20',
       'pfu-rcm-31_4',
       'staking',
+      'taux-notice-2047',
     ]);
     for (const entry of staking) expect(entry.topics).toContain('revenus');
   });

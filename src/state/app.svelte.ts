@@ -68,6 +68,7 @@ import { computeLending } from '$lib/domain/lending/compute';
 import { lendingOutlook as computeOutlook, type LendingOutlook } from '$lib/domain/lending/outlook';
 import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending/performance';
 import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
+import { dividendTaxFr, type DividendTaxLedger } from '$lib/domain/equity-income-fr';
 import { equityTaxFr, type EquityTaxLedger } from '$lib/domain/equity-tax-fr';
 import { lendingTaxFr, type LendingTaxLedger } from '$lib/domain/lending/tax-fr';
 import type { LendingInput, LendingReport } from '$lib/domain/lending/types';
@@ -452,9 +453,14 @@ export class AppState {
    *
    * Le rapport porte déjà les plus-values au prix moyen pondéré : ce dérivé ne fait que les
    * regrouper et appliquer le report des moins-values.
+   *
+   * **`eurReport`, jamais `report`.** Un montant fiscal reste en euros quoi qu'affiche
+   * l'application, et l'écran lui applique `displayFromEur` : partir du rapport converti le
+   * convertirait DEUX FOIS. Invisible en euros — donc invisible par défaut, ce qui est le pire des
+   * cas —, et faux dans toute autre devise.
    */
   equityTax = $derived.by((): EquityTaxLedger =>
-    equityTaxFr({ report: this.report, throughYear: Number(nowIso().slice(0, 4)) }),
+    equityTaxFr({ report: this.eurReport, throughYear: Number(nowIso().slice(0, 4)) }),
   );
 
   /**
@@ -2095,6 +2101,35 @@ export class AppState {
    * l'utilisateur qui tranche. Le champ existait dans le modèle depuis longtemps sans qu'aucun
    * écran ne permette de le saisir.
    */
+  /**
+   * Pays de la source d'un dividende, pour le crédit d'impôt conventionnel.
+   *
+   * Rien n'est pré-sélectionné : l'ISIN ne dit pas d'où vient le dividende (un ADR japonais porte
+   * un ISIN américain), et une suggestion se ferait confirmer sans être lue.
+   */
+  /**
+   * Dividendes par année civile — revenus de capitaux mobiliers, régime distinct des cessions.
+   *
+   * Part des ÉVÉNEMENTS et non du rapport : un `income` ne produit aucune entrée d'historique de
+   * position, et `PortfolioTotals.withheldEur` est global. `this.events` est en euros, comme doit
+   * l'être tout montant fiscal.
+   */
+  dividendTax = $derived.by((): DividendTaxLedger =>
+    dividendTaxFr({
+      events: this.events,
+      countryOf: (asset) => this.assetSettings(asset).sourceCountry ?? null,
+      throughYear: Number(nowIso().slice(0, 4)),
+    }),
+  );
+
+  setAssetSourceCountry(asset: AssetCode, country: CountryCode | null): void {
+    const current = this.assetSettings(asset);
+    this.state.assetSettings = {
+      ...this.state.assetSettings,
+      [asset]: { ...current, sourceCountry: country },
+    };
+  }
+
   setCoingeckoId(asset: AssetCode, id: string | null): void {
     const current = this.assetSettings(asset);
     this.state.assetSettings = {

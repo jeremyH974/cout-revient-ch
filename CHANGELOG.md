@@ -14,6 +14,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Vos dividendes ont enfin leur régime fiscal.** L'écran Actions et ETF montre, par année, le
+  brut, la retenue à la source, le crédit d'impôt (case **8VL**), ce qui se déclare en case
+  **2DC** — et surtout **ce qui n'est pas récupérable**. Sur un dividende retenu au-delà du taux de
+  la convention, l'excédent est perdu côté français, et l'application le chiffre au lieu de le
+  passer sous silence.
+  Un point demande votre intervention, et c'est délibéré : **le pays de la source ne se devine
+  pas**. Un certificat de dépôt japonais porte un ISIN américain, et les deux conventions ne
+  plafonnent pas au même taux — s'y fier créditerait près de 60 % de trop. Vous désignez donc le
+  pays depuis la fiche d'un titre ; sans désignation, l'application montre les montants et ne
+  calcule aucun crédit. Ce n'est ni une déclaration, ni un conseil fiscal.
+
+### Fixed
+
+- **Les montants fiscaux des cessions de titres étaient convertis deux fois** si votre devise
+  d'affichage n'était pas l'euro. Sans effet en euros — donc invisible par défaut.
+
 - **Vos plus-values sur actions et ETF sont enfin chiffrées.** L'écran Actions et ETF porte un
   récapitulatif par année : plus-value case **3VG**, moins-value case **3VH**, moins-values
   antérieures imputées, base imposable et impôt estimé. Le prix de revient retenu est le **prix
