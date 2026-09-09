@@ -19,10 +19,12 @@
  */
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
 import { D, isPositive, ZERO, type Big } from '../../domain/money';
+import type { PivotAmount } from '../../domain/types';
+import { OPENING_BALANCE_LABEL } from '../pivot/events';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
 import { excelSerialToNaive, type Workbook } from '../xlsx/index';
-import { findSheet, reader, SHEET_ALIASES } from './sheets';
+import { findSheet, reader, SHEET_ALIASES, type EtoroSheet } from './sheets';
 
 export interface EtoroConversion {
   drafts: PlatformDraft[];
@@ -117,6 +119,14 @@ const ACTIVITY_COLUMNS = {
   assetType: ['type d’actif', "type d'actif", 'asset type'],
 };
 
+/**
+ * La photo. Quatre colonnes s'y ajoutent — `openDate`, `openRate`, `leverage`, `direction` —
+ * pour reprendre une position que le grand livre n'a pas vue naître.
+ *
+ * `type` reste déclarée sans être lue : c'est un **verrou**, pas une donnée. Son absence fait
+ * échouer la lecture de la feuille entière, ce qui est le comportement voulu — une photo dont les
+ * colonnes ont changé ne doit pas être interprétée à moitié.
+ */
 const HOLDINGS_COLUMNS = {
   snapshot: ['snapshot date', 'date de l’instantané', "date de l'instantané"],
   asset: ['asset', 'actif'],
@@ -124,6 +134,10 @@ const HOLDINGS_COLUMNS = {
   units: ['units', 'unités'],
   type: ['type', 'type d’actif', "type d'actif"],
   isin: ['isin'],
+  openDate: ['open date', 'date d’ouverture', "date d'ouverture"],
+  openRate: ['open rate', 'taux à l’ouverture', "taux à l'ouverture", 'cours d’ouverture'],
+  leverage: ['leverage', 'effet de levier'],
+  direction: ['direction', 'long / short', 'sens'],
 };
 
 /**
@@ -205,7 +219,24 @@ interface Collected {
   labels: Record<string, string>;
   /** Code d'actif par identifiant de position : le lien entre les trois feuilles. */
   codeByPosition: Map<string, string>;
+  /**
+   * Devise de cotation par code d'actif, lue au grand livre (couple « TICKER/DEVISE »).
+   *
+   * **La photo ne dit jamais dans quelle devise elle cote.** Mesuré sur un relevé réel de 62
+   * positions : 44 en dollars, 6 en euros, et une en PENCE. Présumer le dollar y fabriquerait un
+   * prix de revient faux d'un facteur 74. Le grand livre, lui, l'écrit — pour les instruments
+   * qu'il a vus.
+   */
+  currencyByCode: Map<string, string>;
   skipped: number;
+  /**
+   * Positions reprises de la photo, en attente de qualification.
+   *
+   * Le contrôle photo/grand livre doit les **exclure** de ce qu'il croit reconstitué : tant que
+   * l'utilisateur n'a pas qualifié, le portefeuille ne les porte pas, et les compter ferait taire
+   * le contrôle sur une amputation réelle.
+   */
+  snapshotOnly: { code: string; units: string }[];
   /** Spreads facturés à part, à rattacher au coût d’ouverture ou au produit de clôture. */
   spreads: Spreads;
   /**
@@ -360,6 +391,8 @@ function collectOpenings(book: Workbook, out: Collected): void {
     }
     const positionId = read.get(row, 'positionId');
     if (positionId !== '') out.codeByPosition.set(positionId, resolved.code);
+    const pair = PAIR.exec(details.trim());
+    if (pair) out.currencyByCode.set(resolved.code, pair[2]!.toLowerCase());
     out.labels[resolved.code] ??= ticker;
     const spread = out.spreads.open.get(positionId);
     out.drafts.push({
@@ -441,6 +474,124 @@ function normalizeIsin(raw: string): string | null {
   const isin = raw.trim().toUpperCase();
   return isin === '' ? null : isin;
 }
+
+/** Sériel de la photo la plus récente, ou `null` quand la feuille n'en porte aucune. */
+function latestSnapshot(sheet: EtoroSheet, read: ReturnType<typeof reader>): number | null {
+  const serials = sheet.rows
+    .map((row) => Number(read.get(row, 'snapshot')))
+    .filter((n) => Number.isFinite(n));
+  return serials.length === 0 ? null : Math.max(...serials);
+}
+
+/**
+ * Positions que la photo annonce et que le grand livre n'explique pas.
+ *
+ * Une position ouverte **avant** la période exportée n'a pas de ligne d'ouverture : elle n'existait
+ * jusqu'ici nulle part — ni au portefeuille, ni au contrôle, qui la sautait en silence. Mesuré sur
+ * un relevé réel : 1 sur 62, et 0 vente orpheline. Le montant en jeu est dérisoire ; ce qui ne
+ * l'est pas, c'est qu'un relevé exporté sur une fenêtre plus courte que l'âge du compte rendait
+ * l'application **silencieusement fausse**.
+ *
+ * Chacune sort en « à qualifier » (`OPENING_BALANCE_LABEL`), avec un coût **suggéré** quand — et
+ * seulement quand — le relevé le permet :
+ *
+ * - l'identité vient du pont ISIN (décision n° 133), la photo ne portant aucun ticker ; un ISIN
+ *   que deux codes se disputent est refusé, jamais départagé ;
+ * - la devise du cours vient du **grand livre**, jamais d'une présomption : sans elle, la
+ *   suggestion est vide et l'utilisateur saisit le montant ;
+ * - le cours d'ouverture est un **prix de marché, pas un montant facturé** — il ignore le spread
+ *   qu'eToro facture à part (décision n° 126). D'où une suggestion, et non une valeur imposée.
+ */
+function collectSnapshotOnly(book: Workbook, out: Collected): void {
+  const sheet = findSheet(book, SHEET_ALIASES.holdings);
+  if (!sheet) return;
+  const read = reader(sheet, HOLDINGS_COLUMNS);
+  if (read.missing.length > 0) return;
+  const latest = latestSnapshot(sheet, read);
+  if (latest === null) return;
+  const codeByIsin = codeByIsinFromSnapshot(book, out);
+
+  let unnamed = 0;
+  sheet.rows.forEach((row, i) => {
+    const lineNo = i + 2;
+    if (Number(read.get(row, 'snapshot')) !== latest) return;
+    const positionId = read.get(row, 'positionId');
+    if (positionId === '' || out.codeByPosition.has(positionId)) return;
+
+    const asset = read.get(row, 'asset');
+    const isin = normalizeIsin(read.get(row, 'isin'));
+    const code = (isin === null ? null : codeByIsin.get(isin)) ?? null;
+    if (code === null) {
+      // Ni le grand livre ni l'ISIN ne la nomment : la compter et le dire, sans rien inventer.
+      unnamed += 1;
+      return;
+    }
+    const leverage = leverageOf(read.get(row, 'leverage'));
+    const direction = read.get(row, 'direction').toLowerCase();
+    if (
+      !Number.isFinite(leverage) ||
+      leverage !== 1 ||
+      (direction !== '' && direction !== 'long')
+    ) {
+      out.issues.push({
+        lineNo,
+        message: `Position « ${asset} » du relevé : ${direction === 'long' || direction === '' ? `levier ${leverage}×` : direction} hors périmètre.`,
+      });
+      out.skipped += 1;
+      return;
+    }
+    const units = read.get(row, 'units');
+    const timeMs = etoroDateToMs(read.get(row, 'openDate'));
+    if (units === '' || !isPositive(D(units)) || timeMs === null) {
+      out.issues.push({
+        lineNo,
+        message: `Position « ${asset} » du relevé : quantité ou date d'ouverture illisible.`,
+      });
+      return;
+    }
+    const label = labelOf(asset);
+    if (label !== '') out.labels[code] ??= label;
+    out.snapshotOnly.push({ code, units });
+    out.drafts.push({
+      lineNo,
+      nativeContent: `etoro:holding:${positionId}`,
+      timeMs,
+      sent: null,
+      received: { amount: units, currency: code },
+      fee: null,
+      netWorth: suggestedCost(read.get(row, 'openRate'), units, out.currencyByCode.get(code)),
+      label: OPENING_BALANCE_LABEL,
+      description: label === '' ? 'Solde d’ouverture' : `Solde d’ouverture ${label}`,
+      txHash: null,
+    });
+  });
+  if (unnamed > 0) {
+    out.issues.push({
+      lineNo: 0,
+      message: `${unnamed} position(s) de votre relevé que rien ne permet de nommer : ni le grand livre ni l'ISIN ne les rattachent à un actif connu.`,
+    });
+  }
+}
+
+/**
+ * Coût suggéré d'une reprise : `unités × cours d'ouverture`, dans la devise du grand livre.
+ *
+ * Rend `null` — donc « je ne sais pas », et un champ vide à l'écran — dès que la devise est
+ * inconnue ou hors de ce que le pivot sait convertir. Un cours en pence pris pour des dollars
+ * gonflerait le prix de revient d'un facteur soixante-dix : mieux vaut demander.
+ */
+function suggestedCost(
+  rate: string,
+  units: string,
+  currency: string | undefined,
+): PivotAmount | null {
+  if (currency === undefined || !CONVERTIBLE.has(currency) || rate === '') return null;
+  const value = D(rate).times(D(units));
+  return isPositive(value) ? { amount: value.toString(), currency } : null;
+}
+
+/** Devises que le pivot sait tourner en euros ; le reste part sans suggestion. */
+const CONVERTIBLE = new Set(['eur', 'usd']);
 
 function collectDividends(book: Workbook, out: Collected): void {
   const sheet = findSheet(book, SHEET_ALIASES.dividends);
@@ -605,6 +756,10 @@ function auditAgainstSnapshot(book: Workbook, out: Collected): void {
   const actual = new Map<string, ReturnType<typeof D>>();
   for (const draft of out.drafts) {
     if (draft.timeMs > cutoff) continue;
+    // Une reprise n'est PAS un mouvement reconstitué : tant qu'elle n'est pas qualifiée, le
+    // portefeuille ne la porte pas. La compter ici ferait taire le contrôle sur une amputation
+    // réelle — le contrôle se croirait à jour parce qu'il aurait lu sa propre proposition.
+    if (draft.label === OPENING_BALANCE_LABEL) continue;
     if (draft.received && draft.received.currency !== ACCOUNT_CURRENCY) {
       const code = draft.received.currency;
       actual.set(code, (actual.get(code) ?? ZERO).plus(D(draft.received.amount)));
@@ -626,6 +781,28 @@ function auditAgainstSnapshot(book: Workbook, out: Collected): void {
       message: `Contrôle du ${naive.slice(0, 10)} : ${drifted.length} actif(s) dont la quantité reconstituée diffère de celle du relevé (${drifted.slice(0, 5).join(', ')}).`,
     });
   }
+  reportSnapshotOnly(out, naive);
+}
+
+/**
+ * Dit ce que le grand livre n'explique pas — **distinctement** de la dérive de quantité.
+ *
+ * Les confondre tromperait : une dérive signale un grand livre qui ne recolle pas, une reprise
+ * signale un grand livre **incomplet**. Le remède diffère, et il est nommé : réexporter sur une
+ * période qui couvre la date d'ouverture rend toute cette mécanique inutile.
+ */
+function reportSnapshotOnly(out: Collected, naive: string): void {
+  if (out.snapshotOnly.length === 0) return;
+  const listed = out.snapshotOnly
+    .slice(0, 5)
+    .map((p) => `${p.units} ${p.code}`)
+    .join(', ');
+  out.issues.push({
+    lineNo: 0,
+    message:
+      `Photo du ${naive.slice(0, 10)} : ${out.snapshotOnly.length} position(s) que le grand livre n'explique pas (${listed}) — ` +
+      `ouvertes avant la période exportée. Réexportez le relevé sur une période qui les couvre, ou qualifiez-les en solde d'ouverture.`,
+  });
 }
 
 export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
@@ -634,6 +811,8 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
     issues: [],
     labels: {},
     codeByPosition: new Map(),
+    currencyByCode: new Map(),
+    snapshotOnly: [],
     skipped: 0,
     spreads: { open: new Map(), close: new Map() },
     untreated: new Map(),
@@ -642,6 +821,9 @@ export function convertEtoroWorkbook(book: Workbook): EtoroConversion {
   collectSpreads(book, out);
   collectOpenings(book, out);
   collectClosings(book, out);
+  // Après les clôtures — `codeByPosition` doit être complet — et avant l'audit, qui compte sur
+  // `snapshotOnly` pour ne pas se croire à jour.
+  collectSnapshotOnly(book, out);
   collectDividends(book, out);
   auditAgainstSnapshot(book, out);
   reportUntreated(out);

@@ -348,6 +348,7 @@ const QUALIFICATION_KIND_LIST = {
   purchase: true,
   sale: true,
   trade: true,
+  'opening-balance': true,
 } satisfies Record<Qualification['kind'], true>;
 const QUALIFICATION_KINDS = new Set<string>(Object.keys(QUALIFICATION_KIND_LIST));
 
@@ -754,12 +755,23 @@ function sanitizeColumnMapping(raw: unknown): StoredColumnMapping | null {
   return mapping;
 }
 
+/** Qualifications dont le montant est REQUIS : leur événement le déclare non-nullable. */
+const REQUIRED_AMOUNT: Readonly<Record<string, string>> = {
+  purchase: 'costEur',
+  sale: 'proceedsEur',
+  trade: 'valueEur',
+  'opening-balance': 'costEur',
+};
+
 function validQualification(raw: unknown): raw is Qualification {
   if (!isRecord(raw) || typeof raw['kind'] !== 'string' || !QUALIFICATION_KINDS.has(raw['kind']))
     return false;
-  return ['fairValueEur', 'costEur', 'proceedsEur', 'valueEur'].every((c) =>
-    isDecimalOrNull(raw[c]),
-  );
+  if (!['fairValueEur', 'costEur', 'proceedsEur', 'valueEur'].every((c) => isDecimalOrNull(raw[c])))
+    return false;
+  // Sans ce contrôle, une sauvegarde altérée poserait `null` dans un champ que le type dit plein :
+  // un solde d'ouverture à zéro, et toute la position passe pour de la plus-value.
+  const required = REQUIRED_AMOUNT[raw['kind']];
+  return required === undefined || isDecimal(raw[required]);
 }
 
 const MAX_LIST = 40;

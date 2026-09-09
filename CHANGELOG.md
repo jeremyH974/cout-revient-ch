@@ -14,6 +14,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Une position détenue avant la période de votre relevé n'était nulle part.** eToro vous laisse
+  choisir la période exportée ; tout ce qui a été acheté avant n'apparaissait pas — ni au
+  portefeuille, ni dans le contrôle de cohérence, qui la passait sous silence. L'application la
+  **signale** désormais et vous **propose** de la reprendre comme solde d'ouverture, avec le coût
+  que le relevé permet de calculer — quand il le permet : le cours d'ouverture y est donné sans sa
+  devise, et l'application préfère un champ vide à un chiffre inventé. Elle ne décide pas à votre
+  place : tant que vous n'avez pas validé, rien n'entre dans votre prix de revient. Le remède le
+  plus simple reste indiqué à l'écran — réexporter le relevé sur une période qui couvre la date
+  d'achat.
 - **Vos dividendes s'affichent désormais sur la ligne qui les a versés**, et non plus au compte : le
   rendement d'un titre inclut enfin ce qu'il vous a rapporté. Les 64 dividendes du relevé sont tous
   rattachés, y compris ceux d'une position ouverte avant la période du relevé — l'ISIN sert alors de

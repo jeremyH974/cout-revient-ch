@@ -68,6 +68,8 @@ export function applyQualification(event: UnqualifiedEvent, q: Qualification): L
       return { ...base, kind: 'reward', in: single, fairValueEur: q.fairValueEur };
     case 'deposit':
       return { ...base, kind: 'deposit', in: single, costEur: q.costEur };
+    case 'opening-balance':
+      return { ...base, kind: 'opening-balance', in: single, costEur: q.costEur };
     case 'withdrawal':
       return { ...base, kind: 'withdrawal', out: single, proceedsEur: q.proceedsEur };
     case 'purchase':

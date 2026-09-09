@@ -396,7 +396,16 @@ export type Qualification =
   | { kind: 'withdrawal'; proceedsEur: DecimalString | null }
   | { kind: 'purchase'; costEur: DecimalString }
   | { kind: 'sale'; proceedsEur: DecimalString }
-  | { kind: 'trade'; valueEur: DecimalString };
+  | { kind: 'trade'; valueEur: DecimalString }
+  /**
+   * Position déjà détenue avant le début du relevé : son historique manque, et seul l'utilisateur
+   * connaît ce qu'elle a coûté.
+   *
+   * `costEur` est **requis**, comme sur `OpeningBalanceEvent` — le seul coût d'entrée non
+   * facultatif du domaine. Un solde d'ouverture sans coût vaudrait zéro et ferait passer toute la
+   * position pour de la plus-value ; mieux vaut refuser la qualification que produire ce chiffre.
+   */
+  | { kind: 'opening-balance'; costEur: DecimalString };
 
 export interface EngineSettings {
   /** Delisting + migration : report du coût (défaut) ou réalisation à la juste valeur. */

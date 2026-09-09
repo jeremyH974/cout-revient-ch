@@ -69,6 +69,13 @@
       amountLabel: 'Valeur de l’échange en euros',
       amountRequired: true,
     },
+    'opening-balance': {
+      kind: 'opening-balance',
+      label: 'Solde d’ouverture (détenu avant le relevé)',
+      note: 'Position déjà détenue au début de la période exportée : indiquez ce qu’elle vous a coûté, frais compris.',
+      amountLabel: 'Coût total en euros',
+      amountRequired: true,
+    },
     ignore: {
       kind: 'ignore',
       label: 'Ignorer (mouvement interne)',
@@ -83,7 +90,8 @@
     const positive = legs.filter((l) => isPositive(D(l.signedQty))).length;
     const negative = legs.filter((l) => isNegative(D(l.signedQty))).length;
     const kinds: Kind[] = [];
-    if (legs.length === 1 && positive === 1) kinds.push('reward', 'deposit', 'purchase');
+    if (legs.length === 1 && positive === 1)
+      kinds.push('reward', 'deposit', 'purchase', 'opening-balance');
     if (legs.length === 1 && negative === 1) kinds.push('withdrawal', 'sale');
     if (legs.length === 2 && positive === 1 && negative === 1) kinds.push('trade');
     kinds.push('ignore');
@@ -97,13 +105,24 @@
   let amount = $state('');
   let error = $state<string | null>(null);
 
-  // À chaque ouverture : proposition pré-sélectionnée (ou premier choix), montant vide.
+  /**
+   * À chaque ouverture : proposition pré-sélectionnée (ou premier choix), et montant pré-rempli
+   * **uniquement si le relevé l'a fourni**.
+   *
+   * Une ligne pivot peut porter une contre-valeur (`leg.valueEur`) que la plateforme a donnée —
+   * c'est le cas d'une position reprise de la photo eToro, dont le relevé connaît le cours
+   * d'ouverture. La proposer épargne un calcul à la main ; elle reste modifiable, et le champ
+   * demeure vide quand personne ne sait.
+   */
   $effect(() => {
     if (!open || !event) return;
-    const wanted = suggestion?.kind;
+    // Un import qui NOMME sa qualification l'emporte sur la devinette d'après le libellé Coinhouse.
+    const named = choices.find((c) => c.kind === event.rawType)?.kind;
+    const wanted = named ?? suggestion?.kind;
     kind =
       wanted && choices.some((c) => c.kind === wanted) ? wanted : (choices[0]?.kind ?? 'ignore');
-    amount = '';
+    const suggested = event.legs.length === 1 ? event.legs[0]?.valueEur : null;
+    amount = suggested ?? '';
     error = null;
   });
 
@@ -147,8 +166,18 @@
       case 'trade':
         q = { kind, valueEur: value! };
         break;
-      default:
+      case 'opening-balance':
+        q = { kind, costEur: value! };
+        break;
+      case 'ignore':
         q = { kind: 'ignore' };
+        break;
+      default: {
+        // Un `default` fourre-tout enregistrait « ignorer » pour toute nature neuve : la
+        // qualification se serait perdue en silence, comme le `switch` de la décision n° 129.
+        const missing: never = kind;
+        throw new Error(`Qualification non gérée : ${String(missing)}`);
+      }
     }
     app.qualify(event.id, q);
     open = false;

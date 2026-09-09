@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { assetClass } from '../../src/lib/domain/assets';
 import { computePortfolio } from '../../src/lib/domain/engine/aggregate';
 import { isPositive, toDecimalString } from '../../src/lib/domain/money';
-import { DEFAULT_ENGINE_SETTINGS } from '../../src/lib/domain/types';
+import { DEFAULT_ENGINE_SETTINGS, type Qualification } from '../../src/lib/domain/types';
 import { importEtoroWorkbook } from '../../src/lib/import/etoro/index';
 import { pivotLedgerEvents } from '../../src/lib/import/pivot/events';
 import { ingestPivotRows } from '../../src/lib/import/pivot/index';
@@ -25,7 +25,7 @@ function workbook(): ArrayBuffer {
 }
 
 /** Le rapport complet, depuis le classeur : c'est le seul niveau où un champ perdu se voit. */
-async function reported() {
+async function reported(qualifications: Record<string, Qualification> = {}) {
   const result = await imported();
   const ingested = ingestPivotRows(
     { rows: result.rows, issues: result.issues },
@@ -35,7 +35,7 @@ async function reported() {
     usdRate,
   );
   if (!ingested.ok) throw new Error(ingested.error);
-  const { events } = pivotLedgerEvents(Object.values(ingested.rows), {}, usdRate);
+  const { events } = pivotLedgerEvents(Object.values(ingested.rows), qualifications, usdRate);
   return computePortfolio({ events, prices: {}, settings: DEFAULT_ENGINE_SETTINGS });
 }
 
@@ -48,8 +48,9 @@ async function imported() {
 describe('relevé eToro de démonstration', () => {
   it('lit le grand livre, écarte levier et CFD en les nommant', async () => {
     const result = await imported();
-    // 5 ouvertures + 1 vente + 1 fractionnement + 3 dividendes ; le CFD et le levier sont écartés.
-    expect(result.rows).toHaveLength(10);
+    // 5 ouvertures + 1 vente + 1 fractionnement + 3 dividendes + 1 position reprise de la photo
+    // (« p-901 ») ; le CFD et le levier sont écartés.
+    expect(result.rows).toHaveLength(11);
     expect(result.skipped).toBe(2);
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('levier');
@@ -137,7 +138,10 @@ describe('relevé eToro de démonstration', () => {
       'eq:newco',
     ]);
     expect(report.positions.map((p) => p.asset)).toEqual(['btc']);
-    expect(report.unqualified).toHaveLength(0);
+    // UNE opération à qualifier, et c'est le livrable : « p-901 » n'a pas de ligne d'ouverture au
+    // grand livre. Elle attend que l'utilisateur dise ce qu'elle a coûté — elle n'entre donc pas
+    // encore dans les 20 unités ci-dessous (décision n° 137).
+    expect(report.unqualified).toHaveLength(1);
     // La vente de p-201 a rapporté 240 pour 200 investis : le titre garde une plus-value réalisée,
     // et il reste les 10 unités de l'autre position.
     const demo = report.equities.find((p) => p.asset === 'eq:demo');
@@ -189,6 +193,64 @@ describe('relevé eToro de démonstration', () => {
       expect(result.issues.map((i) => i.message).join(' | ')).toContain(
         "1 dividende(s) dont la position n'est plus identifiable",
       );
+    });
+  });
+
+  /**
+   * « p-901 » : 2 unités de Demo, ouvertes le 18/11/2024 — avant la période du relevé. Seule la
+   * photo la porte ; le grand livre ne l'a jamais vue naître.
+   */
+  describe('une position antérieure au relevé est proposée, jamais imposée', () => {
+    it('part en « à qualifier » plutôt que de se glisser dans le portefeuille', async () => {
+      // Le chemin « réception seule » en aurait fait un DÉPÔT à coût nul : 2 unités gratuites, et
+      // la position entière affichée en plus-value. Rien à l'écran ne l'aurait signalé.
+      const report = await reported();
+      expect(report.unqualified).toHaveLength(1);
+      const attente = report.unqualified[0]!;
+      expect(attente.legs.map((l) => `${l.signedQty} ${l.asset}`)).toEqual(['2 eq:demo']);
+      expect(attente.reason).toContain('précède la période exportée');
+      // Et le danger nommé : tant qu'elle n'est pas qualifiée, elle n'apporte AUCUNE unité. Un
+      // dépôt à coût nul en aurait ajouté deux, gratuites, sans que rien ne le dise.
+      expect(report.equities.find((p) => p.asset === 'eq:demo')?.qty.toString()).toBe('20');
+    });
+
+    it('propose le coût que le relevé permet de calculer, sans l’imposer', async () => {
+      // 2 unités × 30 (cours d'ouverture) = 60 $, au taux figé de ce test → 48 €. C'est une
+      // SUGGESTION : elle voyage jusqu'au champ de saisie, et l'utilisateur en fait ce qu'il veut.
+      const report = await reported();
+      expect(report.unqualified[0]!.legs[0]!.valueEur).toBe('48');
+    });
+
+    it('n’entre au portefeuille qu’une fois qualifiée', async () => {
+      const avant = await reported();
+      // Nommé avant d'être déréférencé : sans cela, un défaut de routage ferait planter le test sur
+      // un « undefined » au lieu de dire ce qui manque.
+      expect(avant.unqualified).toHaveLength(1);
+      const id = avant.unqualified[0]!.id;
+      const apres = await reported({ [id]: { kind: 'opening-balance', costEur: '48' } });
+      expect(apres.unqualified).toHaveLength(0);
+      const demoAvant = avant.equities.find((p) => p.asset === 'eq:demo');
+      const demoApres = apres.equities.find((p) => p.asset === 'eq:demo');
+      // 24, pas 22 : le fractionnement « 1:2 » de juin 2026 s'applique à TOUT l'actif, donc aussi
+      // aux 2 unités reprises — qui sont antérieures. 20 + 2×2.
+      expect([demoAvant?.qty.toString(), demoApres?.qty.toString()]).toEqual(['20', '24']);
+      expect(demoApres?.lots.map((l) => l.origin)).toContain('opening-balance');
+    });
+
+    it('le contrôle NOMME ce que le grand livre n’explique pas', async () => {
+      // Distinct de la dérive de quantité : le grand livre n'est pas faux, il est incomplet — et
+      // le remède, lui, est nommé.
+      const result = await imported();
+      const motifs = result.issues.map((i) => i.message).join(' | ');
+      expect(motifs).toContain("position(s) que le grand livre n'explique pas");
+      expect(motifs).toContain('Réexportez');
+    });
+
+    it('la reprise n’est pas comptée comme reconstituée', async () => {
+      // Sinon le contrôle lirait sa propre proposition et se croirait à jour, alors que le
+      // portefeuille, lui, reste amputé tant que rien n'est qualifié.
+      const result = await imported();
+      expect(result.issues.map((i) => i.message).join(' ')).not.toContain('quantité reconstituée');
     });
   });
 

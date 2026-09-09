@@ -8,6 +8,7 @@
 import { fiatEquivalent, isFiat } from '../../domain/assets';
 import { D, ZERO, toDecimalString, type Big } from '../../domain/money';
 import type {
+  DecimalString,
   EventId,
   LedgerEvent,
   PivotAmount,
@@ -26,6 +27,14 @@ import { applyQualification } from '../coinhouse/qualify';
  * recopiée dans le module d'appariement aurait divergé au premier ajout d'étiquette, et la
  * divergence se serait vue non pas à la lecture, mais dans un montant.
  */
+
+/**
+ * Étiquette qu'un convertisseur de plateforme pose sur une position vue dans une photo de
+ * portefeuille sans l'opération qui l'a ouverte. Elle n'appartient à aucun format de fichier : elle
+ * est le vocabulaire par lequel un import DIT qu'il ne sait pas, au lieu de choisir à la place de
+ * l'utilisateur.
+ */
+export const OPENING_BALANCE_LABEL = 'opening-balance';
 
 /** Étiquettes Koinly traitées comme un revenu (entrée sans contrepartie, juste valeur). */
 export const REWARD_LABELS = new Set([
@@ -111,7 +120,16 @@ export function pivotLedgerEvents(
   return { events, skippedCash };
 }
 
-function unqualified(row: RawPivotRow, reason: string): UnqualifiedEvent {
+/**
+ * @param suggestedEur contre-valeur que la PLATEFORME a fournie, à proposer à l'utilisateur —
+ * jamais un chiffre calculé ici. `null` laisse le champ vide, ce qui est le cas de toute ligne
+ * Coinhouse : une valeur inventée aurait l'air d'un fait.
+ */
+function unqualified(
+  row: RawPivotRow,
+  reason: string,
+  suggestedEur: DecimalString | null = null,
+): UnqualifiedEvent {
   const legs: UnqualifiedLeg[] = [];
   if (row.sent)
     legs.push({
@@ -120,7 +138,11 @@ function unqualified(row: RawPivotRow, reason: string): UnqualifiedEvent {
       valueEur: null,
     });
   if (row.received)
-    legs.push({ asset: row.received.currency, signedQty: row.received.amount, valueEur: null });
+    legs.push({
+      asset: row.received.currency,
+      signedQty: row.received.amount,
+      valueEur: suggestedEur,
+    });
   return {
     id: row.key,
     at: row.at,
@@ -265,6 +287,24 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
   // --- Réception seule --------------------------------------------------------------------------
   if (row.received) {
     const label = row.label ?? '';
+    /**
+     * **Position détenue avant le début du relevé.** Le convertisseur de plateforme l'a vue dans
+     * une photo de portefeuille, sans l'opération qui l'a ouverte — son historique précède la
+     * période exportée.
+     *
+     * Elle part en « à qualifier », et c'est un choix : la laisser filer vers `deposit` ci-dessous
+     * lui donnerait un **coût nul**, donc une position affichée en plus-value totale, sans qu'aucun
+     * écran ne le signale. Le coût, seul l'utilisateur le connaît ; le relevé n'en donne qu'une
+     * suggestion, transmise telle quelle.
+     */
+    if (label === OPENING_BALANCE_LABEL) {
+      const suggested = row.netWorth ? eurValue(row.netWorth, day, usdRate) : null;
+      return unqualified(
+        row,
+        'Position déjà détenue au début du relevé : son historique précède la période exportée.',
+        suggested === null ? null : toDecimalString(suggested),
+      );
+    }
     if (REWARD_LABELS.has(label)) {
       const fair = row.netWorth ? eurValue(row.netWorth, day, usdRate) : null;
       if (fair === null) base.warnings.push('Récompense sans contre-valeur connue : 0 € retenu.');
