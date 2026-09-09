@@ -249,6 +249,11 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
     why: 'Brochure pratique de l’impôt sur le revenu, citée par la table de veille pour la case de déclaration des intérêts de prêts participatifs (2TT).',
   },
   {
+    origin: 'https://bofip.impots.gouv.fr',
+    use: 'link',
+    why: 'Doctrine administrative (BOFiP) citée par la table de veille : prix moyen pondéré des titres, art. 150-0 D. Jamais interrogée par l’application — seul le lien « source » subsiste.',
+  },
+  {
     origin: 'https://www.moneyvox.fr',
     use: 'link',
     why: 'Commentaire de presse spécialisée, seule source trouvée pour la date d’effet de la hausse de CSG sur les produits de placement — l’entrée de veille est marquée `secondary-only` pour cette raison.',

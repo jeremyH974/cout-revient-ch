@@ -6,6 +6,7 @@
  * calculés par le convertisseur lui-même, jamais écrits en dur (helpers/expected.ts).
  */
 import { expect, test } from '@playwright/test';
+import { EQUITY_TAX_BOXES } from '../../src/lib/domain/equity-tax-fr';
 import { ETORO_FIXTURE, etoroAssets } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
 
@@ -29,6 +30,29 @@ test('un relevé eToro remplit le volet Actions', async ({ page }) => {
   for (const { label } of expected) {
     await expect(list.getByText(label, { exact: false }).first()).toBeVisible();
   }
+});
+
+test('le récapitulatif fiscal nomme ses cases, et le bon formulaire', async ({ page }) => {
+  // Les numéros viennent de la table du domaine, jamais recopiés : une case corrigée d'un côté et
+  // pas de l'autre ferait rougir ici. Les montants, eux, sont éprouvés par les tests unitaires —
+  // dont l'exemple chiffré du BOFiP.
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  await page.goto('#/invest/titles');
+  const block = page.locator('details', { hasText: 'Déclaration de revenus' });
+  // Nommé AVANT d'être cliqué : sans cela, une section absente ne produirait qu'un « timeout »
+  // sur le clic, qui ne dit pas ce qui manque.
+  await expect(block, 'le récapitulatif fiscal doit figurer sur l’écran Titres').toBeVisible();
+  await block.getByText('Déclaration de revenus — estimation').click();
+  await expect(block).toContainText(EQUITY_TAX_BOXES.gain.box);
+  await expect(block).toContainText(EQUITY_TAX_BOXES.loss.box);
+  // Le piège que ce lot documente : ces cases sont sur la déclaration COMPLÉMENTAIRE.
+  await expect(block).toContainText(EQUITY_TAX_BOXES.gain.form);
+  await expect(block).toContainText(EQUITY_TAX_BOXES.detail.box);
+  // La fixture porte une cession en 2025 (« p-201 ») : le millésime doit apparaître.
+  await expect(block).toContainText('2025');
 });
 
 test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoine', async ({

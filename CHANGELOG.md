@@ -14,6 +14,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Vos plus-values sur actions et ETF sont enfin chiffrées.** L'écran Actions et ETF porte un
+  récapitulatif par année : plus-value case **3VG**, moins-value case **3VH**, moins-values
+  antérieures imputées, base imposable et impôt estimé. Le prix de revient retenu est le **prix
+  moyen pondéré par ligne**, la méthode qu'impose l'article 150-0 D — et qu'une vente ne recalcule
+  pas. L'application vous rappelle deux choses qu'on oublie souvent : ces cases sont sur la
+  déclaration **complémentaire 2042 C**, et un courtier établi hors de France impose de passer par
+  la **2047**. Les moins-values se reportent **dix ans**, et l'application les impute pour vous, en
+  disant ce qu'elle décide faute de règle écrite. Ce n'est ni une déclaration, ni un conseil fiscal.
 - **Une position détenue avant la période de votre relevé n'était nulle part.** eToro vous laisse
   choisir la période exportée ; tout ce qui a été acheté avant n'apparaissait pas — ni au
   portefeuille, ni dans le contrôle de cohérence, qui la passait sous silence. L'application la
