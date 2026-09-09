@@ -297,6 +297,21 @@ describe('assainissement', () => {
     expect(result.ok && result.dropped).toBe(5);
   });
 
+  it('une qualification dont le montant est requis ne se relit pas sans lui', () => {
+    // `OpeningBalanceEvent.costEur` est le seul coût d'entrée NON-nullable du domaine. Une
+    // sauvegarde altérée qui y poserait `null` produirait un solde d'ouverture à zéro euro : la
+    // position entière passerait pour de la plus-value, sans erreur ni message.
+    const avec = emptyState();
+    avec.qualifications['q1'] = { kind: 'opening-balance', costEur: '48' };
+    expect(migrateState(JSON.parse(JSON.stringify(avec))).ok).toBe(true);
+
+    const sans = emptyState();
+    // @ts-expect-error — c'est précisément la forme invalide que le contrôle doit écarter.
+    sans.qualifications['q1'] = { kind: 'opening-balance', costEur: null };
+    const relu = migrateState(JSON.parse(JSON.stringify(sans)));
+    expect(relu.ok && Object.keys(relu.state.qualifications)).toEqual([]);
+  });
+
   it('un revenu garde sa retenue ET sa ligne d’origine à la relecture', () => {
     // Les deux champs sont additifs, donc absents des anciennes sauvegardes — et l'assainisseur
     // les remplacerait volontiers par `null` sans que rien ne proteste. Ailleurs, ils ne sont

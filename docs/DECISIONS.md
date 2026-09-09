@@ -3484,3 +3484,45 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Rien d'autre n'a changé** : mêmes 74 fills, même graine, même adresse fictive. Seuls les
      horodatages de cinq tranches SOL et l'attribution des `tid` bougent, et le générateur recalcule
      l'instantané et le funding en conséquence.
+
+137. **Une position détenue avant le relevé n'existait nulle part, et rien ne le disait**
+     (09/09/2026).
+     Une position ouverte **avant** la période exportée n'a pas de ligne d'ouverture au grand livre.
+     `codeByPosition`, alimenté par `collectOpenings` seul, l'ignorait ; le contrôle photo/grand
+     livre la sautait en silence — il **comparait donc la photo à une version amputée d'elle-même**,
+     et son test « ne signale aucun écart » était vert en partie pour cette raison.
+     **Mesuré avant d'écrire une ligne** : sur le relevé réel, 1 position sur 62 (LVMH, 0,01533
+     unité, 9,94 €) et **0 vente orpheline**. L'enjeu comptable est de dix euros. Ce qui justifiait
+     le lot n'est pas ce montant : c'est qu'un relevé exporté sur une fenêtre plus courte que l'âge
+     du compte rendait l'application **silencieusement fausse**, sans un mot.
+     **La devise est le vrai obstacle, et elle a décidé de la conception.** La photo donne un cours
+     d'ouverture mais **jamais sa devise**. Sur les 62 lignes : 44 en dollars, 6 en euros, une en
+     **pence**. La déduire du rapport `valeur / unités / cours` échoue — sept lignes collent mieux à
+     l'euro, une à rien. Présumer le dollar aurait fabriqué un prix de revient faux d'un facteur 74
+     sur la ligne en pence. La devise est donc prise au **grand livre** (couple `TICKER/DEVISE`), et
+     son absence vaut refus de suggérer.
+     **L'application signale et propose ; elle ne reconstruit pas seule** (arbitrage de
+     l'utilisateur). La position part en « à qualifier » — surtout pas vers `deposit`, qui lui
+     donnerait un **coût nul** et l'afficherait en plus-value totale sans que rien ne le signale.
+     Une qualification `opening-balance` de plus, additive, dont le montant est **requis** comme
+     `OpeningBalanceEvent.costEur` l'est déjà ; le relevé n'en fournit qu'une **suggestion**, portée
+     par `leg.valueEur` jusqu'au champ de saisie.
+     **Rien de neuf n'a été inventé** : `OpeningBalanceEvent` était pleinement câblé en aval — lot,
+     PRU, `investedTotal`, `taxKindOf` → acquisition, 3916-bis, export Koinly, six libellés — mais
+     n'avait qu'un seul producteur, le formulaire de saisie. Le lot **relie deux mécanismes
+     existants**, la file « à qualifier » et ce type-là.
+     **Deux réserves écrites plutôt que tues** : le cours d'ouverture est un prix de marché, pas un
+     montant facturé — il **exclut le spread** qu'eToro facture à part (décision n° 126) ; et la
+     reprise est **exclue de ce que le contrôle croit reconstitué**, sans quoi il lirait sa propre
+     proposition et se croirait à jour pendant que le portefeuille reste amputé.
+     **Recoupement sur le relevé réel** : 1 reprise, `eq:mc.pa`, 0,01533 unité, ouverte le
+     23/12/2024, devise EUR déduite du grand livre, coût suggéré **9,60 €** — et 0 position proposée
+     à tort parmi les 61 autres.
+     **Contre-épreuves** (décision n° 75), sept, chacune vue rouge en nommant son sujet : reprise
+     supprimée (« expected [] to have a length of 1 ») ; contrôle muet ; reprise comptée comme
+     reconstituée (fausse alerte de dérive) ; libellé routé vers `deposit` (deux unités gratuites) ;
+     devise présumée dollar (« expected { amount: '750', currency: 'usd' } to be null ») ; montant
+     redevenu facultatif (« expected [ 'q1' ] to deeply equal [] ») ; position innommable tue.
+     **Un piège du harnais, à noter** : la septième a d'abord semblé verte parce que le filtre
+     `vitest -t` visait un texte d'assertion et non le titre du test — **aucun test ne tournait**.
+     Une contre-épreuve qui ne s'exécute pas ressemble trait pour trait à un garde-fou creux.

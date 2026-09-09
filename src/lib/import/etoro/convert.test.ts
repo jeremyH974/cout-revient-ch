@@ -87,14 +87,15 @@ const snap = (
   units: string,
   type: string,
   isin = 'US0378331005',
+  over: { direction?: string; leverage?: string; openRate?: string } = {},
 ): string[] => [
   serial,
   name,
   id,
-  'Long',
+  over.direction ?? 'Long',
   '01/02/2025 10:00:00',
-  'X1',
-  '100',
+  over.leverage ?? 'X1',
+  over.openRate ?? '100',
   units,
   '110',
   '1000',
@@ -242,6 +243,105 @@ describe('rattacher un dividende à sa ligne', () => {
       ),
     );
     expect(divOf(result).map((d) => d.relatedAsset)).toEqual([null]);
+  });
+});
+
+describe('reprendre une position que seule la photo connaît', () => {
+  const opened = open('01/02/2025 10:00:00', 'AAPL/USD', '2000', '10', 'p1', 'Actions');
+  const repriseOf = (r: ReturnType<typeof convertEtoroWorkbook>) =>
+    r.drafts.filter((d) => d.label === 'opening-balance');
+
+  it('propose la position, avec son coût, quand tout est certain', () => {
+    // « p9 » n'a aucune ligne d'ouverture. Son ISIN est celui de « p1 », que le grand livre nomme
+    // AAPL/USD — donc code ET devise sont connus : 3 × 250 = 750 $.
+    const result = convertEtoroWorkbook(
+      book(
+        [opened],
+        [
+          snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks'),
+          snap('46023', 'Apple Inc.', 'p9', '3', 'Stocks', 'US0378331005', { openRate: '250' }),
+        ],
+      ),
+    );
+    const reprises = repriseOf(result);
+    expect(reprises.map((d) => `${d.received?.amount} ${d.received?.currency}`)).toEqual([
+      '3 eq:aapl',
+    ]);
+    expect(reprises[0]?.netWorth).toEqual({ amount: '750', currency: 'usd' });
+  });
+
+  it('N’INVENTE PAS de coût quand la devise du cours est inconnue du grand livre', () => {
+    // eToro libelle parfois une ouverture « Nom (TICKER) » au lieu du couple TICKER/DEVISE : le
+    // code se lit, la devise NON. Sans elle, « 250 » n'est qu'un nombre — et présumer le dollar
+    // sur une ligne cotée en pence multiplierait le prix de revient par soixante-dix.
+    const result = convertEtoroWorkbook(
+      book(
+        [open('01/02/2025 10:00:00', 'Microsoft Corp. (MSFT)', '900', '3', 'p1', 'Actions')],
+        [
+          snap('46023', 'Microsoft Corp.', 'p1', '3', 'Stocks', 'US5949181045'),
+          snap('46023', 'Microsoft Corp.', 'p9', '3', 'Stocks', 'US5949181045', {
+            openRate: '250',
+          }),
+        ],
+      ),
+    );
+    const reprises = repriseOf(result);
+    expect(reprises.map((d) => d.received?.currency)).toEqual(['eq:msft']);
+    expect(reprises[0]?.netWorth).toBeNull();
+  });
+
+  it('ne propose rien d’une devise que le pivot ne sait pas convertir', () => {
+    // Une place londonienne cote en pence. Le pivot ne tourne que l'euro et le dollar : plutôt que
+    // d'approcher, on laisse l'utilisateur saisir.
+    const result = convertEtoroWorkbook(
+      book(
+        [open('01/02/2025 10:00:00', 'SWDA/GBX', '500', '4', 'p1', 'ETF')],
+        [
+          snap('46023', 'iShares Core MSCI World', 'p1', '4', 'ETF', 'IE00B4L5Y983'),
+          snap('46023', 'iShares Core MSCI World', 'p9', '2', 'ETF', 'IE00B4L5Y983', {
+            openRate: '5000',
+          }),
+        ],
+      ),
+    );
+    expect(repriseOf(result)[0]?.netWorth).toBeNull();
+  });
+
+  it('écarte une position à levier ou vendue à découvert, en la nommant', () => {
+    const result = convertEtoroWorkbook(
+      book(
+        [opened],
+        [
+          snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks'),
+          snap('46023', 'Apple Inc.', 'p8', '3', 'Stocks', 'US0378331005', { leverage: 'X5' }),
+          snap('46023', 'Apple Inc.', 'p7', '3', 'Stocks', 'US0378331005', { direction: 'Short' }),
+        ],
+      ),
+    );
+    expect(repriseOf(result)).toHaveLength(0);
+    expect(result.skipped).toBe(2);
+    expect(result.issues.map((i) => i.message).join(' ')).toContain('hors périmètre');
+  });
+
+  it('compte et nomme une position qu’aucun ISIN ne rattache, au lieu de la taire', () => {
+    const result = convertEtoroWorkbook(
+      book(
+        [opened],
+        [
+          snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks'),
+          snap('46023', 'Inconnu SA', 'p9', '3', 'Stocks', 'XX9999999999'),
+        ],
+      ),
+    );
+    expect(repriseOf(result)).toHaveLength(0);
+    expect(result.issues.map((i) => i.message).join(' ')).toContain('que rien ne permet de nommer');
+  });
+
+  it('ne reprend PAS une position que le grand livre explique déjà', () => {
+    const result = convertEtoroWorkbook(
+      book([opened], [snap('46023', 'Apple Inc.', 'p1', '10', 'Stocks')]),
+    );
+    expect(repriseOf(result)).toHaveLength(0);
   });
 });
 
