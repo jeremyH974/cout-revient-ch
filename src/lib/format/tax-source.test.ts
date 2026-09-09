@@ -6,6 +6,7 @@
  * des décisions n° 47 (attributions de sources) et n° 57 (origines de la CSP), appliqué au fiscal.
  */
 import { describe, expect, it } from 'vitest';
+import { EQUITY_TAX_BOXES, PMP_SOURCE_ID } from '../domain/equity-tax-fr';
 import { EXEMPTION_THRESHOLD, EXEMPTION_THRESHOLD_SOURCE_ID, TAX_RATES } from '../domain/tax-fr';
 import { WATCH_ENTRIES } from '../watch/entries';
 import { citationOf, taxSourcesNote, watchEntryOf } from './tax-source';
@@ -69,6 +70,27 @@ describe('source d’un chiffre fiscal', () => {
     expect(note).toContain('Taux 31,4 %');
     expect(note).toContain('Seuil d’exonération');
     expect(note?.match(/relu le/g)).toHaveLength(2);
+  });
+
+  it('chaque case de la déclaration des titres cite une source qui existe', () => {
+    // Même cliquet que pour les taux : une case ajoutée sans sa source deviendrait un numéro
+    // affirmé sans preuve — et un numéro de case faux est aussi coûteux qu'un taux faux.
+    const declared = [...Object.values(EQUITY_TAX_BOXES).map((b) => b.sourceId), PMP_SOURCE_ID];
+    expect(declared.length).toBeGreaterThan(0);
+    for (const id of declared)
+      expect(
+        WATCH_ENTRIES.map((e) => e.id),
+        `« ${id} » est cité par equity-tax-fr.ts mais absent de la veille`,
+      ).toContain(id);
+  });
+
+  it('la source des cases dit bien 3VG, 3VH et « 2042 C »', () => {
+    // Le piège que ce lot documente : ces deux cases ne sont PAS sur la 2042. Si le texte cité
+    // cessait de le dire, l'application affirmerait un formulaire que sa source ne soutient plus.
+    const entry = watchEntryOf(EQUITY_TAX_BOXES.gain.sourceId);
+    expect(entry?.effect).toContain(EQUITY_TAX_BOXES.gain.box);
+    expect(entry?.effect).toContain(EQUITY_TAX_BOXES.loss.box);
+    expect(entry?.effect).toContain(EQUITY_TAX_BOXES.gain.form);
   });
 
   it('un taux d’archive ne cite que le seuil', () => {

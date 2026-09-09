@@ -68,6 +68,7 @@ import { computeLending } from '$lib/domain/lending/compute';
 import { lendingOutlook as computeOutlook, type LendingOutlook } from '$lib/domain/lending/outlook';
 import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending/performance';
 import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
+import { equityTaxFr, type EquityTaxLedger } from '$lib/domain/equity-tax-fr';
 import { lendingTaxFr, type LendingTaxLedger } from '$lib/domain/lending/tax-fr';
 import type { LendingInput, LendingReport } from '$lib/domain/lending/types';
 import {
@@ -444,6 +445,16 @@ export class AppState {
       events: this.lendingInput.events,
       throughYear: Number(nowIso().slice(0, 4)),
     }),
+  );
+
+  /**
+   * Cessions de titres par année civile — article 150-0 D, distinct de l'assiette crypto.
+   *
+   * Le rapport porte déjà les plus-values au prix moyen pondéré : ce dérivé ne fait que les
+   * regrouper et appliquer le report des moins-values.
+   */
+  equityTax = $derived.by((): EquityTaxLedger =>
+    equityTaxFr({ report: this.report, throughYear: Number(nowIso().slice(0, 4)) }),
   );
 
   /**

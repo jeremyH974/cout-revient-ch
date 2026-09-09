@@ -1,5 +1,6 @@
 <script lang="ts">
   import { assetSymbol } from '$lib/domain/assets';
+  import { EQUITY_TAX_BOXES } from '$lib/domain/equity-tax-fr';
   import { allocationOf, type PositionReport } from '$lib/domain/engine';
   import { ZERO } from '$lib/domain/money';
   import { router } from '$lib/router.svelte';
@@ -51,6 +52,7 @@
   const hasMarketKey = $derived((app.state.ui.twelveDataApiKey ?? '') !== '');
   /** Les places européennes ont leur propre source : leur absence se dit à part (décision n° 113). */
   const hasEuropeKey = $derived((app.state.ui.alphaVantageApiKey ?? '') !== '');
+  const tax = $derived(app.equityTax);
 </script>
 
 <AppBar />
@@ -145,6 +147,62 @@
   {/if}
 </section>
 
+{#if tax.years.length > 0}
+  <details class="card">
+    <summary>Déclaration de revenus — estimation</summary>
+    <p class="muted small">
+      Estimation calculée à partir de vos seules opérations importées. Ce n'est ni une déclaration,
+      ni un conseil fiscal. Le prix de revient retenu est le <strong>prix moyen pondéré</strong> par ligne,
+      méthode que l'article 150-0 D impose ; une vente ne le recalcule pas.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Année</th>
+            <th scope="col" class="right">Cessions</th>
+            <th scope="col" class="right">Plus-value — {EQUITY_TAX_BOXES.gain.box}</th>
+            <th scope="col" class="right">Moins-value — {EQUITY_TAX_BOXES.loss.box}</th>
+            <th scope="col" class="right">Reports imputés</th>
+            <th scope="col" class="right">Imposable</th>
+            <th scope="col" class="right">Impôt estimé</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each tax.years as y (y.year)}
+            <tr>
+              <th scope="row">{y.year}<span class="muted small block">{y.rate.label}</span></th>
+              <td class="right">{y.cessions.length}</td>
+              <td class="right"><Money value={app.displayFromEur(y.gainsEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.lossOfYearEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.carryImputedEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.taxableEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.taxEur)} /></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small">
+      Ces deux cases sont sur la <strong>{EQUITY_TAX_BOXES.gain.form}</strong>, la déclaration
+      complémentaire — pas sur la 2042. Un courtier établi hors de France impose en outre de passer
+      par la <strong>{EQUITY_TAX_BOXES.foreign.box}</strong> (cadre 3) et, en principe, par la
+      <strong>{EQUITY_TAX_BOXES.detail.box}</strong> : la dispense suppose des plus-values calculées
+      par l'établissement financier lui-même. La case
+      <strong>{EQUITY_TAX_BOXES.loss.box}</strong> ne porte que la moins-value de l'année, jamais le cumul
+      des reports.
+    </p>
+    <p class="warn">
+      L'application tranche par convention les points que le texte laisse ouverts, et ignore ce
+      qu'elle n'a pas importé :
+    </p>
+    <ul class="muted small">
+      {#each tax.assumptions as note (note)}<li>{note}</li>{/each}
+    </ul>
+    <p class="muted small">Faites vérifier par un professionnel avant de déclarer.</p>
+  </details>
+{/if}
+
 {#if closed.length > 0}
   <section class="list">
     <h2 class="section" id="closed-titles">
@@ -159,6 +217,33 @@
 {/if}
 
 <style>
+  /* Tableau fiscal : même présentation que le millésime des prêts, pour que l'œil ne réapprenne rien. */
+  .scroll {
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+    vertical-align: top;
+  }
+  th[scope='row'] {
+    font-weight: 500;
+  }
+  .right {
+    text-align: right;
+  }
+  .block {
+    display: block;
+  }
+  .warn {
+    color: var(--warn);
+  }
   .summary {
     display: grid;
     gap: var(--space-2);

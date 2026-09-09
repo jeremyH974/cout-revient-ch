@@ -3526,3 +3526,50 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Un piège du harnais, à noter** : la septième a d'abord semblé verte parce que le filtre
      `vitest -t` visait un texte d'assertion et non le titre du test — **aucun test ne tournait**.
      Une contre-épreuve qui ne s'exécute pas ressemble trait pour trait à un garde-fou creux.
+
+138. **Le moteur appliquait déjà l'article 150-0 D sans le savoir** (09/09/2026).
+     L'écran Titres n'affichait aucun chiffre fiscal et le simulateur promettait « fiscalité non
+     estimée pour un titre ». Or `Position.dispose` retire le coût au prorata
+     (`costBasis × qty / qtyDétenue`) : c'est **exactement** le prix moyen pondéré d'acquisition
+     qu'impose le 3 de l'article 150-0 D, et `HistoryEntry.realized` porte déjà le résultat daté,
+     cession par cession. Il ne manquait ni la règle ni l'arithmétique — seulement l'agrégation par
+     année civile, le report des moins-values, et les cases.
+     **L'oracle est officiel, et c'est ce qui donne sa valeur au lot.** L'exemple chiffré du BOFiP
+     (BOI-RPPM-PVBMI-20-10-20-40) est devenu un test : 100 titres à 95 €, 200 à 105 €, 100 à 107 €
+     → PMP **103 €** ; cession de 150 à 110 € → **+1 050 €** ; et le reliquat **garde 103 €**, la
+     propriété du § 50 — « cette valeur moyenne n'est pas affectée par les ventes ». Aucune ligne de
+     production ne connaît ces nombres.
+     **Quatre points que l'étude du 06/09 marquait [NON VÉRIFIÉ] sont levés sur source primaire** :
+     les cases sont **3VG** et **3VH**, et elles sont sur la **2042 C**, pas sur la 2042 ; le report
+     des moins-values court sur **dix ans**, et 3VH ne porte **que** la moins-value de l'année, après
+     compensation interne — « les moins-values des années antérieures ne doivent pas être cumulées » ;
+     l'abattement pour durée de détention **n'existe plus** pour des titres acquis depuis 2018, donc
+     vaut toujours zéro ici ; la **2047** est obligatoire dès que l'établissement payeur est établi à
+     l'étranger. Le PFU 2026 à 31,4 %, lui, était déjà confirmé dans la veille (LFSS 2026, art. 12) —
+     l'étude était en retard sur le dépôt.
+     **Le taux est PARTAGÉ avec l'assiette crypto, et c'est un choix.** Même fait générateur (une
+     cession), même texte, même date d'effet : dupliquer `TAX_RATES` aurait créé deux tables
+     identiques qui divergeraient au premier amendement. Le module des prêts, lui, duplique la
+     sienne à bon droit — le fait générateur d'un revenu de placement est son **versement**, donc
+     une autre date. La règle qui se dégage : **on duplique une table de taux quand la DATE D'EFFET
+     diffère, jamais quand seul le sujet diffère.**
+     **Une hypothèse a été sortie de la veille.** L'obligation de 2074 pour un courtier étranger est
+     une **lecture** du critère de dispense, que l'administration ne nomme pas. L'entrée de veille
+     ne dit donc que ce que le texte dit ; la lecture vit dans `EQUITY_TAX_ASSUMPTIONS`, affichée
+     à l'écran. Un test du dépôt l'a imposé — `certainty: 'secondary-only'` exige
+     `official: false` —, et il avait raison : mélanger les deux aurait fait passer une déduction
+     pour une règle.
+     **Recoupement sur le relevé réel** : 2025 → 2 cessions, **3VG = 66,93 €**, impôt estimé
+     21,01 € ; 2026 → 1 cession, **3VH = 21,61 €**. eToro affiche 68,50 € et −18,15 € : l'écart tient
+     au spread, que le moteur inclut dans le coût (décision n° 126) et qu'eToro facture à part, et au
+     taux de change retenu jour par jour.
+     **Contre-épreuves** (décision n° 75), huit, chacune vue rouge en nommant son sujet : une vente
+     qui recalcule le PMP (« expected '27295' to be '25750' ») ; 3VH devenu cumul (« '150' au lieu de
+     '50' ») ; moins-values qui n'expirent jamais ; cohortes en LIFO (« '2024:30' au lieu de
+     '2025:30' ») ; crypto entrée dans l'assiette (« '20100' au lieu de '100' ») ; millésime pris sur
+     la date d'acquisition ; taux figé à 30 % ; section absente de l'écran.
+     **Deux pièges du harnais, encore** : le filtre `vitest -t` ne matchait pas deux titres à cause
+     des accents — aucun test ne tournait, et cela ressemble trait pour trait à un garde-fou creux
+     (déjà vu en n° 137 ; la boucle affiche désormais le nombre de tests exécutés). Et la
+     contre-épreuve d'écran est restée verte jusqu'à ce qu'un `npm run build` précède Playwright :
+     elle s'exécutait contre un `dist/` périmé.

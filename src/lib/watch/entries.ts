@@ -164,6 +164,89 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['cession'],
   },
   {
+    id: 'pmp-150-0-d',
+    title: 'Prix moyen pondéré des titres : une vente ne le recalcule pas',
+    status: 'in-force',
+    statusDate: '2019-12-20',
+    effect:
+      'La cession de titres d’une même série retient le PRIX MOYEN PONDÉRÉ d’acquisition, et cette ' +
+      'méthode s’impose obligatoirement (§ 20). Cette moyenne « n’est pas affectée par les ventes » : ' +
+      'elle ne change qu’à un nouvel achat (§ 50). Le calcul est admis compte par compte (§ 40).',
+    source: {
+      label: 'BOFiP BOI-RPPM-PVBMI-20-10-20-40, § 1 à 50 (CGI art. 150-0 D, 3)',
+      url: 'https://bofip.impots.gouv.fr/bofip/3619-PGP.html/identifiant=BOI-RPPM-PVBMI-20-10-20-40-20191220',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['cession'],
+  },
+  {
+    id: 'cases-3vg-3vh',
+    title: 'Cases des plus-values sur titres : 2042 C, pas 2042',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'La plus-value avant abattement se déclare case 3VG et la moins-value de l’année case 3VH, ' +
+      'toutes deux sur la déclaration COMPLÉMENTAIRE 2042 C — et non sur la 2042. Les plus-values ' +
+      'encaissées via un établissement payeur établi à l’étranger passent d’abord par le cadre 3 de ' +
+      'la 2047.',
+    source: {
+      label: 'Brochure pratique IR 2026, chapitre « Plus-values et gains divers », p. 137 et s.',
+      url: 'https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2026/pdf_som/09-plus_values_137a156.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['cession', 'declaratif'],
+  },
+  {
+    id: 'report-mv-10-ans',
+    title: 'Report des moins-values sur titres : dix ans',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'Une moins-value s’impute sur les gains de même nature de l’année et « des 10 années ' +
+      'suivantes ». La case 3VH ne porte QUE la moins-value de l’année, après compensation avec les ' +
+      'plus-values de l’année : « les moins-values des années antérieures ne doivent pas être ' +
+      'cumulées » — leur détail va sur la 2074 ou la fiche 2074-CMV.',
+    source: {
+      label:
+        'Brochure pratique IR 2026, chapitre « Plus-values et gains divers » (CGI art. 150-0 D, 11)',
+      url: 'https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2026/pdf_som/09-plus_values_137a156.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['cession', 'declaratif'],
+  },
+  {
+    id: 'form-2074',
+    title: 'Déclaration 2074 : quand la dispense ne joue pas',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    // L'entrée dit ce que le TEXTE dit ; ce que l'application en déduit pour un courtier étranger
+    // est une hypothèse, et elle vit dans `EQUITY_TAX_ASSUMPTIONS`. Les mélanger ici ferait passer
+    // une lecture pour une règle — et `certainty` cesserait de vouloir dire quelque chose.
+    effect:
+      'La dispense de 2074 suppose DEUX conditions : une seule nature d’opération, ET des ' +
+      'plus-values « intégralement calculées par vos établissements financiers ». Hors de ces cas, ' +
+      '« vous devez souscrire une 2074 ». Les fiches 2074-CMV (compensation) et 2074-ABT ' +
+      '(abattement) ne servent qu’en cas de dispense.',
+    source: {
+      label: 'Brochure pratique IR 2026, chapitre « Plus-values et gains divers », p. 137',
+      url: 'https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2026/pdf_som/09-plus_values_137a156.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['cession', 'declaratif'],
+  },
+  {
     id: 'patrimoine-improductif',
     title: 'Amendement « fortune improductive »',
     status: 'dropped',

@@ -499,9 +499,11 @@
             déclarer (décision n° 123).
           -->
           <p class="muted small tax-out">
-            <strong>Fiscalité non estimée pour un titre.</strong> Vos actions et ETF relèvent de l'article
-            150-0 D — plus-value par ligne, formulaire 2074 — et non du régime des actifs numériques estimé
-            ici. Ce n'est pas « zéro à déclarer » : c'est un calcul que l'application ne fait pas encore.
+            <strong>Pas d'estimation avant vente pour un titre.</strong> Vos actions et ETF relèvent
+            de l'article 150-0 D — plus-value par ligne, cases 3VG et 3VH de la 2042 C — et non du
+            régime des actifs numériques estimé ici. L'application chiffre désormais ces cessions,
+            mais <strong>après coup</strong> : le récapitulatif par année se trouve en bas de
+            l'écran Actions et ETF. Ce qui manque ici, c'est l'aperçu <em>avant</em> de vendre.
           </p>
         {:else if sellFeeChoice === 'sell-eur'}
           <details class="tax" bind:open={taxOpen}>
