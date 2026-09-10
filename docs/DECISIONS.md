@@ -3349,8 +3349,12 @@ test` local sans `CI=1` ne prouve rien.** Corollaire : une contre-épreuve qui n
      (08/09/2026). Le pipeline pivot jetait toute ligne 100 % fiat, sauf une sortie étiquetée
      « frais » : un dividende encaissé en euros disparaissait dans un compteur. Mesuré sur le relevé
      de l'utilisateur : **64 dividendes, 89,66 € bruts, 21,56 € de retenue à la source**.
-     **La portée s’arrête là, et il faut le dire** : les paiements d’intérêts (+189,31 €) et les
-     frais de conversion (−297,52 €) arrivent par le grand livre et non par une feuille dédiée ;
+     **La portée s’arrête là, et il faut le dire** : les paiements d’intérêts (+189,31 USD) et les
+     frais de conversion (−297,52 USD) arrivent par le grand livre et non par une feuille dédiée ;
+     — _rectifié le 10/09/2026 : ces deux montants avaient été écrits en euros ici et ailleurs. La
+     colonne « Montant » du grand livre est en DOLLARS, le récapitulatif du compte le disant en
+     titre. eToro convertit les intérêts à 163,00 € ; l'application fait sa propre conversion au
+     taux BCE du jour de chaque ligne (décision n° 140)_ ;
      le convertisseur eToro ne leur pose pas encore d’étiquette de revenu, et
      `etoro-fixture.test.ts` continue d’exiger qu’ils figurent parmi les lignes non traitées
      (décision n° 126). De même, un dividende eToro atterrit **au compte** et non sur sa ligne :
@@ -3614,3 +3618,51 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      endroits** — le total de l'année et la ligne du pays. Fausser l'un laissait l'autre intact. La
      duplication a été supprimée : les totaux se somment désormais **sur les lignes**, une seule
      formule. Un garde-fou creux signalait ici un vrai défaut de conception, pas un test à réécrire.
+
+140. **Une colonne en dollars lue comme des euros, et deux natures enfin entrées** (10/09/2026).
+     **La correction d'abord, parce qu'elle m'incombe.** La colonne « Montant » du grand livre eToro
+     est en **dollars** — le récapitulatif du compte le dit en titre. J'ai écrit « +189,31 € » et
+     « −297,52 € » à plusieurs reprises, y compris dans la décision n° 132, rectifiée en
+     conséquence. Les montants réels : **189,31 USD** d'intérêts (5 versements en 2025, 9 en 2026)
+     qu'eToro convertit à **163,00 €**, et **−297,52 USD** de frais de conversion. L'application
+     fait sa propre conversion, au taux BCE du jour de chaque ligne.
+     **Le point de branchement était un `continue`.** `collectSpreads` traverse déjà tout le grand
+     livre et compte comme « non traitée » toute ligne qu'elle ne reconnaît pas (décision n° 126).
+     C'est là que ces deux natures mouraient, et là qu'elles entrent — par deux motifs de
+     **substance** plutôt que par des chaînes exactes (`/intérêt|interest/`, `/conversion/`), le
+     relevé existant en deux langues dont je n'ai pas les libellés anglais. Le motif porte sur
+     « conversion » et **jamais sur « frais » seul** : un « Frais overnight » est un frais de
+     contrat pour différence, hors périmètre, et un test l'exige.
+     **Le signe ne peut naître que dans le pivot.** `platforms/drafts.ts` applique `.abs()` à tout
+     montant de brouillon : un convertisseur **ne peut pas** rendre un négatif. Un frais de
+     conversion sort donc positif du convertisseur, et c'est le pivot qui le retourne en revenu de
+     compte négatif — la valeur `'conversion-fee'` d'`IncomeNature`, créée par la décision n° 132
+     et **restée sans producteur** depuis. Le type, le moteur, l'écran et même un test l'attendaient.
+     **Pourquoi pas un `FeeEvent`**, qui existe pourtant : il atterrit dans `subscriptionsEur`, que
+     le rapport affiche « **Abonnements Coinhouse** ». Faux deux fois — ni la plateforme, ni la
+     nature.
+     **Un défaut que le test a révélé** : la première version produisait bien le brouillon, et le
+     total du compte ne bougeait **pas d'un centime**. La ligne était tuée par le filtre « 100 %
+     fiat » avant d'atteindre son chemin ; il a fallu l'y faire échapper explicitement, comme les
+     revenus et les frais l'étaient déjà.
+     **Fiscalité : case 2TR, et rien d'autre.** Le cadre 30 de la 2047 double le cadre 20 — lignes
+     231 à 238, même `min(235, 236)` — puis 250 → 251 → **252 → 2TR**. La ligne 253 mène à **2TT**,
+     réservée aux prêts participatifs, que la brochure exclut expressément de 2TR : `lending/tax-fr.ts`
+     reste donc un module séparé, et `interest-income-fr.ts` est son frère, pas son extension.
+     **Le module refuse deux calculs, et le dit** : aucun crédit d'impôt, la colonne « intérêts » de
+     la notice 2047 n'ayant pas été relevée — elle diffère de celle des dividendes pays par pays ;
+     et aucun impôt estimé, le taux dépendant d'une qualification que l'administration n'énonce pas
+     pour un payeur étranger sans prélèvement forfaitaire. Un chiffre posé là serait une prise de
+     position déguisée en calcul.
+     **Un trou du rapport, comblé au passage** : `accountIncomeEur` entrait dans le total sans
+     figurer dans **aucune** de ses lignes. Le rapport affichait donc un total que son propre détail
+     n'expliquait pas — invisible tant que ce poste valait zéro, visible dès le premier intérêt.
+     **Recoupement sur le relevé réel** : 14 versements captés (5 puis 9), 38 frais de conversion
+     sur 39 lignes — la trente-neuvième porte un **montant nul** et n'a rien à produire, ce qui est
+     le comportement voulu et non un oubli.
+     **Contre-épreuves** (décision n° 75), huit, chacune vue rouge en nommant son sujet — dont
+     « expected [ '0.32' ] to deeply equal [ '-0.32' ] » quand le signe se perd, et le motif élargi
+     à « frais » qui fait entrer un frais de CFD par la bande. **La huitième n'a d'abord exécuté
+     AUCUN test**, le filtre `vitest -t` ne matchant aucun titre : troisième occurrence après les
+     décisions n° 137 et 138, et la boucle affiche désormais le nombre de tests exécutés — c'est ce
+     compteur qui l'a dit.

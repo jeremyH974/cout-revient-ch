@@ -1171,6 +1171,15 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       tone: 'neutral',
       hint: opts.subscriptionsInPnl ? 'déduits du P&L total' : 'hors P&L',
     },
+    // Les revenus de compte entrent dans le total (`aggregate.ts`) mais ne figuraient dans AUCUNE
+    // de ses lignes : le rapport affichait donc un total que son propre détail n'expliquait pas.
+    // Invisible tant que ce poste valait zéro ; visible dès le premier intérêt encaissé.
+    {
+      label: 'Trésorerie du compte',
+      value: f.money(t.accountIncomeEur),
+      tone: 'neutral',
+      hint: 'intérêts reçus et frais de conversion, compris dans le P&L total',
+    },
   ];
 
   return {

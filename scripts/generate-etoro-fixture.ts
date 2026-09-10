@@ -322,8 +322,26 @@ const ACTIVITY: FixtureSheet = {
       'CFD',
       0,
     ],
-    // Une ligne qu’aucun code ne traite : elle doit être COMPTÉE et NOMMÉE, pas ignorée.
+    // Intérêts de trésorerie : un revenu de COMPTE, rattaché à aucune ligne (décision n° 140).
     ['01/03/2025 09:00:00', 'Paiement des intérêts', '-', 1.5, '-', 1.5, 0, 4601, '', '-', 0],
+    // Frais de change sur les liquidités : un revenu de compte NÉGATIF. Le montant est négatif au
+    // relevé ; le brouillon le rendra positif (`drafts.ts` applique `.abs()`), et c'est le pivot
+    // qui repose le signe. La ligne éprouve ce chemin, qu'aucune fixture ne couvrait.
+    [
+      '05/03/2025 11:00:00',
+      'Frais de conversion de dépôt',
+      '-',
+      -0.4,
+      '-',
+      0,
+      0,
+      4600.6,
+      '',
+      '-',
+      0,
+    ],
+    // Ne DOIT PAS être attrapée par le motif « conversion » : c'est un frais de contrat pour
+    // différence, hors périmètre, et il doit rester compté parmi les lignes non traitées.
     // Fractionnement postérieur à la photo : la quantité double, le coût ne bouge pas.
     [
       '30/06/2026 06:00:00',
