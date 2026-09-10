@@ -24,6 +24,19 @@ function workbook(): ArrayBuffer {
   return file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength) as ArrayBuffer;
 }
 
+/** Les événements du grand livre, depuis le classeur importé. */
+async function eventsOf(result: Awaited<ReturnType<typeof imported>>) {
+  const ingested = ingestPivotRows(
+    { rows: result.rows, issues: result.issues },
+    { format: 'etoro', header: [], unknownColumns: [], totalRows: result.rows.length },
+    {},
+    'etoro:main',
+    usdRate,
+  );
+  if (!ingested.ok) throw new Error(ingested.error);
+  return pivotLedgerEvents(Object.values(ingested.rows), {}, usdRate);
+}
+
 /** Le rapport complet, depuis le classeur : c'est le seul niveau où un champ perdu se voit. */
 async function reported(qualifications: Record<string, Qualification> = {}) {
   const result = await imported();
@@ -49,8 +62,8 @@ describe('relevé eToro de démonstration', () => {
   it('lit le grand livre, écarte levier et CFD en les nommant', async () => {
     const result = await imported();
     // 5 ouvertures + 1 vente + 1 fractionnement + 3 dividendes + 1 position reprise de la photo
-    // (« p-901 ») ; le CFD et le levier sont écartés.
-    expect(result.rows).toHaveLength(11);
+    // (« p-901 ») + 1 paiement d'intérêts + 1 frais de conversion ; CFD et levier sont écartés.
+    expect(result.rows).toHaveLength(13);
     expect(result.skipped).toBe(2);
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('levier');
@@ -92,7 +105,10 @@ describe('relevé eToro de démonstration', () => {
     const result = await imported();
     const motifs = result.issues.map((i) => i.message).join(' | ');
     expect(motifs).toContain('non traitées');
-    expect(motifs).toContain('Paiement des intérêts (1)');
+    // Les intérêts, EUX, sont désormais traités (décision n° 140) : ils ne doivent plus figurer ici.
+    expect(motifs).not.toContain('Paiement des intérêts');
+    // Un frais overnight reste hors périmètre : il porte sur un contrat pour différence, et le
+    // motif des frais de conversion ne doit surtout pas l'attraper.
     expect(motifs).toContain('Frais overnight (1)');
   });
 
@@ -181,9 +197,11 @@ describe('relevé eToro de démonstration', () => {
     it('une position que seule la photo connaît se rattache par son ISIN', async () => {
       // « p-901 » est ouverte avant la fenêtre du relevé : aucune ligne ne l'ouvre, et son
       // identifiant ne dit rien. Son ISIN, lui, est celui de « p-101 » — donc de la même ligne.
-      // Sans ce pont, ses 0,24 € tomberaient au compte et le compte en porterait 0,33.
+      // Sans ce pont, ses 0,24 € tomberaient au compte, qui porterait alors 1,21 au lieu de 0,97.
+      // 0,97 = 0,09 (dividende que rien ne situe) + 1,20 (intérêts, 1,50 $ au taux figé de ce
+      // test) − 0,32 (frais de conversion, 0,40 $).
       const report = await reported();
-      expect(toDecimalString(report.totals.accountIncomeEur)).toBe('0.09');
+      expect(toDecimalString(report.totals.accountIncomeEur)).toBe('0.97');
     });
 
     it('un dividende que rien ne situe reste au compte, et l’import le dit', async () => {
@@ -251,6 +269,38 @@ describe('relevé eToro de démonstration', () => {
       // portefeuille, lui, reste amputé tant que rien n'est qualifié.
       const result = await imported();
       expect(result.issues.map((i) => i.message).join(' ')).not.toContain('quantité reconstituée');
+    });
+  });
+
+  describe('la trésorerie du compte entre enfin dans les chiffres', () => {
+    it('un intérêt est un revenu de COMPTE, rattaché à aucune ligne', () => {
+      // Le rattacher à un titre l'aurait fait entrer dans un prix de revient, où il n'a rien à
+      // faire : ces intérêts rémunèrent des liquidités, pas une position.
+      return reported().then((report) => {
+        const sur_une_ligne = report.equities.some((p) =>
+          p.otherIncome.eq(report.totals.accountIncomeEur),
+        );
+        expect(sur_une_ligne).toBe(false);
+        expect(report.totals.accountIncomeEur.gt('0')).toBe(true);
+      });
+    });
+
+    it('un frais de conversion BAISSE le résultat, il ne le monte pas', async () => {
+      // Le signe est tout : le relevé porte −0,40 $, le brouillon le rend positif (`.abs()`), et
+      // c'est le pivot qui repose le moins. Perdre ce signe ferait grimper le résultat d'un coût.
+      const result = await imported();
+      const frais = Object.values(result.rows).filter((r) => r.label === 'conversion-fee');
+      expect(frais.map((r) => `${r.sent?.amount} ${r.sent?.currency}`)).toEqual(['0.4 usd']);
+      const { events } = await eventsOf(result);
+      const income = events.filter((e) => e.kind === 'income' && e.nature === 'conversion-fee');
+      expect(income.map((e) => (e.kind === 'income' ? e.grossEur : ''))).toEqual(['-0.32']);
+    });
+
+    it('l’intérêt ne va PAS dans les abonnements, qui s’affichent « Coinhouse »', async () => {
+      // Un `FeeEvent` aurait atterri dans `subscriptionsEur`, affiché « Abonnements Coinhouse » —
+      // faux deux fois : ni la plateforme, ni la nature.
+      const report = await reported();
+      expect(toDecimalString(report.totals.subscriptionsEur)).toBe('0');
     });
   });
 

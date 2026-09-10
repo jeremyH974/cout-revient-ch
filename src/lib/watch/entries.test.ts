@@ -115,6 +115,7 @@ describe('relevantTo', () => {
       'case-2tt',
       'case-8vl',
       'formulaire-2047-cadre-20',
+      'formulaire-2047-cadre-30',
       'pfu-rcm-31_4',
       'staking',
       'taux-notice-2047',

@@ -36,6 +36,17 @@ import { applyQualification } from '../coinhouse/qualify';
  */
 export const OPENING_BALANCE_LABEL = 'opening-balance';
 
+/**
+ * Étiquette d'un frais de CHANGE sur les liquidités du compte — pas un frais d'opération.
+ *
+ * Elle ne rejoint pas `FEE_LABELS` : un `FeeEvent` atterrit dans `subscriptionsEur`, que trois
+ * écrans affichent sous « **Abonnements Coinhouse** ». Ce serait faux deux fois, ni la plateforme
+ * ni la nature. Le domaine porte déjà ce qu'il faut : `IncomeNature` a une valeur
+ * `'conversion-fee'` (décision n° 132) dont le montant NÉGATIF dit le coût — et qui n'avait
+ * jusqu'ici aucun producteur.
+ */
+export const CONVERSION_FEE_LABEL = 'conversion-fee';
+
 /** Étiquettes Koinly traitées comme un revenu (entrée sans contrepartie, juste valeur). */
 export const REWARD_LABELS = new Set([
   'reward',
@@ -187,9 +198,24 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
    */
   const incomeLabelled =
     row.received !== null && row.sent === null && REWARD_LABELS.has(row.label ?? '');
+  /**
+   * Sortie fiat seule étiquetée « frais de conversion » : un coût de change sur les liquidités.
+   *
+   * Elle doit échapper au filtre ci-dessous **explicitement**. Sans cette ligne, elle est 100 %
+   * fiat, donc jetée dans un compteur avant même d'atteindre son chemin — c'est ce qu'un test
+   * d'intégration a montré, le total du compte ne bougeant pas d'un centime.
+   */
+  const conversionLabelled =
+    row.sent !== null && row.received === null && (row.label ?? '') === CONVERSION_FEE_LABEL;
   // Lignes 100 % fiat hors modèle (dépôt/retrait d'euros…), SAUF une sortie étiquetée « frais »
-  // ou une entrée étiquetée « revenu ».
-  if (!feeLabelled && !incomeLabelled && sides.length > 0 && sides.every((s) => isFiat(s.currency)))
+  // ou « frais de conversion », ou une entrée étiquetée « revenu ».
+  if (
+    !feeLabelled &&
+    !incomeLabelled &&
+    !conversionLabelled &&
+    sides.length > 0 &&
+    sides.every((s) => isFiat(s.currency))
+  )
     return null;
 
   if (incomeLabelled && row.received && isFiat(row.received.currency)) {
@@ -330,6 +356,32 @@ function buildEvent(row: RawPivotRow, usdRate: UsdRate): LedgerEvent | null {
   // --- Envoi seul -------------------------------------------------------------------------------
   const sent = row.sent!;
   const label = row.label ?? '';
+  /**
+   * Frais de change sur les liquidités : un revenu de compte **négatif**.
+   *
+   * Le signe naît ici et nulle part ailleurs — `platforms/drafts.ts` applique `.abs()` à tout
+   * montant de brouillon, si bien qu'un convertisseur ne peut pas rendre un négatif. La branche
+   * précède le test des frais : sans cela, l'étiquette tomberait dans `FEE_LABELS` si on l'y
+   * ajoutait un jour, et repartirait sous « Abonnements Coinhouse ».
+   */
+  if (label === CONVERSION_FEE_LABEL) {
+    const value = eurValue(sent, day, usdRate);
+    if (value === null) {
+      return unqualified(
+        row,
+        `Frais de conversion en ${sent.currency} non converti (taux BCE indisponible à cette date).`,
+      );
+    }
+    return {
+      ...base,
+      kind: 'income',
+      asset: null,
+      grossEur: toDecimalString(value.neg()),
+      withheldEur: '0',
+      nature: 'conversion-fee',
+      label: row.description ?? 'Frais de conversion',
+    };
+  }
   if (FEE_LABELS.has(label)) {
     const value = eurValue(sent, day, usdRate);
     if (value !== null) {

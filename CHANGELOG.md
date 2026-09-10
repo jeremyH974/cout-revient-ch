@@ -14,6 +14,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Les intérêts que la plateforme vous verse et les frais de change entrent enfin dans vos
+  chiffres.** Sur votre relevé : **14 versements d'intérêts** et **38 frais de conversion**, qui
+  n'étaient jusqu'ici que comptés et nommés. Les intérêts se déclarent case **2TR** — et non 2TT,
+  réservée aux prêts participatifs — avec le rappel qu'un payeur étranger impose de passer par la
+  **2047**. Les frais de change, eux, **réduisent votre résultat** sans ouvrir aucun droit fiscal :
+  ce sont des frais sur des liquidités, pas des frais de garde de titres, et l'application ne
+  prétend pas le contraire.
+- **Le rapport exporté montre enfin la trésorerie du compte.** Elle entrait dans le total sans
+  figurer dans aucune de ses lignes : le total ne s'expliquait donc pas par son propre détail.
+
 - **Vos dividendes ont enfin leur régime fiscal.** L'écran Actions et ETF montre, par année, le
   brut, la retenue à la source, le crédit d'impôt (case **8VL**), ce qui se déclare en case
   **2DC** — et surtout **ce qui n'est pas récupérable**. Sur un dividende retenu au-delà du taux de

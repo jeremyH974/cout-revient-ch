@@ -12,6 +12,7 @@ import {
   TREATY_RATES_SOURCE_ID,
 } from '../domain/equity-income-fr';
 import { EQUITY_TAX_BOXES, PMP_SOURCE_ID } from '../domain/equity-tax-fr';
+import { INTEREST_TAX_BOXES } from '../domain/interest-income-fr';
 import { EXEMPTION_THRESHOLD, EXEMPTION_THRESHOLD_SOURCE_ID, TAX_RATES } from '../domain/tax-fr';
 import { WATCH_ENTRIES } from '../watch/entries';
 import { citationOf, taxSourcesNote, watchEntryOf } from './tax-source';
@@ -100,6 +101,22 @@ describe('source d’un chiffre fiscal', () => {
         WATCH_ENTRIES.map((e) => e.id),
         `« ${id} » est cité par equity-income-fr.ts mais absent de la veille`,
       ).toContain(id);
+  });
+
+  it('chaque case des intérêts cite une source qui existe', () => {
+    for (const id of Object.values(INTEREST_TAX_BOXES).map((b) => b.sourceId))
+      expect(
+        WATCH_ENTRIES.map((e) => e.id),
+        `« ${id} » est cité par interest-income-fr.ts mais absent de la veille`,
+      ).toContain(id);
+  });
+
+  it('la source des intérêts distingue 2TR de 2TT', () => {
+    // Les confondre ferait déclarer des intérêts bancaires dans la case des prêts participatifs,
+    // que la brochure exclut expressément de 2TR.
+    const entry = watchEntryOf(INTEREST_TAX_BOXES.interest.sourceId);
+    expect(entry?.effect).toContain(INTEREST_TAX_BOXES.interest.box);
+    expect(entry?.effect).toContain('2TT');
   });
 
   it('la source du crédit dit bien qu’il n’est PAS restituable', () => {

@@ -20,7 +20,7 @@
 import { equityCode, normalizeAssetCode } from '../../domain/assets';
 import { D, isPositive, ZERO, type Big } from '../../domain/money';
 import type { PivotAmount } from '../../domain/types';
-import { OPENING_BALANCE_LABEL } from '../pivot/events';
+import { CONVERSION_FEE_LABEL, OPENING_BALANCE_LABEL } from '../pivot/events';
 import type { PivotIssue } from '../pivot/rows';
 import type { PlatformDraft } from '../platforms/types';
 import { excelSerialToNaive, type Workbook } from '../xlsx/index';
@@ -204,6 +204,20 @@ const OPEN_LABELS = new Set(['position ouverte', 'open position']);
  * 290 EUR et 24 de cloture pour 143 EUR, dont les trois quarts sur des cryptos.
  */
 const SPREAD_LABELS = /^spread/i;
+
+/**
+ * Intérêts versés sur les liquidités du compte, et frais de conversion de devise.
+ *
+ * **Des motifs de substance, pas des chaînes exactes.** Le relevé existe en français et en
+ * anglais, et je n'ai pas de source pour les libellés anglais : viser « intérêt » et
+ * « conversion » couvre les deux sans inventer une chaîne que personne n'a vue.
+ *
+ * `CONVERSION_FEE_LABELS` porte sur « conversion », **jamais sur « frais » seul** : un
+ * « Frais overnight » est un frais de contrat pour différence, hors périmètre, et l'attraper le
+ * ferait entrer au compte par la bande.
+ */
+const INTEREST_LABELS = /int[ée]r[êe]ts?|interest/i;
+const CONVERSION_FEE_LABELS = /conversion/i;
 /** Côté de l’opération où le spread s’applique : eToro l’écrit dans la colonne « Détails ». */
 const SPREAD_AT_OPEN = /ouvert/i;
 
@@ -326,11 +340,13 @@ function collectSpreads(book: Workbook, out: Collected): void {
   for (const row of sheet.rows) {
     const kind = read.get(row, 'type');
     if (!SPREAD_LABELS.test(kind)) {
-      // Tout ce qui n'est ni une ouverture, ni un fractionnement, ni un spread : compte et nomme.
       const lower = kind.toLowerCase();
-      if (lower !== '' && !OPEN_LABELS.has(lower) && !SPLIT_LABELS.test(kind)) {
-        out.untreated.set(kind, (out.untreated.get(kind) ?? 0) + 1);
-      }
+      if (lower === '' || OPEN_LABELS.has(lower) || SPLIT_LABELS.test(kind)) continue;
+      // Intérêts de trésorerie et frais de conversion : deux natures que le grand livre porte et
+      // qui n'ont longtemps été que COMPTÉES (décision n° 126). Elles entrent ici.
+      if (collectCashLine(row, read, kind, out)) continue;
+      // Tout le reste : compte et nomme, plutôt que de se taire.
+      out.untreated.set(kind, (out.untreated.get(kind) ?? 0) + 1);
       continue;
     }
     const positionId = read.get(row, 'positionId');
@@ -345,6 +361,44 @@ function collectSpreads(book: Workbook, out: Collected): void {
       : out.spreads.close;
     side.set(positionId, (side.get(positionId) ?? ZERO).plus(value));
   }
+}
+
+/**
+ * Une ligne de trésorerie du grand livre : intérêt reçu, ou frais de conversion payé.
+ *
+ * Rend `true` quand la ligne est prise en charge — l'appelant cesse alors de la compter comme non
+ * traitée. Les deux sortent en **montants positifs** : `platforms/drafts.ts` applique `.abs()` à
+ * tout brouillon, si bien qu'un négatif ne peut pas naître ici. C'est l'étiquette qui porte le
+ * sens, et c'est le pivot qui pose le signe.
+ */
+function collectCashLine(
+  row: readonly string[],
+  read: ReturnType<typeof reader>,
+  kind: string,
+  out: Collected,
+): boolean {
+  const interest = INTEREST_LABELS.test(kind);
+  const conversion = CONVERSION_FEE_LABELS.test(kind);
+  if (!interest && !conversion) return false;
+  const timeMs = etoroDateToMs(read.get(row, 'date'));
+  const amount = read.get(row, 'amount');
+  if (timeMs === null || amount === '') return false;
+  const value = D(amount).abs();
+  if (!isPositive(value)) return true; // Une ligne à zéro est prise en charge, sans rien produire.
+  const money = { amount: value.toString(), currency: ACCOUNT_CURRENCY };
+  out.drafts.push({
+    lineNo: 0,
+    nativeContent: `etoro:cash:${kind}:${read.get(row, 'date')}:${amount}`,
+    timeMs,
+    sent: interest ? null : money,
+    received: interest ? money : null,
+    fee: null,
+    netWorth: null,
+    label: interest ? 'interest' : CONVERSION_FEE_LABEL,
+    description: kind,
+    txHash: null,
+  });
+  return true;
 }
 
 function collectOpenings(book: Workbook, out: Collected): void {

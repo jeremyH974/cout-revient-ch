@@ -70,6 +70,7 @@ import { lendingPerformance, type LendingPerformance } from '$lib/domain/lending
 import { lendingSummary, type LendingSummary } from '$lib/domain/lending/summary';
 import { dividendTaxFr, type DividendTaxLedger } from '$lib/domain/equity-income-fr';
 import { equityTaxFr, type EquityTaxLedger } from '$lib/domain/equity-tax-fr';
+import { interestTaxFr, type InterestTaxLedger } from '$lib/domain/interest-income-fr';
 import { lendingTaxFr, type LendingTaxLedger } from '$lib/domain/lending/tax-fr';
 import type { LendingInput, LendingReport } from '$lib/domain/lending/types';
 import {
@@ -2114,6 +2115,16 @@ export class AppState {
    * position, et `PortfolioTotals.withheldEur` est global. `this.events` est en euros, comme doit
    * l'être tout montant fiscal.
    */
+  /**
+   * Intérêts de trésorerie par année civile — case 2TR, régime distinct des dividendes.
+   *
+   * Part des ÉVÉNEMENTS, en euros : un revenu de compte ne produit aucune entrée d'historique de
+   * position, et un montant fiscal ne se convertit pas dans la devise d'affichage.
+   */
+  interestTax = $derived.by((): InterestTaxLedger =>
+    interestTaxFr({ events: this.events, throughYear: Number(nowIso().slice(0, 4)) }),
+  );
+
   dividendTax = $derived.by((): DividendTaxLedger =>
     dividendTaxFr({
       events: this.events,

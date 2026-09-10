@@ -7,6 +7,7 @@
  */
 import { expect, test } from '@playwright/test';
 import { DIVIDEND_TAX_BOXES } from '../../src/lib/domain/equity-income-fr';
+import { INTEREST_TAX_BOXES } from '../../src/lib/domain/interest-income-fr';
 import { EQUITY_TAX_BOXES } from '../../src/lib/domain/equity-tax-fr';
 import { ETORO_FIXTURE, etoroAssets } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
@@ -73,6 +74,26 @@ test('les dividendes réclament le pays de la source avant tout crédit', async 
   await expect(block).toContainText(DIVIDEND_TAX_BOXES.credit.box);
   await expect(block).toContainText(DIVIDEND_TAX_BOXES.income.box);
   await expect(block).toContainText('pays de source');
+});
+
+test('les intérêts de trésorerie visent la case 2TR, et disent pourquoi pas 2TT', async ({
+  page,
+}) => {
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+
+  await page.goto('#/invest/titles');
+  const block = page.locator('details', { hasText: 'Intérêts de trésorerie' });
+  await expect(
+    block,
+    'le récapitulatif des intérêts doit figurer sur l’écran Titres',
+  ).toBeVisible();
+  await block.getByText('Intérêts de trésorerie — estimation').click();
+  await expect(block).toContainText(INTEREST_TAX_BOXES.interest.box);
+  // La distinction qui compte : 2TT est la case des prêts participatifs, que la brochure exclut.
+  await expect(block).toContainText('2TT');
+  await expect(block).toContainText(INTEREST_TAX_BOXES.foreign.box);
 });
 
 test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoine', async ({

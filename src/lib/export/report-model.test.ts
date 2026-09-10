@@ -136,6 +136,12 @@ describe('modèle de rapport — page de garde et synthèse', () => {
     const inPnl = buildReportModel(report, { ...opts, subscriptionsInPnl: true });
     expect(kpi(inPnl.summary.details, 'Abonnements Coinhouse')?.hint).toBe('déduits du P&L total');
     expect(kpi(inPnl.summary.kpis, 'P&L total')?.hint).toBe('réalisé + latent − abonnements');
+    // La trésorerie du compte entre dans le total sans figurer dans aucune de ses lignes : le
+    // rapport affichait un total que son propre détail n'expliquait pas. Invisible tant que ce
+    // poste valait zéro (décision n° 140).
+    expect(kpi(d, 'Trésorerie du compte')?.hint).toBe(
+      'intérêts reçus et frais de conversion, compris dans le P&L total',
+    );
   });
 });
 

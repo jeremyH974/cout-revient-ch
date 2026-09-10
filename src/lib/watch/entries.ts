@@ -312,6 +312,26 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['revenus', 'declaratif'],
   },
   {
+    id: 'formulaire-2047-cadre-30',
+    title: 'Intérêts encaissés à l’étranger : cadre 30 et case 2TR',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'Le cadre 30 de la 2047 double le cadre 20 : lignes 231 à 238, même crédit = MIN(235, 236). ' +
+      'Les intérêts SANS retenue étrangère passent ligne 250, puis 251 et 252, pour se déclarer ' +
+      'case 2TR. La ligne 253 mène à la case 2TT, réservée aux prêts participatifs et aux minibons, ' +
+      'que la brochure exclut expressément de 2TR : les deux cases ne se remplacent pas.',
+    source: {
+      label: 'Formulaire n° 2047 (N° 11226*28), cadre 3 « Intérêts », lignes 230 à 255',
+      url: 'https://www.impots.gouv.fr/sites/default/files/formulaires/2047/2026/2047_5488.pdf',
+      official: true,
+      checkedOn: '2026-09-10',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-10',
+    topics: ['revenus', 'declaratif'],
+  },
+  {
     id: 'patrimoine-improductif',
     title: 'Amendement « fortune improductive »',
     status: 'dropped',

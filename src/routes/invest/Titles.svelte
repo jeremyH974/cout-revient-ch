@@ -2,6 +2,7 @@
   import { assetSymbol } from '$lib/domain/assets';
   import { DIVIDEND_TAX_BOXES } from '$lib/domain/equity-income-fr';
   import { EQUITY_TAX_BOXES } from '$lib/domain/equity-tax-fr';
+  import { INTEREST_TAX_BOXES } from '$lib/domain/interest-income-fr';
   import { countryName } from '$lib/format/declarations-fr';
   import { allocationOf, type PositionReport } from '$lib/domain/engine';
   import { ZERO } from '$lib/domain/money';
@@ -56,6 +57,7 @@
   const hasEuropeKey = $derived((app.state.ui.alphaVantageApiKey ?? '') !== '');
   const tax = $derived(app.equityTax);
   const dividends = $derived(app.dividendTax);
+  const interest = $derived(app.interestTax);
 </script>
 
 <AppBar />
@@ -272,6 +274,48 @@
       {#each dividends.assumptions as note (note)}<li>{note}</li>{/each}
     </ul>
     <p class="muted small">Faites vérifier par un professionnel avant de déclarer.</p>
+  </details>
+{/if}
+
+{#if interest.years.length > 0}
+  <details class="card">
+    <summary>Intérêts de trésorerie — estimation</summary>
+    <p class="muted small">
+      Les intérêts que la plateforme verse sur vos liquidités se déclarent case
+      <strong>{INTEREST_TAX_BOXES.interest.box}</strong>, et <strong>non</strong> case 2TT, réservée
+      aux prêts participatifs. Un payeur établi hors de France impose de passer par la
+      <strong>{INTEREST_TAX_BOXES.foreign.box}</strong> (cadre 30). Ce n'est ni une déclaration, ni un
+      conseil fiscal.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Année</th>
+            <th scope="col" class="right">Versements</th>
+            <th scope="col" class="right">À déclarer — {INTEREST_TAX_BOXES.interest.box}</th>
+            {#if interest.hasWithholding}
+              <th scope="col" class="right">Retenue</th>
+            {/if}
+          </tr>
+        </thead>
+        <tbody>
+          {#each interest.years as y (y.year)}
+            <tr>
+              <th scope="row">{y.year}</th>
+              <td class="right">{y.count}</td>
+              <td class="right"><Money value={app.displayFromEur(y.grossEur)} /></td>
+              {#if interest.hasWithholding}
+                <td class="right"><Money value={app.displayFromEur(y.withheldEur)} /></td>
+              {/if}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    <ul class="muted small">
+      {#each interest.assumptions as note (note)}<li>{note}</li>{/each}
+    </ul>
   </details>
 {/if}
 
