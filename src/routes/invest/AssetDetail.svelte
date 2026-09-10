@@ -22,6 +22,7 @@
   import Sheet from '../../components/shared/Sheet.svelte';
   import WhySheet from '../../components/shared/WhySheet.svelte';
   import type { TraceMetric } from '$lib/domain/engine';
+  import { COUNTRY_OPTIONS, countryName } from '$lib/format/declarations-fr';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
@@ -38,6 +39,7 @@
   let priceSheet = $state(false);
   let manualPrice = $state('');
   let idSheet = $state(false);
+  let countrySheet = $state(false);
   let coingeckoId = $state('');
   let alertSheet = $state(false);
   let simulateSheet = $state(false);
@@ -139,6 +141,13 @@
                 ? 'modifier l’identifiant CoinGecko'
                 : 'identifiant CoinGecko'}</button
             >
+            {#if isEquity}
+              <button class="link" type="button" onclick={() => (countrySheet = true)}
+                >{app.assetSettings(asset).sourceCountry
+                  ? `pays de la source : ${countryName(app.assetSettings(asset).sourceCountry!)}`
+                  : 'désigner le pays de la source'}</button
+              >
+            {/if}
           {/if}
         </p>
       </div>
@@ -330,11 +339,63 @@
       <button class="primary" type="submit">Enregistrer</button>
     </form>
   </Sheet>
+  {#if isEquity}
+    <Sheet bind:open={countrySheet} title="Pays de la source pour {asset.toUpperCase()}">
+      <p>
+        Le crédit d'impôt sur un dividende étranger est <strong
+          >plafonné au taux de la convention</strong
+        >
+        signée avec le pays de la source. Sans ce pays, l'application ne calcule aucun crédit : elle se
+        borne à montrer le brut et la retenue.
+      </p>
+      <p class="muted small">
+        <strong>Ce pays ne se déduit pas de l'ISIN.</strong> Un certificat de dépôt — un ADR — porte l'ISIN
+        du pays où il est émis, pas celui de la société : Mitsubishi UFJ s'échange sous un ISIN américain
+        alors que la retenue est japonaise, et les deux conventions ne plafonnent pas au même taux. C'est
+        pourquoi rien n'est pré-rempli ici.
+      </p>
+      <label class="field country">
+        <span class="sr-only">Pays de la source — {asset}</span>
+        <select
+          value={app.assetSettings(asset).sourceCountry ?? ''}
+          onchange={(e) => {
+            const v = e.currentTarget.value;
+            app.setAssetSourceCountry(asset, v === '' ? null : v);
+            countrySheet = false;
+            toasts.push(
+              v === '' ? 'Pays de la source effacé.' : `Source : ${countryName(v)}.`,
+              'success',
+            );
+          }}
+        >
+          <option value="">Pays de la source…</option>
+          {#each COUNTRY_OPTIONS as c (c.code)}
+            <option value={c.code}>{c.name}</option>
+          {/each}
+        </select>
+      </label>
+    </Sheet>
+  {/if}
 {/if}
 
 <span id="why-hint-detail" class="sr-only">Pourquoi ce chiffre ?</span>
 
 <style>
+  /* Sélecteur de pays : même présentation que celui du pays d'un compte (3916-bis). */
+  .field.country {
+    display: grid;
+    gap: var(--space-1);
+    margin-top: var(--space-1);
+  }
+  .field.country select {
+    min-height: var(--tap);
+    max-width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    padding: 0 var(--space-2);
+  }
   .empty {
     padding: var(--space-5) var(--space-4);
     text-align: center;

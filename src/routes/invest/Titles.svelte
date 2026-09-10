@@ -1,6 +1,8 @@
 <script lang="ts">
   import { assetSymbol } from '$lib/domain/assets';
+  import { DIVIDEND_TAX_BOXES } from '$lib/domain/equity-income-fr';
   import { EQUITY_TAX_BOXES } from '$lib/domain/equity-tax-fr';
+  import { countryName } from '$lib/format/declarations-fr';
   import { allocationOf, type PositionReport } from '$lib/domain/engine';
   import { ZERO } from '$lib/domain/money';
   import { router } from '$lib/router.svelte';
@@ -53,6 +55,7 @@
   /** Les places européennes ont leur propre source : leur absence se dit à part (décision n° 113). */
   const hasEuropeKey = $derived((app.state.ui.alphaVantageApiKey ?? '') !== '');
   const tax = $derived(app.equityTax);
+  const dividends = $derived(app.dividendTax);
 </script>
 
 <AppBar />
@@ -198,6 +201,75 @@
     </p>
     <ul class="muted small">
       {#each tax.assumptions as note (note)}<li>{note}</li>{/each}
+    </ul>
+    <p class="muted small">Faites vérifier par un professionnel avant de déclarer.</p>
+  </details>
+{/if}
+
+{#if dividends.years.length > 0}
+  <details class="card">
+    <summary>Dividendes — estimation</summary>
+    <p class="muted small">
+      Estimation calculée à partir de vos seules opérations importées. Ce n'est ni une déclaration,
+      ni un conseil fiscal. Le crédit d'impôt suit la mécanique du cadre 20 de la
+      <strong>{DIVIDEND_TAX_BOXES.foreign.box}</strong> : il vaut l'impôt réellement supporté à
+      l'étranger, <strong>plafonné</strong> au taux de la convention appliqué au montant
+      <strong>net</strong>.
+    </p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Année</th>
+            <th scope="col" class="right">Brut</th>
+            <th scope="col" class="right">Retenue</th>
+            <th scope="col" class="right">Crédit — {DIVIDEND_TAX_BOXES.credit.box}</th>
+            <th scope="col" class="right">À déclarer — {DIVIDEND_TAX_BOXES.income.box}</th>
+            <th scope="col" class="right">Non imputable</th>
+          </tr>
+        </thead>
+        <tbody>
+          {#each dividends.years as y (y.year)}
+            <tr>
+              <th scope="row">{y.year}</th>
+              <td class="right"><Money value={app.displayFromEur(y.grossEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.withheldEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.creditEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.declaredEur)} /></td>
+              <td class="right"><Money value={app.displayFromEur(y.excessEur)} /></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </div>
+    {#each dividends.years as y (y.year)}
+      {#if y.countries.length > 1}
+        <p class="muted small">
+          <strong>{y.year}</strong> —
+          {#each y.countries as c, i (c.country ?? '?')}{i > 0 ? ' · ' : ''}{c.country
+              ? countryName(c.country)
+              : 'pays à désigner'}
+            {#if c.outcome === 'credited'}(crédit plafonné){:else if c.outcome === 'domestic'}(source
+              française, hors {DIVIDEND_TAX_BOXES.foreign
+                .box}){:else if c.outcome === 'no-treaty-credit'}(imposition exclusive en France,
+              aucun crédit){:else}(aucun crédit calculé){/if}{/each}
+        </p>
+      {/if}
+    {/each}
+    {#if dividends.hasUndesignated}
+      <p class="warn">
+        Des titres ont versé un dividende sans que leur <strong>pays de source</strong> soit désigné :
+        aucun crédit d'impôt n'est calculé pour eux. Ouvrez la fiche du titre pour le désigner — l'ISIN
+        ne suffit pas à le deviner.
+      </p>
+      <ul class="muted small">
+        {#each dividends.years[dividends.years.length - 1]?.undesignated ?? [] as code (code)}
+          <li><a href={`#/invest/asset/${encodeURIComponent(code)}`}>{assetSymbol(code)}</a></li>
+        {/each}
+      </ul>
+    {/if}
+    <ul class="muted small">
+      {#each dividends.assumptions as note (note)}<li>{note}</li>{/each}
     </ul>
     <p class="muted small">Faites vérifier par un professionnel avant de déclarer.</p>
   </details>

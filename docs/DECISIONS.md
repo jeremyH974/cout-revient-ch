@@ -3573,3 +3573,44 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      (déjà vu en n° 137 ; la boucle affiche désormais le nombre de tests exécutés). Et la
      contre-épreuve d'écran est restée verte jusqu'à ce qu'un `npm run build` précède Playwright :
      elle s'exécutait contre un `dist/` périmé.
+
+139. **Le pays de la source d'un dividende ne se déduit pas de son ISIN** (09/09/2026).
+     Le crédit d'impôt conventionnel est plafonné au taux de la convention signée avec le pays de
+     la **source**. Or l'ISIN ne le donne pas : un certificat de dépôt — un ADR — porte l'ISIN du
+     pays où il est émis, pas celui de la société. Mesuré sur le relevé réel : les 9 lignes retenues
+     à 20,42 % sont Mitsubishi UFJ et Sumitomo Mitsui, **ADR japonais à ISIN américain**, 42,21 €
+     sur 89,66 €. Le Japon plafonne à 11,1 %, les États-Unis à 17,6 % : déduire de l'ISIN aurait
+     crédité **3,65 € au lieu de 2,30 € sur ce seul bloc, 59 % de trop**.
+     **L'utilisateur désigne donc le pays, titre par titre** (son arbitrage), et sans désignation
+     **aucun crédit n'est calculé** — le brut et la retenue restent montrés, dans un seau à part.
+     Rien n'est pré-rempli : une suggestion se ferait confirmer sans être lue, et c'est précisément
+     sur l'ADR qu'elle tromperait.
+     **Deux règles que le FORMULAIRE tranche, et qu'il fallait aller y lire.** Le cadre 20 de la
+     2047 calcule : 203 le net encaissé, 205 = 203 × taux, 206 l'impôt étranger, **207 = min(205, 206)**, et **208 = 203 + 207**, reportée en 2DC.
+     Donc (a) **la case 2DC reçoit le net PLUS le crédit, jamais le brut** — les deux ne coïncident
+     que si la retenue est au taux conventionnel, et la Brochure, qui écrit « montant brut majoré du
+     crédit », donne un raccourci qui sur-déclarerait un revenu sur-retenu ; (b) **les taux de la
+     notice s'appliquent au NET**, 17,6 % du net valant 15 % du brut — les appliquer au brut
+     sur-créditerait de 17 %. L'exception américaine de la notice vise les résidents de France
+     **possédant la nationalité américaine**, pas les dividendes américains en général.
+     **Quatre issues, et c'est la structure qui porte l'honnêteté** : crédité (pays désigné,
+     convention connue) · sans crédit (notice « /c », imposition exclusive en France : Irlande,
+     Finlande) · à désigner (rien n'est calculé) · source française (hors du mécanisme 2047, montrée
+     sans arbitrage sur le sort de la retenue de 25 % qu'un courtier étranger fait subir).
+     **Un défaut du lot précédent corrigé au passage** : `equityTax` lisait `this.report`, en devise
+     d'AFFICHAGE, alors que l'écran lui applique `displayFromEur` — double conversion, invisible en
+     euros donc invisible par défaut. Un test de calcul ne pouvait pas l'attraper puisque le module,
+     lui, est juste : c'est le **câblage** qu'un garde-fou de source surveille désormais, en
+     vérifiant qu'aucune dérivation fiscale ne part de `report`.
+     **Recoupement sur le relevé réel**, Japon et Pays-Bas désignés : 2025 → brut 52,82 €, retenue
+     12,48 €, **crédit 8VL 3,66 €**, 2DC 32,10 €, et **4,86 € de retenue non imputable** ; 2026 →
+     3,03 €, 25,01 €, 4,12 €. Le module TypeScript et un recalcul indépendant en Python concordent
+     **au centime**.
+     **Contre-épreuves** (décision n° 75), huit, chacune vue rouge en nommant son sujet — dont
+     « expected [ '79.58', '8.83338', '20.42' ] to deeply equal […, '8.83338' ] » quand le plafond
+     saute, et « expected [ '14.00608', '93.58608' ] to deeply equal [ '0', '0' ] » quand un titre
+     sans pays est présumé américain.
+     **L'une est restée verte, et elle avait raison** : le montant déclaré était calculé à **deux
+     endroits** — le total de l'année et la ligne du pays. Fausser l'un laissait l'autre intact. La
+     duplication a été supprimée : les totaux se somment désormais **sur les lignes**, une seule
+     formule. Un garde-fou creux signalait ici un vrai défaut de conception, pas un test à réécrire.

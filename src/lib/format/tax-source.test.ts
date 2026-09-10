@@ -6,6 +6,11 @@
  * des décisions n° 47 (attributions de sources) et n° 57 (origines de la CSP), appliqué au fiscal.
  */
 import { describe, expect, it } from 'vitest';
+import {
+  DIVIDEND_TAX_BOXES,
+  FORM_2047_SOURCE_ID,
+  TREATY_RATES_SOURCE_ID,
+} from '../domain/equity-income-fr';
 import { EQUITY_TAX_BOXES, PMP_SOURCE_ID } from '../domain/equity-tax-fr';
 import { EXEMPTION_THRESHOLD, EXEMPTION_THRESHOLD_SOURCE_ID, TAX_RATES } from '../domain/tax-fr';
 import { WATCH_ENTRIES } from '../watch/entries';
@@ -82,6 +87,33 @@ describe('source d’un chiffre fiscal', () => {
         WATCH_ENTRIES.map((e) => e.id),
         `« ${id} » est cité par equity-tax-fr.ts mais absent de la veille`,
       ).toContain(id);
+  });
+
+  it('chaque case des dividendes cite une source qui existe', () => {
+    const declared = [
+      ...Object.values(DIVIDEND_TAX_BOXES).map((b) => b.sourceId),
+      FORM_2047_SOURCE_ID,
+      TREATY_RATES_SOURCE_ID,
+    ];
+    for (const id of declared)
+      expect(
+        WATCH_ENTRIES.map((e) => e.id),
+        `« ${id} » est cité par equity-income-fr.ts mais absent de la veille`,
+      ).toContain(id);
+  });
+
+  it('la source du crédit dit bien qu’il n’est PAS restituable', () => {
+    // C'est la différence avec la case 2CK, et elle change le résultat : un crédit non restituable
+    // s'évapore quand il dépasse l'impôt dû. Si le texte cité cessait de le dire, l'application
+    // affirmerait une propriété que sa source ne soutient plus.
+    const entry = watchEntryOf(DIVIDEND_TAX_BOXES.credit.sourceId);
+    expect(entry?.effect).toContain(DIVIDEND_TAX_BOXES.credit.box);
+    expect(entry?.effect).toMatch(/n’est pas restituable|pas restituable/);
+  });
+
+  it('la source des taux dit qu’ils s’appliquent au NET', () => {
+    // Le piège du lot : 17,6 % du net = 15 % du brut. Appliqués au brut, ils sur-créditeraient.
+    expect(watchEntryOf(TREATY_RATES_SOURCE_ID)?.effect).toMatch(/montant NET|au NET/);
   });
 
   it('la source des cases dit bien 3VG, 3VH et « 2042 C »', () => {

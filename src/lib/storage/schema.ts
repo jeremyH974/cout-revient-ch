@@ -14,6 +14,7 @@ import {
   type Account,
   type AccountId,
   type AssetCode,
+  type CountryCode,
   type DecimalString,
   type EngineSettings,
   type EventId,
@@ -61,6 +62,16 @@ export interface AssetSettings {
    * une réponse à part entière, qui évite de redépenser un crédit à chaque affichage.
    */
   logo?: { url: string | null; at: string } | null;
+  /**
+   * Pays de la SOURCE d'un dividende, désigné par l'utilisateur (ISO 3166-1 alpha-2).
+   *
+   * Il ne se déduit pas de l'ISIN : un certificat de dépôt japonais porte un ISIN américain, et
+   * les deux conventions plafonnent le crédit d'impôt différemment. Seul l'utilisateur peut
+   * trancher, et l'absence vaut « pas encore désigné » — donc aucun crédit calculé.
+   *
+   * Champ **additif** (décision n° 66) : une sauvegarde antérieure n'en a pas.
+   */
+  sourceCountry?: CountryCode | null;
 }
 
 export interface UiSettings {
@@ -881,6 +892,13 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       label:
         typeof raw['label'] === 'string' && raw['label'].trim() !== ''
           ? raw['label'].trim().slice(0, 120)
+          : null,
+      // Même contrôle de forme que le pays d'un compte : une sauvegarde altérée ne doit pas poser
+      // un pays inventé, qui donnerait un crédit d'impôt inventé. La table des noms, elle, vit
+      // dans la couche d'affichage — le stockage n'a pas à en dépendre.
+      sourceCountry:
+        typeof raw['sourceCountry'] === 'string' && COUNTRY_CODE.test(raw['sourceCountry'])
+          ? raw['sourceCountry']
           : null,
     };
   }

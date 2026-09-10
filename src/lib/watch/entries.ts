@@ -247,6 +247,71 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['cession', 'declaratif'],
   },
   {
+    id: 'formulaire-2047-cadre-20',
+    title: 'Crédit d’impôt sur dividendes étrangers : la mécanique du cadre 20',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'Le formulaire 2047 calcule ainsi : ligne 203 le montant NET encaissé, 204 le taux de la ' +
+      'notice, 205 = 203 × 204, 206 l’impôt supporté à l’étranger, et 207 le crédit retenu = ' +
+      'MIN(205, 206). La ligne 208, reportée en case 2DC, vaut 203 + 207 — donc le net PLUS le ' +
+      'crédit, et non le brut : les deux ne coïncident que si la retenue est au taux conventionnel. ' +
+      'La 2047 est obligatoire dès que l’établissement payeur est établi à l’étranger.',
+    source: {
+      label:
+        'Formulaire n° 2047 (N° 11226*28), cadre 2 « Revenus des valeurs mobilières étrangères »',
+      url: 'https://www.impots.gouv.fr/sites/default/files/formulaires/2047/2026/2047_5488.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['revenus', 'declaratif'],
+  },
+  {
+    id: 'taux-notice-2047',
+    title: 'Taux conventionnels : ils s’appliquent au NET, pas au brut',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'La notice 2047 donne les taux par pays « communément applicables au montant NET des ' +
+      'dividendes, c’est-à-dire après déduction de l’impôt payé à l’étranger » : 17,6 % du net ' +
+      'équivaut à 15 % du brut. Dividendes : États-Unis, Allemagne, Italie, Pays-Bas, Royaume-Uni, ' +
+      'Suisse, Belgique 17,6 % ; Japon, Chine, Inde 11,1 % ; Irlande et Finlande « /c » — imposition ' +
+      'exclusive en France, donc AUCUN crédit. L’exception américaine de la notice vise les ' +
+      'résidents de France possédant la nationalité américaine.',
+    source: {
+      label: 'Notice 2047-NOT (n° 50545 # 28), tableau des taux par pays',
+      url: 'https://www.impots.gouv.fr/sites/default/files/formulaires/2047/2026/2047_5490.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['revenus'],
+  },
+  {
+    id: 'case-8vl',
+    title: 'Case 8VL : le crédit d’impôt étranger n’est PAS restituable',
+    status: 'in-force',
+    statusDate: '2026-04-01',
+    effect:
+      'L’impôt payé à l’étranger se porte case 8VL de la 2042 C, et les revenus nets ' +
+      'correspondants case 8PL. La case 2AB ne vaut que si l’établissement payeur est établi en ' +
+      'France. Deux limites : le crédit ne peut dépasser l’impôt français afférent à ces revenus, ' +
+      'et « si le crédit d’impôt est supérieur à l’impôt dû, l’excédent n’est pas restituable » — ' +
+      'à la différence de la case 2CK, qui l’est.',
+    source: {
+      label: 'Brochure pratique IR 2026, « Revenus encaissés à l’étranger », p. 365-366',
+      url: 'https://www.impots.gouv.fr/www2/fichiers/documentation/brochure/ir_2026/pdf_som/20-revenus_etranger_365a368.pdf',
+      official: true,
+      checkedOn: '2026-09-09',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-09',
+    topics: ['revenus', 'declaratif'],
+  },
+  {
     id: 'patrimoine-improductif',
     title: 'Amendement « fortune improductive »',
     status: 'dropped',
