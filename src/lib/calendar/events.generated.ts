@@ -6,35 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-07T12:31:43Z',
-  coversFrom: '2026-06-10',
+  generatedAt: '2026-09-11T11:20:25Z',
+  coversFrom: '2026-06-11',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-07', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-07', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
-    { source: 'bls', checkedOn: '2026-09-01', count: 26, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-07', count: 19, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-11', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-11', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'bls', checkedOn: '2026-09-01', count: 25, coversTo: '2026-12-15', upkeep: 'manual' },
+    { source: 'ecb', checkedOn: '2026-09-11', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-07',
+      checkedOn: '2026-09-11',
       count: 9,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'bls-cpi-2026-06-10',
-      kind: 'cpi',
-      at: '2026-06-10T12:30:00Z',
-      precision: 'exact',
-      title: 'Inflation américaine (CPI)',
-      detail: 'Données de mai 2026',
-      tier: 'major',
-      source: 'bls',
-      url: 'https://www.bls.gov/schedule/news_release/cpi.htm',
-    },
     {
       id: 'bls-ppi-2026-06-11',
       kind: 'ppi',
@@ -240,17 +229,6 @@ export const CALENDAR: Calendar = {
       tier: 'major',
       source: 'bls',
       url: 'https://www.bls.gov/schedule/news_release/empsit.htm',
-    },
-    {
-      id: 'ecb-decision-2026-09-10',
-      kind: 'ecb-decision',
-      at: '2026-09-10T12:15:00Z',
-      precision: 'day',
-      title: 'Décision de la BCE (Conseil des gouverneurs)',
-      detail: 'Communiqué puis conférence de presse',
-      tier: 'major',
-      source: 'ecb',
-      url: 'https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html',
     },
     {
       id: 'bls-ppi-2026-09-10',
