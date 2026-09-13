@@ -314,8 +314,8 @@ pour le barème, et **les cinq moteurs fiscaux ne sont jamais totalisés**.
 | P105 | **Livré (13/09/2026, décision n° 141).** L'année fiscale se choisit dans le Rapport     |   5    |     4     |    3    |   0,5    | **24**  |
 | P112 | **Livré (13/09/2026, décision n° 142).** Conserver dix ans, pas trois                   |   2    |     3     |    1    |   0,25   | **24**  |
 | P106 | **Livré (13/09/2026, décision n° 144).** Relire la veille — la ligne « barème » d'abord |   4    |     5     |    1    |   0,5    | **20**  |
-| P109 | Le coffre proposé, pas caché                                                            |   3    |     4     |    2    |   0,5    | **18**  |
-| P113 | Une sauvegarde qui existe aussi hors Chrome                                             |   3    |     5     |    2    |    1     | **10**  |
+| P109 | **Livré (13/09/2026, décision n° 145).** Le coffre proposé, pas caché                   |   3    |     4     |    2    |   0,5    | **18**  |
+| P113 | **Livré (13/09/2026, décision n° 146).** Une sauvegarde qui existe aussi hors Chrome    |   3    |     5     |    2    |    1     | **10**  |
 | P107 | Le récapitulatif de déclaration, case par case                                          |   5    |     4     |    5    |    2     |  **7**  |
 | P111 | Mesurer la fiabilité là où elle manque                                                  |   1    |     5     |    0    |    1     |  **6**  |
 | P110 | Le calcul hors du fil qui dessine l'écran                                               |   2    |     2     |    4    |   1,5    | **5,3** |
@@ -343,6 +343,11 @@ sont ressortis, qu'aucune des trois propositions n'annonçait :
 - **P106 a joué dans les deux sens.** La recherche déléguée proposait de déclasser le millésime du
   PFU en `doctrine-unsettled` ; lecture faite de la LFSS 2026, le `{ from: 2025 }` du moteur est
   bien fondé. Une recherche non vérifiée aurait dégradé une affirmation correcte.
+- **P109 et P113 ont encore rétréci à l'exécution** (décisions n° 145 et 146). Le coffre n'avait
+  rien à construire : son texte était déjà juste, il lui manquait un endroit. Et P113 n'était pas un
+  manque mais **deux défauts** — la sauvegarde automatique ne comptait pas comme une sauvegarde, et
+  le drapeau « stockage garanti » n'atteignait jamais le contrôle. Deux recommandations de l'étude
+  (partage iOS, avertissement des sept jours de Safari) étaient **déjà livrées**.
 - **Un test intermittent découvert en chemin** (décision n° 143) : une falsification qui ne
   falsifiait rien une fois sur soixante-quatre, et faisait rougir la CI sans qu'aucun code n'ait
   bougé.

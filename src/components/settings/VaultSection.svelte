@@ -13,11 +13,26 @@
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
+  /**
+   * Téléchargement d'une sauvegarde, confié à l'écran parent : c'est lui qui sait la nommer et,
+   * le cas échéant, la chiffrer par une phrase secrète distincte. Rend `true` si un fichier est
+   * bien parti. L'installation en fait son étape 1 (décision n° 145).
+   */
+  let { onBackup }: { onBackup: () => Promise<boolean> } = $props();
+
   let mode = $state<'idle' | 'install' | 'change' | 'remove'>('idle');
   let busy = $state(false);
   let current = $state('');
   let next = $state('');
   let confirm = $state('');
+  /**
+   * Étape 1 franchie pour CETTE installation. Volontairement non persisté et non déduit de
+   * `lastBackupAt` : la sauvegarde qui sert de filet doit être **fraîche**, puisqu'elle est le
+   * point de retour des données qu'on s'apprête à chiffrer. Une sauvegarde d'il y a un mois ne
+   * contiendrait pas ce qu'on chiffre aujourd'hui — ce ne serait pas un filet, seulement l'air
+   * d'en avoir un.
+   */
+  let backupDone = $state(false);
 
   const MIN = 12;
   const tooShort = $derived(next.length > 0 && next.length < MIN);
@@ -28,6 +43,17 @@
     current = '';
     next = '';
     confirm = '';
+    backupDone = false;
+  }
+
+  async function runBackup(): Promise<void> {
+    if (busy) return;
+    busy = true;
+    try {
+      backupDone = await onBackup();
+    } finally {
+      busy = false;
+    }
   }
 
   async function run(what: () => Promise<void>, done: string): Promise<void> {
@@ -61,8 +87,9 @@
       qui ne quitte jamais cet appareil.
     </p>
     <p class="warn small">
-      <strong>Faites d'abord une sauvegarde chiffrée.</strong> Un mot de passe perdu n'est pas récupérable
-      : il n'existe ni compte, ni service, ni question secrète capable de rouvrir ce coffre.
+      <strong>Un mot de passe perdu n'est pas récupérable</strong> : il n'existe ni compte, ni service,
+      ni question secrète capable de rouvrir ce coffre. L'installation commence donc par une sauvegarde
+      — c'est une étape, pas un conseil.
     </p>
   {/if}
 
@@ -86,8 +113,33 @@
     </div>
   {/if}
 
-  {#if mode === 'install' || mode === 'change'}
+  <!-- Étape 1 de l'installation. La sauvegarde n'est pas un conseil posé au-dessus d'un bouton :
+       c'est le seul chemin de retour si le mot de passe se perd, donc c'est une étape du flux. -->
+  {#if mode === 'install' && !backupDone}
     <div class="fields">
+      <p class="warn small">
+        <strong>Étape 1 sur 2 — votre sauvegarde.</strong> Un mot de passe perdu n'est pas
+        récupérable : ce fichier est le seul chemin de retour. Il doit être téléchargé
+        <strong>maintenant</strong>, car il sert de point de retour aux données que vous allez
+        chiffrer — une sauvegarde ancienne ne les contiendrait pas.
+      </p>
+      <div class="row">
+        <button class="primary" type="button" disabled={busy} onclick={() => void runBackup()}>
+          {busy ? 'En cours…' : 'Télécharger ma sauvegarde'}
+        </button>
+        <button class="secondary" type="button" disabled={busy} onclick={() => (backupDone = true)}>
+          J'en ai déjà une à jour
+        </button>
+        <button class="secondary" type="button" onclick={reset} disabled={busy}>Annuler</button>
+      </div>
+    </div>
+  {/if}
+
+  {#if (mode === 'install' && backupDone) || mode === 'change'}
+    <div class="fields">
+      {#if mode === 'install'}
+        <p class="muted small"><strong>Étape 2 sur 2 — votre mot de passe.</strong></p>
+      {/if}
       {#if mode === 'change'}
         <label class="field">
           Mot de passe actuel

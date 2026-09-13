@@ -3809,3 +3809,90 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuve** (décision n° 75) : rendre à `seuil-305` son ancien libellé sans version fait
      rougir le nouveau test **en nommant l'entrée** — « seuil-305: expected 'CGI art. 150 VH bis
      (Légifrance)' to match /version en vigueur au …/ ».
+
+145. **Le coffre existait pour tout le monde, et personne ne le trouvait** (13/09/2026).
+     **Rien à construire, un moment à choisir.** Le chiffrement au repos est en place depuis la
+     décision n° 120 — Argon2id + AES-GCM, enveloppe KEK/DEK — et `Settings.svelte` rend
+     `VaultSection` **sans aucun garde `__PRIVATE_BUILD__`** : il sert donc déjà à tous les
+     utilisateurs. Il est simplement éteint par défaut, dans un écran qu'on n'ouvre pas. La question
+     n'était pas cryptographique, elle était : **quand poser la question.**
+     **Après le premier import réel, et nulle part ailleurs.** Chiffrer un état vide ne protège
+     rien : proposer à l'installation, c'est demander un mot de passe pour garder une pièce vide.
+     L'invite vit donc sur l'écran d'import, **après** la carte « Sauvegardez vos données » — l'ordre
+     que le coffre lui-même prescrit, un mot de passe perdu étant définitif. La littérature sur le
+     _nudging_ sécuritaire va dans ce sens : une invite contextuelle et non bloquante obtient une
+     adhésion nettement supérieure à un blocage, et un avertissement qui ressemble à une
+     notification ordinaire s'use par habituation jusqu'à être cliqué sans être lu.
+     **Aucune date de rejet n'est mémorisée, donc aucune migration de schéma.** L'écran d'import se
+     visite délibérément et se rouvre à chaque nouveau relevé : l'invite revient d'elle-même, au
+     rythme des données à protéger. C'est « occasionnellement, pas une fois pour toutes » obtenu
+     sans champ persisté.
+     **La sauvegarde devient l'étape 1 de l'installation**, pas un paragraphe au-dessus du bouton :
+     c'est le seul chemin de retour qui existe. Elle n'est **pas** déduite de `lastBackupAt`, et ce
+     point est le cœur du raisonnement : la sauvegarde qui sert de filet doit être **fraîche**,
+     puisqu'elle est le point de retour des données qu'on s'apprête à chiffrer. Une sauvegarde d'il
+     y a un mois ne les contiendrait pas — elle aurait l'air d'un filet sans en être un. Le
+     téléchargement est confié à l'écran parent par une `prop`, qui seul sait nommer le fichier et,
+     le cas échéant, le chiffrer par une phrase secrète distincte.
+     **Deux dispositifs écartés, pour ne plus y revenir.** L'**indice de mot de passe** : il réduit
+     l'entropie effective et se devine aussi souvent que le mot de passe — du théâtre. Les
+     **passkeys / WebAuthn PRF** comme déverrouillage : le co-éditeur de la spécification WebAuthn
+     déconseille lui-même de dériver une clé de chiffrement d'un PRF (perdre une passkey a un rayon
+     d'explosion disproportionné, une clé d'authentification étant faite pour être remplaçable), et
+     Safari sur iOS ne relaie pas le PRF vers un authentificateur externe. Sans serveur, aucun repli
+     multi-authentificateur n'est possible ici. À revoir dans 12 à 18 mois, **en complément** du mot
+     de passe, jamais en remplacement.
+     **L'invite ne promet pas plus que le modèle ne tient** : elle reprend la limite déjà écrite
+     dans les réglages — le coffre ne protège pas un écran déjà déverrouillé — parce qu'une XSS ou
+     une dépendance compromise appelle la même API de déchiffrement que l'application légitime.
+     **La règle d'affichage vit dans `derive/`, pas dans le composant** (même motif que la
+     décision n° 94) : la zone `.svelte` n'est mesurée par aucune couverture, et trois des quatre
+     issues sont des refus — `installed`, `demo`, `no-data` — qui comptent autant que l'acceptation.
+     **Une contre-épreuve a démasqué un test creux, et c'est le fait le plus utile de cette
+     décision.** La première version du parcours E2E affirmait garder le cas « démonstration ». En
+     supprimant le garde correspondant, **le test est resté vert** : en mode démonstration, la carte
+     ne s'affiche de toute façon pas, faute d'import dans cette visite de l'écran — l'assertion ne
+     gardait rien. Même famille que la décision n° 136. Le parcours a été réécrit sur deux cas
+     réellement atteignables (l'invite paraît après un import réel ; elle se tait une fois le coffre
+     posé, alors que l'import a bien eu lieu), et le cas « démonstration » est prouvé là où il est
+     réel, dans `vault-offer.test.ts`.
+     **Contre-épreuves** (décision n° 75), deux, chacune vue rouge : supprimer la branche `demo` de
+     `vaultOffer` fait rougir deux tests unitaires sur « expected 'offer' to be 'demo' » ; ignorer
+     `vaultInstalled` dans le câblage de l'écran fait rougir le parcours E2E sur « expected 0,
+     received 1 » — l'invite restant affichée alors que le coffre est posé.
+
+146. **La sauvegarde automatique ne comptait pas comme une sauvegarde** (13/09/2026).
+     **Le voyant alarmait celui qui était le mieux protégé.** `writeFolderBackup` écrit le fichier
+     par `writeBackupFile` **sans passer par `exportBackup`** : `ui.lastBackupAt` restait donc à sa
+     valeur précédente, et les auto-vérifications — qui ne lisent que ce champ — annonçaient
+     « Aucune sauvegarde JSON téléchargée : vos données ne vivent que dans ce navigateur » à
+     quelqu'un dont chaque modification partait dans un dossier de son disque. Exactement le
+     garde-fou qui crie au loup que les décisions n° 72 et 74 condamnent, et dans sa version la plus
+     nuisible : il apprend à ignorer le voyant à celui qui a tout fait correctement.
+     **Le voyant retient désormais la plus récente des deux dates**, et annonce la sauvegarde
+     automatique quand elle tourne. La correction ne passe **pas** par une écriture de
+     `ui.lastBackupAt` depuis `writeFolderBackup` : cette écriture modifierait l'état, donc
+     replanifierait une sauvegarde de dossier, donc réécrirait la date — une boucle. La date du
+     dossier voyage comme une entrée du contrôle, pas comme une mutation.
+     **Un texte qui ne pouvait jamais s'afficher.** `self-check.ts` sait écrire « stockage non
+     garanti par le navigateur » quand `persisted === false` — mais `checks.svelte.ts` passait
+     `persisted: null` **en dur**, et `requestPersistentStorage()` était appelée neuf fois avec sa
+     réponse jetée par un `void`. La valeur existait pourtant dans le diagnostic copiable. Elle est
+     maintenant retenue dans l'état (`storagePersisted`) et atteint le contrôle.
+     **« Pas encore configurée » aurait été un mensonge.** Firefox et Safari n'implémentent pas
+     File System Access, et ce n'est pas un retard : Mozilla a classé l'accès arbitraire au disque
+     « negative » dans ses standards-positions, WebKit n'a jamais pris d'engagement. Aucun repli
+     n'existe — un téléchargement périodique sans geste de l'utilisateur est qualifié de
+     « téléchargement automatique » et bloqué dès le second fichier. Sur ces navigateurs, le voyant
+     dit donc **qu'aucune sauvegarde automatique n'y est possible**, au lieu de renvoyer chercher un
+     bouton qui n'existe pas.
+     **Ce qui a rétréci après vérification, et n'a donc pas été écrit.** Le partage de fichier pour
+     iOS (Web Share niveau 2) existe **déjà** — `share()` dans `Settings.svelte`. L'avertissement des
+     sept jours d'effacement de Safari pour un site non installé existe **déjà** aussi, dans le
+     contrôle `install`. Deux recommandations de l'étude étaient donc livrées avant d'être proposées.
+     **Écartés pour cette brique** : l'empreinte SHA-256 dans le fichier de sauvegarde (elle change
+     un format versionné et documenté, ce qui mérite sa propre décision) et la compression
+     (`.json.gz` perd la lisibilité directe qui fait la valeur d'archive du format, voir n° 142).
+     **Contre-épreuve** (décision n° 75) : retirer la date du dossier du calcul et neutraliser la
+     branche « sauvegarde automatique active » fait rougir deux tests sur « expected 'info' to be
+     'ok' » et « expected 'warn' to be 'ok' » — c'est-à-dire sur l'alarme injustifiée elle-même.

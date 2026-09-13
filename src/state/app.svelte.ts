@@ -289,6 +289,13 @@ export class AppState {
   fxStatus = $state<{ loading: boolean; error: string | null }>({ loading: false, error: null });
   /** Chargements de taux en cours, par devise : les appels concurrents partagent la même promesse. */
   private fxInFlight: Partial<Record<Currency, Promise<void>>> = {};
+  /**
+   * Le navigateur garantit-il de ne pas évincer ces données ? `null` tant que la question n'a pas
+   * été posée (décision n° 146). La valeur existait déjà dans le diagnostic copiable, mais
+   * `checks.svelte.ts` passait `null` en dur : la nuance « stockage non garanti » que les
+   * auto-vérifications savent écrire ne pouvait donc jamais s'afficher.
+   */
+  storagePersisted = $state<boolean | null>(null);
   folderBackup = $state<FolderBackupStatus>({
     supported: false,
     folderName: null,
@@ -970,7 +977,7 @@ export class AppState {
             },
           ];
           void this.ensureRates('USD');
-          void requestPersistentStorage();
+          void this.askPersistentStorage();
         }
       }
       patch({ syncing: false, added, truncated: result.truncated, error: null });
@@ -1017,7 +1024,7 @@ export class AppState {
       ...this.state.hyperliquid,
       accounts: { ...this.state.hyperliquid.accounts, [id]: emptyHlAccountData(address) },
     };
-    void requestPersistentStorage();
+    void this.askPersistentStorage();
     return { ok: true, account };
   }
 
@@ -1353,6 +1360,11 @@ export class AppState {
     }, FOLDER_WRITE_DEBOUNCE_MS);
   }
 
+  /** Demande la persistance ET retient la réponse : `void` la jetait (décision n° 146). */
+  private async askPersistentStorage(): Promise<void> {
+    this.storagePersisted = await requestPersistentStorage();
+  }
+
   private async writeFolderBackup(snapshot: StoredStateV1): Promise<void> {
     if (!this.folderHandle) return;
     try {
@@ -1483,7 +1495,7 @@ export class AppState {
           unknownColumns: result.report.unknownColumns,
         },
       ];
-      void requestPersistentStorage();
+      void this.askPersistentStorage();
     }
     return result;
   }
@@ -1557,7 +1569,7 @@ export class AppState {
         accountId: 'lend:bienpreter',
       },
     ];
-    void requestPersistentStorage();
+    void this.askPersistentStorage();
     return { ok: true, added: Object.keys(this.state.lending.events).length - before, parsed };
   }
 
@@ -1609,7 +1621,7 @@ export class AppState {
         accountId: 'lend:bienpreter',
       },
     ];
-    void requestPersistentStorage();
+    void this.askPersistentStorage();
     return {
       ok: true,
       applied: merged.applied,
@@ -1719,7 +1731,7 @@ export class AppState {
       ];
       // Les montants du relevé sont en dollars : leurs jours ont besoin des taux BCE.
       void this.ensureRates('USD');
-      void requestPersistentStorage();
+      void this.askPersistentStorage();
     }
     return result;
   }
@@ -1785,7 +1797,7 @@ export class AppState {
         };
       // Les montants USD/stables du fichier ont besoin des taux BCE de leurs jours.
       void this.ensureRates('USD');
-      void requestPersistentStorage();
+      void this.askPersistentStorage();
     }
     return result;
   }
@@ -1836,7 +1848,7 @@ export class AppState {
       ];
       this.rememberMapping(accountId, result.report.header, mapping, now);
       void this.ensureRates('USD');
-      void requestPersistentStorage();
+      void this.askPersistentStorage();
     }
     return result;
   }
@@ -1972,7 +1984,7 @@ export class AppState {
         },
       ];
       void this.ensureRates('USD');
-      void requestPersistentStorage();
+      void this.askPersistentStorage();
     }
     return result;
   }

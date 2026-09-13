@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { openDemo } from './helpers/demo';
@@ -62,6 +63,31 @@ async function readStorage(page: Page): Promise<{ miroir: string; idb: string }>
   });
 }
 
+/**
+ * Installe le coffre en passant par ses DEUX étapes (décision n° 145).
+ *
+ * La première — télécharger une sauvegarde — n'est pas décorative : c'est le seul chemin de retour
+ * si le mot de passe se perd. Ce helper existe donc aussi comme garde-fou : le jour où quelqu'un
+ * supprimerait l'étape, les deux parcours ci-dessous échoueraient sur un bouton introuvable.
+ */
+async function installVault(
+  page: Page,
+  passphrase: string,
+  step1: 'download' | 'already',
+): Promise<void> {
+  await page.getByRole('button', { name: 'Installer le coffre' }).click();
+  if (step1 === 'download') {
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Télécharger ma sauvegarde' }).click();
+    expect((await download).suggestedFilename()).toContain('sauvegarde');
+  } else {
+    await page.getByRole('button', { name: /déjà une à jour/ }).click();
+  }
+  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(passphrase);
+  await page.getByLabel('Répéter le nouveau mot de passe').fill(passphrase);
+  await page.getByRole('button', { name: 'Installer et chiffrer' }).click();
+}
+
 test('installer, verrouiller, rouvrir, retirer', async ({ page }) => {
   // Quatre dérivations Argon2id aux paramètres OWASP : plusieurs secondes chacune, par conception.
   test.slow();
@@ -75,10 +101,8 @@ test('installer, verrouiller, rouvrir, retirer', async ({ page }) => {
 
   // — Installation —
   await page.goto('#/settings');
-  await page.getByRole('button', { name: 'Installer le coffre' }).click();
-  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(MOT_DE_PASSE);
-  await page.getByLabel('Répéter le nouveau mot de passe').fill(MOT_DE_PASSE);
-  await page.getByRole('button', { name: 'Installer et chiffrer' }).click();
+  // Par le VRAI téléchargement : l'étape 1 doit produire un fichier, pas seulement une phrase.
+  await installVault(page, MOT_DE_PASSE, 'download');
   await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
 
   const apres = await readStorage(page);
@@ -145,10 +169,7 @@ test('changer de mot de passe ne rend pas les données illisibles', async ({ pag
   await waitForPersisted(page);
 
   await page.goto('#/settings');
-  await page.getByRole('button', { name: 'Installer le coffre' }).click();
-  await page.getByLabel('Nouveau mot de passe', { exact: true }).fill(MOT_DE_PASSE);
-  await page.getByLabel('Répéter le nouveau mot de passe').fill(MOT_DE_PASSE);
-  await page.getByRole('button', { name: 'Installer et chiffrer' }).click();
+  await installVault(page, MOT_DE_PASSE, 'already');
   await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
 
   await page.getByRole('button', { name: 'Changer le mot de passe' }).click();
@@ -177,4 +198,51 @@ test('changer de mot de passe ne rend pas les données illisibles', async ({ pag
   await expect(page.getByRole('heading', { name: 'Vos données sont chiffrées' })).toHaveCount(0);
   await page.goto('#/invest');
   await expect(page.getByRole('list', { name: 'Positions' })).toBeVisible();
+});
+
+/**
+ * L'invite au coffre (décision n° 145) : le chiffrement existait déjà pour tout le monde, rangé
+ * dans un écran qu'on n'ouvre pas. Ce parcours garde le maillon que `vaultOffer` ne peut pas
+ * prouver — que l'écran d'import lise bien la règle, et au bon moment.
+ *
+ * **Le cas « démonstration » n'est pas testé ici, et c'est délibéré.** Une première version
+ * l'affirmait, et la contre-épreuve (décision n° 75) l'a démasquée : en mode démonstration, la
+ * carte ne s'affiche de toute façon pas, faute d'import dans CETTE visite de l'écran — l'assertion
+ * passait sans rien garder, et restait verte même en supprimant le garde. Ce cas est prouvé là où
+ * il est réel, dans `vault-offer.test.ts`.
+ */
+test('le coffre est proposé après un import réel, et se tait une fois posé', async ({ page }) => {
+  test.slow();
+  const INVITE = 'Vos opérations sont enregistrées en clair';
+  const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
+
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', FIXTURE);
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: INVITE })).toBeVisible();
+
+  // L'ordre compte : la sauvegarde d'abord, le coffre ensuite — un mot de passe perdu est définitif.
+  await expect(page.locator('section.nudge h2')).toHaveText(['Sauvegardez vos données', INVITE]);
+
+  // L'invite dit ce que le coffre ne fait PAS : ne jamais promettre plus que le modèle ne tient.
+  await expect(page.getByText('Il ne protège pas un écran déjà déverrouillé')).toBeVisible();
+
+  // Ce balisage n'est jamais rendu sur la démonstration, donc jamais vu par `a11y.spec.ts`.
+  const axe = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+  expect(axe.violations, JSON.stringify(axe.violations, null, 1)).toEqual([]);
+
+  // — Coffre posé : l'invite se tait, alors que l'import, lui, a bien eu lieu —
+  await page.goto('#/settings');
+  await installVault(page, MOT_DE_PASSE, 'already');
+  await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
+
+  await page.goto('#/import');
+  await page.setInputFiles('input[type="file"]', {
+    name: 'historique des transactions (2).csv',
+    mimeType: 'text/csv',
+    buffer: readFileSync(FIXTURE),
+  });
+  await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: INVITE })).toHaveCount(0);
+  await expect(page.locator('section.nudge h2')).toHaveText(['Sauvegardez vos données']);
 });

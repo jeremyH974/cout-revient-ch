@@ -34,9 +34,16 @@ class ChecksState {
       },
       storage: {
         lastBackupAt: app.state.ui.lastBackupAt,
-        persisted: null,
+        persisted: app.storagePersisted,
         saveError: app.saveError,
         mirrorError: app.mirrorError,
+        // Une copie écrite dans le dossier choisi EST une sauvegarde : sans cette ligne, le voyant
+        // annonçait « aucune sauvegarde » à qui en avait une à chaque modification (décision n° 146).
+        folder: {
+          supported: app.folderBackup.supported,
+          active: app.folderBackup.permission === 'granted' && app.folderBackup.folderName !== null,
+          lastWriteAt: app.folderBackup.lastWriteAt,
+        },
       },
       platform: { ios: isIOS(), standalone: isStandalone() },
       trading: app.tradingChecks,

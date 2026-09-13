@@ -7,6 +7,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez
+  choisi un dossier de sauvegarde automatique, chaque modification y part — mais les vérifications
+  automatiques ne regardaient que les téléchargements manuels, et vous annonçaient « aucune
+  sauvegarde ». Elles tiennent maintenant compte des deux.
+  Deux autres choses au passage. Le voyant vous dit désormais quand **le navigateur ne garantit pas**
+  de conserver vos données — un message qui existait dans le code mais ne pouvait jamais s'afficher.
+  Et sur **Firefox, Safari et iPhone**, il ne vous laisse plus croire à un réglage oublié : la
+  sauvegarde automatique dans un dossier **n'y est pas possible du tout**, ces navigateurs ayant
+  choisi de ne pas l'implémenter. L'export manuel y est votre seule copie, et c'est écrit ainsi.
+
 - **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
   les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
   cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
@@ -25,6 +35,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
 
 ### Added
+
+- **Le chiffrement de cet appareil existait déjà — vous ne pouviez simplement pas le trouver.**
+  Il est proposé, désormais, juste après un import de vos vraies données : le moment où vos chiffres
+  viennent de s'afficher, et le seul où la question a un sens. Pas à l'installation sur une
+  application vide, jamais en bloquant votre usage, et jamais sur le jeu de démonstration — chiffrer
+  du fictif ne protège rien.
+  L'invite dit aussi ce que le coffre **ne fait pas** : il ne protège pas un écran déjà déverrouillé.
+  Et l'installation commence maintenant par **télécharger votre sauvegarde**, comme une étape à part
+  entière et non comme un conseil : un mot de passe perdu n'est récupérable par personne, et cette
+  sauvegarde doit être **fraîche**, puisqu'elle est le point de retour des données que vous êtes en
+  train de chiffrer.
 
 - **Votre choix « flat tax ou barème » n'est plus définitif — et l'application le disait encore.**
   L'écran Veille réglementaire présentait l'option pour le barème progressif comme un simple choix
