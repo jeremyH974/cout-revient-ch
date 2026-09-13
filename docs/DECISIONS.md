@@ -3896,3 +3896,98 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuve** (décision n° 75) : retirer la date du dossier du calcul et neutraliser la
      branche « sauvegarde automatique active » fait rougir deux tests sur « expected 'info' to be
      'ok' » et « expected 'warn' to be 'ok' » — c'est-à-dire sur l'alarme injustifiée elle-même.
+
+147. **Le garde-fou était le plus strict là où le code était le plus stable** (13/09/2026).
+     **Le constat qui a retourné la proposition.** P111 visait les ~21 000 lignes de `.svelte` que
+     rien ne mesure. Mesure faite, la cible était ailleurs : `src/lib/domain` exige **90 %** de
+     couverture et bouge peu, pendant que **`src/state/app.svelte.ts` est à 0 % et a été modifié 22
+     fois en deux semaines** — le fichier le plus remanié du dépôt, et le seul gros à zéro. Il porte
+     **49 `$derived`**. L'exclusion des composants, elle, reste juste : la décision n° 78 l'a
+     argumentée (les inclure afficherait 0 % à perpétuité) et disait déjà que les tests de
+     composants seraient « une autre proposition ». Celle-ci y répond — **par la négative**.
+     **Ce n'est pas de la couverture qu'il manquait, c'est de la vérification.** Une ligne couverte
+     s'est **exécutée** ; elle n'a pas été **vérifiée**. C'est exactement l'angle mort des cinq
+     derniers défauts (n° 130, 135, 136, 137, 140), tous des chiffres silencieusement faux. La seule
+     mesure qui fasse la différence est le **test de mutation** : il altère le code et regarde si un
+     test rougit. Autrement dit, il mécanise la contre-épreuve de la décision n° 75, jusqu'ici
+     appliquée à ce qu'on pensait à éprouver.
+     **Ce qu'il a trouvé, immédiatement.** `src/lib/derive` tenait un seuil de **95 %** de couverture
+     avec **11,6 % de mutants survivants**. Trois manques réels : le rattachement de repli par clé de
+     `qualified.ts`, remplaçable par `true` sans qu'aucun test ne bronche, faute d'une ligne dont la
+     clé ne corresponde pas ; **neuf** libellés et genres de `accounts.ts` remplaçables par `""`,
+     parce que les tests ne regardaient que les identifiants ; et la branche « numéro de ligne nul »
+     gardée d'un seul des deux côtés. Corrigés, `derive/` passe de **88,39 % à 100 %**.
+     **Et il a attrapé du code écrit une heure plus tôt** : `tax-boxes.ts` (décision n° 148) sortait
+     à **63 %**, ses cinq entrées propres n'ayant aucun équivalent local à quoi s'adosser. Ce sont
+     des codes de cases que l'utilisateur recopiera. Après correction, **87,5 %**.
+     **Le périmètre est étroit, et mesuré.** `derive/` plus les sept moteurs fiscaux : **79,98 %** en
+     1 min 23 s. Le dossier `domain` entier a dépassé **vingt-cinq minutes sans finir** — d'où son
+     absence, constatée et non supposée. `src/state` est hors d'atteinte par construction (classes à
+     runes couplées au navigateur) : la voie qui marche n'est pas de l'y muter, c'est d'en
+     **extraire** les règles vers `derive/`, où le score est de 100 %.
+     **`break: 78`, posé sous le score mesuré.** Un seuil choisi avant de mesurer est une décision
+     prise sans savoir ; un seuil qu'on atteint en écrivant des tests pour le chiffre ne vaut rien.
+     Celui-ci est un cliquet contre la régression. Le cliquet de `src/state` est relevé au passage de
+     2 à ses valeurs mesurées (2,6 / 2,4 / 4,4 / 0,3) : un cliquet qu'on ne resserre jamais est une
+     décoration.
+     **Trois pistes écartées, chacune pour une raison mesurée**, et écrites dans
+     `docs/tests-de-mutation.md` pour ne pas les redécouvrir : fusionner la couverture des parcours
+     E2E (elle achète un chiffre, pas une garantie — et `coherence.spec.ts` compare déjà l'écran au
+     moteur) ; relever le seuil global (il ne regarde pas la zone aveugle, et durcirait des
+     tests-alibis là où on est déjà mesuré) ; tester les composants en mode navigateur
+     (`vitest-browser-svelte` est mûr, mais 21 000 lignes en navigateur coûtent des dizaines de
+     minutes de CI à un développeur seul).
+     **Le prix assumé** : deux dépendances de développement sur une chaîne verrouillée à dessein
+     (décision n° 13). Elles ne partent jamais dans le bundle, et `min-release-age` s'applique comme
+     au reste.
+     **Deux pièges vécus, documentés.** Le fichier incrémental **rejoue des résultats périmés** pour
+     des fichiers sortis du périmètre — symptôme : deux exécutions rendent le même chiffre alors que
+     le périmètre a changé. Et un `EPERM (rename)` sous Windows, parce que Stryker relie
+     `node_modules` à son bac à sable et que le cache de Vite y logeait : réglé en sortant ce cache
+     par `cacheDir: '.vite'`. Aucune des deux erreurs n'accusait le code ni les tests.
+     **Contre-épreuve** (décision n° 75) : ici, **le mutant survivant EST la contre-épreuve**. Chacun
+     des trois manques a d'abord été vu « rouge » sous la forme d'un mutant que rien ne tuait, puis
+     vert une fois l'assertion écrite — le cycle complet, mécanisé, sans avoir eu à deviner quoi
+     fausser.
+
+148. **Quatre registres de cases, aucun vocabulaire** (13/09/2026).
+     **L'état des lieux.** `EQUITY_TAX_BOXES`, `DIVIDEND_TAX_BOXES`, `INTEREST_TAX_BOXES` et le
+     `TAX_BOXES` de `lending/` décrivaient chacun ses cases de déclaration, sans type partagé ni
+     registre commun — et le module crypto, le plus visible à l'écran, n'en avait **aucun**. Trois
+     défauts en découlaient, tous vérifiés ligne à ligne :
+     1. **Le champ `box` portait deux notions.** `{ box: '2074', form: '2074' }` ne désigne pas une
+        case à montant mais un **formulaire** ; on ne les distinguait que par l'accident
+        `box === form`.
+     2. **Le registre des prêts divergeait** : ni `form`, ni `sourceId`, et un `carry` valant
+        `'2TU→2TY'` — une plage logée dans un champ qui porte partout ailleurs un code unique. Un
+        appelant faisant `box.box` aurait recopié un identifiant invalide.
+     3. **Les cases crypto n'existaient nulle part.** `3AN`, `3BN` et `3CN` manquaient au dépôt
+        entier, alors que ce sont celles qu'on remplit.
+        **`tax-boxes.ts` est canonique, et ne remplace rien.** Les quatre registres locaux restent où
+        ils sont ; un test les y **adosse** — même dispositif que les listes d'`ARCHITECTURE.md`
+        (décision n° 90) et que `tax-source.test.ts`. Réécrire quatre modules et deux écrans pour
+        supprimer une duplication que le test rend incapable de diverger coûterait plus qu'elle ne pèse.
+        **Deux champs nouveaux, qui sont le cœur de l'écran à venir.** `kind` sépare une case d'un
+        formulaire. `entry` dit d'où vient le montant : `typed` (à saisir), `carried` (l'annexe le
+        remplit — le recopier serait au mieux inutile), `prefilled` (l'administration le pré-remplit
+        depuis un imprimé fiscal **français**, donc jamais pour un courtier étranger). La distinction
+        n'est pas décorative : « Le montant renseigné remplira automatiquement la case 3AN (plus-value)
+        ou 3BN (moins-value) » — lu sur impots.gouv.fr le 13/09/2026. Une aide au report qui ferait
+        recopier un montant dans une case qui se remplit seule serait nuisible.
+        **L'ordre du registre est une donnée, pas une présentation** : 2047 → 2074 → 2086 → les cases
+        saisies → les comptes étrangers. Il suit les dépendances réelles du parcours en ligne, et un
+        test l'exige — remplir le 2047 après avoir vérifié 2DC écraserait un montant déjà juste.
+        **Un conflit documenté au lieu d'être masqué** : le 2047 porte **trois** libellés, un par
+        famille — « cadre 20 » pour les dividendes, « cadre 30 » pour les intérêts, « cadre 3 » pour les
+        titres. Ce n'est pas une divergence à corriger : le même formulaire se remplit à des cadres
+        différents selon le revenu. Son libellé échappe donc, seul, à la comparaison.
+        **Ce qui n'est PAS écrit** : les cases à cocher `8UU` et `8TT`. Leur rattachement aux comptes de
+        crypto-actifs n'a pas été établi sur source primaire, et `declarations-fr.ts` s'en passe déjà.
+        Un code de case faux serait pire qu'aucun : l'utilisateur le recopierait. Une constante nommée
+        le dit, et un test l'exige.
+        **Une recherche déléguée corrigée, pour la troisième fois de la journée.** Le rapport affirmait
+        que le « cadre 20 / cadre 30 » du 2047 n'existe pas et proposait des « cadres 1 à 5 ». Le dépôt
+        porte deux entrées de veille sourcées sur le **PDF officiel du millésime 2026**, et la décision
+        n° 140 en cite les lignes 231 à 238. Source primaire contre déduction : le dépôt l'emporte.
+        **Contre-épreuve** (décision n° 75) : faire diverger un libellé du registre canonique fait
+        rougir le test d'adossement **en nommant la famille et la clé** — « lending.interest — libellé ».

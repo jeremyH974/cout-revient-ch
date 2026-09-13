@@ -78,6 +78,24 @@ describe('comptes implicites', () => {
     expect(allAccounts({ ...empty, manualTrades: [trade('hl:abc')] })).toEqual([]);
   });
 
+  it('décrit chaque compte implicite en entier, pas seulement son identifiant', () => {
+    // Les trois libellés, les deux genres et les deux espaces atterrissent dans les sélecteurs de
+    // compte. Aucun test ne les regardait : NEUF mutants de chaîne survivaient ici, chacun
+    // remplaçant une de ces valeurs par « » sans faire rougir quoi que ce soit (décision n° 147).
+    const [coinhouse] = allAccounts({ ...empty, rawRowKeys: ['r1'] });
+    expect(coinhouse).toMatchObject({ kind: 'coinhouse', label: 'Coinhouse', space: 'invest' });
+
+    const [manuel] = allAccounts({ ...empty, manualEvents: [manual({ scope: 'external' })] });
+    expect(manuel).toMatchObject({
+      kind: 'manual',
+      label: 'Saisies manuelles (hors Coinhouse)',
+      space: 'invest',
+    });
+
+    const [trading] = allAccounts({ ...empty, manualTrades: [trade(MANUAL_TRADING_ACCOUNT_ID)] });
+    expect(trading).toMatchObject({ kind: 'manual', label: 'Trades manuels', space: 'trading' });
+  });
+
   it('les implicites viennent d’abord, les déclarés ensuite par ancienneté', () => {
     const accounts = allAccounts({
       rawRowKeys: ['r1'],

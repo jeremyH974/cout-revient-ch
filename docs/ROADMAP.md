@@ -309,18 +309,18 @@ réels sont ailleurs — **le Rapport ne sait pas de quelle année il parle** (l
 dérivée de l'instant de génération), **la table de veille affirme du droit périmé** sur l'option
 pour le barème, et **les cinq moteurs fiscaux ne sont jamais totalisés**.
 
-| #    | Proposition                                                                             | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
-| ---- | --------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
-| P105 | **Livré (13/09/2026, décision n° 141).** L'année fiscale se choisit dans le Rapport     |   5    |     4     |    3    |   0,5    | **24**  |
-| P112 | **Livré (13/09/2026, décision n° 142).** Conserver dix ans, pas trois                   |   2    |     3     |    1    |   0,25   | **24**  |
-| P106 | **Livré (13/09/2026, décision n° 144).** Relire la veille — la ligne « barème » d'abord |   4    |     5     |    1    |   0,5    | **20**  |
-| P109 | **Livré (13/09/2026, décision n° 145).** Le coffre proposé, pas caché                   |   3    |     4     |    2    |   0,5    | **18**  |
-| P113 | **Livré (13/09/2026, décision n° 146).** Une sauvegarde qui existe aussi hors Chrome    |   3    |     5     |    2    |    1     | **10**  |
-| P107 | Le récapitulatif de déclaration, case par case                                          |   5    |     4     |    5    |    2     |  **7**  |
-| P111 | Mesurer la fiabilité là où elle manque                                                  |   1    |     5     |    0    |    1     |  **6**  |
-| P110 | Le calcul hors du fil qui dessine l'écran                                               |   2    |     2     |    4    |   1,5    | **5,3** |
-| P108 | L'arbitrage PFU / barème, chiffré                                                       |   5    |     3     |    5    |   2,5    | **5,2** |
-| P114 | Aligner le chiffrement de la sauvegarde exportée                                        |   0    |     2     |    0    |   0,5    |  **4**  |
+| #    | Proposition                                                                                                         | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | ------------------------------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
+| P105 | **Livré (13/09/2026, décision n° 141).** L'année fiscale se choisit dans le Rapport                                 |   5    |     4     |    3    |   0,5    | **24**  |
+| P112 | **Livré (13/09/2026, décision n° 142).** Conserver dix ans, pas trois                                               |   2    |     3     |    1    |   0,25   | **24**  |
+| P106 | **Livré (13/09/2026, décision n° 144).** Relire la veille — la ligne « barème » d'abord                             |   4    |     5     |    1    |   0,5    | **20**  |
+| P109 | **Livré (13/09/2026, décision n° 145).** Le coffre proposé, pas caché                                               |   3    |     4     |    2    |   0,5    | **18**  |
+| P113 | **Livré (13/09/2026, décision n° 146).** Une sauvegarde qui existe aussi hors Chrome                                |   3    |     5     |    2    |    1     | **10**  |
+| P107 | **Vocabulaire livré (13/09/2026, décision n° 148) ; l'écran reste.** Le récapitulatif de déclaration, case par case |   5    |     4     |    5    |    2     |  **7**  |
+| P111 | **Livré (13/09/2026, décision n° 147).** Mesurer la fiabilité là où elle manque                                     |   1    |     5     |    0    |    1     |  **6**  |
+| P110 | Le calcul hors du fil qui dessine l'écran                                                                           |   2    |     2     |    4    |   1,5    | **5,3** |
+| P108 | L'arbitrage PFU / barème, chiffré                                                                                   |   5    |     3     |    5    |   2,5    | **5,2** |
+| P114 | Aligner le chiffrement de la sauvegarde exportée                                                                    |   0    |     2     |    0    |   0,5    |  **4**  |
 
 **Ordre retenu** : P105 → P112 → P106 → P109 → P113 → P111 → P107 → P108 → P110 → P114. Il n'est
 pas celui du ROI brut : P106 conditionne P108 (sans la ligne corrigée, l'arbitrage n'a pas de
@@ -348,6 +348,14 @@ sont ressortis, qu'aucune des trois propositions n'annonçait :
   manque mais **deux défauts** — la sauvegarde automatique ne comptait pas comme une sauvegarde, et
   le drapeau « stockage garanti » n'atteignait jamais le contrôle. Deux recommandations de l'étude
   (partage iOS, avertissement des sept jours de Safari) étaient **déjà livrées**.
+- **P111 a changé de cible à la mesure** (décision n° 147). Elle visait les composants non mesurés ;
+  la mesure a montré que le trou est `app.svelte.ts` — **0 % de couverture, 22 modifications en deux
+  semaines**. Et ce n'est pas de la couverture qu'il manquait mais de la **vérification** : le test
+  de mutation a trouvé 11,6 % de survivants dans un dossier tenu à 95 % de couverture, et un trou
+  dans du code écrit une heure plus tôt.
+- **P107 est coupée en deux** (décision n° 148). Le vocabulaire des cases est livré — il fallait
+  l'inventer : quatre registres divergents, aucun type commun, et les cases crypto absentes du dépôt
+  entier. L'écran reste, avec son vocabulaire déjà testé.
 - **Un test intermittent découvert en chemin** (décision n° 143) : une falsification qui ne
   falsifiait rien une fois sur soixante-quatre, et faisait rougir la CI sans qu'aucun code n'ait
   bougé.
