@@ -309,18 +309,18 @@ réels sont ailleurs — **le Rapport ne sait pas de quelle année il parle** (l
 dérivée de l'instant de génération), **la table de veille affirme du droit périmé** sur l'option
 pour le barème, et **les cinq moteurs fiscaux ne sont jamais totalisés**.
 
-| #    | Proposition                                      | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
-| ---- | ------------------------------------------------ | :----: | :-------: | :-----: | :------: | :-----: |
-| P105 | L'année fiscale se choisit dans le Rapport       |   5    |     4     |    3    |   0,5    | **24**  |
-| P112 | Conserver dix ans, pas trois                     |   2    |     3     |    1    |   0,25   | **24**  |
-| P106 | Relire la veille — la ligne « barème » d'abord   |   4    |     5     |    1    |   0,5    | **20**  |
-| P109 | Le coffre proposé, pas caché                     |   3    |     4     |    2    |   0,5    | **18**  |
-| P113 | Une sauvegarde qui existe aussi hors Chrome      |   3    |     5     |    2    |    1     | **10**  |
-| P107 | Le récapitulatif de déclaration, case par case   |   5    |     4     |    5    |    2     |  **7**  |
-| P111 | Mesurer la fiabilité là où elle manque           |   1    |     5     |    0    |    1     |  **6**  |
-| P110 | Le calcul hors du fil qui dessine l'écran        |   2    |     2     |    4    |   1,5    | **5,3** |
-| P108 | L'arbitrage PFU / barème, chiffré                |   5    |     3     |    5    |   2,5    | **5,2** |
-| P114 | Aligner le chiffrement de la sauvegarde exportée |   0    |     2     |    0    |   0,5    |  **4**  |
+| #    | Proposition                                                                             | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | --------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
+| P105 | **Livré (13/09/2026, décision n° 141).** L'année fiscale se choisit dans le Rapport     |   5    |     4     |    3    |   0,5    | **24**  |
+| P112 | **Livré (13/09/2026, décision n° 142).** Conserver dix ans, pas trois                   |   2    |     3     |    1    |   0,25   | **24**  |
+| P106 | **Livré (13/09/2026, décision n° 144).** Relire la veille — la ligne « barème » d'abord |   4    |     5     |    1    |   0,5    | **20**  |
+| P109 | Le coffre proposé, pas caché                                                            |   3    |     4     |    2    |   0,5    | **18**  |
+| P113 | Une sauvegarde qui existe aussi hors Chrome                                             |   3    |     5     |    2    |    1     | **10**  |
+| P107 | Le récapitulatif de déclaration, case par case                                          |   5    |     4     |    5    |    2     |  **7**  |
+| P111 | Mesurer la fiabilité là où elle manque                                                  |   1    |     5     |    0    |    1     |  **6**  |
+| P110 | Le calcul hors du fil qui dessine l'écran                                               |   2    |     2     |    4    |   1,5    | **5,3** |
+| P108 | L'arbitrage PFU / barème, chiffré                                                       |   5    |     3     |    5    |   2,5    | **5,2** |
+| P114 | Aligner le chiffrement de la sauvegarde exportée                                        |   0    |     2     |    0    |   0,5    |  **4**  |
 
 **Ordre retenu** : P105 → P112 → P106 → P109 → P113 → P111 → P107 → P108 → P110 → P114. Il n'est
 pas celui du ROI brut : P106 conditionne P108 (sans la ligne corrigée, l'arbitrage n'a pas de
@@ -332,6 +332,20 @@ semaines (décisions n° 130, 135, 136, 137, 140).
 relecture : le chiffrement du coffre **existe déjà** sur le site public (P109 n'est plus qu'une
 question de découvrabilité, pas de construction), et la sauvegarde automatique **existe déjà** (P113
 ne concerne que les navigateurs sans File System Access).
+
+**P105, P112 et P106 sont livrées le 13/09/2026** (décisions n° 141, 142 et 144). Trois faits en
+sont ressortis, qu'aucune des trois propositions n'annonçait :
+
+- **P112 renversait un refus**, pas un oubli : `report-model.test.ts` **interdisait** d'écrire
+  « 10 ans » faute de source primaire, et l'article L. 169 du LPF a été lu depuis. Le piège n'était
+  pas la durée mais le seuil de 50 000 €, qui existe **deux fois** — il double l'amende en couvrant
+  les crypto-actifs, et dispense du délai allongé en ne couvrant que les comptes bancaires.
+- **P106 a joué dans les deux sens.** La recherche déléguée proposait de déclasser le millésime du
+  PFU en `doctrine-unsettled` ; lecture faite de la LFSS 2026, le `{ from: 2025 }` du moteur est
+  bien fondé. Une recherche non vérifiée aurait dégradé une affirmation correcte.
+- **Un test intermittent découvert en chemin** (décision n° 143) : une falsification qui ne
+  falsifiait rien une fois sur soixante-quatre, et faisait rougir la CI sans qu'aucun code n'ait
+  bougé.
 
 ## 4. Ordre d'exécution recommandé
 
