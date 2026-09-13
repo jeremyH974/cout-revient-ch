@@ -59,14 +59,16 @@
     }
     return JSON.stringify(await encryptBackup(json, passphrase), null, 1);
   }
-  async function backup(): Promise<void> {
+  /** Rend `true` si un fichier est bien parti : le coffre s'en sert pour savoir si son étape 1 est faite. */
+  async function backup(): Promise<boolean> {
     const text = await backupText();
-    if (text === null) return;
+    if (text === null) return false;
     downloadText(backupFileName(), text, 'application/json');
     toasts.push(
       encrypt ? 'Sauvegarde chiffrée téléchargée.' : 'Sauvegarde téléchargée.',
       'success',
     );
+    return true;
   }
   /** iPhone/iPad (et Android) : « Enregistrer dans Fichiers », AirDrop… plutôt qu'un téléchargement. */
   async function share(): Promise<void> {
@@ -493,7 +495,7 @@
     <NetworkSection />
   {/if}
 
-  <VaultSection />
+  <VaultSection onBackup={backup} />
 
   <AiSection />
 

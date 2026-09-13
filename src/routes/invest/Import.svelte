@@ -14,6 +14,7 @@
   import { fmtDate } from '$lib/format/fr';
   import { refusalText } from '$lib/format/ai';
   import { router } from '$lib/router.svelte';
+  import { vaultOffer } from '$lib/derive/vault-offer';
   import { buildRequest, type AiOutcome } from '$lib/ai/contract';
   import { runMapping } from '$lib/ai/mapping';
   import { ANTHROPIC_MODEL_ID, anthropicAdapter } from '$lib/net/anthropic';
@@ -52,6 +53,19 @@
   } | null>(null);
   let failure = $state<{ error: string; details: string[]; header: string[] } | null>(null);
   let backupDone = $state(false);
+
+  /**
+   * Faut-il proposer le coffre ? La règle vit dans `derive/` et non ici : la zone `.svelte` n'est
+   * mesurée par aucune couverture, et trois des quatre cas sont des refus qui comptent autant que
+   * l'acceptation (décision n° 145).
+   */
+  const offer = $derived(
+    vaultOffer({
+      vaultInstalled: app.vaultInstalled,
+      demoMode: app.state.ui.demoMode,
+      hasData: app.hasData,
+    }),
+  );
 
   /** Fichier reconnu, en attente du choix du compte de destination (rien n'est importé). */
   let pending = $state<{
@@ -724,6 +738,28 @@
         <button class="secondary" type="button" onclick={downloadBackup}
           >{backupDone ? 'Sauvegarde téléchargée ✓' : 'Télécharger une sauvegarde'}</button
         >
+      </div>
+    </section>
+  {/if}
+
+  <!-- Le coffre, proposé au seul moment où la question a un sens : après l'import, quand les vrais
+       chiffres viennent de s'afficher (décision n° 145). APRÈS la sauvegarde ci-dessus, et pas
+       avant : c'est l'ordre que le coffre lui-même prescrit, un mot de passe perdu étant définitif. -->
+  {#if (report || pivotReport) && offer === 'offer'}
+    <section class="card block nudge">
+      <h2>Vos opérations sont enregistrées en clair</h2>
+      <p class="small">
+        Sur cet appareil, un profil de navigateur copié, un disque non chiffré ou une extension qui
+        lit ce site suffisent à les relire. Le coffre les chiffre au repos, avec une clé dérivée
+        d'un mot de passe qui ne quitte jamais cet appareil.
+      </p>
+      <p class="small">
+        Il ne protège pas un écran déjà déverrouillé, et <strong
+          >un mot de passe perdu n'est pas récupérable</strong
+        > : aucun compte ni service ne peut rouvrir ce coffre. Téléchargez d'abord votre sauvegarde, ci-dessus.
+      </p>
+      <div class="actions">
+        <a class="secondary" href={router.href({ name: 'settings' })}>Chiffrer cet appareil</a>
       </div>
     </section>
   {/if}
