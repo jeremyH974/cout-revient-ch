@@ -7,6 +7,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez
+  choisi un dossier de sauvegarde automatique, chaque modification y part — mais les vérifications
+  automatiques ne regardaient que les téléchargements manuels, et vous annonçaient « aucune
+  sauvegarde ». Elles tiennent maintenant compte des deux.
+  Deux autres choses au passage. Le voyant vous dit désormais quand **le navigateur ne garantit pas**
+  de conserver vos données — un message qui existait dans le code mais ne pouvait jamais s'afficher.
+  Et sur **Firefox, Safari et iPhone**, il ne vous laisse plus croire à un réglage oublié : la
+  sauvegarde automatique dans un dossier **n'y est pas possible du tout**, ces navigateurs ayant
+  choisi de ne pas l'implémenter. L'export manuel y est votre seule copie, et c'est écrit ainsi.
+
 - **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
   les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
   cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de

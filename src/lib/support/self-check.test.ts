@@ -307,3 +307,68 @@ describe('cohérence des prêts', () => {
     expect(check?.detail).not.toMatch(/\d{3,}/); // ni encours, ni euros : des compteurs seulement
   });
 });
+
+/**
+ * Le voyant « Sauvegarde » face à la sauvegarde automatique dans un dossier (décision n° 146).
+ *
+ * Une copie est une copie, quel que soit le chemin qu'elle a pris — et l'utilisateur le mieux
+ * protégé ne doit pas être celui qu'on alarme.
+ */
+describe('sauvegarde : le dossier compte, et l’impossible se dit', () => {
+  const VIEUX = '2026-06-01T00:00:00.000Z';
+  const withStorage = (over: Partial<SelfCheckInput['storage']>) =>
+    runSelfChecks({
+      report: null,
+      quotes: {},
+      prices: { source: 'auto', online: true, lastRefreshAt: NOW },
+      storage: { lastBackupAt: null, persisted: true, saveError: null, ...over },
+      now: NOW,
+    }).find((c) => c.id === 'backup');
+
+  it('ne crie plus « aucune sauvegarde » quand le dossier en écrit une', () => {
+    // Le défaut d'origine : `writeFolderBackup` n'appelait pas `exportBackup`, donc `lastBackupAt`
+    // restait nul et le voyant alarmait qui était le mieux protégé.
+    const check = withStorage({
+      lastBackupAt: null,
+      folder: { supported: true, active: true, lastWriteAt: NOW },
+    });
+    expect(check?.level).toBe('ok');
+    expect(check?.detail).toContain('automatique');
+  });
+
+  it('retient la plus récente des deux dates, pas celle du téléchargement', () => {
+    const check = withStorage({
+      lastBackupAt: VIEUX,
+      folder: { supported: true, active: false, lastWriteAt: NOW },
+    });
+    expect(check?.level).toBe('ok');
+    expect(check?.detail).not.toMatch(/il y a \d+ jours/);
+  });
+
+  it('dit qu’aucune sauvegarde automatique n’est POSSIBLE, pas qu’elle est à configurer', () => {
+    // Firefox et Safari n'implémenteront pas File System Access : laisser croire à un réglage
+    // oublié serait faux, et renverrait l'utilisateur chercher un bouton qui n'existe pas.
+    const check = withStorage({
+      lastBackupAt: null,
+      folder: { supported: false, active: false, lastWriteAt: null },
+    });
+    expect(check?.detail).toContain('aucune sauvegarde automatique n’y est possible');
+  });
+
+  it('ne dit rien de tel là où le dossier est possible', () => {
+    const check = withStorage({
+      lastBackupAt: null,
+      folder: { supported: true, active: false, lastWriteAt: null },
+    });
+    expect(check?.detail).not.toContain('aucune sauvegarde automatique');
+  });
+
+  it('signale un stockage non garanti par le navigateur', () => {
+    // Ce texte existait depuis toujours et ne pouvait jamais s'afficher : `checks.svelte.ts`
+    // passait `persisted: null` en dur (décision n° 146).
+    expect(withStorage({ lastBackupAt: NOW, persisted: false })?.detail).toContain('non garanti');
+    expect(withStorage({ lastBackupAt: NOW, persisted: true })?.detail).not.toContain(
+      'non garanti',
+    );
+  });
+});

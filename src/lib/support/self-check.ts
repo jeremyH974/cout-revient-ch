@@ -39,6 +39,15 @@ export interface SelfCheckInput {
      * à jour le jour où il servirait.
      */
     mirrorError?: string | null;
+    /**
+     * Sauvegarde automatique dans un dossier (File System Access, décision n° 146).
+     *
+     * `supported: false` ne veut pas dire « pas encore configurée » mais **impossible sur ce
+     * navigateur** : Firefox et Safari n'implémentent pas l'API, par position de leurs éditeurs et
+     * non par retard. `active` vaut `true` quand un dossier est choisi ET que la permission tient.
+     * Absent quand l'appelant ne sait pas (tests anciens) : le voyant se comporte alors comme avant.
+     */
+    folder?: { supported: boolean; active: boolean; lastWriteAt: string | null };
   };
   /** Plateforme (facultatif) : iPhone/iPad non installé = données effaçables par Safari après 7 jours. */
   platform?: { ios: boolean; standalone: boolean };
@@ -387,7 +396,33 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
     });
   }
 
-  // 6. Sauvegarde et stockage.
+  /*
+   * 6. Sauvegarde et stockage.
+   *
+   * **Une copie est une copie, quel que soit le chemin qu'elle a pris** (décision n° 146). La
+   * sauvegarde automatique dans un dossier écrit un fichier hors du navigateur exactement comme un
+   * téléchargement manuel ; elle ne passait pourtant pas par `exportBackup`, donc ne touchait pas
+   * `lastBackupAt`, et l'utilisateur le MIEUX protégé lisait « aucune sauvegarde ». Un garde-fou
+   * qui crie au loup finit ignoré (décisions n° 72 et 74) : on retient donc la plus récente des
+   * deux dates.
+   */
+  const folder = input.storage.folder;
+  const lastCopy = [input.storage.lastBackupAt, folder?.lastWriteAt ?? null]
+    .filter((at): at is string => at !== null)
+    .sort()
+    .at(-1);
+  /*
+   * Firefox et Safari n'implémentent pas File System Access, et ce n'est pas un retard : Mozilla a
+   * classé l'accès arbitraire au disque « negative », WebKit n'a jamais pris d'engagement. Aucune
+   * sauvegarde automatique n'y est donc possible — pas même par un téléchargement périodique, que
+   * les navigateurs bloquent dès le second fichier faute de geste de l'utilisateur. Le dire est la
+   * seule chose honnête ; laisser croire à un réglage oublié ne l'est pas.
+   */
+  const autoImpossible = folder !== undefined && !folder.supported;
+  const seul = autoImpossible
+    ? ' Ce navigateur ne sait pas écrire dans un dossier : aucune sauvegarde automatique n’y est possible, l’export manuel est la seule copie.'
+    : '';
+
   if (input.storage.saveError) {
     checks.push({
       id: 'backup',
@@ -397,20 +432,27 @@ export function runSelfChecks(input: SelfCheckInput): SelfCheck[] {
       action:
         'Téléchargez une sauvegarde JSON maintenant et libérez de l’espace dans le navigateur.',
     });
-  } else if (input.storage.lastBackupAt === null) {
+  } else if (folder?.active === true && folder.lastWriteAt !== null) {
+    checks.push({
+      id: 'backup',
+      label: 'Sauvegarde',
+      level: 'ok',
+      detail: 'Sauvegarde automatique active : chaque modification est écrite dans votre dossier.',
+    });
+  } else if (lastCopy === undefined) {
     checks.push({
       id: 'backup',
       label: 'Sauvegarde',
       level: report ? 'warn' : 'info',
-      detail: 'Aucune sauvegarde JSON téléchargée : vos données ne vivent que dans ce navigateur.',
+      detail: `Aucune sauvegarde JSON téléchargée : vos données ne vivent que dans ce navigateur.${seul}`,
       action: 'Réglages → Données → Télécharger une sauvegarde (JSON).',
     });
-  } else if (ageDays(input.storage.lastBackupAt, input.now) > 30) {
+  } else if (ageDays(lastCopy, input.now) > 30) {
     checks.push({
       id: 'backup',
       label: 'Sauvegarde',
       level: 'warn',
-      detail: `Dernière sauvegarde il y a ${Math.floor(ageDays(input.storage.lastBackupAt, input.now))} jours.`,
+      detail: `Dernière sauvegarde il y a ${Math.floor(ageDays(lastCopy, input.now))} jours.${seul}`,
       action: 'Téléchargez une nouvelle sauvegarde après chaque import.',
     });
   } else {
