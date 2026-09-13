@@ -3991,3 +3991,86 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
         n° 140 en cite les lignes 231 à 238. Source primaire contre déduction : le dépôt l'emporte.
         **Contre-épreuve** (décision n° 75) : faire diverger un libellé du registre canonique fait
         rougir le test d'adossement **en nommant la famille et la clé** — « lending.interest — libellé ».
+
+149. **Trois formulaires officiels relus, trois erreurs dans le dépôt** (13/09/2026).
+     **L'écran de report existe** (`#/declaration`, P107) : les cinq moteurs fiscaux vivaient sur
+     trois écrans qui ne se croisaient jamais, et remplir une déclaration demandait de les ouvrir
+     tous et de reconstituer soi-même l'ordre. `derive/tax-return.ts` les aplatit en une liste
+     ordonnée — une case, un montant, un formulaire — et l'écran n'arbitre rien, il affiche.
+     **Écrire l'écran a obligé à relire les imprimés, et les imprimés ont contredit le dépôt trois
+     fois.** C'est le vrai contenu de cette décision : la moitié du travail a été de la
+     vérification, pas de la construction.
+     1. **2TT, 2CK et 2CG sont sur la 2042, pas sur la 2042 C.** Relevé mot pour mot sur le
+        formulaire millésime 2026 : « Intérêts des prêts participatifs et des minibons … 2TT ».
+        **Et aucun test ne pouvait le voir** : le registre des prêts était le seul des quatre sans
+        champ `form`, donc le test d'adossement de la décision n° 148 n'avait rien à comparer — il
+        le disait même en commentaire, en le laissant passer. Un champ facultatif est un garde-fou
+        qui s'endort. `form` est désormais exigé, et un second test fixe le formulaire de chaque
+        code tel que l'imprimé le porte.
+     2. **`3CN` et `2OP` sont des cases à COCHER, pas des cases à montant.** « N'oubliez pas de
+        cocher la case 3CN de la 2042 C » (notice 2086). `kind` ne distinguait que la case du
+        formulaire : l'écran aurait affiché un montant à recopier à côté d'une case qui se coche.
+        D'où `'checkbox'`, et un test qui ferme la liste à ces deux-là.
+     3. **Le report de 3AN/3BN n'est automatique qu'EN LIGNE.** La ligne 52 du 2086 dit « à
+        reporter ligne 3AN de la 2042 C » — sur papier, c'est à vous. `entry: 'carried'` seul
+        aurait fait croire le contraire, d'où `entryNote` : ce que la source dit exactement, par
+        case, et seulement là où elle nuance (3AN, 3BN, 3VG, 3VH, 8PL, 3CN, 2OP).
+        **Une alerte de la recherche déléguée, démentie par l'imprimé.** Le rapport signalait le seuil
+        de 305 € comme « possiblement obsolète depuis 2023 ». La ligne 51 du 2086 **millésime 2026**
+        dit le contraire, mot pour mot : « Si le total des prix de cession … est inférieur à 305 €,
+        vos cessions sont exonérées ». Sixième correction d'une recherche déléguée, et la troisième
+        dans le sens de la fausse alerte.
+        **Ce que l'écran refuse de faire**, et c'est ce qui le rend utile plutôt que dangereux :
+     - **Aucun montant sur une annexe ni sur une case à cocher.** Zéro recopié est une erreur.
+     - **Aucune case à zéro.** Une case vide n'est pas une case où écrire « 0 ».
+     - **Aucun nombre négatif.** Les termes sont signés, et c'est le signe du total qui choisit la
+       case : `3AN` reçoit `gains − pertes`, `3BN` reçoit `pertes − gains`, une seule sort positive.
+       La règle « plus-value ici, moins-value là » n'est écrite qu'une fois.
+     - **Aucun code forgé.** Une perte de prêt dont l'année d'origine dépasse les cinq cases
+       2TU→2TY ne reçoit pas de code : le moteur garde une cohorte tant que `année − origine ≤ 5`,
+       l'imprimé n'en couvre que cinq (`≤ 4`). L'écran le dit au lieu d'inventer.
+     - **Aucune conversion de devise.** Les autres écrans fiscaux appliquent `displayFromEur` ;
+       ici ce serait un faux — on ne remplit pas une déclaration française en francs suisses. Le
+       rappel est à l'écran, pas seulement dans le code.
+       **Les réserves sont le produit, pas une note de bas de page** : valeur globale de portefeuille
+       manquante, pays de source non désigné, retenue excédentaire non imputable, prélèvement non
+       ventilable, perte périmée, compte sans pays renseigné. Chacune ne sort que si elle s'applique.
+       **Le montant de 2TT est le NET, et la raison est arithmétique.** La fiche de calculs officielle
+       additionne 2TT telle quelle à 12,8 %, et les cases 2TU→2TY ne portent que les pertes « non
+       imputées » : l'imputation n'a donc nulle part ailleurs où se faire. L'écran affiche le calcul
+       (« intérêts − perte imputée ») pour qu'on puisse le contester. L'en-tête de l'écran Prêts, qui
+       annonçait 2TT au-dessus des intérêts **bruts**, est corrigé — on retire une affirmation fausse
+       plutôt que d'en ajouter une non sourcée.
+       **Le test E2E a d'abord été creux, et la mesure l'a dit.** Écrit sur le jeu de démonstration
+       crypto, il passait au vert sur une page **sans un seul montant** : hors ligne, l'historique des
+       cours ne se charge pas, donc la partie crypto n'apparaît jamais. Même famille que les décisions
+       n° 136 et 145. Réécrit sur le relevé de titres, qui produit des montants sans aucune cotation —
+       et la garde cherche désormais une année **avec un montant**, pas une année avec une ligne.
+       Le défaut ainsi trouvé était réel : l'écran affichait « en cours de chargement » indéfiniment.
+       Il nomme maintenant les cases absentes.
+       **Le test de mutation a fait le reste** (décision n° 147). Le module est né à **80,68 %** avec
+       74 survivants, dans un dossier qui tenait 100 %. Trois familles de manques, par ordre
+       d'importance : les **mots** (31 libellés remplaçables par `""` — ce sont les phrases lues sous
+       un montant qu'on recopie), les **absences** (chaque garde « année introuvable **ou** rien cette
+       année-là » n'était éprouvée que d'un côté), et l'**année** (quatre `find` rendaient la bonne
+       année par accident, les registres de test n'en contenant qu'une — le défaut de la décision
+       n° 141 à l'échelle d'un moteur). Après : **95,09 %**, et l'ensemble muté passe de 79,98 % à
+       **84,79 %**. Le cliquet `break` est resserré de 78 à **83** ; les 19 survivants restants sont
+       des mutants **équivalents**, listés et argumentés dans `docs/tests-de-mutation.md` plutôt que
+       chassés en tordant le code.
+       **Un troisième piège Stryker, documenté** : le bac à sable recopiait `.vite`, et deux
+       exécutions qui se chevauchent se disputent le même renommage — `EPERM (rename)`, de nouveau.
+       Réglé par `ignorePatterns`, dont les motifs doivent être **ancrés** (`/dist`) : un `dist` nu
+       exclut aussi `mcp/dist`, et la course initiale échoue alors sur un message qui envoie chercher
+       très loin de la cause.
+       **Ce qui reste ouvert, et n'est pas écrit à l'écran** : le report automatique de la 2074 vers
+       3VG/3VH n'est attesté par aucune source primaire relue ici (l'écran le dit, case par case), et
+       la date à partir de laquelle l'option pour le barème cesse d'être irrévocable n'est pas
+       établie — l'article 200 A en vigueur au 21/02/2026 ne porte plus le mot, aucune version future
+       n'est annoncée, mais une disposition transitoire non codifiée reste possible. L'écran renvoie à
+       la table de veille au lieu de redire le droit.
+       **Contre-épreuve** (décision n° 75), trois fois : faire pointer 2TT sur la 2042 C fait rougir
+       le test d'adossement **en nommant** « lending.interest — formulaire » ; donner un montant à la
+       case 2OP fait rougir l'E2E en nommant « 2OP (Case à cocher) » ; faire copier « 32,42 € » au
+       lieu de « 32,42 » fait rougir la vérification du presse-papiers. Restaurés, les quatre tests
+       E2E repassent au vert.

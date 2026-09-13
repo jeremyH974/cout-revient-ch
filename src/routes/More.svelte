@@ -22,6 +22,12 @@
       needsData: true,
     },
     {
+      route: { name: 'declaration' },
+      label: 'Ce qu’il faut reporter',
+      detail: 'Les cases de la déclaration, dans l’ordre, année par année',
+      needsData: true,
+    },
+    {
       route: { name: 'loans' },
       label: 'Prêts',
       detail: 'Financement participatif : apports, encours, rendement',

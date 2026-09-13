@@ -12,10 +12,10 @@ import { INTEREST_TAX_BOXES } from './interest-income-fr';
 import { TAX_BOXES as LENDING_BOXES } from './lending/tax-fr';
 import { TAX_BOXES, TAX_BOXES_DELIBERATELY_ABSENT, taxBox, taxBoxCodes } from './tax-boxes';
 
-/** Forme commune aux quatre registres locaux, `form` et `sourceId` manquant à celui des prêts. */
+/** Forme commune aux quatre registres locaux ; seul `sourceId` manque encore à celui des prêts. */
 interface LocalBox {
   box: string;
-  form?: string;
+  form: string;
   label: string;
   ref: string;
   sourceId?: string;
@@ -53,17 +53,34 @@ describe('registre canonique des cases', () => {
       }
   });
 
+  /**
+   * **Ce test n'avait rien à comparer pour les prêts, et une erreur est passée** (décision n° 149).
+   * Le registre des prêts n'avait pas de `form` ; le registre canonique plaçait 2TT, 2CK et 2CG sur
+   * la 2042 **C**, alors que le formulaire millésime 2026 les porte sur la **2042**. Un champ
+   * facultatif est un garde-fou qui s'endort : il est désormais exigé.
+   */
   it('porte le même formulaire et la même référence légale que les registres locaux', () => {
     for (const [family, registry] of locals)
       for (const [key, local] of Object.entries(registry)) {
         const code = local.box === LENDING_RANGE ? '2TU' : local.box;
         const canonical = taxBox(code)!;
         expect(canonical.ref, `${family}.${key} — référence`).toBe(local.ref);
-        // Le registre des prêts n'a pas de `form` : c'est l'écart que ce test rend visible sans le
-        // corriger, faute de pouvoir réécrire quatre modules sans risque.
-        if (local.form !== undefined)
-          expect(canonical.form, `${family}.${key} — formulaire`).toBe(local.form);
+        expect(local.form, `${family}.${key} — formulaire local absent`).not.toBe(undefined);
+        expect(canonical.form, `${family}.${key} — formulaire`).toBe(local.form);
       }
+  });
+
+  /**
+   * Le formulaire relevé sur les imprimés millésime 2026 eux-mêmes, code par code. C'est ce que
+   * l'utilisateur ouvrira : se tromper de formulaire lui fait chercher une case qui n'y est pas.
+   */
+  it('place chaque case sur le formulaire que porte l’imprimé officiel', () => {
+    const onForm: [string, string[]][] = [
+      ['2042', ['2DC', '2TS', '2TR', '2TT', '2CK', '2CG', '2OP']],
+      ['2042 C', ['8PL', '8VL', '3VG', '3VH', '3AN', '3BN', '3CN', '2TU']],
+    ];
+    for (const [form, codes] of onForm)
+      for (const code of codes) expect(taxBox(code)!.form, code).toBe(form);
   });
 
   it('porte le même libellé, sauf pour le 2047 qui en a un par famille', () => {
@@ -114,6 +131,8 @@ describe('registre canonique des cases', () => {
       ref: 'CGI art. 150 VH bis',
       sourceId: 'pfu-31_4',
       entry: 'carried',
+      entryNote:
+        'En ligne, l’annexe la remplit : « Le montant renseigné remplira automatiquement la case 3AN (plus-value) ou 3BN (moins-value) ». Sur papier, la ligne 52 du 2086 dit « à reporter ligne 3AN de la 2042 C » — c’est alors à vous de l’écrire.',
     });
     expect(taxBox('3BN')).toEqual({
       code: '3BN',
@@ -123,15 +142,19 @@ describe('registre canonique des cases', () => {
       ref: 'CGI art. 150 VH bis',
       sourceId: 'pfu-31_4',
       entry: 'carried',
+      entryNote:
+        'En ligne, l’annexe la remplit : « Le montant renseigné remplira automatiquement la case 3AN (plus-value) ou 3BN (moins-value) ». Sur papier, la ligne 52 du 2086 dit « à reporter ligne 3BN de la 2042 C » — c’est alors à vous de l’écrire.',
     });
     expect(taxBox('3CN')).toEqual({
       code: '3CN',
-      kind: 'box',
+      kind: 'checkbox',
       form: '2042 C',
       label: 'Option pour le barème progressif, propre aux crypto-actifs',
       ref: 'CGI art. 200 A',
       sourceId: 'bareme-progressif',
       entry: 'typed',
+      entryNote:
+        'Une case à cocher, sans montant : « n’oubliez pas de cocher la case 3CN de la 2042 C » (notice 2086). Distincte de la case 2OP, qui porte sur les revenus de capitaux mobiliers et les cessions de valeurs mobilières.',
     });
     expect(taxBox('3916-bis')).toEqual({
       code: '3916-bis',
@@ -152,7 +175,57 @@ describe('registre canonique des cases', () => {
       // Un `sourceId` présent doit pointer quelque part : `tax-source.test.ts` croise déjà les
       // identifiants avec la table de veille, mais rien n'interdisait la chaîne vide.
       if (box.sourceId !== undefined) expect(box.sourceId, `${box.code} — veille`).not.toBe('');
+      if (box.entryNote !== undefined) expect(box.entryNote, `${box.code} — nuance`).not.toBe('');
     }
+  });
+
+  /**
+   * Une case à **cocher** ne porte aucun montant : afficher un chiffre à recopier à côté d'elle
+   * ferait écrire un nombre là où il n'en faut aucun (décision n° 149). La liste est close — une
+   * case à montant reclassée `checkbox` par erreur ferait disparaître son montant de l'écran.
+   */
+  it('ne compte que deux cases à cocher, et ce sont les deux options pour le barème', () => {
+    const checkboxes = TAX_BOXES.filter((b) => b.kind === 'checkbox').map((b) => b.code);
+    expect(checkboxes).toEqual(['3CN', '2OP']);
+  });
+
+  it('donne un montant à toute case qui n’est ni une annexe ni une option', () => {
+    // L'autre sens : `kind: 'box'` doit rester la règle, et `form`/`checkbox` l'exception.
+    const amounts = TAX_BOXES.filter((b) => b.kind === 'box').map((b) => b.code);
+    expect(amounts).toEqual([
+      '2DC',
+      '2TS',
+      '2TR',
+      '8PL',
+      '8VL',
+      '3VG',
+      '3VH',
+      '3AN',
+      '3BN',
+      '2TT',
+      '2CK',
+      '2CG',
+      '2TU',
+    ]);
+  });
+
+  /**
+   * `entry` seul ferait dire à l'écran « l'annexe la remplit » là où ce n'est vrai qu'en ligne, ou
+   * pas établi du tout. Ces nuances sont la moitié de l'utilité de l'écran : elles se vérifient.
+   */
+  it('nuance le report exactement là où la source le nuance, et nulle part ailleurs', () => {
+    const noted = TAX_BOXES.filter((b) => b.entryNote !== undefined).map((b) => b.code);
+    expect(noted).toEqual(['8PL', '3VG', '3VH', '3AN', '3BN', '3CN', '2OP']);
+    expect(taxBox('8PL')!.entryNote).toBe(
+      'La notice 2047 millésime 2026 écrit que ce montant « doit être indiqué en 8PL, puis reporté dans la 2042 C » : il se calcule sur l’annexe, et c’est de là qu’il vient.',
+    );
+    for (const code of ['3VG', '3VH'])
+      expect(taxBox(code)!.entryNote, code).toBe(
+        'Le report automatique depuis la 2074 n’est affirmé par aucune source primaire relue ici : vérifiez la case après avoir validé l’annexe, et ne la saisissez que si elle est restée vide.',
+      );
+    expect(taxBox('2OP')!.entryNote).toBe(
+      'Une case à cocher, sans montant, et une décision que cette application ne prend pas : elle porte sur l’ensemble du foyer, dont elle ne connaît ni les autres revenus ni le taux marginal. Distincte de la case 3CN, propre aux crypto-actifs.',
+    );
   });
 
   it('rend `null` pour un code inconnu, jamais une entrée par défaut', () => {

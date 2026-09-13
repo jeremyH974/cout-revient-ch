@@ -53,6 +53,54 @@ correction : **87,5 %**.
 Les 172 survivants restants sont un **arriéré**, pas une urgence : chacun est une assertion
 manquante à écrire quand on retouche le module concerné.
 
+### Le relevé du 13/09/2026, après l'écran de déclaration
+
+| Périmètre                      |       Score | Survivants |
+| ------------------------------ | ----------: | ---------: |
+| **Ensemble muté**              | **84,79 %** |        179 |
+| `derive/` (5 fichiers)         |     96,15 % |         19 |
+| `derive/tax-return.ts`         |     95,09 % |         19 |
+| `domain/tax-boxes.ts`          |     94,24 % |         11 |
+| `domain/equity-income-fr.ts`   |     80,50 % |         31 |
+| `domain/lending/tax-fr.ts`     |     78,81 % |         31 |
+| `domain/interest-income-fr.ts` |     78,95 % |          8 |
+| `domain/equity-tax-fr.ts`      |     77,65 % |         19 |
+| `domain/declarations-fr.ts`    |     75,41 % |         17 |
+| `domain/tax-fr.ts`             |     70,65 % |         43 |
+
+`tax-return.ts` est né à **80,68 %** avec 74 survivants, dans un dossier qui tenait 100 %. Les tuer
+a demandé trois choses, dans cet ordre d'importance :
+
+1. **Vérifier les mots, pas seulement les nombres.** Trente et un mutants remplaçaient un libellé
+   de terme ou une phrase de réserve par `""`. Ce sont les mots que l'utilisateur lit **sous** un
+   montant qu'il recopie : ils se vérifient un par un, en entier.
+2. **Vérifier les absences.** Chaque famille a une garde `année introuvable **ou** rien cette
+année-là` ; seul le premier membre était éprouvé. Une année sans cession, sans dividende, sans
+   versement d'intérêts est un cas courant, et c'était un angle mort.
+3. **Vérifier que l'année demandée est bien celle qui ressort.** Quatre `find` rendaient la bonne
+   année par accident : les registres de test n'en contenaient qu'une. C'est exactement le défaut
+   de la décision n° 141, à l'échelle d'un moteur — des montants justes, pour la mauvaise année.
+
+### Les 19 survivants restants, et pourquoi ils restent
+
+Ce sont des **mutants équivalents** : la mutation ne peut pas changer le résultat. Écrit ici pour
+ne pas les re-instruire à chaque relevé.
+
+- **`return { contributions: [] }` → `["Stryker was here"]`** (9). Une contribution sans `boxCode`
+  ne correspond à aucune case : la liste sort identique. Un retour anticipé vide est indistinguable
+  d'un retour anticipé de déchets.
+- **La garde de type `contributed`** et le `mine.filter(contributed)` qui l'utilise (2). Seules les
+  lignes `kind: 'box'` l'atteignent, et leurs contributions portent toutes un montant. C'est une
+  ceinture qui ne sert que si un futur appelant marque une case à montant.
+- **`if (range === null) return null`** dans `carryBoxCode` (1). `taxBox('2TU')` ne rend jamais
+  `null` — un test du registre canonique l'exige déjà.
+- **La déduplication de famille dans `merge`** (2). Aucun moteur n'alimente aujourd'hui une même
+  case depuis deux familles : la branche existe pour le jour où cela arrivera.
+- **Cinq libellés** que seule une combinaison non atteignable distinguerait.
+
+La règle appliquée : on écrit une assertion quand elle décrit ce que l'utilisateur verrait
+changer. On ne tord pas le code pour faire tomber un mutant qui ne change rien.
+
 ## Comment on s'en sert
 
 ```bash
@@ -63,11 +111,11 @@ Environ **1 min 30 s**. Le rapport lisible sort dans `reports/mutation/index.htm
 par git). Un mutant survivant se lit comme une question : _quel test aurait dû rougir ici ?_ La
 réponse est presque toujours une **assertion** manquante, pas un test manquant.
 
-`thresholds.break` vaut **78**, posé **sous** le score mesuré : c'est un cliquet contre la
+`thresholds.break` vaut **83**, posé **sous** le score mesuré : c'est un cliquet contre la
 régression, jamais une cible. Un score qu'on atteint en écrivant des tests pour le chiffre ne vaut
 rien.
 
-## Deux pièges, vécus le premier jour
+## Trois pièges, tous vécus
 
 1. **Le fichier incrémental rejoue des résultats périmés.** `reports/stryker-incremental.json`
    conserve le verdict de fichiers **sortis du périmètre** : on croit mesurer, on relit un cache.
@@ -78,6 +126,14 @@ rien.
    même dossier et Windows refusait le renommage final. Réglé en sortant ce cache de
    `node_modules` — `cacheDir: '.vite'` dans `vite.config.ts`. L'erreur n'accusait ni le code ni les
    tests, ce qui est le pire des symptômes.
+
+3. **Le bac à sable recopie ce qu'il ne devrait pas** (13/09/2026). `.vite` — le cache de Vite
+   sorti de `node_modules` au piège n° 2 — se retrouvait copié **dans** le bac à sable, où deux
+   exécutions qui se chevauchent se disputent le même renommage : `EPERM (rename)` de nouveau, sur
+   un chemin qui n'accuse ni le code ni les tests. Réglé par `ignorePatterns` dans
+   `stryker.config.json`. **Ancrez les motifs avec `/`** : un `dist` nu exclut aussi `mcp/dist`,
+   dont un test a besoin, et la course initiale échoue alors sur « mcp/dist/server.js est
+   introuvable » — un message qui envoie chercher très loin de la cause.
 
 ## Le périmètre, et pourquoi il est étroit
 

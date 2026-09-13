@@ -22,8 +22,17 @@
  * Module pur : aucun montant, aucune horloge, aucun `Big`. C'est une table de vocabulaire.
  */
 
-/** Une case porte un montant ; un formulaire s'ouvre et se remplit. Ce ne sont pas les mêmes objets. */
-export type TaxBoxKind = 'box' | 'form';
+/**
+ * Une case porte un montant, une case à **cocher** n'en porte aucun, un formulaire s'ouvre et se
+ * remplit. Ce ne sont pas les mêmes objets, et l'écran de report ne les traite pas pareil.
+ *
+ * `checkbox` est né de l'écran (décision n° 149) : la notice du 2086 millésime 2026 écrit « Si vous
+ * optez pour l'imposition de vos plus-values au barème progressif, n'oubliez pas de **cocher** la
+ * case 3CN de la 2042 C ». Afficher un montant à recopier à côté d'une case qui se coche ferait
+ * écrire un chiffre là où il n'en faut aucun — et c'est précisément ce que l'écran aurait fait,
+ * `kind` ne distinguant que la case du formulaire.
+ */
+export type TaxBoxKind = 'box' | 'checkbox' | 'form';
 
 /**
  * D'où vient le montant **dans la déclaration en ligne**, pour la situation que cette application
@@ -56,6 +65,15 @@ export interface TaxBox {
   /** Entrée de veille qui porte le texte (`src/lib/watch/entries.ts`), quand il y en a une. */
   sourceId?: string;
   entry: TaxEntryMode;
+  /**
+   * Ce que la source dit **exactement** du report, quand `entry` seul induirait en erreur
+   * (décision n° 149). Trois cas réels, et trois seulement : le report vérifié en ligne mais
+   * manuel sur papier (3AN, 3BN), le report supposé mais non établi (3VG, 3VH), et la case qui se
+   * remplit sur une annexe avant d'être reportée (8PL).
+   *
+   * Écrit ici plutôt qu'à l'écran : c'est une donnée sourcée, pas une tournure de phrase.
+   */
+  entryNote?: string;
 }
 
 /**
@@ -112,6 +130,8 @@ export const TAX_BOXES: readonly TaxBox[] = [
     ref: 'CGI art. 199 ter',
     sourceId: 'case-8vl',
     entry: 'carried',
+    entryNote:
+      'La notice 2047 millésime 2026 écrit que ce montant « doit être indiqué en 8PL, puis reporté dans la 2042 C » : il se calcule sur l’annexe, et c’est de là qu’il vient.',
   },
   {
     code: '8VL',
@@ -150,6 +170,8 @@ export const TAX_BOXES: readonly TaxBox[] = [
     ref: 'CGI art. 150-0 D',
     sourceId: 'cases-3vg-3vh',
     entry: 'carried',
+    entryNote:
+      'Le report automatique depuis la 2074 n’est affirmé par aucune source primaire relue ici : vérifiez la case après avoir validé l’annexe, et ne la saisissez que si elle est restée vide.',
   },
   {
     code: '3VH',
@@ -159,6 +181,8 @@ export const TAX_BOXES: readonly TaxBox[] = [
     ref: 'CGI art. 150-0 D, 11',
     sourceId: 'report-mv-10-ans',
     entry: 'carried',
+    entryNote:
+      'Le report automatique depuis la 2074 n’est affirmé par aucune source primaire relue ici : vérifiez la case après avoir validé l’annexe, et ne la saisissez que si elle est restée vide.',
   },
 
   // --- 3. Cessions d'actifs numériques ----------------------------------------------------------
@@ -179,6 +203,8 @@ export const TAX_BOXES: readonly TaxBox[] = [
     ref: 'CGI art. 150 VH bis',
     sourceId: 'pfu-31_4',
     entry: 'carried',
+    entryNote:
+      'En ligne, l’annexe la remplit : « Le montant renseigné remplira automatiquement la case 3AN (plus-value) ou 3BN (moins-value) ». Sur papier, la ligne 52 du 2086 dit « à reporter ligne 3AN de la 2042 C » — c’est alors à vous de l’écrire.',
   },
   {
     code: '3BN',
@@ -188,22 +214,26 @@ export const TAX_BOXES: readonly TaxBox[] = [
     ref: 'CGI art. 150 VH bis',
     sourceId: 'pfu-31_4',
     entry: 'carried',
+    entryNote:
+      'En ligne, l’annexe la remplit : « Le montant renseigné remplira automatiquement la case 3AN (plus-value) ou 3BN (moins-value) ». Sur papier, la ligne 52 du 2086 dit « à reporter ligne 3BN de la 2042 C » — c’est alors à vous de l’écrire.',
   },
   {
     code: '3CN',
-    kind: 'box',
+    kind: 'checkbox',
     form: '2042 C',
     label: 'Option pour le barème progressif, propre aux crypto-actifs',
     ref: 'CGI art. 200 A',
     sourceId: 'bareme-progressif',
     entry: 'typed',
+    entryNote:
+      'Une case à cocher, sans montant : « n’oubliez pas de cocher la case 3CN de la 2042 C » (notice 2086). Distincte de la case 2OP, qui porte sur les revenus de capitaux mobiliers et les cessions de valeurs mobilières.',
   },
 
   // --- 4. Cases saisies directement --------------------------------------------------------------
   {
     code: '2TT',
     kind: 'box',
-    form: '2042 C',
+    form: '2042',
     label: 'Intérêts des prêts participatifs et des minibons',
     ref: 'CGI art. 125-00 A',
     sourceId: 'case-2tt',
@@ -212,7 +242,7 @@ export const TAX_BOXES: readonly TaxBox[] = [
   {
     code: '2CK',
     kind: 'box',
-    form: '2042 C',
+    form: '2042',
     label: 'Prélèvement forfaitaire déjà acquitté',
     ref: 'CGI art. 125 A',
     sourceId: 'pfu-rcm-31_4',
@@ -221,7 +251,7 @@ export const TAX_BOXES: readonly TaxBox[] = [
   {
     code: '2CG',
     kind: 'box',
-    form: '2042 C',
+    form: '2042',
     label: 'Revenus déjà soumis aux prélèvements sociaux',
     ref: 'CGI art. 125 A',
     sourceId: 'pfu-rcm-31_4',
@@ -239,12 +269,14 @@ export const TAX_BOXES: readonly TaxBox[] = [
   },
   {
     code: '2OP',
-    kind: 'box',
+    kind: 'checkbox',
     form: '2042',
     label: 'Option pour le barème progressif',
     ref: 'CGI art. 200 A',
     sourceId: 'bareme-progressif',
     entry: 'typed',
+    entryNote:
+      'Une case à cocher, sans montant, et une décision que cette application ne prend pas : elle porte sur l’ensemble du foyer, dont elle ne connaît ni les autres revenus ni le taux marginal. Distincte de la case 3CN, propre aux crypto-actifs.',
   },
 
   // --- 5. Comptes détenus à l'étranger -----------------------------------------------------------
