@@ -3705,3 +3705,40 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      d'origine remis en place — `cessionsToCsv(tax)` sans année — fait rougir le parcours E2E sur
      « Expected substring "/2026" · Received ""18/03/2025"" », c'est-à-dire sur une ligne d'un autre
      millésime dans le fichier d'une année choisie.
+
+142. **Le délai de reprise passe à dix ans, et le dépôt refusait de l'écrire** (13/09/2026).
+     **Un test interdisait une phrase, et c'était le bon réflexe.** `report-model.test.ts` portait
+     `expect(m.declarations?.note).not.toMatch(/\b10 ans\b/)` avec ce commentaire : « aucun délai de
+     prescription : non vérifié en source primaire ». L'étude P66 avait rencontré le chiffre chez des
+     praticiens et avait choisi de **ne pas l'afficher** plutôt que de le reprendre. Interdire par un
+     test ce qu'on ne peut pas prouver vaut mieux qu'un commentaire : c'est ce qui a fait que la
+     phrase n'est pas entrée par inadvertance pendant huit décisions.
+     **La source existe désormais, lue littéralement** : [LPF art. L. 169](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051759330),
+     version en vigueur au 01/07/2026. Trois points, cités : le droit de reprise s'exerce « jusqu'à
+     la fin de la troisième année qui suit celle au titre de laquelle l'imposition est due » ; il
+     va « jusqu'à la fin de la dixième année » lorsque les obligations des articles 123 bis, 209 B,
+     1649 A, 1649 AA, 1649 AB et **1649 bis C** n'ont pas été respectées ; et il « concerne les
+     **seuls** revenus ou bénéfices afférents aux obligations déclaratives qui n'ont pas été
+     respectées » — jamais toute l'imposition de l'année.
+     **Le piège est que 50 000 € existe deux fois, avec deux portées inverses.** Dans l'**amende**
+     (CGI art. 1736 X), le seuil double le montant par compte — 750 € portés à 1 500 € — et couvre
+     bien les comptes de crypto-actifs : l'app le disait déjà. Dans le **délai de reprise** (LPF art.
+     L. 169), il dispense de l'extension, mais « en cas de non-respect de l'obligation déclarative
+     prévue à l'article **1649 A** », c'est-à-dire les comptes bancaires, **et eux seuls**. Même
+     chiffre, périmètre opposé. Un compte de crypto-actifs modeste n'est donc pas couvert, et
+     confondre les deux seuils rassurerait à tort.
+     **Aucune obligation de conservation ne pèse sur le particulier**, et l'app ne prétend pas le
+     contraire : l'article L. 102 B du LPF vise ceux qui sont soumis à une obligation comptable. Ce
+     qui pèse est la **charge de la preuve** — sans pièce, un prix d'acquisition ne s'établit pas.
+     L'écran décrit donc l'effet du droit, jamais une action à faire : ni « pensez à garder », ni
+     « avant qu'il ne soit trop tard », conformément à la règle de la table de veille.
+     **Le fait opérationnel est ailleurs** : la plateforme conserve **moins longtemps** que le délai
+     auquel son client est exposé — de l'ordre de cinq à sept ans sous MiCA comme sous MiFID II,
+     _durées relevées sur des sources concordantes mais non recoupées sur les textes eux-mêmes, et
+     écrites comme telles_. Et rien ne dit ce que devient un historique après la perte d'agrément
+     d'une plateforme : c'est une inconnue, pas une durée courte. La sauvegarde de l'app emporte les
+     **lignes brutes** (`rawRows`, `pivotRows`), pas seulement les totaux : elle est donc utilisable
+     comme archive, ce qui est la seule raison pour laquelle cette section existe.
+     **Contre-épreuve** (décision n° 75) : faire dire à la note que la dispense des 50 000 € couvre
+     aussi les comptes de l'article 1649 bis C — l'erreur exacte que la section dénonce — fait rougir
+     le test sur « expected … to contain '1649 A' ».

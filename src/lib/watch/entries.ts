@@ -399,6 +399,23 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['cession'],
   },
   {
+    id: 'delai-reprise-10-ans',
+    title: 'Compte non déclaré : le délai de reprise passe à dix ans',
+    status: 'in-force',
+    statusDate: '2026-07-01',
+    effect:
+      'Une obligation déclarative non respectée — dont celle de l’article 1649 bis C — porte le droit de reprise de trois à dix ans, pour les seuls revenus qui s’y rattachent ; la dispense liée à un solde inférieur à 50 000 € ne vise que les comptes bancaires de l’article 1649 A',
+    source: {
+      label: 'LPF art. L. 169 (Légifrance), version en vigueur au 01/07/2026',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051759330',
+      official: true,
+      checkedOn: '2026-09-13',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-13',
+    topics: ['declaratif', 'detention'],
+  },
+  {
     id: 'dac8-collecte',
     title: 'Collecte DAC8/CARF par les plateformes',
     status: 'in-force',

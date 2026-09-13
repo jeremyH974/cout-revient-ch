@@ -26,6 +26,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Combien de temps garder vos relevés — la réponse est dans le rapport, et elle n'est pas trois
+  ans.** Un compte de crypto-actifs à l'étranger non déclaré fait passer le délai pendant lequel
+  l'administration peut revenir sur votre imposition de **trois à dix ans**, pour les seuls revenus
+  liés à ce compte. Attention au piège : le seuil de 50 000 € existe **deux fois**, et pas pour la
+  même chose. Il double l'amende (750 € → 1 500 €) et couvre alors bien les cryptos ; mais quand il
+  dispense du délai de dix ans, il ne vise **que les comptes bancaires**. Un petit compte crypto
+  n'est donc pas à l'abri.
+  À savoir aussi, et c'est la raison d'être de tout ceci : **votre plateforme garde vos historiques
+  moins longtemps que vous n'êtes exposé** (de l'ordre de cinq à sept ans), et personne ne sait ce
+  qu'ils deviennent si elle ferme. La sauvegarde de l'application, elle, emporte vos **lignes
+  brutes** — pas seulement les totaux : elle tient donc lieu d'archive.
+  L'application décrit ce que dit le texte ; elle ne vous dit pas quoi faire, et ce n'est toujours
+  ni une déclaration, ni un conseil fiscal.
+
 - **Les intérêts que la plateforme vous verse et les frais de change entrent enfin dans vos
   chiffres.** Sur votre relevé : **14 versements d'intérêts** et **38 frais de conversion**, qui
   n'étaient jusqu'ici que comptés et nommés. Les intérêts se déclarent case **2TR** — et non 2TT,

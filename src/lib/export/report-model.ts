@@ -905,7 +905,11 @@ function declarationsSection(
       'sont hors périmètre, y compris sous passeport européen MiCA. Sanctions estimées (article ' +
       '1736 X du CGI) : 750 € par compte non déclaré, 125 € par omission ou inexactitude, plafond ' +
       '10 000 € par déclaration — portés à 1 500 € et 250 € seulement si la valeur cumulée de vos ' +
-      'comptes dépasse 50 000 € à un moment de l’année. **Ce n’est ni une déclaration, ni un ' +
+      'comptes dépasse 50 000 € à un moment de l’année. Une obligation non respectée porte en ' +
+      'outre le délai de reprise de l’administration de trois à dix ans, pour les seuls revenus ' +
+      'qui s’y rattachent (article L. 169 du livre des procédures fiscales) ; la dispense liée à ' +
+      'un solde inférieur à 50 000 € n’y vise que les comptes bancaires de l’article 1649 A, pas ' +
+      'les comptes de crypto-actifs. **Ce n’est ni une déclaration, ni un ' +
       'conseil fiscal** : faites vérifier votre situation par un professionnel avant toute ' +
       'déclaration.',
     warnings,
