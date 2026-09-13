@@ -3764,3 +3764,48 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuve** (décision n° 75) : remettre un remplacement inopérant — le premier caractère
      par lui-même — fait rougir la nouvelle assertion sur « expected 'rqswwe…' not to be 'rqswwe…' »,
      c'est-à-dire sur l'absence d'altération, et non plus sur un refus manqué.
+
+144. **Une ligne de veille fraîche au sens de la barrière, et fausse au sens du droit** (13/09/2026).
+     **L'entrée `bareme-progressif` décrivait un droit disparu depuis sept mois.** Elle portait
+     `reviewedOn: '2026-08-29'` — donc parfaitement fraîche — et présentait l'option pour le barème
+     progressif comme une simple « alternative sur option expresse », sourcée sur une **version
+     périmée** de l'article 200 A. Or la loi de finances pour 2026 (LOI n° 2026-103 du 19/02/2026,
+     art. 126) a supprimé son caractère **irrévocable** : lu le 13/09/2026, l'article en vigueur
+     depuis le 21/02/2026 ne porte plus ces mots. Le choix se refait donc chaque année.
+     **La barrière de fraîcheur vérifie une date, pas une lecture.** `reviewedOn` prouve qu'on a
+     coché une case, jamais qu'on a rouvert le texte. Aucun test ne peut combler cet écart — « le
+     droit a-t-il changé ? » n'est pas mécanisable — et c'est désormais **écrit** dans
+     `veille-reglementaire.md` plutôt que laissé espérer. Même famille que la limite de la
+     décision n° 90.
+     **Une chose est mécanisable, et elle est en place.** Une adresse `codes/article_lc/LEGIARTI…`
+     désigne **une version** d'un article, pas l'article : quand le texte change, l'ancienne version
+     reste en ligne, inchangée et muette. Le libellé d'une telle source doit maintenant nommer la
+     version citée (« version en vigueur au JJ/MM/AAAA »), et un test l'exige. Cela ne détecte pas
+     un changement de droit — cela rend une citation périmée **visible à la lecture**. Trois entrées
+     sont concernées, toutes relues ce jour.
+     **Trois corrections et une addition.** `bareme-progressif` (texte, statut au 21/02/2026,
+     version citée, thème `revenus` ajouté : l'option est globale, donc elle commande aussi
+     dividendes et intérêts — c'est le fondement de la future P108) ; `seuil-305`, dont l'adresse
+     pointait une version antérieure à celle du 01/07/2026, rédigée en « crypto-actifs » ;
+     `nft-regime`, dont l'effet taisait que le **même article 91** remplace « actifs numériques »
+     par « crypto-actifs » dans tout le CGI. Addition : `carf-ratification-france`, `in-discussion`,
+     **sans adresse** — le projet de loi a été présenté en conseil des ministres le 27/07/2026 et
+     n'était pas examiné au 13/09/2026 ; `url: null` plutôt qu'une adresse inventée.
+     **La vérification a joué dans les deux sens, et c'est le point le plus utile.** La recherche
+     déléguée concluait que le millésime du PFU à 31,4 % pour les crypto-actifs reposait sur un
+     raisonnement et non sur un texte, et proposait de déclasser l'entrée en `doctrine-unsettled`.
+     Lecture faite de l'article 12 de la LFSS 2026 : la hausse de CSG s'applique aux **revenus du
+     patrimoine** (CSS art. L. 136-6) dès l'imposition des revenus de **2025**, et aux **produits de
+     placement** (L. 136-7) seulement au 01/01/2026. Les cessions de crypto-actifs relèvent du
+     premier. Le `{ from: 2025 }` de `TAX_RATES` est donc **bien fondé** : l'entrée reste
+     `confirmed`, son effet dit désormais pourquoi, et aucune fausse alerte n'a été créée. Une
+     recherche non vérifiée aurait dégradé une affirmation correcte.
+     **Deux propositions écartées, pour la même raison.** La saisie administrative à tiers détenteur
+     de crypto-actifs : annoncée à l'article 90 de la loi n° 2026-534, mais l'article 90 n'a pas pu
+     être lu — seul l'article 91 l'a été. La fin de la transition PSAN → CASP au 01/07/2026 :
+     l'article 143 de MiCA n'a pas été lu littéralement, et l'effet pratique pour l'utilisateur est
+     déjà couvert par `declarations-fr.md` (un agrément MiCA ne dispense pas du 3916-bis). Rien
+     n'entre dans la table sur la foi d'un rapport que je n'ai pas recoupé.
+     **Contre-épreuve** (décision n° 75) : rendre à `seuil-305` son ancien libellé sans version fait
+     rougir le nouveau test **en nommant l'entrée** — « seuil-305: expected 'CGI art. 150 VH bis
+     (Légifrance)' to match /version en vigueur au …/ ».

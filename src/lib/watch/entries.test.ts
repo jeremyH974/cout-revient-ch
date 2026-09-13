@@ -66,6 +66,20 @@ describe('table de veille réglementaire', () => {
     }
   });
 
+  it('nomme la version de tout article de code cité sur Légifrance', () => {
+    // Une adresse `codes/article_lc/LEGIARTI…` désigne UNE VERSION d'un article, pas l'article :
+    // quand le texte est modifié, l'ancienne version reste en ligne, inchangée et silencieuse.
+    // C'est exactement ainsi que l'option pour le barème est restée décrite comme irrévocable
+    // pendant sept mois après que la loi de finances pour 2026 eut supprimé ce caractère
+    // (décision n° 144). Aucun test ne peut savoir si le droit a bougé — mais il peut exiger que
+    // le libellé dise QUELLE version il cite, pour qu'une citation périmée se voie à la lecture.
+    const versioned = WATCH_ENTRIES.filter((e) => e.source.url?.includes('/codes/article_lc/'));
+    expect(versioned.length).toBeGreaterThan(0);
+    for (const entry of versioned) {
+      expect(entry.source.label, entry.id).toMatch(/version en vigueur au \d{2}\/\d{2}\/\d{4}/);
+    }
+  });
+
   it('staleEntries ne rend rien aujourd’hui : toute la table est à jour', () => {
     const today = nowIso().slice(0, 10);
     expect(staleEntries(WATCH_ENTRIES, today)).toEqual([]);
@@ -112,6 +126,9 @@ describe('relevantTo', () => {
     const staking = relevantTo(WATCH_ENTRIES, 'revenus');
     expect(staking.map((e) => e.id).sort()).toEqual([
       'airdrops',
+      // L'option pour le barème ne relève pas que des cessions : elle est globale, donc elle
+      // commande aussi dividendes et intérêts — d'où son rattachement au thème (décision n° 144).
+      'bareme-progressif',
       'case-2tt',
       'case-8vl',
       'formulaire-2047-cadre-20',

@@ -26,6 +26,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Votre choix « flat tax ou barème » n'est plus définitif — et l'application le disait encore.**
+  L'écran Veille réglementaire présentait l'option pour le barème progressif comme un simple choix
+  annuel. Or la loi de finances pour 2026 a supprimé son caractère **irrévocable** : vous pouvez
+  désormais refaire ce choix chaque année. La ligne était pourtant marquée « relue » deux semaines
+  plus tôt — parce que la vérification automatique contrôle une **date**, pas une lecture. C'est
+  écrit noir sur blanc dans la documentation maintenant, faute de pouvoir l'automatiser.
+  Trois autres lignes ont été rouvertes au passage, et une a été ajoutée : l'accord international
+  qui étendrait l'échange de données fiscales **hors** Union européenne a été présenté en conseil
+  des ministres en juillet 2026, mais n'a **pas** été voté — l'écran le dit désormais ainsi.
+
 - **Combien de temps garder vos relevés — la réponse est dans le rapport, et elle n'est pas trois
   ans.** Un compte de crypto-actifs à l'étranger non déclaré fait passer le délai pendant lequel
   l'administration peut revenir sur votre imposition de **trois à dix ans**, pour les seuls revenus

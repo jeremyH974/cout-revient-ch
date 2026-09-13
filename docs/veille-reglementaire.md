@@ -21,6 +21,11 @@ son marquage **lisible par machine** n'a aucune norme technique stabilisée. Ce 
 fiscalité — c'est une obligation qui pèse sur ce que l'app affiche —, et c'est exactement ce pour
 quoi cette table existe : écrire ce qu'on sait, écrire ce qu'on ne sait pas, et le dater.
 
+La table en compte **vingt-trois** au 13/09/2026 : s'y sont ajoutées, au fil des briques, la
+fiscalité des titres et des dividendes, celle des prêts participatifs, puis — à la relecture du
+13/09/2026 (décisions n° 142 et 144) — le délai de reprise allongé des comptes non déclarés et la
+ratification française du CARF, encore en discussion.
+
 Chaque ligne porte : un statut codé, la date à laquelle ce statut est devenu vrai, une phrase sur
 son effet, sa source (avec son adresse quand elle a pu être confirmée), un degré de certitude
 (`confirmed` si un texte officiel permet de l'écrire, `secondary-only` si seuls des commentaires de
@@ -68,15 +73,42 @@ Le cron [`.github/workflows/watch.yml`](../.github/workflows/watch.yml) relance 
 par mois et ouvre (ou referme) une issue de rappel. Il ne régénère et n'écrit rien, contrairement
 au calendrier macro et aux indicateurs : son seul rôle est de signaler qu'une relecture est due.
 
+## Ce que la barrière de fraîcheur ne peut pas faire
+
+Elle vérifie **une date, pas une lecture**. `reviewedOn` prouve qu'on a coché une case ; il ne
+prouve pas qu'on a rouvert le texte, et encore moins qu'on a vu ce qui y avait changé.
+
+Ce n'est pas théorique. L'entrée `bareme-progressif` portait `reviewedOn: '2026-08-29'` — donc
+parfaitement fraîche au sens de la barrière — et décrivait pourtant un droit qui n'existait plus
+depuis le 21 février 2026 : la loi de finances pour 2026 avait supprimé le caractère **irrévocable**
+de l'option pour le barème, et la ligne ne le disait pas (décision n° 144).
+
+Aucun test ne peut combler cet écart : « le droit a-t-il changé ? » n'est pas une assertion
+mécanisable. Le vert de la CI ne vaut donc **jamais** relecture, et c'est écrit ici pour qu'on cesse
+de l'espérer. Même famille que la limite reconnue par la décision n° 90 : le dispositif adosse
+`ARCHITECTURE.md` au code, mais l'état d'une proposition n'est vérifiable par aucun test.
+
+Une chose, en revanche, **est** mécanisable, et elle rend une citation périmée visible à l'œil nu.
+Une adresse Légifrance de la forme `codes/article_lc/LEGIARTI…` désigne **une version** d'un
+article, pas l'article : quand le texte est modifié, l'ancienne version reste en ligne, inchangée et
+silencieuse — c'est précisément ce qui s'était produit. Le libellé d'une telle source doit donc
+nommer la version qu'il cite, sous la forme « version en vigueur au JJ/MM/AAAA », et
+[`entries.test.ts`](../src/lib/watch/entries.test.ts) l'exige. Un lecteur voit alors tout de suite
+si la version citée est ancienne.
+
 ## La marche à suivre pour relire une entrée
 
 1. Rouvrir sa source (`source.url`, ou chercher la référence donnée par `source.label` si aucune
-   adresse n'a pu être confirmée).
+   adresse n'a pu être confirmée). Sur Légifrance, vérifier **quelle version** s'affiche : l'adresse
+   d'une version périmée continue de fonctionner, sans le moindre avertissement.
 2. Mettre à jour `status`, `statusDate`, `effect` et `source` si le texte ou la doctrine ont changé.
+   Pour un article de code, faire figurer la version citée dans `source.label` (« version en vigueur
+   au JJ/MM/AAAA ») : le test l'exige, et c'est la seule trace de ce qui a été lu.
 3. Mettre `reviewedOn` à la date du jour, **que le statut ait changé ou non** : c'est la relecture
-   elle-même qui compte, pas seulement son résultat.
-4. `npm run check` : `entries.test.ts` revalide le format des dates, l'unicité des identifiants et
-   la barrière de fraîcheur.
+   elle-même qui compte, pas seulement son résultat. Et **ne pas** la mettre à jour sur une entrée
+   qu'on n'a pas rouverte — une relecture non faite vaut mieux qu'une relecture prétendue.
+4. `npm run check` : `entries.test.ts` revalide le format des dates, l'unicité des identifiants, la
+   présence de la version pour un article de code, et la barrière de fraîcheur.
 
 ## Les statuts
 

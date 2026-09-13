@@ -94,15 +94,16 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     title: 'Taux du prélèvement forfaitaire unique',
     status: 'in-force',
     statusDate: '2025-12-30',
-    effect: '31,4 % (12,8 % IR + 18,6 % PS) sur les cessions depuis l’année 2025 ; 30 % avant',
+    effect:
+      '31,4 % (12,8 % IR + 18,6 % PS) contre 30 % auparavant ; la hausse de CSG vaut pour les revenus du patrimoine — dont relèvent les cessions de crypto-actifs — dès l’imposition des revenus de 2025, alors qu’elle ne touche les produits de placement qu’au 1er janvier 2026',
     source: {
       label: 'LOI n° 2025-1403 du 30/12/2025 (LFSS 2026), art. 12, JORF 31/12/2025',
       url: 'https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000053226452',
       official: true,
-      checkedOn: '2026-08-29',
+      checkedOn: '2026-09-13',
     },
     certainty: 'confirmed',
-    reviewedOn: '2026-08-29',
+    reviewedOn: '2026-09-13',
     topics: ['cession'],
   },
   {
@@ -154,13 +155,13 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     effect:
       'Aucune imposition sous 305 € de cessions dans l’année ; au-delà, tout est imposable dès le premier euro',
     source: {
-      label: 'CGI art. 150 VH bis (Légifrance)',
-      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000038612228',
+      label: 'CGI art. 150 VH bis, version en vigueur au 01/07/2026 (Légifrance)',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000050366751',
       official: true,
-      checkedOn: '2026-08-29',
+      checkedOn: '2026-09-13',
     },
     certainty: 'confirmed',
-    reviewedOn: '2026-08-29',
+    reviewedOn: '2026-09-13',
     topics: ['cession'],
   },
   {
@@ -386,17 +387,19 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     id: 'bareme-progressif',
     title: 'Option pour le barème progressif',
     status: 'in-force',
-    statusDate: '2026-08-29',
-    effect: 'Alternative globale et annuelle au prélèvement forfaitaire, sur option expresse',
+    statusDate: '2026-02-21',
+    effect:
+      'Alternative globale et annuelle au prélèvement forfaitaire, sur option expresse ; cette option n’est plus irrévocable, la loi de finances pour 2026 ayant supprimé ce caractère au 2 de l’article 200 A',
     source: {
-      label: 'CGI art. 200 A (Légifrance)',
-      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000042909847',
+      label:
+        'CGI art. 200 A, version en vigueur au 21/02/2026 (Légifrance), modifié par la LOI n° 2026-103 du 19/02/2026, art. 126',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000053546896',
       official: true,
-      checkedOn: '2026-08-29',
+      checkedOn: '2026-09-13',
     },
     certainty: 'confirmed',
-    reviewedOn: '2026-08-29',
-    topics: ['cession'],
+    reviewedOn: '2026-09-13',
+    topics: ['cession', 'revenus'],
   },
   {
     id: 'delai-reprise-10-ans',
@@ -451,6 +454,24 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['declaratif'],
   },
   {
+    id: 'carf-ratification-france',
+    title: 'Ratification française du CARF (échange hors Union européenne)',
+    status: 'in-discussion',
+    statusDate: '2026-07-27',
+    effect:
+      'Le projet de loi autorisant la ratification de l’accord multilatéral CARF de l’OCDE, qui étendrait l’échange automatique au-delà de l’Union européenne, a été présenté en conseil des ministres le 27/07/2026 et n’avait pas été examiné par le Parlement au 13/09/2026',
+    source: {
+      label:
+        'Projet de loi de ratification de l’accord CARF/OCDE ; aucune adresse Légifrance confirmée, presse spécialisée seule',
+      url: null,
+      official: false,
+      checkedOn: '2026-09-13',
+    },
+    certainty: 'secondary-only',
+    reviewedOn: '2026-09-13',
+    topics: ['declaratif'],
+  },
+  {
     id: 'perpetuals-150-ter',
     title: 'Régime fiscal des perpetuals (dérivés)',
     status: 'doctrine-unsettled',
@@ -487,15 +508,15 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     status: 'adopted-final',
     statusDate: '2026-06-25',
     effect:
-      'Les jetons uniques sortent du régime de l’article 150 VH bis pour les cessions depuis le 01/01/2026 — hors périmètre de cette app, qui ne suit que des actifs fongibles',
+      'Les jetons uniques sortent du régime de l’article 150 VH bis pour les cessions depuis le 01/01/2026 — hors périmètre de cette app, qui ne suit que des actifs fongibles ; le même article remplace par ailleurs « actifs numériques » par « crypto-actifs » dans tout le code général des impôts, au sens du règlement (UE) 2023/1114',
     source: {
-      label: 'LOI n° 2026-534 du 25/06/2026, art. 90-91, JORF 26/06/2026',
+      label: 'LOI n° 2026-534 du 25/06/2026, art. 91, JORF 26/06/2026',
       url: 'https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000054310089',
       official: true,
-      checkedOn: '2026-08-29',
+      checkedOn: '2026-09-13',
     },
     certainty: 'confirmed',
-    reviewedOn: '2026-08-29',
+    reviewedOn: '2026-09-13',
     topics: ['nft', 'cession'],
   },
   {
