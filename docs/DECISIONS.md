@@ -3666,3 +3666,42 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      AUCUN test**, le filtre `vitest -t` ne matchant aucun titre : troisième occurrence après les
      décisions n° 137 et 138, et la boucle affiche désormais le nombre de tests exécutés — c'est ce
      compteur qui l'a dit.
+
+141. **Le rapport datait sa production, jamais l'année qu'il décrit** (13/09/2026).
+     **Un identifiant portait deux notions.** `generatedAt` disait _quand ce rapport a été produit_,
+     et son millésime servait aussi à dire _quelle année il décrit_ : récapitulatif DAC8, comptes à
+     déclarer au 3916-bis et constats fiscaux en dérivaient tous les trois. Conséquence datée : au
+     printemps 2027, au moment même où l'on remplit la déclaration de **2026**, l'écran aurait
+     montré trois mois de **2027**. Aucune erreur, aucun total qui détonne — un calcul juste sur la
+     mauvaise période, la famille de défauts la plus difficile à voir (n° 130, 135, 137, 140).
+     **Et l'export 2086 ne portait aucune année**, ni dans son contenu ni dans son nom, alors que
+     `cessionsToCsv(ledger, year)` accepte ce paramètre **depuis la décision n° 50** et que son
+     filtrage était déjà testé. Le moteur savait ; l'écran ne demandait pas.
+     **La règle est dans le moteur, pas dans le composant** (n° 94) : `declarationYear(today)` rend
+     l'année qu'on remplirait aujourd'hui — avant le 1er juillet, l'année précédente ; ensuite,
+     l'année courante. La campagne déclarative française se tient au printemps et porte sur l'année
+     passée ; après elle, plus aucune déclaration n'est ouverte. `today` reste un **paramètre** :
+     `tax-fr.ts` n'a pas d'horloge, et son en-tête le promet.
+     **Un défaut proposé n'est pas une donnée devinée.** Les décisions n° 124, 137 et 139 interdisent
+     de déduire une devise, un pays ou une position ; elles ne disent rien d'une valeur **nommée à
+     l'écran et modifiable d'un geste**. La différence tient à ce que l'utilisateur voit : ici
+     l'année retenue est écrite dans le sélecteur, dans le titre de la section 3916-bis et dans le
+     nom des deux fichiers exportés.
+     **Ce qui n'a PAS été touché, et c'est le plus important.** La section fiscale affichait déjà
+     les trois millésimes les plus récents en lignes de tableau (`report-model.ts`, sur `tax.years`
+     trié décroissant), comme l'écran Actions et ETF. Le motif maison est « une ligne par année », et
+     il fonctionne : seuls les **trois objets qui ne peuvent porter qu'une seule année** — DAC8,
+     3916-bis, annexe 2086 — avaient besoin d'un choix. Ajouter un sélecteur global aurait détruit
+     un affichage correct pour réparer trois points.
+     **Le constat « fin d'année fiscale » se gardait déjà tout seul** : `taxYearEndRule` exige
+     `today.slice(0, 4) === String(taxYear)`, donc il ne se déclenche jamais sur une année close. La
+     bascule du défaut vers N−1 ne pouvait pas le faire mentir — vérifié avant d'y toucher, pas après.
+     **Le titre du 3916-bis porte désormais son année** : un PDF circule détaché de l'écran qui l'a
+     produit, et rien d'autre n'y aurait dit de quelle année parle la liste de comptes.
+     **`declarableYears` n'offre jamais une année postérieure à aujourd'hui** : une date future dans
+     un relevé est une anomalie d'import, pas une année déclarable.
+     **Contre-épreuves** (décision n° 75), deux, chacune vue rouge en nommant son sujet : la bascule
+     avancée au 1er juin rend « expected 2027 to be 2026 » sur le test de la frontière ; et le bug
+     d'origine remis en place — `cessionsToCsv(tax)` sans année — fait rougir le parcours E2E sur
+     « Expected substring "/2026" · Received ""18/03/2025"" », c'est-à-dire sur une ligne d'un autre
+     millésime dans le fichier d'une année choisie.

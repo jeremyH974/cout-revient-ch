@@ -176,6 +176,12 @@ export interface ReportModelOptions {
   tax?: TaxLedger | null | undefined;
   /** Comptes à déclarer au formulaire 3916-bis (P66), calculés par l'appelant sur ses comptes. */
   declarations?: DeclarationReport | null | undefined;
+  /**
+   * Année décrite par la partie fiscale, **distincte de `generatedAt`** qui date la production du
+   * rapport (décision n° 141). Elle titre la section 3916-bis : sur un PDF détaché de l'écran qui
+   * l'a produit, rien d'autre ne dirait de quelle année parle la liste de comptes.
+   */
+  taxYear?: number | undefined;
   /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
   spread?: SpreadEstimate | null | undefined;
   /** Récapitulatif DAC8 de l’année en cours (décision n° 50), calculé par l’appelant. */
@@ -852,6 +858,7 @@ function taxSection(
  */
 function declarationsSection(
   declarations: DeclarationReport | null | undefined,
+  taxYear: number | undefined,
 ): ReportModel['declarations'] {
   if (!declarations) return null;
   const concerned = concernedDeclarations(declarations);
@@ -885,7 +892,10 @@ function declarationsSection(
   );
 
   return {
-    title: 'Comptes à déclarer (formulaire 3916-bis)',
+    title:
+      taxYear === undefined
+        ? 'Comptes à déclarer (formulaire 3916-bis)'
+        : `Comptes à déclarer au titre de ${taxYear} (formulaire 3916-bis)`,
     details,
     note:
       'Aide au report, déduite de vos comptes saisis : ni déclaration, ni conseil fiscal. Les ' +
@@ -1204,7 +1214,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
     tax: taxSection(opts.tax, opts.discreet, opts.dac8),
-    declarations: declarationsSection(opts.declarations),
+    declarations: declarationsSection(opts.declarations, opts.taxYear),
     watch: watchSection(),
     spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),

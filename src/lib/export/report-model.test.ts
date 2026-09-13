@@ -525,6 +525,18 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
     expect(m.declarations?.note).not.toMatch(/\b10 ans\b/);
   });
 
+  it('titre la liste avec l’année décrite, pour un PDF détaché de son écran', () => {
+    // Sans l'année, un PDF de comptes à déclarer ne dit pas de quelle année il parle — et le
+    // rapport la dérivait de son instant de génération (décision n° 141).
+    const declarations = computeDeclarations({
+      accounts: [acc('csv:nl', 'csv', 'NL')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations, taxYear: 2026 });
+    expect(m.declarations?.title).toBe('Comptes à déclarer au titre de 2026 (formulaire 3916-bis)');
+  });
+
   it('avertit spécifiquement pour un compte auto-hébergé incertain, jamais promu', () => {
     const declarations = computeDeclarations({
       accounts: [acc('oc:btc', 'onchain')],

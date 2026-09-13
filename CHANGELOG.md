@@ -7,6 +7,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
+  les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
+  cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
+  **2026**, l'écran vous aurait montré trois mois de 2027. Et l'export « Cessions au format 2086 »
+  déversait **toutes vos années à la fois**, sans qu'aucune année figure dans le nom du fichier.
+  Désormais un choix « **Année déclarée** » commande les trois, et il est proposé sur l'année que
+  vous remplissez réellement : celle d'avant jusqu'au 30 juin, l'année en cours ensuite. L'année
+  retenue est écrite dans le sélecteur, dans le titre de la liste des comptes et dans le nom des
+  fichiers exportés — un PDF ou un CSV circule détaché de l'écran qui l'a produit.
+  Le tableau fiscal, lui, ne change pas : il montrait déjà vos trois derniers millésimes, ligne par
+  ligne, et c'était la bonne réponse.
+
 - **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
   **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
   classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle

@@ -12,7 +12,7 @@
   import { downloadReportPdf } from '$lib/export/pdf';
   import { buildInsights } from '$lib/domain/insights';
   import { computeDeclarations, concernedDeclarations } from '$lib/domain/declarations-fr';
-  import { dac8Summary } from '$lib/domain/tax-fr';
+  import { dac8Summary, declarableYears, declarationYear } from '$lib/domain/tax-fr';
   import { riskMetrics } from '$lib/domain/risk';
   import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
   import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
@@ -34,6 +34,18 @@
   let generatedAt = $state(nowIso());
   let busy = $state(false);
 
+  /**
+   * Année décrite par la partie fiscale — **distincte de `generatedAt`**, qui date la PRODUCTION
+   * du rapport (décision n° 141). Les confondre faisait décrire l'année civile en cours à l'instant
+   * même où l'on remplit la déclaration de l'année précédente : au printemps 2027, le récapitulatif
+   * DAC8 et les comptes à déclarer portaient sur trois mois de 2027.
+   *
+   * Le défaut suit la campagne déclarative (`declarationYear`) ; il est nommé à l'écran et se
+   * change d'un geste.
+   */
+  let taxYear = $state(declarationYear(nowIso().slice(0, 10)));
+  const yearChoices = $derived(declarableYears(app.events, generatedAt.slice(0, 10)));
+
   // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
   // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
   const performance = $derived(
@@ -50,8 +62,8 @@
       : null,
   );
 
-  /** Récapitulatif DAC8 de l’année en cours : à comparer à ce que la plateforme déclarera. */
-  const dac8 = $derived(dac8Summary(app.events, Number(generatedAt.slice(0, 4))));
+  /** Récapitulatif DAC8 de l’année décrite : à comparer à ce que la plateforme déclarera. */
+  const dac8 = $derived(dac8Summary(app.events, taxYear));
 
   /** Spread implicite : exige l’historique de prix, comme le risque et la fiscalité. */
   const spread = $derived(history.status.loadedAt === null ? null : history.spread());
@@ -67,7 +79,7 @@
     computeDeclarations({
       accounts: app.accounts,
       events: app.events,
-      year: Number(generatedAt.slice(0, 4)),
+      year: taxYear,
     }),
   );
 
@@ -83,7 +95,7 @@
       benchmark: performance?.benchmark ?? null,
       risk,
       tax,
-      taxYear: Number(generatedAt.slice(0, 4)),
+      taxYear,
       today: generatedAt.slice(0, 10),
     }),
   );
@@ -100,6 +112,7 @@
       risk,
       tax,
       declarations,
+      taxYear,
       spread,
       dac8,
       performance,
@@ -133,12 +146,14 @@
    */
   function downloadCessions(): void {
     if (!tax) return;
+    // Le 2086 se remplit POUR UNE ANNÉE : exporter tous les millésimes d'un coup obligeait à trier
+    // le fichier à la main, et l'année ne figurait nulle part dans son nom (décision n° 141).
     downloadText(
-      `cout-revient-ch-cessions-2086-${model.meta.dateStamp}.csv`,
-      cessionsToCsv(tax),
+      `cout-revient-ch-cessions-2086-${taxYear}-${model.meta.dateStamp}.csv`,
+      cessionsToCsv(tax, taxYear),
       'text/csv;charset=utf-8',
     );
-    toasts.push('Cessions exportées : à vérifier avant tout report.', 'success');
+    toasts.push(`Cessions ${taxYear} exportées : à vérifier avant tout report.`, 'success');
   }
 
   /**
@@ -147,11 +162,11 @@
    */
   function downloadDeclarations(): void {
     downloadText(
-      `cout-revient-ch-comptes-3916bis-${model.meta.dateStamp}.csv`,
+      `cout-revient-ch-comptes-3916bis-${taxYear}-${model.meta.dateStamp}.csv`,
       accountDeclarationsToCsv(declarations),
       'text/csv;charset=utf-8',
     );
-    toasts.push('Comptes exportés : à vérifier avant tout report.', 'success');
+    toasts.push(`Comptes ${taxYear} exportés : à vérifier avant tout report.`, 'success');
   }
 
   async function copyDeclarations(): Promise<void> {
@@ -261,6 +276,16 @@
 <AppBar title="Rapport de portefeuille" back />
 
 <div class="actions">
+  <!-- L'année DÉCRITE, jamais celle de la génération (décision n° 141). Le 2086, le 3916-bis et le
+       récapitulatif DAC8 ne portent que sur une année, et au printemps on remplit celle d'avant. -->
+  <label class="year"
+    >Année déclarée
+    <select bind:value={taxYear}>
+      {#each yearChoices as year (year)}
+        <option value={year}>{year}</option>
+      {/each}
+    </select>
+  </label>
   <button class="primary" type="button" onclick={() => void download()} disabled={busy}>
     {busy ? 'Génération…' : 'Télécharger le PDF'}
   </button>
@@ -561,6 +586,13 @@
     max-width: 960px;
     margin: 0 auto;
     padding: var(--space-3);
+  }
+  .year {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: 0.9rem;
+    color: var(--muted);
   }
   .primary,
   .secondary {

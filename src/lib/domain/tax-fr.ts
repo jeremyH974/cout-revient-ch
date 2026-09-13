@@ -68,6 +68,48 @@ export function rateFor(year: number): TaxRate {
 }
 
 /**
+ * Mois à partir duquel la déclaration « en cours » bascule sur l'année civile courante. La
+ * campagne déclarative française se tient au printemps et porte sur l'année précédente : jusqu'au
+ * 30 juin, l'année qu'on remplit est donc l'année passée ; à partir du 1er juillet, plus aucune
+ * déclaration n'est ouverte et la seule année encore à venir est l'année courante.
+ */
+const DECLARATION_TURNS_TO_CURRENT_YEAR_IN_MONTH = 7;
+
+/**
+ * Année sur laquelle porte la déclaration qu'on remplirait aujourd'hui.
+ *
+ * C'est un **défaut d'affichage**, pas une déduction sur des données : l'année retenue est
+ * toujours nommée à l'écran et l'utilisateur en change d'un geste. La distinction compte — ce
+ * projet ne devine jamais une donnée (décisions n° 124, 137, 139), mais proposer une valeur
+ * visible et modifiable n'est pas deviner.
+ *
+ * `today` est fourni par l'appelant : ce module n'a pas d'horloge (voir l'en-tête).
+ */
+export function declarationYear(today: string): number {
+  const year = Number(today.slice(0, 4));
+  const month = Number(today.slice(5, 7));
+  return month < DECLARATION_TURNS_TO_CURRENT_YEAR_IN_MONTH ? year - 1 : year;
+}
+
+/**
+ * Années qu'un rapport peut décrire, de la plus récente à la plus ancienne : celles où le grand
+ * livre porte quelque chose, plus l'année de la déclaration en cours et l'année civile courante.
+ *
+ * Une année sans la moindre opération reste une réponse utile — « rien à déclarer pour 2025 » est
+ * une information, pas un trou. En revanche rien au-delà de l'année courante : une date future
+ * dans un relevé est une anomalie d'import, pas une année déclarable.
+ */
+export function declarableYears(events: readonly LedgerEvent[], today: string): number[] {
+  const currentYear = Number(today.slice(0, 4));
+  const years = new Set<number>([declarationYear(today), currentYear]);
+  for (const event of events) {
+    const year = yearOf(event.at);
+    if (year <= currentYear) years.add(year);
+  }
+  return [...years].sort((a, b) => b - a);
+}
+
+/**
  * Seuil d'exonération : si la SOMME DES PRIX DE CESSION de l'année (hors échanges en sursis) ne
  * dépasse pas 305 €, la plus-value n'est pas imposable. Au-delà, tout est imposable dès le
  * premier euro — ce n'est pas un abattement.
