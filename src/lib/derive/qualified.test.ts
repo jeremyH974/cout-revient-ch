@@ -75,15 +75,19 @@ describe('qualifications rattachées à leur origine', () => {
     expect(summary?.rawType, 'le type vient de la PREMIÈRE ligne').toBe('Depot');
   });
 
-  it('une ligne sans identifiant se rattache par sa clé', () => {
+  it('une ligne sans identifiant se rattache par sa clé, et une autre clé est écartée', () => {
+    // Le voisin `k7` est le cœur du test, et il manquait : sans lui, remplacer la comparaison de
+    // clés par `true` laissait passer TOUTES les lignes sans identifiant, et aucun test ne s'en
+    // apercevait. Survivant trouvé par le test de mutation (décision n° 147).
     const [summary] = qualifiedSummaries(
       { 'ch:k9': reward },
       {},
       {
         k9: row({ key: 'k9', id: null, lineNo: 3, type: 'Achat' }),
+        k7: row({ key: 'k7', id: null, lineNo: 1, type: 'Vente' }),
       },
     );
-    expect(summary?.lineNumbers).toEqual([3]);
+    expect(summary?.lineNumbers, 'la ligne 1 appartient à une autre clé').toEqual([3]);
     expect(summary?.rawType).toBe('Achat');
   });
 
@@ -102,6 +106,13 @@ describe('qualifications rattachées à leur origine', () => {
         k0: row({ key: 'k0', lineNo: 0 }),
       },
     );
+    expect(summary?.lineNumbers).toEqual([]);
+  });
+
+  it('écarte aussi un numéro de ligne nul venu du PIVOT, pas seulement de Coinhouse', () => {
+    // La branche Coinhouse était gardée, la branche pivot ne l'était pas : son mutant survivait
+    // (décision n° 147). Deux chemins, deux tests — un seul ne prouve pas l'autre.
+    const [summary] = qualifiedSummaries({ p0: reward }, { p0: pivot({ lineNo: 0 }) }, {});
     expect(summary?.lineNumbers).toEqual([]);
   });
 

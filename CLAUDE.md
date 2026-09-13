@@ -18,6 +18,14 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm run bench` — mesure le coût du moteur (`tests/perf/*.bench.ts`), **hors CI** : Vitest ne
   ramasse que `*.test.ts`. Le garde-fou qui tourne, lui, ne chronomètre rien — il compte des
   grandeurs déterministes (décisions n° 85 et 87).
+- `npm run mutation` — **test de mutation** (Stryker, ≈ 1 min 30 s) sur `src/lib/derive` et les sept
+  moteurs fiscaux de `src/lib/domain`, c'est-à-dire les modules **purs**. Il mesure ce que la
+  couverture ne dit pas : un mutant **survivant** est une ligne exécutée mais **jamais vérifiée**.
+  Premier relevé : `derive/` tenait 95 % de couverture avec **11,6 % de survivants**, et le registre
+  des cases écrit le jour même sortait à 63 %. Cliquet `break: 78`, posé **sous** le score mesuré
+  (79,98 %) — jamais une cible. Hors CI ; `src/state` et les `.svelte` sont hors périmètre. Deux
+  pièges (cache incrémental périmé, `EPERM` Windows) et ce qu'on a délibérément écarté :
+  `docs/tests-de-mutation.md`, décision n° 147.
 - `npm run build` / `npm run preview`
 - `npm run prive` / `npm run prive:build` / `npm run prive:serve` — **variante personnelle locale**
   (décision n° 121) : origine dédiée `http://crch.localhost:7331` au lieu de `localhost:5173`, qui

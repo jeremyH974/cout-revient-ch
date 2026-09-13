@@ -75,6 +75,16 @@ export default defineConfig(({ mode }) => {
   const isPrivate = mode === 'prive';
   return {
     base: isPrivate ? '/' : BASE,
+    /*
+     * Cache de pré-bundling HORS de `node_modules` (décision n° 147).
+     *
+     * Stryker relie `node_modules` à son bac à sable au lieu de le copier ; le cache de Vite y étant
+     * logé par défaut, deux processus écrivaient le même dossier et Windows refusait le renommage
+     * final — `EPERM: operation not permitted, rename …/deps___vitest___temp_… -> …/deps___vitest__`.
+     * Une exécution sur deux échouait, sur une erreur qui n'accusait ni le code ni les tests.
+     * Ici, chaque copie du projet a le sien.
+     */
+    cacheDir: '.vite',
     preview: {
       port: Number(process.env['PORT']) || (isPrivate ? PRIVATE_PORT : 4173),
       strictPort: false,
@@ -229,10 +239,17 @@ export default defineConfig(({ mode }) => {
           branches: 65,
           'src/lib/domain/**/*.ts': { lines: 90, statements: 90, functions: 88, branches: 75 },
           'src/lib/derive/**/*.ts': { lines: 95, statements: 95, functions: 95, branches: 90 },
-          // Relevé de 1 à 2 le 01/09/2026 : `ui.svelte.ts` est désormais testé (décision n° 88).
-          // Le plancher reste dérisoire — il ne prétend pas mesurer la qualité de `src/state`, il
-          // empêche seulement d'y ajouter du code non testé sans que rien ne le dise.
-          'src/state/**/*.ts': { lines: 2, statements: 2, functions: 4, branches: 0 },
+          /*
+           * Relevé de 1 à 2 le 01/09/2026 (`ui.svelte.ts` testé, décision n° 88), puis resserré sur
+           * les valeurs MESURÉES le 13/09/2026 (décision n° 147) : un cliquet qu'on ne resserre
+           * jamais est une décoration. Le plancher reste dérisoire et ne prétend rien mesurer — il
+           * empêche seulement d'ajouter du code non testé dans `src/state` sans que rien ne le dise.
+           *
+           * Il ne montera pas beaucoup plus haut par des tests : `app.svelte.ts` est une classe à
+           * runes couplée au navigateur. La voie qui marche est l'EXTRACTION vers `src/lib/derive`
+           * (décision n° 94), où le seuil est de 95 % et où Stryker passe.
+           */
+          'src/state/**/*.ts': { lines: 2.6, statements: 2.4, functions: 4.4, branches: 0.3 },
         },
       },
     },

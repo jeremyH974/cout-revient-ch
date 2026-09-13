@@ -18,6 +18,13 @@ export default ts.config(
       // Bundle du serveur MCP : code généré, jamais relu à la main.
       'mcp/dist/',
       'coverage/',
+      // Cache de pré-bundling de Vite, sorti de `node_modules` pour que Stryker ne le partage pas
+      // avec son bac à sable (décision n° 147) — du code généré, tiers, jamais relu.
+      '.vite/',
+      // Bac à sable et rapports de Stryker : `.stryker-tmp` est une COPIE du projet, donc ESLint y
+      // relirait tout une seconde fois, mutations comprises.
+      '.stryker-tmp/',
+      'reports/',
       'node_modules/',
       'playwright-report/',
       'test-results/',

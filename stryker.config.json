@@ -1,0 +1,33 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/` et les sept moteurs fiscaux. Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 78` est un CLIQUET posé sous le score mesuré le 13/09/2026 (79,98 %), jamais une cible. Voir docs/tests-de-mutation.md.",
+  "packageManager": "npm",
+  "testRunner": "vitest",
+  "vitest": {
+    "configFile": "vite.config.ts"
+  },
+  "reporters": ["progress", "clear-text", "html"],
+  "coverageAnalysis": "perTest",
+  "mutate": [
+    "src/lib/derive/**/*.ts",
+    "src/lib/domain/tax-fr.ts",
+    "src/lib/domain/tax-boxes.ts",
+    "src/lib/domain/equity-tax-fr.ts",
+    "src/lib/domain/equity-income-fr.ts",
+    "src/lib/domain/interest-income-fr.ts",
+    "src/lib/domain/lending/tax-fr.ts",
+    "src/lib/domain/declarations-fr.ts",
+    "!**/*.test.ts"
+  ],
+  "incremental": true,
+  "incrementalFile": "reports/stryker-incremental.json",
+  "htmlReporter": {
+    "fileName": "reports/mutation/index.html"
+  },
+  "timeoutMS": 20000,
+  "thresholds": {
+    "high": 90,
+    "low": 80,
+    "break": 78
+  }
+}

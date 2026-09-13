@@ -1,6 +1,11 @@
 dist
 dev-dist
 coverage
+# Générés par Stryker et par Vite (décision n° 147) : `.stryker-tmp` est une copie du projet,
+# `.vite` le cache de pré-bundling sorti de `node_modules`, `reports` les rapports de mutation.
+.stryker-tmp
+.vite
+reports
 node_modules
 playwright-report
 test-results
