@@ -8,7 +8,7 @@ import {
   type EngineSettings,
   type LedgerEvent,
 } from '../types';
-import { runLedger } from './compute';
+import { ledgerMatches, runLedger, type LedgerRun } from './compute';
 import { checkBalances, type BalanceRecord } from './integrity';
 import type { PositionState } from './position';
 import type {
@@ -26,6 +26,18 @@ export interface ComputeInput {
   prices: Record<AssetCode, PriceQuoteInput>;
   settings: EngineSettings;
   balances?: readonly BalanceRecord[];
+  /**
+   * Grand livre **déjà joué** sur ces mêmes événements et ces mêmes réglages (décision n° 151).
+   *
+   * Le rejouer coûte cher : la mesure donne 1,9 s pour 1 600 opérations, et un seul écran le
+   * rejouait **trois fois** — une pour le rapport, une pour le consolidé de la vue par compte, une
+   * par compte. Le passer ici en économise une à chaque fois.
+   *
+   * **Il ne peut pas fausser un chiffre** : `ledgerMatches` vérifie par identité de référence que
+   * ce résultat vient bien de ces entrées-là, et un résultat qui ne correspond pas est **rejoué**
+   * plutôt que cru. Les prix n'y entrent pas : ils ne servent qu'à la valorisation, après coup.
+   */
+  ledger?: LedgerRun;
 }
 
 /** Sous ce montant, une position résiduelle est traitée comme clôturée (« poussière »). */
@@ -105,7 +117,9 @@ const byValueDesc = (a: PositionReport, b: PositionReport): number =>
   (b.value ?? ZERO).cmp(a.value ?? ZERO) || a.asset.localeCompare(b.asset);
 
 export function computePortfolio(input: ComputeInput): PortfolioReport {
-  const run = runLedger(input.events, input.settings);
+  const run = ledgerMatches(input.ledger, input.events, input.settings)
+    ? input.ledger
+    : runLedger(input.events, input.settings);
   // Contrôle de solde : quantités des seuls événements Coinhouse (les saisies « hors Coinhouse » sont exclues).
   const finalQty: Record<AssetCode, string> = {};
   for (const [asset, qty] of run.coinhouseQty) finalQty[asset] = qty.toString();
@@ -216,7 +230,9 @@ export function computePortfolioByAccount(input: ComputeInput): Map<AccountId, P
   // Virements internes : dans la vue par compte, le retrait apparié vit dans un AUTRE grand
   // livre ; le coût qui voyage est donc pris au run consolidé puis estampillé sur le dépôt, et le
   // lien est retiré pour que chaque compte se rejoue de façon autonome.
-  const consolidated = runLedger(input.events, input.settings);
+  const consolidated = ledgerMatches(input.ledger, input.events, input.settings)
+    ? input.ledger
+    : runLedger(input.events, input.settings);
   const stamped = input.events.map((event): LedgerEvent => {
     if (event.kind !== 'deposit' || event.transferFrom === undefined) return event;
     const carried = consolidated.transferCosts.get(event.transferFrom);

@@ -123,7 +123,10 @@
     toutes deux natives à `crypto.subtle` (`src/lib/storage/encryption.ts`, zéro dépendance).
     Argon2id, pourtant recommandé par l'OWASP en 2024+, a été écarté : il n'existe qu'en WebAssembly
     ou en JS pur, une dépendance de plus dans le chemin critique « restaurer mes données » pour un
-    gain marginal face à la menace réelle (vol du fichier, pas une ferme de calcul dédiée). Une
+    gain marginal face à la menace réelle (vol du fichier, pas une ferme de calcul dédiée).
+    **Cet arbitrage a été renversé le 14/09/2026** (décision n° 151) : la dépendance était déjà là
+    depuis que le coffre du navigateur avait pris Argon2id, et la sauvegarde — le seul fichier qui
+    VOYAGE — gardait le KDF le plus faible. Les fichiers écrits sous ce régime restent lisibles. Une
     phrase secrète perdue rend la sauvegarde définitivement irrécupérable — aucun compte, aucun
     service de réinitialisation. `fake-indexeddb` (dépendance de développement uniquement, jamais
     importée en production) simule IndexedDB dans les tests Vitest (environnement Node, sans
@@ -4150,3 +4153,99 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      test des taux en nommant la ligne et l'addition ; afficher l'assiette exacte au lieu de la
      somme des lignes arrondies fait rougir l'E2E sur « 3379 attendu, 3378 reçu » ; écrire « vous
      devriez cocher cette case » fait rougir le test qui interdit de conseiller.
+
+151. **Le fil n'était pas le problème, et la sauvegarde avait le KDF le plus faible** (14/09/2026).
+
+     ## P110 — la mesure a retourné la proposition, pour la deuxième fois
+
+     **Ce que P110 proposait** : sortir le calcul du fil qui dessine l'écran, dans un Web Worker.
+     **Ce que la mesure a dit** : le fil n'est pas le problème.
+
+     Le banc d'essai du dépôt (`npm run bench`, décision n° 85) donne, pour des achats et des ventes
+     alternés : 400 opérations en 129 ms, 800 en 608 ms, 1 600 en **3,0 s**, 3 200 en **11,3 s**.
+     Dans le navigateur, c'était pire : pour 3 000 opérations, 7,2 s d'import et **29,3 s** pour
+     ouvrir le portefeuille, dont une tâche bloquante de **19,4 s**. Un Web Worker aurait rendu ces
+     secondes **animées** au lieu de **figées**. Il n'en aurait raccourci aucune.
+
+     **Deux causes, et aucune n'est le fil.**
+
+     1. **Le grand livre était rejoué trois fois pour un seul écran.** Mesuré : à 1 600 opérations,
+        `runLedger` seul coûte 1,9 s, `computePortfolio` 2,6 s, la vue par compte 5,5 s — soit
+        **8,0 s** pour un écran, parce que chaque appel repartait des événements. Or les prix
+        n'entrent pas dans le grand livre : ils ne servent qu'à la valorisation, après coup.
+     2. **Le moteur reste quadratique**, et c'est l'autre moitié — traitée plus bas.
+
+     **Ce qui est livré : le grand livre se joue une fois et se partage.** `LedgerRun` porte
+     désormais les entrées EXACTES qui l'ont produit, et `ledgerMatches` vérifie par **identité de
+     référence** qu'un grand livre proposé vient bien de ces entrées-là. Un grand livre qui ne
+     correspond pas est **rejoué**, jamais cru : une optimisation qui peut rendre un mauvais chiffre
+     n'est pas une optimisation. Un faux négatif ne coûte qu'un recalcul ; un faux positif est
+     impossible par construction.
+
+     **Gain mesuré, navigateur, 3 000 opérations** : ouverture du portefeuille **29,3 s → 162 ms**
+     (180 fois moins), cumul des tâches bloquantes **36,3 s → 7,8 s**. À 1 000 opérations,
+     1 841 ms → 109 ms. L'import (7,7 s) reste, et c'est le quadratique.
+
+     **Le garde-fou COMPTE au lieu de chronométrer** (décision n° 85) : un test dénombre les rejeux
+     du grand livre pour chaque combinaison — 0 avec un grand livre fourni, 1 sans, 1 pour la vue
+     par compte avec, 2 sans. Grandeur déterministe, cause exacte du coût, aucun bruit de runner.
+
+     **Pourquoi PAS de Web Worker, en plus de la mesure.** La recherche a ajouté trois obstacles que
+     la proposition ignorait, et chacun suffirait :
+     - Le rapport est fait de **milliers de petits objets** et d'instances `Big.js`. Le clonage
+       structuré **perd les prototypes** : chaque montant devrait être sérialisé puis reconstruit,
+       à travers tout le modèle. Et sur Chromium, une multitude de petits objets transférables
+       dégénère de façon non linéaire (200 000 lignes : 7,6 s) — le transfert pourrait coûter plus
+       que le calcul économisé.
+     - Un worker Vite est un **graphe de build indépendant** : `big.js` et le moteur entier seraient
+       dupliqués dans leur propre morceau.
+     - `$derived` est **synchrone** en Svelte 5 stable ; l'asynchrone est derrière un drapeau
+       expérimental dont le retrait est annoncé pour Svelte 6.
+
+     Un worker reste pensable le jour où l'import lui-même deviendra le point douloureux. Ce jour
+     n'est pas venu, et il viendra plus tard encore une fois le quadratique traité.
+
+     **Ce qui reste, nommé** : `position.ts` ne purge jamais sa liste de lots, et la méthode
+     proportionnelle n'en épuise aucun — chaque cession touche donc **tous** les lots, d'où
+     `achats × ventes` objets de trace. Les montants, eux, ne dépendent pas des lots : `costOfSale`
+     vient de `costBasis`. **Le quadratique est le prix de la TRACE, pas du calcul.** Deux voies
+     existent, aucune n'est sans risque : regrouper les plus vieux lots de même origine au-delà d'un
+     plafond (les montants sont préservés, la trace perd du détail là où elle est déjà illisible), ou
+     dériver l'état d'un lot d'un facteur de rétention cumulé (élégant, mais change la sémantique de
+     précision). Écrit ici pour que ce soit une décision, pas une improvisation.
+
+     ## P114 — la sauvegarde qui voyage avait la serrure la plus faible
+
+     **Le constat.** Le coffre du navigateur dérivait en **Argon2id** (décision n° 120) ; la
+     sauvegarde exportée, en **PBKDF2**. Deux forces pour la même menace — un fichier volé, attaqué
+     hors ligne, sans limite de tentatives — et la plus faible protégeait **le seul fichier qui
+     quitte la machine** : celui qu'on copie sur une clé, qu'on envoie dans un nuage, qu'on oublie
+     dans un dossier de téléchargements.
+
+     **L'argument qui justifiait PBKDF2 était devenu faux.** `encryption.ts` écrivait qu'Argon2id
+     « n'existe qu'en WebAssembly ou en JS pur ici — une dépendance de plus dans le chemin critique
+     _restaurer mes données_ ». La dépendance était **déjà là** depuis que le coffre l'avait prise.
+
+     **Un seul module pour les deux** (`storage/kdf.ts`) : mêmes paramètres, même dérivation, et un
+     test qui l'exige — les laisser diverger referait exactement le défaut corrigé ici.
+
+     **Pourquoi du JavaScript pur, et c'est le point le plus contre-intuitif.** Toutes les
+     implémentations WebAssembly d'Argon2 — `hash-wasm`, `argon2-browser`, `argon2ian` — exigent
+     **`wasm-unsafe-eval` dans la CSP**. Ce n'est pas une limite de ces bibliothèques mais de la
+     plateforme : la spécification CSP le réclame pour toute compilation WebAssembly. Les adopter
+     reviendrait à **trouer la CSP stricte de l'application pour renforcer un mot de passe** —
+     échanger une protection contre une autre en croyant additionner. `@noble/hashes` est en
+     JavaScript pur, déjà en production, activement maintenu, et ne demande aucune exception. Le prix
+     est la vitesse (~250 ms), payée une fois par export.
+
+     **Les anciennes sauvegardes s'ouvrent toujours, et un fichier gelé le prouve.** L'enveloppe
+     passe en **version 2** (`kdf: 'argon2id'`, paramètres en clair dans l'en-tête, comme `age` ou
+     JWE) ; la **version 1** reste lue, avec ses propres itérations lues dans son en-tête. Un fichier
+     v1 complet — sel, IV, texte chiffré — est figé dans le test et déchiffré à chaque exécution. Il
+     n'est jamais régénéré : le régénérer reviendrait à ne plus rien prouver. Une sauvegarde est une
+     assurance ; elle ne vaut que si elle s'ouvre le jour où tout le reste a disparu.
+
+     **Contre-épreuve** (décision n° 75), deux fois : faire répondre `false` à `ledgerMatches` fait
+     rougir le compteur de rejeux en nommant le cas — « rapport avec grand livre fourni : 1 attendu
+     0 » ; déchiffrer un fichier de version 1 avec les paramètres d'Argon2id fait rougir le test du
+     fichier gelé. Restaurés, les deux repassent au vert.

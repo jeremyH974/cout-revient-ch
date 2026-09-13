@@ -25,7 +25,11 @@ test('sauvegarde chiffrée → effacement → restauration avec la phrase secrè
   expect(file.suggestedFilename()).toMatch(/-chiffree\.json$/);
   const backupPath = await file.path();
   const envelope = JSON.parse(readFileSync(backupPath, 'utf8')) as Record<string, unknown>;
-  expect(envelope).toMatchObject({ encrypted: true, kdf: 'PBKDF2', iterations: 600_000 });
+  // Argon2id depuis la décision n° 151 : c'est le fichier qui VOYAGE, il ne peut pas garder le KDF
+  // le plus faible. Les paramètres voyagent en clair, pour qu'on puisse les relever un jour sans
+  // rendre illisible un seul fichier déjà écrit.
+  expect(envelope).toMatchObject({ encrypted: true, version: 2, kdf: 'argon2id' });
+  expect(envelope['params']).toMatchObject({ m: expect.any(Number), t: expect.any(Number) });
   expect(JSON.stringify(envelope)).not.toContain('rawRows');
 
   await page.getByRole('button', { name: 'Effacer toutes les données' }).click();

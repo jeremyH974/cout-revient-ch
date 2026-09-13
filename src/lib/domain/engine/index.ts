@@ -1,5 +1,5 @@
 export { computePortfolio, computePortfolioByAccount, type ComputeInput } from './aggregate';
-export { runLedger, sortEvents } from './compute';
+export { ledgerMatches, runLedger, sortEvents, type LedgerRun } from './compute';
 export { checkBalances, type BalanceRecord } from './integrity';
 export {
   TRACE_EPSILON,

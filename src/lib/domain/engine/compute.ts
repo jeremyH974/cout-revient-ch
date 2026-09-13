@@ -86,6 +86,30 @@ export interface LedgerRun {
   /** Quantités des seuls événements de scope 'coinhouse', pour le contrôle de solde. */
   coinhouseQty: Map<AssetCode, Big>;
   warnings: string[];
+  /**
+   * Les entrées EXACTES qui ont produit ce résultat (décision n° 151).
+   *
+   * Elles sont là pour qu'un grand livre déjà joué puisse être **réutilisé sans risque** : un
+   * appelant qui en propose un se voit vérifié par identité de référence, et un résultat qui ne
+   * correspond pas est **ignoré** plutôt que cru. Une optimisation qui peut rendre un mauvais
+   * chiffre n'est pas une optimisation ; celle-ci ne le peut pas, par construction.
+   */
+  source: { events: readonly LedgerEvent[]; settings: EngineSettings };
+}
+
+/**
+ * Ce grand livre a-t-il été joué sur EXACTEMENT ces entrées ?
+ *
+ * Identité de référence, et non égalité profonde : comparer des milliers d'événements coûterait
+ * ce qu'on cherche à économiser. Un faux négatif ne coûte qu'un recalcul ; un faux positif
+ * coûterait un chiffre faux, et il est impossible ici.
+ */
+export function ledgerMatches(
+  run: LedgerRun | undefined,
+  events: readonly LedgerEvent[],
+  settings: EngineSettings,
+): run is LedgerRun {
+  return run !== undefined && run.source.events === events && run.source.settings === settings;
 }
 
 const move = (event: LedgerEvent, kind: Movement['kind'], extra?: Partial<Movement>): Movement => ({
@@ -125,6 +149,7 @@ export function runLedger(events: readonly LedgerEvent[], settings: EngineSettin
     cashFlows: [],
     coinhouseQty: new Map(),
     warnings: [],
+    source: { events, settings },
   };
   const track = (event: LedgerEvent, asset: AssetCode, signed: Big): void => {
     if (event.scope !== 'coinhouse' || isFiat(asset)) return;
