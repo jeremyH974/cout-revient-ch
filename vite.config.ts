@@ -238,7 +238,11 @@ export default defineConfig(({ mode }) => {
           functions: 75,
           branches: 65,
           'src/lib/domain/**/*.ts': { lines: 90, statements: 90, functions: 88, branches: 75 },
-          'src/lib/derive/**/*.ts': { lines: 95, statements: 95, functions: 95, branches: 90 },
+          // Resserré de 95/90 aux valeurs mesurées le 13/09/2026 (décision n° 149) : 98,93 % de
+          // lignes et 98,27 % de branches, pour 100 % de lignes et de fonctions. Le dossier est
+          // aussi le seul que Stryker tient au-dessus de 96 % — la couverture y est un plancher,
+          // la mutation le vrai plafond.
+          'src/lib/derive/**/*.ts': { lines: 98, statements: 98, functions: 100, branches: 98 },
           /*
            * Relevé de 1 à 2 le 01/09/2026 (`ui.svelte.ts` testé, décision n° 88), puis resserré sur
            * les valeurs MESURÉES le 13/09/2026 (décision n° 147) : un cliquet qu'on ne resserre

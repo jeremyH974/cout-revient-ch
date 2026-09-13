@@ -172,7 +172,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/derive` — les dérivations qui portaient une **règle** et vivaient dans `src/state`, sorties
   en fonctions pures testables (décision n° 94) : priorité des cotations (prix manuel > direct >
   cache), comptes implicites (trois comptes existent parce que des données existent), rattachement
-  d'une qualification à ses lignes brutes. Le câblage réactif, lui, reste dans `src/state` : l'y
+  d'une qualification à ses lignes brutes, et l'aplatissement des cinq moteurs fiscaux en une liste
+  de cases à remplir (`tax-return.ts`, décision n° 149). Le câblage réactif, lui, reste dans `src/state` : l'y
   extraire déplacerait du code sans rien rendre testable.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
@@ -206,15 +207,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
-  - **Plus** (`#/more`) : `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
-    `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et déclarés,
-    permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM suivie en
-    lecture seule, et porte le bouton « Synchroniser ».
+  - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
+    `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
+    déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM
+    suivie en lecture seule, et porte le bouton « Synchroniser ». `routes/Declaration.svelte`
+    (`#/declaration`) réunit les cinq moteurs fiscaux pour **une** année, case par case et dans
+    l'ordre du parcours en ligne (décision n° 149).
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
   `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
-  `tradeStats`, `fills`, `more`, `market`, `watch`, `accounts`, `reconciliation`, `settings`,
-  `help`, `news`, `privacy`.
+  `tradeStats`, `fills`, `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
+  `settings`, `help`, `news`, `privacy`.
 
   L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu
   « Plus » — ce document affirmait le contraire jusqu'au 01/09/2026 (décision n° 90).

@@ -65,26 +65,44 @@ export const LOSS_CAP_EUR: DecimalString = '8000';
 /** « L'année … ou des cinq années suivantes » (BOFiP § 105). */
 export const LOSS_CARRY_YEARS = 5;
 
-/** Cases de la déclaration, avec leur fondement — affichées à côté de chaque montant. */
+/**
+ * Cases de la déclaration, avec leur fondement — affichées à côté de chaque montant.
+ *
+ * **`form` n'est pas décoratif, et son absence a laissé passer une erreur** (décision n° 149) : ce
+ * registre était le seul des quatre à ne pas porter le formulaire, donc le test qui adosse les
+ * quatre au registre canonique n'avait rien à comparer. Le registre canonique plaçait 2TT, 2CK et
+ * 2CG sur la 2042 **C** ; les trois sont sur la **2042** (relevé sur le formulaire millésime 2026 :
+ * « Intérêts des prêts participatifs et des minibons … 2TT »). Seule la plage 2TU→2TY est bien sur
+ * la 2042 C.
+ */
 export const TAX_BOXES = {
   interest: {
     box: '2TT',
+    form: '2042',
     label: 'Intérêts des prêts participatifs et des minibons',
     ref: 'CGI art. 125-00 A',
   },
   incomeTaxCredit: {
     box: '2CK',
+    form: '2042',
     label: 'Prélèvement forfaitaire déjà acquitté',
     ref: 'CGI art. 125 A',
   },
   social: {
     box: '2CG',
+    form: '2042',
     label: 'Revenus déjà soumis aux prélèvements sociaux',
     ref: 'CGI art. 125 A',
   },
-  option: { box: '2OP', label: 'Option pour le barème progressif', ref: 'CGI art. 200 A' },
+  option: {
+    box: '2OP',
+    form: '2042',
+    label: 'Option pour le barème progressif',
+    ref: 'CGI art. 200 A',
+  },
   carry: {
     box: '2TU→2TY',
+    form: '2042 C',
     label: 'Pertes non imputées à reporter, par année d’origine',
     ref: 'CGI art. 125-00 A',
   },
@@ -129,7 +147,7 @@ export interface LendingTaxYear {
   rate: RcmRate;
   /** Régime lu dans le taux effectivement retenu, jamais présumé. */
   withholding: WithholdingShape;
-  /** Case 2TT. **Fait**, lu dans l'export. */
+  /** Intérêts encaissés dans l'année. **Fait**, lu dans l'export. */
   interestGross: DecimalString;
   /** Prélèvements réellement retenus par la plateforme. **Fait**. */
   withheld: DecimalString;
@@ -144,7 +162,12 @@ export interface LendingTaxYear {
   lossRealised: DecimalString;
   /** Perte effectivement imputée sur les intérêts de l'année, plafond compris. */
   lossImputed: DecimalString;
-  /** Intérêts restant imposables après imputation. */
+  /**
+   * Intérêts restant imposables après imputation, et **c'est ce montant que reçoit la case 2TT**
+   * (décision n° 149). La fiche de calculs officielle additionne 2TT telle quelle à 12,8 %, et les
+   * cases 2TU à 2TY ne portent que les pertes « non imputées » : l'imputation n'a nulle part
+   * ailleurs où se faire. Déclarer le brut paierait l'impôt sur une perte déjà subie.
+   */
   taxableInterest: DecimalString;
   /** Reste à reporter au 31/12, par année d'origine — cases 2TU à 2TY. */
   carryForward: { origin: number; amount: DecimalString }[];
