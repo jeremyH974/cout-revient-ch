@@ -176,6 +176,12 @@ export interface ReportModelOptions {
   tax?: TaxLedger | null | undefined;
   /** Comptes à déclarer au formulaire 3916-bis (P66), calculés par l'appelant sur ses comptes. */
   declarations?: DeclarationReport | null | undefined;
+  /**
+   * Année décrite par la partie fiscale, **distincte de `generatedAt`** qui date la production du
+   * rapport (décision n° 141). Elle titre la section 3916-bis : sur un PDF détaché de l'écran qui
+   * l'a produit, rien d'autre ne dirait de quelle année parle la liste de comptes.
+   */
+  taxYear?: number | undefined;
   /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
   spread?: SpreadEstimate | null | undefined;
   /** Récapitulatif DAC8 de l’année en cours (décision n° 50), calculé par l’appelant. */
@@ -852,6 +858,7 @@ function taxSection(
  */
 function declarationsSection(
   declarations: DeclarationReport | null | undefined,
+  taxYear: number | undefined,
 ): ReportModel['declarations'] {
   if (!declarations) return null;
   const concerned = concernedDeclarations(declarations);
@@ -885,7 +892,10 @@ function declarationsSection(
   );
 
   return {
-    title: 'Comptes à déclarer (formulaire 3916-bis)',
+    title:
+      taxYear === undefined
+        ? 'Comptes à déclarer (formulaire 3916-bis)'
+        : `Comptes à déclarer au titre de ${taxYear} (formulaire 3916-bis)`,
     details,
     note:
       'Aide au report, déduite de vos comptes saisis : ni déclaration, ni conseil fiscal. Les ' +
@@ -895,7 +905,11 @@ function declarationsSection(
       'sont hors périmètre, y compris sous passeport européen MiCA. Sanctions estimées (article ' +
       '1736 X du CGI) : 750 € par compte non déclaré, 125 € par omission ou inexactitude, plafond ' +
       '10 000 € par déclaration — portés à 1 500 € et 250 € seulement si la valeur cumulée de vos ' +
-      'comptes dépasse 50 000 € à un moment de l’année. **Ce n’est ni une déclaration, ni un ' +
+      'comptes dépasse 50 000 € à un moment de l’année. Une obligation non respectée porte en ' +
+      'outre le délai de reprise de l’administration de trois à dix ans, pour les seuls revenus ' +
+      'qui s’y rattachent (article L. 169 du livre des procédures fiscales) ; la dispense liée à ' +
+      'un solde inférieur à 50 000 € n’y vise que les comptes bancaires de l’article 1649 A, pas ' +
+      'les comptes de crypto-actifs. **Ce n’est ni une déclaration, ni un ' +
       'conseil fiscal** : faites vérifier votre situation par un professionnel avant toute ' +
       'déclaration.',
     warnings,
@@ -1204,7 +1218,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     insights: insightsSection(opts.insights, opts.discreet, currency),
     risk: riskSection(opts.risk, f),
     tax: taxSection(opts.tax, opts.discreet, opts.dac8),
-    declarations: declarationsSection(opts.declarations),
+    declarations: declarationsSection(opts.declarations, opts.taxYear),
     watch: watchSection(),
     spread: spreadSection(opts.spread, report, f),
     subscription: subscriptionSection(opts.subscription, f),

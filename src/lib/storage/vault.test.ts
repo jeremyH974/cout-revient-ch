@@ -76,7 +76,13 @@ describe('coffre — refus', () => {
 
   it("refuse un en-tête dont la clé scellée a bougé, sans distinguer le cas d'un mauvais mot de passe", async () => {
     const { meta } = await createVault('le bon', { params: FAST });
-    const tampered = { ...meta, wrappedKey: `A${meta.wrappedKey.slice(1)}` };
+    // Écrire un « A » fixe en tête ne falsifiait RIEN une fois sur soixante-quatre : quand la clé
+    // scellée commençait déjà par « A », le test échouait sans qu'aucun code n'ait bougé
+    // (décision n° 143). Le caractère de remplacement se choisit donc contre l'original, et
+    // l'assertion qui suit fait prouver au test sa propre prémisse.
+    const head = meta.wrappedKey[0] === 'A' ? 'B' : 'A';
+    const tampered = { ...meta, wrappedKey: `${head}${meta.wrappedKey.slice(1)}` };
+    expect(tampered.wrappedKey).not.toBe(meta.wrappedKey);
     await expect(unlockVault(tampered, 'le bon')).rejects.toThrow(VAULT_LOCKED_ERROR);
   });
 

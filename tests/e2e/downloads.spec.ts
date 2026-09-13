@@ -106,3 +106,40 @@ test('un libellé de compte en forme de formule ressort désarmé du CSV', async
   expect(content, 'une cellule commence par « = » : Excel l’exécuterait').not.toContain('"=1+1"');
   expect(content, 'la garde n’a pas été appliquée').toContain(String.raw`"'=1+1"`);
 });
+
+/**
+ * L'annexe 2086 se remplit POUR UNE ANNÉE. Le Rapport dérivait la sienne de l'instant de
+ * génération — donc au printemps il décrivait l'année en cours au lieu de celle qu'on déclare — et
+ * l'export déversait tous les millésimes d'un coup (décision n° 141).
+ *
+ * Ce parcours garde le maillon que ni `cessionsToCsv` ni `declarationYear` ne couvrent : que
+ * l'écran passe bien l'année CHOISIE, et non une autre.
+ */
+test('l’annexe 2086 ne porte que l’année choisie', async ({ page }) => {
+  await openDemo(page);
+  await page.goto('#/report');
+  const picker = page.getByLabel('Année déclarée');
+  await expect(picker).toBeVisible();
+
+  const years = await picker
+    .locator('option')
+    .evaluateAll((options) => options.map((option) => (option as HTMLOptionElement).value));
+  expect(years.length).toBeGreaterThan(1);
+  // Décroissantes : la plus récente en tête, comme `declarableYears` les rend.
+  expect([...years].sort((a, b) => Number(b) - Number(a))).toEqual(years);
+
+  for (const year of years) {
+    await picker.selectOption(year);
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Cessions au format 2086 (CSV)' }).click();
+    const file = await download;
+    expect(file.suggestedFilename()).toContain(`-2086-${year}-`);
+
+    const content = readFileSync(await file.path(), 'utf8');
+    const rows = content.trimEnd().split('\r\n').slice(1);
+    for (const row of rows) {
+      // Première colonne : la date de la cession, en jj/mm/aaaa.
+      expect(row.slice(0, 12)).toContain(`/${year}`);
+    }
+  }
+});

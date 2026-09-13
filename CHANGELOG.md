@@ -7,12 +7,48 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
+  les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
+  cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
+  **2026**, l'écran vous aurait montré trois mois de 2027. Et l'export « Cessions au format 2086 »
+  déversait **toutes vos années à la fois**, sans qu'aucune année figure dans le nom du fichier.
+  Désormais un choix « **Année déclarée** » commande les trois, et il est proposé sur l'année que
+  vous remplissez réellement : celle d'avant jusqu'au 30 juin, l'année en cours ensuite. L'année
+  retenue est écrite dans le sélecteur, dans le titre de la liste des comptes et dans le nom des
+  fichiers exportés — un PDF ou un CSV circule détaché de l'écran qui l'a produit.
+  Le tableau fiscal, lui, ne change pas : il montrait déjà vos trois derniers millésimes, ligne par
+  ligne, et c'était la bonne réponse.
+
 - **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
   **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
   classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
   de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
 
 ### Added
+
+- **Votre choix « flat tax ou barème » n'est plus définitif — et l'application le disait encore.**
+  L'écran Veille réglementaire présentait l'option pour le barème progressif comme un simple choix
+  annuel. Or la loi de finances pour 2026 a supprimé son caractère **irrévocable** : vous pouvez
+  désormais refaire ce choix chaque année. La ligne était pourtant marquée « relue » deux semaines
+  plus tôt — parce que la vérification automatique contrôle une **date**, pas une lecture. C'est
+  écrit noir sur blanc dans la documentation maintenant, faute de pouvoir l'automatiser.
+  Trois autres lignes ont été rouvertes au passage, et une a été ajoutée : l'accord international
+  qui étendrait l'échange de données fiscales **hors** Union européenne a été présenté en conseil
+  des ministres en juillet 2026, mais n'a **pas** été voté — l'écran le dit désormais ainsi.
+
+- **Combien de temps garder vos relevés — la réponse est dans le rapport, et elle n'est pas trois
+  ans.** Un compte de crypto-actifs à l'étranger non déclaré fait passer le délai pendant lequel
+  l'administration peut revenir sur votre imposition de **trois à dix ans**, pour les seuls revenus
+  liés à ce compte. Attention au piège : le seuil de 50 000 € existe **deux fois**, et pas pour la
+  même chose. Il double l'amende (750 € → 1 500 €) et couvre alors bien les cryptos ; mais quand il
+  dispense du délai de dix ans, il ne vise **que les comptes bancaires**. Un petit compte crypto
+  n'est donc pas à l'abri.
+  À savoir aussi, et c'est la raison d'être de tout ceci : **votre plateforme garde vos historiques
+  moins longtemps que vous n'êtes exposé** (de l'ordre de cinq à sept ans), et personne ne sait ce
+  qu'ils deviennent si elle ferme. La sauvegarde de l'application, elle, emporte vos **lignes
+  brutes** — pas seulement les totaux : elle tient donc lieu d'archive.
+  L'application décrit ce que dit le texte ; elle ne vous dit pas quoi faire, et ce n'est toujours
+  ni une déclaration, ni un conseil fiscal.
 
 - **Les intérêts que la plateforme vous verse et les frais de change entrent enfin dans vos
   chiffres.** Sur votre relevé : **14 versements d'intérêts** et **38 frais de conversion**, qui

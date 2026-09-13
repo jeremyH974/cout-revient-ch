@@ -79,12 +79,58 @@ NFT — l'app le rappelle dans ses avertissements plutôt que de le taire.
 Chacune de ces situations produit un avertissement explicite dans la section du rapport quand elle
 concerne vos données.
 
+## Combien de temps conserver, et pourquoi ce n'est pas une obligation
+
+Deux notions se confondent facilement. L'application les sépare.
+
+**Le délai de reprise** est la durée pendant laquelle l'administration peut revenir sur une
+imposition. Il est de **trois ans** en règle générale — « jusqu'à la fin de la troisième année qui
+suit celle au titre de laquelle l'imposition est due ». Il passe à **dix ans** lorsque l'une des
+obligations déclaratives des articles 123 bis, 209 B, 1649 A, 1649 AA, 1649 AB et **1649 bis C** du
+CGI n'a pas été respectée — celle des comptes de crypto-actifs à l'étranger en fait partie. Le texte
+borne lui-même cette extension : elle « concerne les seuls revenus ou bénéfices afférents aux
+obligations déclaratives qui n'ont pas été respectées », et non toute l'imposition de l'année.
+Source : [LPF art. L. 169](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051759330),
+version en vigueur au 01/07/2026, lue le 13/09/2026.
+
+**Le piège est le seuil de 50 000 €**, parce qu'il existe deux fois et ne couvre pas la même chose :
+
+- dans l'**amende** (CGI art. 1736 X), il double le montant par compte — 750 € portés à 1 500 € — et
+  vise bien les comptes de crypto-actifs ;
+- dans le **délai de reprise** (LPF art. L. 169), il en dispense, mais « en cas de non-respect de
+  l'obligation déclarative prévue à l'article **1649 A** » — les comptes bancaires, et eux seuls.
+
+Un compte de crypto-actifs non déclaré n'est donc pas couvert par cette dispense, si modeste soit-il.
+Les deux seuils portent le même montant ; les confondre rassurerait à tort.
+
+**Aucun texte n'impose au particulier de conserver ses relevés.** L'obligation de six ans de l'article
+L. 102 B du LPF vise ceux qui sont soumis à une obligation comptable. Pour un particulier, la
+contrainte est d'une autre nature : c'est la **charge de la preuve**. Sans pièce, un prix
+d'acquisition ne s'établit pas — l'absence n'est pas une infraction, elle empêche seulement de
+contester.
+
+**Et la plateforme conserve moins longtemps que le délai auquel vous êtes exposé.** Un prestataire
+agréé au titre de MiCA, comme un courtier relevant de MiFID II, conserve ses enregistrements de
+l'ordre de cinq à sept ans — _durées relevées sur des sources concordantes mais **non recoupées sur
+les textes eux-mêmes**, contrairement à celles ci-dessus_. Rien, en revanche, ne garantit l'accès à
+un historique après la fermeture ou la perte d'agrément d'une plateforme : c'est une inconnue, pas
+une durée.
+
+C'est la seule raison d'être de cette section. La sauvegarde de l'application emporte les **lignes
+brutes** de vos relevés — `rawRows`, `pivotRows`, voir [`backup-format.md`](backup-format.md) — et
+non les seuls totaux : c'est ce qui la rend utilisable comme archive, indépendamment du sort de
+l'éditeur comme de celui de la plateforme.
+
 ## Ce que ça ne fait pas
 
 Pas de formulaire 3916-bis pré-rempli au sens administratif, pas de tranchage du cas auto-hébergé,
-pas de délai de prescription affiché, pas de suivi des NFT. Ces éléments restent hors périmètre de
+pas de suivi des NFT. Ces éléments restent hors périmètre de
 P66 ; voir [`proposals/2026-08-29-data-ia-et-agentique.md`](proposals/2026-08-29-data-ia-et-agentique.md)
 pour la suite envisagée (P67 — veille réglementaire compilée).
+
+Le délai de reprise, lui, **est** désormais affiché — il ne l'était pas : P66 avait refusé de
+l'écrire faute de source primaire, et un test l'interdisait explicitement. L'article a depuis été lu
+sur Légifrance (décision n° 142).
 
 **Faites vérifier votre situation par un professionnel avant toute déclaration.**
 

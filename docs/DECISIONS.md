@@ -3666,3 +3666,146 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      AUCUN test**, le filtre `vitest -t` ne matchant aucun titre : troisième occurrence après les
      décisions n° 137 et 138, et la boucle affiche désormais le nombre de tests exécutés — c'est ce
      compteur qui l'a dit.
+
+141. **Le rapport datait sa production, jamais l'année qu'il décrit** (13/09/2026).
+     **Un identifiant portait deux notions.** `generatedAt` disait _quand ce rapport a été produit_,
+     et son millésime servait aussi à dire _quelle année il décrit_ : récapitulatif DAC8, comptes à
+     déclarer au 3916-bis et constats fiscaux en dérivaient tous les trois. Conséquence datée : au
+     printemps 2027, au moment même où l'on remplit la déclaration de **2026**, l'écran aurait
+     montré trois mois de **2027**. Aucune erreur, aucun total qui détonne — un calcul juste sur la
+     mauvaise période, la famille de défauts la plus difficile à voir (n° 130, 135, 137, 140).
+     **Et l'export 2086 ne portait aucune année**, ni dans son contenu ni dans son nom, alors que
+     `cessionsToCsv(ledger, year)` accepte ce paramètre **depuis la décision n° 50** et que son
+     filtrage était déjà testé. Le moteur savait ; l'écran ne demandait pas.
+     **La règle est dans le moteur, pas dans le composant** (n° 94) : `declarationYear(today)` rend
+     l'année qu'on remplirait aujourd'hui — avant le 1er juillet, l'année précédente ; ensuite,
+     l'année courante. La campagne déclarative française se tient au printemps et porte sur l'année
+     passée ; après elle, plus aucune déclaration n'est ouverte. `today` reste un **paramètre** :
+     `tax-fr.ts` n'a pas d'horloge, et son en-tête le promet.
+     **Un défaut proposé n'est pas une donnée devinée.** Les décisions n° 124, 137 et 139 interdisent
+     de déduire une devise, un pays ou une position ; elles ne disent rien d'une valeur **nommée à
+     l'écran et modifiable d'un geste**. La différence tient à ce que l'utilisateur voit : ici
+     l'année retenue est écrite dans le sélecteur, dans le titre de la section 3916-bis et dans le
+     nom des deux fichiers exportés.
+     **Ce qui n'a PAS été touché, et c'est le plus important.** La section fiscale affichait déjà
+     les trois millésimes les plus récents en lignes de tableau (`report-model.ts`, sur `tax.years`
+     trié décroissant), comme l'écran Actions et ETF. Le motif maison est « une ligne par année », et
+     il fonctionne : seuls les **trois objets qui ne peuvent porter qu'une seule année** — DAC8,
+     3916-bis, annexe 2086 — avaient besoin d'un choix. Ajouter un sélecteur global aurait détruit
+     un affichage correct pour réparer trois points.
+     **Le constat « fin d'année fiscale » se gardait déjà tout seul** : `taxYearEndRule` exige
+     `today.slice(0, 4) === String(taxYear)`, donc il ne se déclenche jamais sur une année close. La
+     bascule du défaut vers N−1 ne pouvait pas le faire mentir — vérifié avant d'y toucher, pas après.
+     **Le titre du 3916-bis porte désormais son année** : un PDF circule détaché de l'écran qui l'a
+     produit, et rien d'autre n'y aurait dit de quelle année parle la liste de comptes.
+     **`declarableYears` n'offre jamais une année postérieure à aujourd'hui** : une date future dans
+     un relevé est une anomalie d'import, pas une année déclarable.
+     **Contre-épreuves** (décision n° 75), deux, chacune vue rouge en nommant son sujet : la bascule
+     avancée au 1er juin rend « expected 2027 to be 2026 » sur le test de la frontière ; et le bug
+     d'origine remis en place — `cessionsToCsv(tax)` sans année — fait rougir le parcours E2E sur
+     « Expected substring "/2026" · Received ""18/03/2025"" », c'est-à-dire sur une ligne d'un autre
+     millésime dans le fichier d'une année choisie.
+
+142. **Le délai de reprise passe à dix ans, et le dépôt refusait de l'écrire** (13/09/2026).
+     **Un test interdisait une phrase, et c'était le bon réflexe.** `report-model.test.ts` portait
+     `expect(m.declarations?.note).not.toMatch(/\b10 ans\b/)` avec ce commentaire : « aucun délai de
+     prescription : non vérifié en source primaire ». L'étude P66 avait rencontré le chiffre chez des
+     praticiens et avait choisi de **ne pas l'afficher** plutôt que de le reprendre. Interdire par un
+     test ce qu'on ne peut pas prouver vaut mieux qu'un commentaire : c'est ce qui a fait que la
+     phrase n'est pas entrée par inadvertance pendant huit décisions.
+     **La source existe désormais, lue littéralement** : [LPF art. L. 169](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051759330),
+     version en vigueur au 01/07/2026. Trois points, cités : le droit de reprise s'exerce « jusqu'à
+     la fin de la troisième année qui suit celle au titre de laquelle l'imposition est due » ; il
+     va « jusqu'à la fin de la dixième année » lorsque les obligations des articles 123 bis, 209 B,
+     1649 A, 1649 AA, 1649 AB et **1649 bis C** n'ont pas été respectées ; et il « concerne les
+     **seuls** revenus ou bénéfices afférents aux obligations déclaratives qui n'ont pas été
+     respectées » — jamais toute l'imposition de l'année.
+     **Le piège est que 50 000 € existe deux fois, avec deux portées inverses.** Dans l'**amende**
+     (CGI art. 1736 X), le seuil double le montant par compte — 750 € portés à 1 500 € — et couvre
+     bien les comptes de crypto-actifs : l'app le disait déjà. Dans le **délai de reprise** (LPF art.
+     L. 169), il dispense de l'extension, mais « en cas de non-respect de l'obligation déclarative
+     prévue à l'article **1649 A** », c'est-à-dire les comptes bancaires, **et eux seuls**. Même
+     chiffre, périmètre opposé. Un compte de crypto-actifs modeste n'est donc pas couvert, et
+     confondre les deux seuils rassurerait à tort.
+     **Aucune obligation de conservation ne pèse sur le particulier**, et l'app ne prétend pas le
+     contraire : l'article L. 102 B du LPF vise ceux qui sont soumis à une obligation comptable. Ce
+     qui pèse est la **charge de la preuve** — sans pièce, un prix d'acquisition ne s'établit pas.
+     L'écran décrit donc l'effet du droit, jamais une action à faire : ni « pensez à garder », ni
+     « avant qu'il ne soit trop tard », conformément à la règle de la table de veille.
+     **Le fait opérationnel est ailleurs** : la plateforme conserve **moins longtemps** que le délai
+     auquel son client est exposé — de l'ordre de cinq à sept ans sous MiCA comme sous MiFID II,
+     _durées relevées sur des sources concordantes mais non recoupées sur les textes eux-mêmes, et
+     écrites comme telles_. Et rien ne dit ce que devient un historique après la perte d'agrément
+     d'une plateforme : c'est une inconnue, pas une durée courte. La sauvegarde de l'app emporte les
+     **lignes brutes** (`rawRows`, `pivotRows`), pas seulement les totaux : elle est donc utilisable
+     comme archive, ce qui est la seule raison pour laquelle cette section existe.
+     **Contre-épreuve** (décision n° 75) : faire dire à la note que la dispense des 50 000 € couvre
+     aussi les comptes de l'article 1649 bis C — l'erreur exacte que la section dénonce — fait rougir
+     le test sur « expected … to contain '1649 A' ».
+
+143. **Un test qui échouait une fois sur soixante-quatre, sans qu'aucun code n'ait bougé**
+     (13/09/2026). Rencontré en passant : la suite complète a rougi sur `vault.test.ts` pendant la
+     décision n° 142, puis est repassée verte cinq fois de suite en isolation.
+     **La cause n'était pas l'aléa du chiffrement, mais une falsification qui ne falsifiait pas.**
+     Le test remplaçait le premier caractère de la clé scellée par un « A » fixe, puis attendait un
+     refus. Or `wrappedKey` est du base64 : une fois sur soixante-quatre, ce premier caractère **est
+     déjà** un « A ». L'en-tête restait alors identique à l'original, le coffre s'ouvrait
+     normalement — et le test criait au loup. Un garde-fou qui hurle à tort érode la confiance dans
+     la CI exactement comme un garde-fou muet : dans les deux cas, le vert cesse de vouloir dire
+     quelque chose.
+     **Le caractère de remplacement se choisit désormais contre l'original** (`'A'`, sauf si c'est
+     déjà `'A'`), et une assertion de plus fait **prouver au test sa propre prémisse** :
+     `expect(tampered.wrappedKey).not.toBe(meta.wrappedKey)`. C'est la vraie leçon — une
+     contre-épreuve doit vérifier qu'elle a bien altéré quelque chose avant d'attendre un refus.
+     **Même famille que la décision n° 136**, où la fixture de démonstration ne portait pas le piège
+     qu'elle était censée garder : le test existait, s'exécutait, passait, et ne prouvait pas ce
+     qu'il annonçait. Le voisin de la ligne 69, qui incrémente un octet modulo 256, n'a pas ce
+     défaut : `(x + 1) % 256` change toujours la valeur.
+     **Contre-épreuve** (décision n° 75) : remettre un remplacement inopérant — le premier caractère
+     par lui-même — fait rougir la nouvelle assertion sur « expected 'rqswwe…' not to be 'rqswwe…' »,
+     c'est-à-dire sur l'absence d'altération, et non plus sur un refus manqué.
+
+144. **Une ligne de veille fraîche au sens de la barrière, et fausse au sens du droit** (13/09/2026).
+     **L'entrée `bareme-progressif` décrivait un droit disparu depuis sept mois.** Elle portait
+     `reviewedOn: '2026-08-29'` — donc parfaitement fraîche — et présentait l'option pour le barème
+     progressif comme une simple « alternative sur option expresse », sourcée sur une **version
+     périmée** de l'article 200 A. Or la loi de finances pour 2026 (LOI n° 2026-103 du 19/02/2026,
+     art. 126) a supprimé son caractère **irrévocable** : lu le 13/09/2026, l'article en vigueur
+     depuis le 21/02/2026 ne porte plus ces mots. Le choix se refait donc chaque année.
+     **La barrière de fraîcheur vérifie une date, pas une lecture.** `reviewedOn` prouve qu'on a
+     coché une case, jamais qu'on a rouvert le texte. Aucun test ne peut combler cet écart — « le
+     droit a-t-il changé ? » n'est pas mécanisable — et c'est désormais **écrit** dans
+     `veille-reglementaire.md` plutôt que laissé espérer. Même famille que la limite de la
+     décision n° 90.
+     **Une chose est mécanisable, et elle est en place.** Une adresse `codes/article_lc/LEGIARTI…`
+     désigne **une version** d'un article, pas l'article : quand le texte change, l'ancienne version
+     reste en ligne, inchangée et muette. Le libellé d'une telle source doit maintenant nommer la
+     version citée (« version en vigueur au JJ/MM/AAAA »), et un test l'exige. Cela ne détecte pas
+     un changement de droit — cela rend une citation périmée **visible à la lecture**. Trois entrées
+     sont concernées, toutes relues ce jour.
+     **Trois corrections et une addition.** `bareme-progressif` (texte, statut au 21/02/2026,
+     version citée, thème `revenus` ajouté : l'option est globale, donc elle commande aussi
+     dividendes et intérêts — c'est le fondement de la future P108) ; `seuil-305`, dont l'adresse
+     pointait une version antérieure à celle du 01/07/2026, rédigée en « crypto-actifs » ;
+     `nft-regime`, dont l'effet taisait que le **même article 91** remplace « actifs numériques »
+     par « crypto-actifs » dans tout le CGI. Addition : `carf-ratification-france`, `in-discussion`,
+     **sans adresse** — le projet de loi a été présenté en conseil des ministres le 27/07/2026 et
+     n'était pas examiné au 13/09/2026 ; `url: null` plutôt qu'une adresse inventée.
+     **La vérification a joué dans les deux sens, et c'est le point le plus utile.** La recherche
+     déléguée concluait que le millésime du PFU à 31,4 % pour les crypto-actifs reposait sur un
+     raisonnement et non sur un texte, et proposait de déclasser l'entrée en `doctrine-unsettled`.
+     Lecture faite de l'article 12 de la LFSS 2026 : la hausse de CSG s'applique aux **revenus du
+     patrimoine** (CSS art. L. 136-6) dès l'imposition des revenus de **2025**, et aux **produits de
+     placement** (L. 136-7) seulement au 01/01/2026. Les cessions de crypto-actifs relèvent du
+     premier. Le `{ from: 2025 }` de `TAX_RATES` est donc **bien fondé** : l'entrée reste
+     `confirmed`, son effet dit désormais pourquoi, et aucune fausse alerte n'a été créée. Une
+     recherche non vérifiée aurait dégradé une affirmation correcte.
+     **Deux propositions écartées, pour la même raison.** La saisie administrative à tiers détenteur
+     de crypto-actifs : annoncée à l'article 90 de la loi n° 2026-534, mais l'article 90 n'a pas pu
+     être lu — seul l'article 91 l'a été. La fin de la transition PSAN → CASP au 01/07/2026 :
+     l'article 143 de MiCA n'a pas été lu littéralement, et l'effet pratique pour l'utilisateur est
+     déjà couvert par `declarations-fr.md` (un agrément MiCA ne dispense pas du 3916-bis). Rien
+     n'entre dans la table sur la foi d'un rapport que je n'ai pas recoupé.
+     **Contre-épreuve** (décision n° 75) : rendre à `seuil-305` son ancien libellé sans version fait
+     rougir le nouveau test **en nommant l'entrée** — « seuil-305: expected 'CGI art. 150 VH bis
+     (Légifrance)' to match /version en vigueur au …/ ».

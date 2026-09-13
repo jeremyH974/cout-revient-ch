@@ -4,6 +4,8 @@ import {
   EXEMPTION_THRESHOLD,
   computeFrenchTax,
   dac8Summary,
+  declarableYears,
+  declarationYear,
   previewCession,
   rateFor,
   taxKindOf,
@@ -359,5 +361,47 @@ describe('les valeurs mobilières ne sont pas des actifs numériques', () => {
       { closingValueAt: closing({ '2026-06-01': '0' }) },
     );
     expect(l.cessions).toHaveLength(1);
+  });
+});
+
+describe('quelle année le rapport décrit', () => {
+  it('la déclaration de printemps porte sur l’année précédente', () => {
+    expect(declarationYear('2027-05-15')).toBe(2026);
+    expect(declarationYear('2027-01-01')).toBe(2026);
+  });
+
+  it('bascule le 1er juillet, pas avant', () => {
+    expect(declarationYear('2027-06-30')).toBe(2026);
+    expect(declarationYear('2027-07-01')).toBe(2027);
+    expect(declarationYear('2027-12-31')).toBe(2027);
+  });
+
+  it('propose l’année déclarée et l’année courante même sans la moindre opération', () => {
+    expect(declarableYears([], '2027-05-15')).toEqual([2027, 2026]);
+  });
+
+  it('ajoute les années du grand livre, de la plus récente à la plus ancienne', () => {
+    const events = [
+      buy('2024-03-01T10:00:00', 'btc', '100'),
+      sell('2025-04-01T10:00:00', 'btc', '200'),
+    ];
+    expect(declarableYears(events, '2027-05-15')).toEqual([2027, 2026, 2025, 2024]);
+  });
+
+  it('n’offre jamais une année postérieure à aujourd’hui', () => {
+    // Une date future dans un relevé est une anomalie d'import, pas une année déclarable.
+    const events = [buy('2029-03-01T10:00:00', 'btc', '100')];
+    expect(declarableYears(events, '2027-05-15')).toEqual([2027, 2026]);
+  });
+
+  it('rend une liste strictement décroissante et sans doublon', () => {
+    const events = [
+      buy('2026-01-01T10:00:00', 'btc', '100'),
+      buy('2026-02-01T10:00:00', 'btc', '100'),
+      sell('2027-02-01T10:00:00', 'btc', '150'),
+    ];
+    const years = declarableYears(events, '2027-05-15');
+    expect(new Set(years).size).toBe(years.length);
+    expect([...years].sort((a, b) => b - a)).toEqual(years);
   });
 });

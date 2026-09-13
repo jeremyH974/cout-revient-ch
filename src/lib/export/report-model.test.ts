@@ -521,8 +521,27 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
     // Le régime de sanction sans seuil ne doit jamais s'afficher comme « 1 500 € sans condition ».
     expect(m.declarations?.note).toContain('1 500 €');
     expect(m.declarations?.note).toContain('50 000 €');
-    // Aucun délai de prescription : non vérifié en source primaire (voir l'étude P66).
-    expect(m.declarations?.note).not.toMatch(/\b10 ans\b/);
+    // Le délai de reprise allongé, que l'étude P66 avait refusé d'écrire faute de source primaire
+    // (décision n° 142) : l'article L. 169 du LPF a depuis été lu littéralement sur Légifrance.
+    expect(m.declarations?.note).toContain('trois à dix ans');
+    expect(m.declarations?.note).toContain('L. 169');
+    // Il ne vaut que pour les revenus liés à l'obligation manquée, jamais pour toute l'année.
+    expect(m.declarations?.note).toContain('les seuls revenus');
+    // Et la dispense des 50 000 € du délai de reprise ne couvre PAS les comptes de crypto-actifs :
+    // la confondre avec le seuil de l'amende (1736 X), qui les couvre, serait rassurer à tort.
+    expect(m.declarations?.note).toContain('1649 A');
+  });
+
+  it('titre la liste avec l’année décrite, pour un PDF détaché de son écran', () => {
+    // Sans l'année, un PDF de comptes à déclarer ne dit pas de quelle année il parle — et le
+    // rapport la dérivait de son instant de génération (décision n° 141).
+    const declarations = computeDeclarations({
+      accounts: [acc('csv:nl', 'csv', 'NL')],
+      events: [],
+      year: 2026,
+    });
+    const m = buildReportModel(report, { ...opts, declarations, taxYear: 2026 });
+    expect(m.declarations?.title).toBe('Comptes à déclarer au titre de 2026 (formulaire 3916-bis)');
   });
 
   it('avertit spécifiquement pour un compte auto-hébergé incertain, jamais promu', () => {
