@@ -299,6 +299,40 @@ générique acceptant un POST libre, ce qui n'existait pas le 31/08.
 **rétréci** plutôt que disparu — P84, P87, P92 et P93 sont leurs versions réduites à ce qui reste
 à faire.
 
+### 3 quinquies. Propositions issues de l'étude du 13/09/2026 (état de l'art contre la 2.17.0)
+
+Détail, sources datées et limites :
+[`proposals/2026-09-13-etat-de-lart.md`](proposals/2026-09-13-etat-de-lart.md).
+
+Constat central : le produit est mûr, aucune fonctionnalité évidente ne manque. Les trois manques
+réels sont ailleurs — **le Rapport ne sait pas de quelle année il parle** (l'année fiscale est
+dérivée de l'instant de génération), **la table de veille affirme du droit périmé** sur l'option
+pour le barème, et **les cinq moteurs fiscaux ne sont jamais totalisés**.
+
+| #    | Proposition                                      | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | ------------------------------------------------ | :----: | :-------: | :-----: | :------: | :-----: |
+| P105 | L'année fiscale se choisit dans le Rapport       |   5    |     4     |    3    |   0,5    | **24**  |
+| P112 | Conserver dix ans, pas trois                     |   2    |     3     |    1    |   0,25   | **24**  |
+| P106 | Relire la veille — la ligne « barème » d'abord   |   4    |     5     |    1    |   0,5    | **20**  |
+| P109 | Le coffre proposé, pas caché                     |   3    |     4     |    2    |   0,5    | **18**  |
+| P113 | Une sauvegarde qui existe aussi hors Chrome      |   3    |     5     |    2    |    1     | **10**  |
+| P107 | Le récapitulatif de déclaration, case par case   |   5    |     4     |    5    |    2     |  **7**  |
+| P111 | Mesurer la fiabilité là où elle manque           |   1    |     5     |    0    |    1     |  **6**  |
+| P110 | Le calcul hors du fil qui dessine l'écran        |   2    |     2     |    4    |   1,5    | **5,3** |
+| P108 | L'arbitrage PFU / barème, chiffré                |   5    |     3     |    5    |   2,5    | **5,2** |
+| P114 | Aligner le chiffrement de la sauvegarde exportée |   0    |     2     |    0    |   0,5    |  **4**  |
+
+**Ordre retenu** : P105 → P112 → P106 → P109 → P113 → P111 → P107 → P108 → P110 → P114. Il n'est
+pas celui du ROI brut : P106 conditionne P108 (sans la ligne corrigée, l'arbitrage n'a pas de
+fondement à citer), et P111 précède P107 — avant d'écrire « recopiez ce montant dans votre
+déclaration », mieux vaut mesurer la zone qui a produit cinq chiffres silencieusement faux en deux
+semaines (décisions n° 130, 135, 136, 137, 140).
+
+**Deux propositions ont rétréci après vérification dans le code**, et c'est la raison d'être de la
+relecture : le chiffrement du coffre **existe déjà** sur le site public (P109 n'est plus qu'une
+question de découvrabilité, pas de construction), et la sauvegarde automatique **existe déjà** (P113
+ne concerne que les navigateurs sans File System Access).
+
 ## 4. Ordre d'exécution recommandé
 
 ### Phase 0 — Socle de confiance (≈ 3 sessions, à faire en premier)
