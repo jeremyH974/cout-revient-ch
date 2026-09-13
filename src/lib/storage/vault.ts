@@ -48,32 +48,18 @@
  * perdre les données. C'est le prix du tout-local, sans compte — et c'est pour cela que
  * l'installation du coffre exige une sauvegarde préalable.
  */
-import { argon2idAsync } from '@noble/hashes/argon2.js';
 import { base64 } from '@scure/base';
-
-/** Coût de la dérivation. Mémoire en kibioctets, itérations, parallélisme. */
-export interface VaultKdfParams {
-  /** Mémoire en KiB. */
-  m: number;
-  /** Itérations. */
-  t: number;
-  /** Voies parallèles. */
-  p: number;
-}
+import { KDF_PARAMS, deriveAesKey, type KdfParams } from './kdf';
 
 /**
- * Paramètres par défaut : la première configuration de la fiche OWASP « Password Storage » pour
- * Argon2id — 46 Mio, une itération, une voie.
- *
- * `p: 1` n'est pas une économie : l'implémentation est en JavaScript pur, sur un seul fil. Annoncer
- * `p: 4` coûterait le même temps qu'`p: 1` **chez nous** tout en divisant par quatre le travail
- * qu'un attaquant multi-cœurs doit fournir. Réclamer un parallélisme qu'on n'exécute pas revient à
- * s'affaiblir en croyant se renforcer.
- *
- * Mesuré ici : ~330 ms sur Node 22, quelques centaines de millisecondes de plus dans un navigateur.
- * Payé une fois par ouverture, jamais ensuite.
+ * Coût de la dérivation. **Le même type que la sauvegarde exportée** : les deux dérivations
+ * partagent désormais un seul module (`kdf.ts`, décision n° 151), pour qu'elles ne puissent plus
+ * diverger comme elles l'avaient fait.
  */
-export const VAULT_KDF: VaultKdfParams = { m: 47_104, t: 1, p: 1 };
+export type VaultKdfParams = KdfParams;
+
+/** Paramètres par défaut, partagés avec la sauvegarde exportée (voir `kdf.ts`). */
+export const VAULT_KDF: VaultKdfParams = KDF_PARAMS;
 
 /**
  * En-tête du coffre. **Ne contient aucun secret** : le sel et la clé scellée sont inertes sans le
@@ -145,26 +131,7 @@ async function deriveKek(
   params: VaultKdfParams,
   onProgress?: (fraction: number) => void,
 ): Promise<CryptoKey> {
-  const raw = await argon2idAsync(new TextEncoder().encode(passphrase), salt, {
-    m: params.m,
-    t: params.t,
-    p: params.p,
-    dkLen: DEK_BYTES,
-    /*
-     * Rend la main à l'ordonnanceur toutes les 100 ms : l'interface reste vivante (un rendu par
-     * dixième de seconde suffit à une barre de progression) sans payer une reprise de tâche toutes
-     * les 10 ms — un tick court multiplie le coût quand l'onglet passe en arrière-plan, où les
-     * minuteurs sont bridés à la seconde.
-     *
-     * Coût mesuré de la dérivation : ~250 ms sous Node, ~230 ms dans Chromium (installation du
-     * coffre 222 ms, ouverture 236 ms, chronométrées de bout en bout à travers l'interface). Une
-     * première mesure annonçait 3,5 s : elle avait été prise dans un navigateur embarqué, onglet
-     * masqué et processus de rendu déprioritisé. Elle ne décrivait pas l'application.
-     */
-    asyncTick: 100,
-    ...(onProgress ? { onProgress } : {}),
-  });
-  return crypto.subtle.importKey('raw', bytes(raw), AES, false, ['encrypt', 'decrypt']);
+  return deriveAesKey(passphrase, salt, params, onProgress);
 }
 
 /** Importe la clé de données. **Non exportable** : rien ne peut la relire hors de `crypto.subtle`. */

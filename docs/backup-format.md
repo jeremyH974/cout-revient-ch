@@ -81,6 +81,42 @@ du test, qui constate que le fichier de 2026 gagne deux préférences à leur va
 qu'aucune donnée de l'utilisateur ne change et sans montée de `SCHEMA_VERSION`. Un échec de ce test
 pose donc toujours la même question, la bonne : « l'ajout est-il vraiment additif ? »
 
+## Le chiffrement optionnel du fichier exporté
+
+Deux versions d'enveloppe coexistent, et **les deux s'ouvrent**. Chaque fichier porte le KDF avec
+lequel il a été écrit : c'est lui qui décide, jamais la version de l'application qui le relit.
+
+| Version | KDF                            | Ce que l'en-tête porte en clair        | Écrite aujourd'hui |
+| ------- | ------------------------------ | -------------------------------------- | ------------------ |
+| 1       | PBKDF2-HMAC-SHA-256, 600 000 i | `iterations`, `salt`, `iv`             | non, **mais lue**  |
+| 2       | Argon2id (`@noble/hashes`)     | `params` (`m`, `t`, `p`), `salt`, `iv` | oui                |
+
+Le chiffrement lui-même est **AES-GCM-256** dans les deux cas : chiffrement authentifié, donc toute
+altération du fichier fait échouer le déchiffrement plutôt que de rendre silencieusement des données
+corrompues. Les paramètres du KDF voyagent en clair, comme dans `age` ou dans JWE (`p2s`, `p2c`) —
+ils ne sont pas des secrets, et les écrire est la seule façon de pouvoir les relever un jour sans
+rendre illisible un seul fichier existant.
+
+**Pourquoi ce n'est plus PBKDF2** (décision n° 151). PBKDF2 n'est coûteux qu'en temps ; une carte
+graphique en calcule des milliards en parallèle. Argon2id est coûteux en **mémoire** — 46 Mio par
+tentative ici —, ce qu'un attaquant ne peut pas paralléliser à bon marché. C'était déjà le KDF du
+coffre du navigateur : la sauvegarde, c'est-à-dire le **seul fichier qui voyage**, gardait le plus
+faible des deux.
+
+**Pourquoi pas de WebAssembly.** Toutes les implémentations WASM d'Argon2 exigent
+`wasm-unsafe-eval` dans la CSP — une contrainte de la plateforme, pas des bibliothèques. Les adopter
+reviendrait à trouer la CSP stricte de l'application pour renforcer un mot de passe. `@noble/hashes`
+est en JavaScript pur, déjà en dépendance de production, et ne demande aucune exception ; le prix
+est ~250 ms de dérivation, payés une fois par export ou par ouverture.
+
+### La sauvegarde chiffrée de version 1 est gelée dans un test
+
+`src/lib/storage/encryption.test.ts` porte un fichier v1 **complet et figé** — sel, IV, texte
+chiffré — produit par l'ancien code et jamais régénéré. Il est déchiffré à chaque exécution de la
+suite. C'est le seul moyen de garantir ce qui compte vraiment ici : **une sauvegarde est une
+assurance, elle ne vaut que si elle s'ouvre le jour où tout le reste a disparu.** Le régénérer
+reviendrait à ne plus rien prouver.
+
 ## Pourquoi pas de schéma publié
 
 Pas de JSON Schema en regard de ce document : aucun consommateur externe connu ne lit

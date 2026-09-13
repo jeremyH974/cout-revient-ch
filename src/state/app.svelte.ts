@@ -40,6 +40,8 @@ import {
   coinhouseTraceRow,
   computePortfolio,
   computePortfolioByAccount,
+  runLedger,
+  type LedgerRun,
   holdings,
   pivotTraceRow,
   traceMetric,
@@ -676,12 +678,27 @@ export class AppState {
     this.currency === 'EUR' ? this.quotes : convertQuotes(this.quotes, this.fxLookup),
   );
 
+  /**
+   * Le grand livre des événements affichés, joué **une seule fois** (décision n° 151).
+   *
+   * C'est la partie chère, et de loin : 1,9 s pour 1 600 opérations à la mesure, contre quelques
+   * millisecondes pour la valorisation qui suit. Or un seul écran le rejouait **trois fois** — le
+   * rapport, le consolidé de la vue par compte, puis chaque compte — parce que chaque appel
+   * repartait des événements. Ce dérivé le calcule une fois ; Svelte le mémoïse tant que les
+   * événements et les réglages ne bougent pas, **et les prix n'en font pas partie** : actualiser
+   * les cours ne rejoue plus rien.
+   */
+  displayLedger = $derived.by((): LedgerRun =>
+    runLedger(this.displayEvents, this.state.engineSettings),
+  );
+
   report = $derived.by((): PortfolioReport =>
     computePortfolio({
       events: this.displayEvents,
       prices: this.displayQuotes,
       settings: this.state.engineSettings,
       balances: balanceRecords(Object.values(this.state.rawRows)),
+      ledger: this.displayLedger,
     }),
   );
 
@@ -771,6 +788,7 @@ export class AppState {
       prices: this.displayQuotes,
       settings: this.state.engineSettings,
       balances: balanceRecords(Object.values(this.state.rawRows)),
+      ledger: this.displayLedger,
     }),
   );
 
