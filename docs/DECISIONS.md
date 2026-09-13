@@ -3742,3 +3742,25 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuve** (décision n° 75) : faire dire à la note que la dispense des 50 000 € couvre
      aussi les comptes de l'article 1649 bis C — l'erreur exacte que la section dénonce — fait rougir
      le test sur « expected … to contain '1649 A' ».
+
+143. **Un test qui échouait une fois sur soixante-quatre, sans qu'aucun code n'ait bougé**
+     (13/09/2026). Rencontré en passant : la suite complète a rougi sur `vault.test.ts` pendant la
+     décision n° 142, puis est repassée verte cinq fois de suite en isolation.
+     **La cause n'était pas l'aléa du chiffrement, mais une falsification qui ne falsifiait pas.**
+     Le test remplaçait le premier caractère de la clé scellée par un « A » fixe, puis attendait un
+     refus. Or `wrappedKey` est du base64 : une fois sur soixante-quatre, ce premier caractère **est
+     déjà** un « A ». L'en-tête restait alors identique à l'original, le coffre s'ouvrait
+     normalement — et le test criait au loup. Un garde-fou qui hurle à tort érode la confiance dans
+     la CI exactement comme un garde-fou muet : dans les deux cas, le vert cesse de vouloir dire
+     quelque chose.
+     **Le caractère de remplacement se choisit désormais contre l'original** (`'A'`, sauf si c'est
+     déjà `'A'`), et une assertion de plus fait **prouver au test sa propre prémisse** :
+     `expect(tampered.wrappedKey).not.toBe(meta.wrappedKey)`. C'est la vraie leçon — une
+     contre-épreuve doit vérifier qu'elle a bien altéré quelque chose avant d'attendre un refus.
+     **Même famille que la décision n° 136**, où la fixture de démonstration ne portait pas le piège
+     qu'elle était censée garder : le test existait, s'exécutait, passait, et ne prouvait pas ce
+     qu'il annonçait. Le voisin de la ligne 69, qui incrémente un octet modulo 256, n'a pas ce
+     défaut : `(x + 1) % 256` change toujours la valeur.
+     **Contre-épreuve** (décision n° 75) : remettre un remplacement inopérant — le premier caractère
+     par lui-même — fait rougir la nouvelle assertion sur « expected 'rqswwe…' not to be 'rqswwe…' »,
+     c'est-à-dire sur l'absence d'altération, et non plus sur un refus manqué.
