@@ -249,6 +249,30 @@ export function fmtMasked(currency?: Currency): string {
   return currency ? `${MASK}${NBSP}${CURRENCY_INFO[currency].symbol}` : MASK;
 }
 
+/**
+ * Un montant en euros **entiers**, pour les bornes que la loi écrit sans centimes : un barème dit
+ * « 29 579 € », et « 29 579,00 € » ferait passer une borne légale pour un montant calculé
+ * (décision n° 150). Ne JAMAIS l'employer pour un montant à recopier dans une déclaration : il
+ * arrondit.
+ */
+export function fmtEurWhole(value: DecimalString | Big): string {
+  return money('EUR', 0, 0).format(toNumber(roundHalfUp(D(value), 0), 0));
+}
+
+const PCT_RATE = intl({ style: 'percent', maximumFractionDigits: 2 });
+
+/**
+ * Un **taux de barème** tel qu'un texte l'écrit : `'0.11'` → « 11 % », `'0.128'` → « 12,8 % ».
+ *
+ * Distinct de `fmtPct`, qui impose une décimale parce qu'il sert à des ratios MESURÉS, où
+ * « 11,0 % » dit quelque chose que « 11 % » tairait. Un taux légal, lui, n'a pas de précision à
+ * afficher : il vaut exactement ce que l'article dit, et « 30,0 % » ferait croire à une mesure
+ * (décision n° 150).
+ */
+export function fmtRate(rate: DecimalString | Big): string {
+  return PCT_RATE.format(toNumber(D(rate), 4));
+}
+
 const PCT_POINTS = intl({ minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 /** Écart entre deux pourcentages, en points (ratio 0,123 → « +12,3 pts »), arrondi une seule fois. */

@@ -319,7 +319,7 @@ pour le barème, et **les cinq moteurs fiscaux ne sont jamais totalisés**.
 | P107 | **Livré (13/09/2026, décisions n° 148 et 149).** Le récapitulatif de déclaration, case par case |   5    |     4     |    5    |    2     |  **7**  |
 | P111 | **Livré (13/09/2026, décision n° 147).** Mesurer la fiabilité là où elle manque                 |   1    |     5     |    0    |    1     |  **6**  |
 | P110 | Le calcul hors du fil qui dessine l'écran                                                       |   2    |     2     |    4    |   1,5    | **5,3** |
-| P108 | L'arbitrage PFU / barème, chiffré                                                               |   5    |     3     |    5    |   2,5    | **5,2** |
+| P108 | **Livré (13/09/2026, décision n° 150).** L'arbitrage PFU / barème, chiffré                      |   5    |     3     |    5    |   2,5    | **5,2** |
 | P114 | Aligner le chiffrement de la sauvegarde exportée                                                |   0    |     2     |    0    |   0,5    |  **4**  |
 
 **Ordre retenu** : P105 → P112 → P106 → P109 → P113 → P111 → P107 → P108 → P110 → P114. Il n'est
@@ -361,6 +361,16 @@ sont ressortis, qu'aucune des trois propositions n'annonçait :
   3CN et 2OP sont des cases à **cocher** ; et le report de 3AN/3BN n'est automatique qu'**en ligne**.
   Au passage, une alerte de la recherche déléguée sur la disparition du seuil de 305 € a été
   démentie par la ligne 51 du 2086 millésime 2026.
+- **P108 a de nouveau corrigé le dépôt avant de pouvoir chiffrer quoi que ce soit** (décision
+  n° 150). Les prélèvements sociaux des prêts étaient portés **case 2CG**, dont la brochure donne
+  une liste fermée de produits « qui n'ouvrent **jamais** droit à CSG déductible » : la case est
+  **2BH**, et elle reçoit le **revenu**, pas le prélèvement. Déclarer en 2CG renonçait donc en
+  silence à la CSG déductible sous option pour le barème. Au passage, la brochure **confirme**
+  ce que la décision n° 149 avait seulement déduit sur la case 2TT, et **clôt** la question de
+  l'irrévocabilité de l'option, laissée ouverte : elle est supprimée dès les revenus 2025.
+  Trois fausses alertes de la recherche déléguée ont été écartées dans le même tour, dont une
+  qui aurait faussé **tous** les chiffres 2025.
+
 - **Un test intermittent découvert en chemin** (décision n° 143) : une falsification qui ne
   falsifiait rien une fois sur soixante-quatre, et faisait rougir la CI sans qu'aucun code n'ait
   bougé.

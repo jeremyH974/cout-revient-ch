@@ -129,6 +129,7 @@ const lendingYear = (over: Partial<LendingTaxYear> = {}): LendingTaxYear => ({
   withheld: '157',
   incomeTaxCredit: '64',
   socialPaid: '93',
+  socialisedInterest: '500',
   lossRealised: '0',
   lossImputed: '0',
   taxableInterest: '500',
@@ -397,11 +398,11 @@ describe('prêts participatifs et minibons', () => {
     ]);
   });
 
-  it('remplit 2CK et 2CG quand la ventilation est connue', () => {
+  it('remplit 2CK et 2BH quand la ventilation est connue', () => {
     const result = taxReturn(input({ lending: lending() }));
-    expect(codes(result)).toEqual(['2TT', '2CK', '2CG', '2OP']);
+    expect(codes(result)).toEqual(['2TT', '2CK', '2BH', '2OP']);
     expect(amountOf(result, '2CK')).toBe('64');
-    expect(amountOf(result, '2CG')).toBe('93');
+    expect(amountOf(result, '2BH')).toBe('500');
   });
 
   it('ne chiffre ni 2CK ni 2CG quand le taux retenu ne dit rien, et le dit', () => {
@@ -410,7 +411,7 @@ describe('prêts participatifs et minibons', () => {
         lending: lending({ withholding: 'unknown', incomeTaxCredit: null, socialPaid: null }),
       }),
     );
-    expect(codes(result)).toEqual(['2TT', '2OP']);
+    expect(codes(result)).toEqual(['2TT', '2BH', '2OP']);
     expect(result.caveats[0]?.text).toContain('aucun régime connu');
   });
 
@@ -555,7 +556,7 @@ describe('l’ordre et les invariants de l’ensemble', () => {
       '3CN',
       '2TT',
       '2CK',
-      '2CG',
+      '2BH',
       '2TU',
       '2OP',
       '3916-bis',
@@ -657,7 +658,12 @@ describe('les mots affichés', () => {
         { label: 'Perte en capital imputée', amountEur: '-120' },
       ],
       '2CK': [{ label: 'Acompte de 12,8 % déjà retenu', amountEur: '64' }],
-      '2CG': [{ label: 'Prélèvements sociaux déjà retenus', amountEur: '93' }],
+      '2BH': [
+        {
+          label: 'Intérêts sur lesquels la plateforme a déjà prélevé les sociaux',
+          amountEur: '500',
+        },
+      ],
       '2TX': [{ label: 'Perte non imputée de 2024', amountEur: '15' }],
     });
   });
@@ -738,6 +744,7 @@ describe('ce qui ne produit aucune ligne', () => {
       withheld: '0',
       incomeTaxCredit: null,
       socialPaid: null,
+      socialisedInterest: '0',
       taxableInterest: '0',
       withholding: 'none',
       ...over,

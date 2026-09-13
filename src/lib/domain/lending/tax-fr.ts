@@ -71,9 +71,24 @@ export const LOSS_CARRY_YEARS = 5;
  * **`form` n'est pas décoratif, et son absence a laissé passer une erreur** (décision n° 149) : ce
  * registre était le seul des quatre à ne pas porter le formulaire, donc le test qui adosse les
  * quatre au registre canonique n'avait rien à comparer. Le registre canonique plaçait 2TT, 2CK et
- * 2CG sur la 2042 **C** ; les trois sont sur la **2042** (relevé sur le formulaire millésime 2026 :
- * « Intérêts des prêts participatifs et des minibons … 2TT »). Seule la plage 2TU→2TY est bien sur
- * la 2042 C.
+ * les prélèvements sociaux sur la 2042 **C** ; ils sont sur la **2042** (relevé sur le formulaire
+ * millésime 2026 : « Intérêts des prêts participatifs et des minibons … 2TT »). Seule la plage
+ * 2TU→2TY est bien sur la 2042 C.
+ *
+ * **LA CASE DES PRÉLÈVEMENTS SOCIAUX ÉTAIT LA MAUVAISE, ET LE MONTANT AUSSI** (décision n° 150).
+ * Ce registre visait la case **2CG**. Or la brochure pratique 2026 en donne une liste **fermée** :
+ * « Indiquez ligne 2CG les produits suivants **qui n'ouvrent jamais droit à CSG déductible**, y
+ * compris lorsqu'ils sont imposés au barème … » — fonds en euros d'assurance-vie, FCPR/SCR déchus
+ * de leur régime, comptes courants d'associés relevant du régime social des indépendants. Les
+ * intérêts de prêts participatifs n'y sont pas. La case qui les reçoit est **2BH** : « les revenus
+ * perçus en 2025 sur lesquels les prélèvements sociaux ont déjà été prélevés … et qui ouvrent
+ * droit à CSG déductible uniquement en cas d'option pour l'imposition au barème … revenus
+ * distribués et **produits de placement à revenu fixe** ».
+ *
+ * Deux torts, pas un : déclarer en 2CG **renonçait à la CSG déductible** sous option pour le
+ * barème, et le montant porté était le **prélèvement retenu** alors que la case attend le
+ * **revenu** sur lequel il a été retenu — c'est ce montant-là qui est « exclu de la base de
+ * calcul des prélèvements sociaux », donc qui évite la double taxation sociale.
  */
 export const TAX_BOXES = {
   interest: {
@@ -89,10 +104,10 @@ export const TAX_BOXES = {
     ref: 'CGI art. 125 A',
   },
   social: {
-    box: '2CG',
+    box: '2BH',
     form: '2042',
-    label: 'Revenus déjà soumis aux prélèvements sociaux',
-    ref: 'CGI art. 125 A',
+    label: 'Revenus déjà soumis aux prélèvements sociaux, avec CSG déductible sur option',
+    ref: 'CGI art. 154 quinquies, II',
   },
   option: {
     box: '2OP',
@@ -156,8 +171,19 @@ export interface LendingTaxYear {
    * rien annoncer que d'annoncer un crédit d'impôt qui n'a pas été payé.
    */
   incomeTaxCredit: DecimalString | null;
-  /** Case 2CG. `null` dans le même cas. */
+  /** Part prélèvements sociaux du prélèvement retenu. `null` dans le même cas. */
   socialPaid: DecimalString | null;
+  /**
+   * Case **2BH** : le montant des INTÉRÊTS sur lesquels la plateforme a déjà prélevé les
+   * prélèvements sociaux — pas le prélèvement lui-même (décision n° 150). C'est ce montant qui
+   * est « exclu de la base de calcul des prélèvements sociaux », et sur lequel l'administration
+   * calcule la CSG déductible (6,8 %) si l'option pour le barème est exercée.
+   *
+   * Il vaut les intérêts **bruts** dès qu'un prélèvement a été retenu, même quand le taux effectif
+   * ne dit pas sous quel régime : ne pas savoir VENTILER un prélèvement n'empêche pas de savoir
+   * qu'il a eu lieu. `'0'` quand la plateforme n'a rien retenu.
+   */
+  socialisedInterest: DecimalString;
   /** Capital devenu définitivement irrécouvrable dans l'année (événement `write-off`). */
   lossRealised: DecimalString;
   /** Perte effectivement imputée sur les intérêts de l'année, plafond compris. */
@@ -288,6 +314,7 @@ export function lendingTaxFr(input: LendingTaxInput): LendingTaxLedger {
       withheld: toDecimalString(paid),
       incomeTaxCredit: credit === null ? null : toDecimalString(credit),
       socialPaid: credit === null ? null : toDecimalString(paid.minus(credit)),
+      socialisedInterest: toDecimalString(paid.gt(ZERO) ? gross : ZERO),
       lossRealised: toDecimalString(realised),
       lossImputed: toDecimalString(imputed),
       taxableInterest: toDecimalString(max(ZERO, gross.minus(imputed))),

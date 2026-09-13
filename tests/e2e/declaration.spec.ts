@@ -127,6 +127,61 @@ test('sans donnée, l’écran dit qu’il ne dispense de rien', async ({ page }
   await expect(page.locator('.lines')).toHaveCount(0);
 });
 
+/**
+ * L'arbitrage forfait / barème (décision n° 150). Ce qui est vérifié ici n'est pas qu'un bloc
+ * s'affiche, mais que **les chiffres se recoupent entre eux** : l'assiette annoncée est la somme
+ * des lignes énumérées, et l'écart affiché est bien la différence des deux branches.
+ */
+test('l’arbitrage se recoupe, et nomme l’hypothèse dont il dépend', async ({ page }) => {
+  await importTitles(page);
+  await openYearWithAmounts(page);
+
+  const block = page.locator('.arbitrage').first();
+  await expect(block).toBeVisible();
+
+  // 1. Sans tranche indiquée, aucun écart n'est chiffré : l'application ne la devine pas.
+  await expect(block.getByText('Indiquez votre tranche d’imposition')).toBeVisible();
+  await expect(block.locator('.verdict')).toHaveCount(0);
+
+  // 2. L'assiette annoncée est la somme des lignes énumérées, à l'euro près.
+  const intro = normalize(await block.locator('.summary').innerText());
+  const [flat, base] = [...intro.matchAll(/([\d ]+,\d{2}) €/g)].map((m) => euros(m[0]));
+  const lines = await block.locator('.bases li').allInnerTexts();
+  const sum = lines.reduce((acc, line) => {
+    const amounts = [...normalize(line).matchAll(/([\d ]+,\d{2}) €/g)];
+    return acc + euros(amounts[0]?.[0] ?? '0 €');
+  }, 0);
+  expect(Math.round(sum * 100), 'somme des assiettes').toBe(Math.round((base ?? 0) * 100));
+
+  // 3. Une fois la tranche choisie, l'écart est bien « barème − forfait ».
+  await page.getByLabel('Votre tranche').selectOption('0.30');
+  const verdict = normalize(await block.locator('.verdict').innerText());
+  const numbers = [...verdict.matchAll(/([+-]?[\d ]+,\d{2}) €/g)].map((m) => euros(m[0]));
+  const [bareme, delta] = numbers;
+  expect(Math.round(((bareme ?? 0) - (flat ?? 0)) * 100), verdict).toBe(
+    Math.round((delta ?? 0) * 100),
+  );
+
+  // 4. L'hypothèse et le caractère global de l'option sont dits, pas sous-entendus.
+  await expect(block.getByText('Cette option est globale')).toBeVisible();
+  await expect(block.getByText(/Le barème coûte moins jusqu’à la tranche à/)).toBeVisible();
+});
+
+test('l’écran ne recommande jamais de cocher', async ({ page }) => {
+  // La frontière que ce projet tient : chiffrer un écart à une hypothèse donnée n'est pas conseiller.
+  await importTitles(page);
+  await openYearWithAmounts(page);
+  await page.getByLabel('Votre tranche').selectOption('0');
+  const text = await page.locator('main').innerText();
+  for (const phrase of [
+    'vous devriez',
+    'nous vous conseillons',
+    'cochez la case',
+    'il faut cocher',
+  ])
+    expect(text.toLowerCase(), phrase).not.toContain(phrase);
+});
+
 /** « 1 234,56 € » → 1234.56 */
 function euros(text: string): number {
   return Number(text.replace(/[^\d,-]/g, '').replace(',', '.'));

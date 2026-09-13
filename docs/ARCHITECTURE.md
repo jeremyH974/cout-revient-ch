@@ -172,8 +172,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/derive` — les dérivations qui portaient une **règle** et vivaient dans `src/state`, sorties
   en fonctions pures testables (décision n° 94) : priorité des cotations (prix manuel > direct >
   cache), comptes implicites (trois comptes existent parce que des données existent), rattachement
-  d'une qualification à ses lignes brutes, et l'aplatissement des cinq moteurs fiscaux en une liste
-  de cases à remplir (`tax-return.ts`, décision n° 149). Le câblage réactif, lui, reste dans `src/state` : l'y
+  d'une qualification à ses lignes brutes, l'aplatissement des cinq moteurs fiscaux en une liste
+  de cases à remplir (`tax-return.ts`, décision n° 149) et l'arbitrage forfait / barème
+  (`pfu-vs-bareme.ts`, décision n° 150), qui chiffre un écart à une hypothèse donnée sans jamais
+  recommander une option. Le câblage réactif, lui, reste dans `src/state` : l'y
   extraire déplacerait du code sans rien rendre testable.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le

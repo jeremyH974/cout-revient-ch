@@ -15,9 +15,11 @@
   import { nowIso } from '$lib/clock';
   import { computeDeclarations } from '$lib/domain/declarations-fr';
   import { declarableYears, declarationYear } from '$lib/domain/tax-fr';
-  import { D } from '$lib/domain/money';
+  import { D, ZERO, type Big } from '$lib/domain/money';
   import { FAMILY_LABELS, taxReturn, type TaxReturnLine } from '$lib/derive/tax-return';
-  import { fmtEur, roundHalfUp } from '$lib/format/fr';
+  import { arbitrages, type Arbitrage, type ArbitrageScenario } from '$lib/derive/pfu-vs-bareme';
+  import { MARGINAL_RATES, scaleFor } from '$lib/domain/income-tax-fr';
+  import { displayGap, fmtEur, fmtEurWhole, fmtRate, roundHalfUp } from '$lib/format/fr';
   import type { TaxEntryMode } from '$lib/domain/tax-boxes';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
@@ -35,21 +37,61 @@
   const yearChoices = $derived(declarableYears(app.events, nowIso().slice(0, 10)));
   const cryptoReady = $derived(history.status.loadedAt !== null);
 
-  const report = $derived(
-    taxReturn({
+  const returnInput = $derived({
+    year: taxYear,
+    crypto: cryptoReady ? history.frenchTax() : null,
+    equity: app.equityTax,
+    dividends: app.dividendTax,
+    interest: app.interestTax,
+    lending: app.lendingTax,
+    declarations: computeDeclarations({
+      accounts: app.accounts,
+      events: app.events,
       year: taxYear,
-      crypto: cryptoReady ? history.frenchTax() : null,
-      equity: app.equityTax,
-      dividends: app.dividendTax,
-      interest: app.interestTax,
-      lending: app.lendingTax,
-      declarations: computeDeclarations({
-        accounts: app.accounts,
-        events: app.events,
-        year: taxYear,
-      }),
     }),
-  );
+  });
+  const report = $derived(taxReturn(returnInput));
+
+  /**
+   * L'arbitrage forfait / barème des deux options (décision n° 150). Il ne dit pas quoi cocher :
+   * il chiffre un écart à une hypothèse que l'utilisateur fournit, et nomme le seuil de bascule.
+   */
+  const options = $derived(arbitrages(returnInput));
+  /** Tranche saisie par l'utilisateur, ou `null` : l'application ne la devine pas. */
+  const marginalRate = $derived(app.state.ui.marginalRate);
+  const scale = $derived(scaleFor(taxYear));
+  const scenarioAt = (arbitrage: Arbitrage, rate: string): ArbitrageScenario | undefined =>
+    arbitrage.scenarios.find((s) => s.rate === rate);
+
+  /**
+   * L'assiette totale **telle qu'elle doit s'afficher** : la somme des lignes ARRONDIES, et non
+   * l'arrondi de la somme exacte. Sans cela, deux montants justes (1,36 € et 32,42 €) s'annoncent
+   * sous un total de 33,79 € qui ne s'additionne pas sous les yeux du lecteur — même famille que
+   * `displayGap` (décision n° 150). Sur un écran dont toute la valeur est que les chiffres se
+   * recoupent, un centime suffit à tout perdre.
+   */
+  const displayedBase = (arbitrage: Arbitrage): Big =>
+    arbitrage.bases.reduce((acc, b) => acc.plus(roundHalfUp(D(b.taxableEur), 2)), ZERO);
+
+  /** Même règle pour l'écart : arrondir chaque branche, puis soustraire. */
+  const displayedDelta = (arbitrage: Arbitrage, scenario: ArbitrageScenario): Big =>
+    displayGap(D(scenario.baremeEur), D(arbitrage.flatEur)) ?? ZERO;
+
+  /**
+   * Les bornes de la tranche, quand le barème de l'année est connu. Sans elles, le taux seul
+   * obligerait à aller chercher ailleurs à quelle tranche on appartient ; avec des bornes d'une
+   * AUTRE année, il ferait reconnaître la mauvaise (décision n° 150).
+   */
+  const bracketLabel = $derived((rate: string): string => {
+    const brackets = scale?.brackets ?? [];
+    const index = brackets.findIndex((b) => b.rate === rate);
+    if (index === -1) return '';
+    const from = index === 0 ? null : brackets[index - 1]?.upToEur;
+    const to = brackets[index]?.upToEur;
+    if (to === null || to === undefined) return ` — au-delà de ${fmtEurWhole(from ?? '0')}`;
+    if (from === null || from === undefined) return ` — jusqu’à ${fmtEurWhole(to)}`;
+    return ` — de ${fmtEurWhole(from)} à ${fmtEurWhole(to)}`;
+  });
 
   /** Conventions de calcul des moteurs concernés : reproduites, jamais résumées. */
   const assumptions = $derived.by((): [string, readonly string[]][] => {
@@ -112,6 +154,23 @@
         {/each}
       </select>
     </label>
+    {#if options.length > 0}
+      <label class="year">
+        Votre tranche d’imposition
+        <select
+          value={marginalRate ?? ''}
+          onchange={(event) =>
+            app.setUi({
+              marginalRate: event.currentTarget.value === '' ? null : event.currentTarget.value,
+            })}
+        >
+          <option value="">— non renseignée —</option>
+          {#each MARGINAL_RATES as rate (rate)}
+            <option value={rate}>{fmtRate(rate)}{bracketLabel(rate)}</option>
+          {/each}
+        </select>
+      </label>
+    {/if}
     <p class="muted small">
       Tous les montants sont en <strong>euros</strong>, quelle que soit la devise d’affichage.
     </p>
@@ -185,6 +244,85 @@
             {/each}
           </ul>
         {/if}
+
+        {#each options.filter((a) => a.option === line.box.code) as arb (arb.option)}
+          {@const chosen = marginalRate === null ? undefined : scenarioAt(arb, marginalRate)}
+          <div class="arbitrage">
+            <h3>Forfait ou barème, sur ce que cette application connaît</h3>
+            <p class="summary small">
+              Le prélèvement forfaitaire coûte <strong>{fmtEur(arb.flatEur)}</strong> d’impôt sur le
+              revenu sur {fmtEur(displayedBase(arb))} d’assiette. Les prélèvements sociaux sont dus à
+              l’identique dans les deux cas : ils ne s’arbitrent pas.
+            </p>
+            <ul class="bases small">
+              {#each arb.bases as base (base.family)}
+                <li>
+                  {base.label} — {fmtEur(base.taxableEur)}{#if base.abatement !== '0'}, dont
+                    {fmtRate(base.abatement)} d’abattement sous le barème{/if}
+                </li>
+              {/each}
+            </ul>
+
+            {#if chosen}
+              <p class="verdict">
+                À la tranche que vous avez indiquée ({fmtRate(marginalRate ?? '0')}), le barème
+                coûterait <strong>{fmtEur(chosen.baremeEur)}</strong> — soit
+                <strong>{fmtEur(displayedDelta(arb, chosen), { sign: true })}</strong>
+                {displayedDelta(arb, chosen).lte(ZERO) ? 'en votre faveur' : 'de plus'}.
+              </p>
+            {:else}
+              <p class="note small">
+                Indiquez votre tranche d’imposition en haut de l’écran pour voir l’écart en euros.
+              </p>
+            {/if}
+
+            <p class="small">
+              <strong
+                >Le barème coûte moins jusqu’à la tranche à {fmtRate(arb.breakEvenRate ?? '0')}
+                incluse</strong
+              > ; à partir de la suivante, le forfait l’emporte.
+            </p>
+
+            <ul class="caveats small">
+              {#if arb.option === '2OP'}
+                <li>
+                  <strong>Cette option est globale.</strong> Elle bascule d’un coup toutes les lignes
+                  ci-dessus, pour tout le foyer et pour l’année entière — on ne peut pas la réserver aux
+                  dividendes, dont l’abattement la rend attrayante, en laissant les intérêts au forfait.
+                </li>
+              {/if}
+              <li>
+                Ce total ne compte que les revenus que cette application connaît. Un autre revenu de
+                capitaux mobiliers, ailleurs, déplacerait l’écart.
+              </li>
+              <li>
+                L’écart suppose que votre tranche <em>reste</em> celle indiquée. Ajouter ces revenus à
+                votre revenu global peut vous en faire changer, et l’application ne connaît ni ce revenu
+                global ni votre quotient familial.
+              </li>
+              <li>
+                La CSG déductible retenue ici ({fmtEur(arb.csgDeductibleEur)}) réduit le revenu
+                <em>de l’année où elle est payée</em> : pour un revenu recouvré par avis, le gain arrive
+                sur la déclaration suivante.
+              </li>
+              {#if arb.bases.some((b) => b.family === 'equity')}
+                <li>
+                  Aucun abattement pour durée de détention n’est appliqué. Si vous détenez des
+                  titres acquis <strong>avant 2018</strong>, le barème peut rester avantageux bien
+                  au-delà de cette tranche — ce cas sort de ce que l’application sait calculer.
+                </li>
+              {/if}
+              <li>
+                L’option modifie aussi votre revenu fiscal de référence, dont dépendent d’autres
+                droits. Ce chiffrage ne le regarde pas.
+              </li>
+              <li>
+                Depuis la loi de finances pour 2026, cette option n’est plus irrévocable : se
+                tromper coûte moins cher qu’avant.
+              </li>
+            </ul>
+          </div>
+        {/each}
 
         {#if line.note}<p class="note small">{line.note}</p>{/if}
         {#if line.box.entryNote}<p class="muted small">{line.box.entryNote}</p>{/if}
@@ -323,6 +461,36 @@
   }
   .families {
     margin: 0;
+  }
+  .arbitrage {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-sunken);
+  }
+  .arbitrage h3 {
+    margin: 0;
+    font-size: var(--fs-sm);
+  }
+  .arbitrage p {
+    margin: 0;
+  }
+  .arbitrage .verdict {
+    padding: var(--space-2);
+    border-left: 3px solid var(--accent);
+    background: var(--bg-elev);
+  }
+  .bases,
+  .caveats {
+    margin: 0;
+    padding-left: var(--space-4);
+    display: grid;
+    gap: var(--space-1);
+  }
+  .caveats {
+    color: var(--fg-muted);
   }
   .caveats ul,
   details ul {

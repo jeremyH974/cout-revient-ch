@@ -126,11 +126,15 @@ describe('relevantTo', () => {
     const staking = relevantTo(WATCH_ENTRIES, 'revenus');
     expect(staking.map((e) => e.id).sort()).toEqual([
       'airdrops',
+      // Le barème et la CSG déductible sont les deux moitiés de l'arbitrage : sans le premier on ne
+      // sait pas ce que l'option coûte, sans la seconde on surestime ce qu'elle coûte (décision n° 150).
+      'bareme-ir-2025',
       // L'option pour le barème ne relève pas que des cessions : elle est globale, donc elle
       // commande aussi dividendes et intérêts — d'où son rattachement au thème (décision n° 144).
       'bareme-progressif',
       'case-2tt',
       'case-8vl',
+      'csg-deductible',
       'formulaire-2047-cadre-20',
       'formulaire-2047-cadre-30',
       'pfu-rcm-31_4',

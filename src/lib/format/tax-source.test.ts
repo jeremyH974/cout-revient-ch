@@ -14,6 +14,7 @@ import {
 import { EQUITY_TAX_BOXES, PMP_SOURCE_ID } from '../domain/equity-tax-fr';
 import { INTEREST_TAX_BOXES } from '../domain/interest-income-fr';
 import { EXEMPTION_THRESHOLD, EXEMPTION_THRESHOLD_SOURCE_ID, TAX_RATES } from '../domain/tax-fr';
+import { CSG_DEDUCTIBLE_SOURCE_ID, INCOME_TAX_SCALES } from '../domain/income-tax-fr';
 import { WATCH_ENTRIES } from '../watch/entries';
 import { citationOf, taxSourcesNote, watchEntryOf } from './tax-source';
 
@@ -22,9 +23,14 @@ const currentRate = () => [...TAX_RATES].sort((a, b) => b.from - a.from)[0]!;
 
 describe('source d’un chiffre fiscal', () => {
   it('tout identifiant déclaré existe dans la veille', () => {
-    const declared = [...TAX_RATES.map((r) => r.sourceId), EXEMPTION_THRESHOLD_SOURCE_ID].filter(
-      (id): id is string => Boolean(id),
-    );
+    const declared = [
+      ...TAX_RATES.map((r) => r.sourceId),
+      EXEMPTION_THRESHOLD_SOURCE_ID,
+      // Le barème et la CSG déductible sont entrés avec l'arbitrage (décision n° 150) : eux aussi
+      // sont des chiffres relevés sur un texte, donc eux aussi doivent pointer vers la veille.
+      ...INCOME_TAX_SCALES.map((scale) => scale.sourceId),
+      CSG_DEDUCTIBLE_SOURCE_ID,
+    ].filter((id): id is string => Boolean(id));
     expect(
       declared.length,
       'aucun identifiant déclaré : le test ne prouverait rien',
