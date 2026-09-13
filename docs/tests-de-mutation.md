@@ -101,6 +101,25 @@ ne pas les re-instruire à chaque relevé.
 La règle appliquée : on écrit une assertion quand elle décrit ce que l'utilisateur verrait
 changer. On ne tord pas le code pour faire tomber un mutant qui ne change rien.
 
+### Le relevé du 13/09/2026, après l'arbitrage forfait / barème
+
+| Périmètre                 |       Score | Survivants |
+| ------------------------- | ----------: | ---------: |
+| **Ensemble muté**         | **86,47 %** |        175 |
+| `derive/` (6 fichiers)    |     96,81 % |         19 |
+| `derive/pfu-vs-bareme.ts` |       100 % |          0 |
+| `domain/income-tax-fr.ts` |       100 % |          0 |
+| `domain/tax-boxes.ts`     |     96,39 % |          7 |
+
+Les deux modules nés avec P108 sont à **100 %** dès leur première mesure — non par chance, mais
+parce que le relevé précédent avait déjà nommé les trois familles de manques (les mots, les
+absences, l'année). Les connaître évite de les refaire.
+
+**Un troisième piège, pour la deuxième fois** : `CSG_DEDUCTIBLE_SOURCE_ID` survivait à sa mise à
+`""` parce que le croisement avec la veille écarte les identifiants vides **avant** de chercher. Un
+filtre `Boolean(id)` rend muet exactement le cas qu'on veut attraper : le chiffre qui perd sa
+source. La parade est une assertion nominative à côté du croisement.
+
 ## Comment on s'en sert
 
 ```bash
@@ -111,7 +130,7 @@ Environ **1 min 30 s**. Le rapport lisible sort dans `reports/mutation/index.htm
 par git). Un mutant survivant se lit comme une question : _quel test aurait dû rougir ici ?_ La
 réponse est presque toujours une **assertion** manquante, pas un test manquant.
 
-`thresholds.break` vaut **83**, posé **sous** le score mesuré : c'est un cliquet contre la
+`thresholds.break` vaut **85**, posé **sous** le score mesuré : c'est un cliquet contre la
 régression, jamais une cible. Un score qu'on atteint en écrivant des tests pour le chiffre ne vaut
 rien.
 

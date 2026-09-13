@@ -8,6 +8,7 @@ import {
   declarationYear,
   previewCession,
   rateFor,
+  TAX_RATES,
   taxKindOf,
   type TaxInput,
 } from './tax-fr';
@@ -61,6 +62,29 @@ describe('taux par millésime', () => {
     expect(rateFor(2024).pfu).toBe('0.30');
     expect(rateFor(2025).pfu).toBe('0.314');
     expect(rateFor(2026).pfu).toBe('0.314');
+  });
+
+  /**
+   * La ventilation n'est pas décorative : l'option pour le barème ne remplace que la part
+   * **impôt sur le revenu**, les prélèvements sociaux restant dus à l'identique. Une ligne dont
+   * les deux parts ne feraient pas le total ferait chiffrer un arbitrage faux, sans rien casser
+   * d'autre (décision n° 150).
+   */
+  it('ventile chaque taux en impôt sur le revenu et prélèvements sociaux, dont la somme fait le total', () => {
+    expect(TAX_RATES.length).toBeGreaterThan(1);
+    for (const rate of TAX_RATES) {
+      const sum = D(rate.incomeTax).plus(D(rate.social));
+      expect(sum.toString(), `${rate.label} — ${rate.incomeTax} + ${rate.social}`).toBe(
+        D(rate.pfu).toString(),
+      );
+    }
+  });
+
+  it('garde la part impôt sur le revenu à 12,8 %, seule la CSG ayant bougé', () => {
+    expect(rateFor(2024).incomeTax).toBe('0.128');
+    expect(rateFor(2025).incomeTax).toBe('0.128');
+    expect(rateFor(2024).social).toBe('0.172');
+    expect(rateFor(2025).social).toBe('0.186');
   });
 });
 

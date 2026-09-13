@@ -342,10 +342,19 @@ function lendingContributions(
     contributions.push(
       ...keep(amount('2CK', 'lending', [term('Acompte de 12,8 % déjà retenu', y.incomeTaxCredit)])),
     );
-  if (y.socialPaid !== null)
-    contributions.push(
-      ...keep(amount('2CG', 'lending', [term('Prélèvements sociaux déjà retenus', y.socialPaid)])),
-    );
+  // Case 2BH, et non 2CG : elle porte le REVENU déjà soumis aux prélèvements sociaux, pas le
+  // prélèvement. C'est lui qui est exclu de la base sociale, et sur lui que se calcule la CSG
+  // déductible si l'option pour le barème est exercée (décision n° 150).
+  contributions.push(
+    ...keep(
+      amount('2BH', 'lending', [
+        term(
+          'Intérêts sur lesquels la plateforme a déjà prélevé les sociaux',
+          y.socialisedInterest,
+        ),
+      ]),
+    ),
+  );
 
   for (const cohort of y.carryForward) {
     const code = carryBoxCode(year, cohort.origin);

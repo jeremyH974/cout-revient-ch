@@ -40,6 +40,15 @@ export interface TaxRate {
   from: number;
   /** Taux global (impôt sur le revenu + prélèvements sociaux). */
   pfu: DecimalString;
+  /**
+   * Part **impôt sur le revenu** — la seule que l'option pour le barème remplace (décision
+   * n° 150). Elle n'existait ici que dans le `label`, en toutes lettres : comparer le forfait au
+   * barème aurait demandé de LIRE un libellé pour en extraire un taux, ce que ce dépôt
+   * s'interdit. `RCM_RATES`, dans `lending/`, portait déjà cette ventilation.
+   */
+  incomeTax: DecimalString;
+  /** Part **prélèvements sociaux** : identique sous forfait et sous barème, elle ne s'arbitre pas. */
+  social: DecimalString;
   label: string;
   /**
    * Identifiant de l'entrée de veille qui porte le texte de loi (décision n° 80).
@@ -56,8 +65,15 @@ export interface TaxRate {
 }
 
 export const TAX_RATES: readonly TaxRate[] = [
-  { from: 0, pfu: '0.30', label: '30 % (12,8 % + 17,2 %)' },
-  { from: 2025, pfu: '0.314', label: '31,4 % (12,8 % + 18,6 %)', sourceId: 'pfu-31_4' },
+  { from: 0, pfu: '0.30', incomeTax: '0.128', social: '0.172', label: '30 % (12,8 % + 17,2 %)' },
+  {
+    from: 2025,
+    pfu: '0.314',
+    incomeTax: '0.128',
+    social: '0.186',
+    label: '31,4 % (12,8 % + 18,6 %)',
+    sourceId: 'pfu-31_4',
+  },
 ];
 
 /** Taux applicable aux cessions d'une année (le plus récent qui la couvre). */

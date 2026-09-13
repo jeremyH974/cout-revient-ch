@@ -13,6 +13,8 @@ import {
   localDay,
   roundsToZero,
   fmtMonth,
+  fmtEurWhole,
+  fmtRate,
 } from './fr';
 
 /** Espaces insécables d'Intl (U+00A0, U+202F) → espace simple, sans caractère invisible dans la source. */
@@ -151,5 +153,37 @@ describe('fmtMonth', () => {
     expect(fmtMonth('2026-13')).toBe('2026-13');
     expect(fmtMonth('2026-00')).toBe('2026-00');
     expect(fmtMonth('')).toBe('');
+  });
+});
+
+describe('fmtRate', () => {
+  /** Intl insère une espace fine insécable avant le symbole : on compare le texte, pas l'espace. */
+  const plain = (text: string): string => text.replace(/[\u202f\u00a0]/g, ' ');
+
+  it('écrit un taux légal comme le texte l’écrit, sans décimale inutile', () => {
+    expect(plain(fmtRate('0.11'))).toBe('11 %');
+    expect(plain(fmtRate('0.30'))).toBe('30 %');
+    expect(plain(fmtRate('0.128'))).toBe('12,8 %');
+    expect(plain(fmtRate('0.186'))).toBe('18,6 %');
+    expect(plain(fmtRate('0'))).toBe('0 %');
+  });
+
+  it('ne se confond pas avec fmtPct, qui sert aux ratios mesurés', () => {
+    // `fmtPct` impose une décimale : « 30,0 % » ferait passer un taux légal pour une mesure.
+    expect(fmtRate('0.30')).not.toBe(fmtPct('0.30', { sign: false }));
+  });
+});
+
+describe('fmtEurWhole', () => {
+  const plain = (text: string): string => text.replace(/[\u202f\u00a0]/g, ' ');
+
+  it('écrit une borne légale sans centimes', () => {
+    expect(plain(fmtEurWhole('29579'))).toBe('29 579 €');
+    expect(plain(fmtEurWhole('181917'))).toBe('181 917 €');
+  });
+
+  it('ne remplace pas fmtEur, qui garde les centimes d’un montant à recopier', () => {
+    expect(plain(fmtEur('1234.56'))).toBe('1 234,56 €');
+    expect(plain(fmtEurWhole('1234.56'))).toBe('1 235 €');
   });
 });

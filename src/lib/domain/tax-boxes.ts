@@ -237,7 +237,9 @@ export const TAX_BOXES: readonly TaxBox[] = [
     label: 'Intérêts des prêts participatifs et des minibons',
     ref: 'CGI art. 125-00 A',
     sourceId: 'case-2tt',
-    entry: 'typed',
+    entry: 'prefilled',
+    entryNote:
+      'La plateforme déclare ces intérêts à l’administration : « en principe, ce montant est prérempli ». Il porte les intérêts BRUTS — si une perte s’impute, la notice demande d’inscrire le net « après avoir rayé le montant prérempli ».',
   },
   {
     code: '2CK',
@@ -249,13 +251,15 @@ export const TAX_BOXES: readonly TaxBox[] = [
     entry: 'typed',
   },
   {
-    code: '2CG',
+    code: '2BH',
     kind: 'box',
     form: '2042',
-    label: 'Revenus déjà soumis aux prélèvements sociaux',
-    ref: 'CGI art. 125 A',
-    sourceId: 'pfu-rcm-31_4',
-    entry: 'typed',
+    label: 'Revenus déjà soumis aux prélèvements sociaux, avec CSG déductible sur option',
+    ref: 'CGI art. 154 quinquies, II',
+    sourceId: 'csg-deductible',
+    entry: 'prefilled',
+    entryNote:
+      'Elle porte le montant des REVENUS déjà soumis aux prélèvements sociaux, jamais le prélèvement lui-même : c’est lui qui est « exclu de la base de calcul des prélèvements sociaux », et sur lequel l’administration calcule la CSG déductible (6,8 %) si vous optez pour le barème.',
   },
   {
     code: '2TU',
@@ -292,12 +296,19 @@ export const TAX_BOXES: readonly TaxBox[] = [
 ];
 
 /**
- * Aucune case à cocher de la 2042 (`8UU`, `8TT`) ne figure ici : leur rattachement aux comptes de
- * **crypto-actifs** n'a pas été établi sur source primaire, et `declarations-fr.ts` s'en passe déjà
- * — il rend un statut par compte, pas une case. Écrire un code de case faux serait pire que n'en
- * écrire aucun : l'utilisateur le recopierait.
+ * Trois codes sont absents **exprès**, et un test l'exige.
+ *
+ * - `8UU` et `8TT` : leur rattachement aux comptes de **crypto-actifs** n'a pas été établi sur
+ *   source primaire, et `declarations-fr.ts` s'en passe déjà — il rend un statut par compte, pas
+ *   une case.
+ * - `2CG` : la brochure pratique 2026 en donne une liste **fermée** — « les produits suivants qui
+ *   n'ouvrent **jamais** droit à CSG déductible » : fonds en euros d'assurance-vie, FCPR/SCR
+ *   déchus, comptes courants d'associés au régime social des indépendants. Rien de ce que cette
+ *   application connaît n'y entre ; ce qu'elle connaît va en **2BH** (décision n° 150).
+ *
+ * Écrire un code de case faux serait pire que n'en écrire aucun : l'utilisateur le recopierait.
  */
-export const TAX_BOXES_DELIBERATELY_ABSENT: readonly string[] = ['8UU', '8TT'];
+export const TAX_BOXES_DELIBERATELY_ABSENT: readonly string[] = ['8UU', '8TT', '2CG'];
 
 const BY_CODE = new Map(TAX_BOXES.map((box) => [box.code, box]));
 

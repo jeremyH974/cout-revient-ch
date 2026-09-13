@@ -373,7 +373,7 @@
                 <th scope="col">Année</th>
                 <th scope="col" class="right">Intérêts bruts</th>
                 <th scope="col" class="right">Acompte — {TAX_BOXES.incomeTaxCredit.box}</th>
-                <th scope="col" class="right">Sociaux — {TAX_BOXES.social.box}</th>
+                <th scope="col" class="right">Sociaux retenus</th>
                 <th scope="col" class="right">Perte imputée</th>
                 <th scope="col" class="right">À reporter — {TAX_BOXES.carry.box}</th>
               </tr>

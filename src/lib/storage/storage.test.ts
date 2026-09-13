@@ -170,6 +170,9 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         ...envelope.state.ui,
         aiEnabled: false,
         aiModelId: null,
+        // Champ ajouté après la fixture (décision n° 150) : `withDefaults` le pose, et cette
+        // ligne prouve qu'une sauvegarde d'avant se relit sans montée de schéma.
+        marginalRate: null,
         twelveDataApiKey: null,
         alphaVantageApiKey: null,
       },

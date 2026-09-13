@@ -4074,3 +4074,79 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
        case 2OP fait rougir l'E2E en nommant « 2OP (Case à cocher) » ; faire copier « 32,42 € » au
        lieu de « 32,42 » fait rougir la vérification du presse-papiers. Restaurés, les quatre tests
        E2E repassent au vert.
+
+150. **L'arbitrage forfait / barème, et la case qui renonçait à la CSG déductible** (13/09/2026).
+     **Ce que l'écran fait, et ce qu'il refuse de faire.** Sur les lignes 2OP et 3CN, il chiffre ce
+     que le barème coûterait par rapport au prélèvement forfaitaire, et nomme le **seuil de
+     bascule**. Il ne dit **jamais** de cocher : il ne le peut pas, l'option se jugeant sur un revenu
+     global, un quotient familial et d'autres revenus de capitaux mobiliers dont l'application ne
+     sait rien. La tranche est donc **saisie par l'utilisateur**, et chaque phrase la rappelle. Un
+     test E2E interdit les formulations de recommandation — « vous devriez », « cochez la case ».
+     **Deux options indépendantes, et les confondre est l'erreur la plus coûteuse.** `2OP` est
+     **globale** : elle bascule d'un coup dividendes, intérêts, intérêts de prêts et plus-values de
+     titres. Arbitrer sur les seuls dividendes — dont l'abattement de 40 % rend le barème attrayant
+     — en oubliant les intérêts, qui n'ont aucun abattement, est précisément ce que ce module existe
+     pour éviter ; un test l'exige. `3CN` ne concerne que les actifs numériques.
+     **UNE ERREUR DE CASE, TROUVÉE EN LISANT LA BROCHURE.** Le registre des prêts visait la case
+     **2CG**. Or la brochure pratique 2026 en donne une liste **fermée** : « Indiquez ligne 2CG les
+     produits suivants **qui n'ouvrent jamais droit à CSG déductible** » — fonds en euros
+     d'assurance-vie, FCPR/SCR déchus de leur régime, comptes courants d'associés au régime social
+     des indépendants. Les intérêts de prêts participatifs n'y sont pas. La bonne case est **2BH** :
+     « les revenus perçus en 2025 sur lesquels les prélèvements sociaux ont déjà été prélevés […] et
+     qui ouvrent droit à CSG déductible uniquement en cas d'option pour le barème […] revenus
+     distribués et **produits de placement à revenu fixe** ».
+     **Deux torts, pas un.** Déclarer en 2CG **renonçait à la CSG déductible** sous option pour le
+     barème — un manque à gagner silencieux. Et le montant porté était le **prélèvement retenu**,
+     alors que la case attend le **revenu** sur lequel il a été retenu : c'est ce montant-là qui est
+     « exclu de la base de calcul des prélèvements sociaux », donc qui évite la double taxation
+     sociale. D'où `socialisedInterest` dans le moteur, distinct de `socialPaid`. `2CG` rejoint
+     `TAX_BOXES_DELIBERATELY_ABSENT` : elle existe, elle ne couvre simplement rien de ce que cette
+     application connaît.
+     **Deux confirmations, de ce que la déduction précédente avait seulement raisonné.** La brochure
+     dit mot pour mot ce que la décision n° 149 avait déduit : « déduisez la perte du montant des
+     intérêts perçus […] Si le résultat est **positif, inscrivez-le ligne 2TT** (après avoir rayé le
+     montant prérempli). Si le résultat est **négatif, inscrivez-le ligne 2TU à 2TY** […] selon
+     l'année d'origine de la perte. » Le raisonnement était juste ; il a maintenant sa source. Elle
+     ajoute une nuance que l'application ne modélisait pas : « la **totalité** des intérêts perçus
+     reste soumise aux prélèvements sociaux », alors que l'impôt ne frappe que le net — d'où deux
+     assiettes distinctes dans l'arbitrage. Et 2TT devient `prefilled` : « en principe, ce montant
+     est prérempli ».
+     **La règle qui commande tout l'arbitrage, en une phrase de la brochure** : « **Aucune CSG
+     calculée sur les revenus du patrimoine n'est déductible lorsque ces revenus ont été imposés à
+     l'impôt sur le revenu à un taux forfaitaire.** » La déduction vaut **6,8 points** (CGI art. 154
+     quinquies, II, version en vigueur au 27/06/2026), et non 6,8 % de la CSG : la CSG est passée de
+     9,2 % à 10,6 % sans que la part déductible bouge — c'est la part NON déductible qui a grossi.
+     Elle s'impute « du revenu imposable de l'**année de son paiement** », donc l'année suivante pour
+     un revenu recouvré par avis : réel, mais différé, et le taire surestimerait le coût du barème.
+     **La liste d'exceptions est fermée, et les crypto-actifs n'y sont pas** : la recherche déléguée
+     donnait ce point pour « non sourcé ».
+     **Trois fausses alertes de la recherche déléguée, dans le même tour.** (1) « La hausse de CSG ne
+     s'applique qu'aux revenus 2026 » — l'article 12 de la LFSS 2026 dit « à compter de l'imposition
+     des revenus de l'année **2025** » pour les revenus du patrimoine. Corriger sur cette foi aurait
+     faussé **tous** les chiffres 2025. (2) Le barème rendu pour les revenus 2025 était en réalité
+     celui des revenus **2024** : l'article 197 en vigueur au 21/02/2026 porte 11 600 / 29 579 /
+     84 577 / 181 917, indexés de 0,9 %. (3) « L'option resterait irrévocable pour les revenus
+     2025 » — la brochure des **nouveautés pour les revenus 2025** écrit « Le caractère irrévocable
+     de l'option […] est supprimé ». Ce dernier point **clôt une question laissée ouverte par la
+     décision n° 149**. Trois corrections en un tour, toutes dans le sens de la fausse alerte, toutes
+     tranchées en relisant le texte.
+     **Une ventilation qui n'existait que dans un libellé.** `TAX_RATES` ne portait que le taux
+     global, « 31,4 % (12,8 % + 18,6 %) » ; seule la part **impôt sur le revenu** s'arbitre, et
+     l'extraire aurait demandé de LIRE un libellé. `RCM_RATES` portait déjà la ventilation. Elle
+     est ajoutée, avec un test qui exige que les deux parts fassent le total.
+     **Un centime, trouvé par le test E2E.** L'écran annonçait une assiette de 33,79 € au-dessus de
+     deux lignes valant 1,36 € et 32,42 € : l'arrondi de la somme exacte, et non la somme des lignes
+     arrondies. Même famille que `displayGap` (décision n° 56). Sur un écran dont toute la valeur
+     est que les chiffres se recoupent, un centime suffit à tout perdre.
+     **Deux formatages nouveaux, pour une raison de fond** : `fmtRate` écrit un taux légal sans
+     décimale inutile — « 30 % » et non « 30,0 % », qui le ferait passer pour une mesure — et
+     `fmtEurWhole` écrit une borne de barème sans centimes, que la loi n'écrit pas.
+     **Mesure.** Les deux modules créés sortent à **100 %** au test de mutation dès la première
+     mesure, l'ensemble passe de 84,79 % à **86,47 %**, et le cliquet de 83 à **85**. Un piège de
+     plus, documenté : un identifiant de source mis à `""` survivait parce que le croisement avec la
+     veille écarte les identifiants vides **avant** de chercher — un filtre `Boolean(id)` rend muet
+     exactement le cas qu'on veut attraper.
+     **Contre-épreuve** (décision n° 75), trois fois : ventiler 31,4 % en 12,8 + 18,0 fait rougir le
+     test des taux en nommant la ligne et l'addition ; afficher l'assiette exacte au lieu de la
+     somme des lignes arrondies fait rougir l'E2E sur « 3379 attendu, 3378 reçu » ; écrire « vous
+     devriez cocher cette case » fait rougir le test qui interdit de conseiller.

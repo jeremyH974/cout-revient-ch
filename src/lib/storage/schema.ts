@@ -151,6 +151,17 @@ export interface UiSettings {
    * sans montée de `SCHEMA_VERSION`.
    */
   aiModelId: string | null;
+  /**
+   * Taux marginal d'imposition du foyer, saisi par l'utilisateur, ou `null` tant qu'il ne l'a pas
+   * dit (décision n° 150). C'est une **hypothèse de l'utilisateur**, pas une donnée que
+   * l'application déduirait : elle ne connaît ni le revenu global du foyer, ni son quotient
+   * familial. Elle sert au seul arbitrage forfait / barème, et l'écran la nomme à chaque fois
+   * qu'il s'en sert.
+   *
+   * Chaîne décimale (`'0.11'`) et non nombre : c'est un taux, et les taux de ce dépôt sont des
+   * chaînes. Champ **additif** — aucune montée de `SCHEMA_VERSION`, `withDefaults` s'en charge.
+   */
+  marginalRate: string | null;
 }
 
 /** Réglages des alertes de prix (P29, décision n° 36). */
@@ -247,6 +258,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   liveFills: false,
   aiEnabled: false,
   aiModelId: null,
+  marginalRate: null,
 };
 
 export function emptyState(): StoredStateV1 {

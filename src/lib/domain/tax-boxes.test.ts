@@ -76,7 +76,7 @@ describe('registre canonique des cases', () => {
    */
   it('place chaque case sur le formulaire que porte l’imprimé officiel', () => {
     const onForm: [string, string[]][] = [
-      ['2042', ['2DC', '2TS', '2TR', '2TT', '2CK', '2CG', '2OP']],
+      ['2042', ['2DC', '2TS', '2TR', '2TT', '2CK', '2BH', '2OP']],
       ['2042 C', ['8PL', '8VL', '3VG', '3VH', '3AN', '3BN', '3CN', '2TU']],
     ];
     for (const [form, codes] of onForm)
@@ -103,8 +103,16 @@ describe('registre canonique des cases', () => {
     expect(added.sort()).toEqual(['2086', '3916-bis', '3AN', '3BN', '3CN'].sort());
   });
 
-  it('n’écrit aucune case à cocher dont le rattachement n’est pas établi', () => {
+  it('n’écrit aucun code dont le rattachement n’est pas établi', () => {
     for (const code of TAX_BOXES_DELIBERATELY_ABSENT) expect(taxBox(code)).toBeNull();
+    // La liste est close : 2CG l'a rejointe le jour où la brochure a montré qu'elle ne couvre rien
+    // de ce que cette application connaît (décision n° 150).
+    expect([...TAX_BOXES_DELIBERATELY_ABSENT]).toEqual(['8UU', '8TT', '2CG']);
+  });
+
+  it('marque « souvent pré-rempli » la seule case qu’un imprimé fiscal français alimente', () => {
+    const prefilled = TAX_BOXES.filter((b) => b.entry === 'prefilled').map((b) => b.code);
+    expect(prefilled).toEqual(['2TT', '2BH']);
   });
 
   /**
@@ -204,7 +212,7 @@ describe('registre canonique des cases', () => {
       '3BN',
       '2TT',
       '2CK',
-      '2CG',
+      '2BH',
       '2TU',
     ]);
   });
@@ -215,7 +223,7 @@ describe('registre canonique des cases', () => {
    */
   it('nuance le report exactement là où la source le nuance, et nulle part ailleurs', () => {
     const noted = TAX_BOXES.filter((b) => b.entryNote !== undefined).map((b) => b.code);
-    expect(noted).toEqual(['8PL', '3VG', '3VH', '3AN', '3BN', '3CN', '2OP']);
+    expect(noted).toEqual(['8PL', '3VG', '3VH', '3AN', '3BN', '3CN', '2TT', '2BH', '2OP']);
     expect(taxBox('8PL')!.entryNote).toBe(
       'La notice 2047 millésime 2026 écrit que ce montant « doit être indiqué en 8PL, puis reporté dans la 2042 C » : il se calcule sur l’annexe, et c’est de là qu’il vient.',
     );
@@ -256,7 +264,7 @@ describe('l’ordre du registre suit les dépendances du parcours', () => {
   });
 
   it('marque « à saisir » les annexes elles-mêmes et les options', () => {
-    for (const code of ['2047', '2074', '2086', '3916-bis', '2OP', '3CN', '2TT'])
+    for (const code of ['2047', '2074', '2086', '3916-bis', '2OP', '3CN'])
       expect(taxBox(code)!.entry, code).toBe('typed');
   });
 });

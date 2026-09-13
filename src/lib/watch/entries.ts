@@ -128,6 +128,48 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     topics: ['revenus'],
   },
   {
+    id: 'csg-deductible',
+    title: 'CSG déductible : 6,8 points, sous le barème seulement',
+    status: 'in-force',
+    statusDate: '2026-06-27',
+    effect:
+      'Une fraction de la CSG se déduit du revenu global, « à hauteur de 6,8 points », mais SEULEMENT ' +
+      'pour les revenus « imposés dans les conditions prévues à l’article 197 » — c’est-à-dire au ' +
+      'barème. Sous le prélèvement forfaitaire, elle n’existe pas. Elle s’impute « du revenu imposable ' +
+      'de l’année de son paiement » : pour un revenu du patrimoine recouvré par avis, le gain arrive ' +
+      'donc l’année suivante. Pour les revenus déjà soumis aux prélèvements sociaux à la source, ' +
+      'l’administration la calcule seule, à 6,8 % du montant porté case 2BH.',
+    source: {
+      label: 'CGI art. 154 quinquies, II, version en vigueur au 27/06/2026 (Légifrance)',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000047288608',
+      official: true,
+      checkedOn: '2026-09-13',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-13',
+    topics: ['revenus', 'declaratif'],
+  },
+  {
+    id: 'bareme-ir-2025',
+    title: 'Barème de l’impôt sur le revenu, revenus 2025',
+    status: 'in-force',
+    statusDate: '2026-02-21',
+    effect:
+      'Tranches indexées de 0,9 % : 0 % jusqu’à 11 600 €, 11 % jusqu’à 29 579 €, 30 % jusqu’à ' +
+      '84 577 €, 41 % jusqu’à 181 917 €, 45 % au-delà, par part de quotient familial. C’est ce ' +
+      'barème que l’option remplace au prélèvement forfaitaire de 12,8 %.',
+    source: {
+      label:
+        'CGI art. 197, 1 du I, version en vigueur au 21/02/2026 (Légifrance), modifié par la LOI n° 2026-103 du 19/02/2026, art. 4',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000051212954/2026-09-13',
+      official: true,
+      checkedOn: '2026-09-13',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-13',
+    topics: ['revenus'],
+  },
+  {
     id: 'case-2tt',
     title: 'Case de déclaration des intérêts de prêts participatifs',
     status: 'in-force',
@@ -389,7 +431,9 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     status: 'in-force',
     statusDate: '2026-02-21',
     effect:
-      'Alternative globale et annuelle au prélèvement forfaitaire, sur option expresse ; cette option n’est plus irrévocable, la loi de finances pour 2026 ayant supprimé ce caractère au 2 de l’article 200 A',
+      'Alternative globale et annuelle au prélèvement forfaitaire, sur option expresse ; cette option n’est plus irrévocable, la loi de finances pour 2026 ayant supprimé ce caractère au 2 de l’article 200 A. ' +
+      'La brochure des NOUVEAUTÉS POUR LES REVENUS 2025 le confirme mot pour mot — « Le caractère irrévocable de l’option … est supprimé » — donc dès la campagne déclarative en cours, contrairement à ce qu’affirment plusieurs commentaires secondaires. ' +
+      'L’option porte sur les revenus de capitaux mobiliers ET les plus-values mobilières, jamais sur une seule catégorie ; les actifs numériques ont leur propre case, 3CN',
     source: {
       label:
         'CGI art. 200 A, version en vigueur au 21/02/2026 (Légifrance), modifié par la LOI n° 2026-103 du 19/02/2026, art. 126',
