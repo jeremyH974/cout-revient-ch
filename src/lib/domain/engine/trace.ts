@@ -162,7 +162,15 @@ export type TraceProvenance =
       valueEurSource: ValueEurSource | null;
       warnings: readonly string[];
     }
-  | { kind: 'lot'; lotId: string; eventId: EventId; openedAt: NaiveDateTime; origin: LotOrigin }
+  | {
+      kind: 'lot';
+      lotId: string;
+      eventId: EventId;
+      openedAt: NaiveDateTime;
+      origin: LotOrigin;
+      /** Acquisitions que ce lot représente ; **1** s'il n'en représente qu'une (décision n° 152). */
+      mergedCount: number;
+    }
   | {
       kind: 'quote';
       asset: AssetCode;
@@ -790,6 +798,7 @@ function costBasisNode(ctx: Ctx, slice: Slice, id: string): TraceNode {
         eventId: lot.eventId,
         openedAt: lot.openedAt,
         origin: lot.origin,
+        mergedCount: lot.mergedCount,
       },
       children: openingChildren,
       gap: carried ? 'carried-cost' : openingChildren.length === 0 ? 'missing-history' : null,
@@ -887,6 +896,7 @@ function disposalNode(
         eventId: c.eventId,
         openedAt: c.openedAt,
         origin: c.origin,
+        mergedCount: c.mergedCount,
       },
       gap:
         c.origin === 'migration' && ctx.settings.migrationMode === 'carry-cost'

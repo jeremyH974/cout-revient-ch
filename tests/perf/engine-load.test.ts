@@ -23,6 +23,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { runLedger } from '../../src/lib/domain/engine/compute';
+import { MAX_TRACKED_LOTS } from '../../src/lib/domain/engine/position';
 import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent } from '../../src/lib/domain/types';
 import { accumulation, roundTrip } from './scenario';
 
@@ -51,14 +52,37 @@ describe('charge du moteur', () => {
   const small = measure(roundTrip(60));
   const large = measure(roundTrip(120));
 
-  it('la trace des lots croît en O(n²) : doubler la taille la quadruple', () => {
+  it('sous la borne, la trace reste complète — et donc quadratique', () => {
+    // Ces deux tailles ouvrent moins de `MAX_TRACKED_LOTS` lots : aucun regroupement, chaque
+    // cession parcourt encore tous les lots. C'est le comportement voulu — un portefeuille
+    // ordinaire garde sa trace entière, au détail près.
     expect(small.consumptions).toBe(493);
     expect(large.consumptions).toBe(1888);
-    // Chaque cession parcourt TOUS les lots ouverts, et la méthode proportionnelle n'en épuise
-    // aucun : `position.ts` ne connaît que `push` et l'itération, jamais de purge.
     const ratio = large.consumptions / small.consumptions;
-    expect(ratio, 'quadratique attendu').toBeGreaterThan(3.4);
+    expect(ratio, 'quadratique attendu sous la borne').toBeGreaterThan(3.4);
     expect(ratio, 'au-delà, la complexité a empiré').toBeLessThan(4.6);
+  });
+
+  /**
+   * **Le renversement** (décision n° 152). Ce fichier annonçait que ses chiffres « doivent changer
+   * le jour où quelqu'un s'attaque au quadratique, et ce test est là pour l'exiger ». Voilà ce
+   * jour : au-delà de la borne, doubler la taille ne quadruple plus rien, il double.
+   */
+  it('au-delà de la borne, doubler la taille DOUBLE la trace au lieu de la quadrupler', () => {
+    const big = measure(roundTrip(1200));
+    const bigger = measure(roundTrip(2400));
+    const ratio = bigger.consumptions / big.consumptions;
+    expect(ratio, 'linéaire attendu au-delà de la borne').toBeGreaterThan(1.8);
+    expect(ratio, 'le quadratique est revenu').toBeLessThan(2.2);
+  });
+
+  it('aucune position ne suit plus de lots que la borne', () => {
+    // La grandeur déterministe qui résume tout : c'est elle qui plafonne le coût d'une cession.
+    for (const n of [600, 1200, 2400]) {
+      const run = runLedger(roundTrip(n), DEFAULT_ENGINE_SETTINGS);
+      for (const position of run.positions.values())
+        expect(position.lots.length, `${n} opérations`).toBeLessThanOrEqual(MAX_TRACKED_LOTS);
+    }
   });
 
   it('la précision des quantités est BORNÉE : elle ne dépend plus de la taille', () => {

@@ -34,7 +34,42 @@ export interface Lot {
   costInitial: Big;
   qtyRemaining: Big;
   costRemaining: Big;
+  /**
+   * Nombre d'acquisitions que ce lot représente — **1** pour un lot ordinaire (décision n° 152).
+   *
+   * Au-delà de `MAX_TRACKED_LOTS`, les plus anciens sont regroupés. Ce compteur existe pour que le
+   * regroupement soit **dit**, jamais subi en silence : un écran qui montrerait un lot de 1 234
+   * achats comme s'il en était un seul mentirait sur ce qu'il affiche.
+   */
+  mergedCount: number;
 }
+
+/**
+ * Combien de lots une position suit **individuellement** (décision n° 152).
+ *
+ * ## Pourquoi une borne
+ *
+ * La méthode proportionnelle prend une part de **chaque** lot ouvert à chaque cession, et n'en
+ * épuise aucun : le coût d'un grand livre est donc `achats × cessions`. Mesuré : 3,0 s pour
+ * 1 600 opérations, **11,3 s** pour 3 200. C'est ce quadratique, et non le fil d'exécution, qui
+ * bornait l'outil (décision n° 151).
+ *
+ * ## Pourquoi c'est sans effet sur le moindre chiffre
+ *
+ * Les montants ne dépendent pas des lots : `qty` et `costBasis` sont tenus à part, et le coût de
+ * cession en dérive (`costBasis × qty / this.qty`). Les lots ne portent que la **trace** — quels
+ * achats ont payé cette vente — et l'affichage par lot. Et comme la méthode prend la même
+ * fraction de chacun, regrouper deux lots puis prendre la fraction du regroupement donne la même
+ * somme que prendre la fraction de chacun : **les invariants sont préservés par construction**,
+ * pas par tolérance.
+ *
+ * ## Pourquoi 200
+ *
+ * Un versement programmé hebdomadaire pendant trois ans fait 156 lots : la borne ne doit pas mordre
+ * sur un usage ordinaire. Au-delà, la décomposition d'une seule vente dépasse deux cents lignes et
+ * cesse d'être lisible — le regroupement ne retire donc rien qu'un lecteur pouvait exploiter.
+ */
+export const MAX_TRACKED_LOTS = 200;
 
 export interface Movement {
   eventId: EventId;
@@ -82,6 +117,42 @@ export class PositionState {
 
   get pru(): Big | null {
     return isPositive(this.qty) ? this.costBasis.div(this.qty) : null;
+  }
+
+  /**
+   * Regroupe les lots les plus anciens tant que la position en suit plus que `MAX_TRACKED_LOTS`.
+   *
+   * **Deux lots ne se regroupent que s'ils partagent leur origine**, et qu'ils se suivent. L'origine
+   * n'est pas décorative : la trace s'en sert pour signaler un coût repris d'une migration ou une
+   * récompense valorisée à zéro (`migrationMode`, `rewardValuation`). Fondre un achat et une
+   * récompense dans un même lot ferait disparaître cet avertissement — le regroupement doit coûter
+   * du **détail**, jamais un **signal**.
+   *
+   * Les sommes sont exactes par construction : additionner deux quantités puis en prendre une
+   * fraction, ou prendre la fraction de chacune puis additionner, donne le même total. L'égalité
+   * `Σ lots = quantité` que contrôle l'auto-vérification reste donc vraie à l'exactitude, pas à la
+   * tolérance.
+   *
+   * Si aucune paire voisine ne partage son origine — un portefeuille qui alternerait achat et
+   * récompense à chaque opération —, rien n'est regroupé et la borne est dépassée. C'est assumé :
+   * mieux vaut un calcul lent qu'une trace qui ment.
+   */
+  private compactLots(): void {
+    while (this.lots.length > MAX_TRACKED_LOTS) {
+      const at = this.lots.findIndex((lot, i) => i > 0 && lot.origin === this.lots[i - 1]!.origin);
+      if (at === -1) return;
+      const older = this.lots[at - 1]!;
+      const newer = this.lots[at]!;
+      older.qtyInitial = older.qtyInitial.plus(newer.qtyInitial);
+      older.costInitial = older.costInitial.plus(newer.costInitial);
+      older.qtyRemaining = older.qtyRemaining.plus(newer.qtyRemaining);
+      older.costRemaining = older.costRemaining.plus(newer.costRemaining);
+      // Deux contreparties différentes n'en font aucune : mieux vaut ne rien dire que d'affirmer
+      // que tout le regroupement a été payé dans la devise du premier.
+      if (older.counterAsset !== newer.counterAsset) older.counterAsset = null;
+      older.mergedCount += newer.mergedCount;
+      this.lots.splice(at, 1);
+    }
   }
 
   /** À appeler après toute variation comptée d'achats/produits (y compris un transfert). */
@@ -145,7 +216,9 @@ export class PositionState {
       costInitial: cost,
       qtyRemaining: qty,
       costRemaining: cost,
+      mergedCount: 1,
     });
+    this.compactLots();
     if (counted) {
       this.investedTotal = this.investedTotal.plus(cost);
       this.noteEngaged();
@@ -266,6 +339,7 @@ export class PositionState {
         origin: lot.origin,
         qty: takenQty,
         cost: takenCost,
+        mergedCount: lot.mergedCount,
       });
       if (fraction === null) {
         lot.qtyRemaining = ZERO;
