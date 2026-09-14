@@ -261,11 +261,20 @@ function detailsOf(
         details.push({ term: 'Avertissement', value: warning });
       return details;
     }
-    case 'lot':
-      return [
+    case 'lot': {
+      const details: TraceDetail[] = [
         { term: 'Ouvert le', value: fmtDate(provenance.openedAt) },
         { term: 'Origine', value: ORIGIN_TEXTS[provenance.origin] ?? provenance.origin },
       ];
+      // Le regroupement se DIT : un lot qui en représente mille ne doit pas passer pour un achat
+      // unique (décision n° 152). Les montants n'en sont pas affectés, la décomposition si.
+      if (provenance.mergedCount > 1)
+        details.push({
+          term: 'Regroupement',
+          value: `${provenance.mergedCount} acquisitions de même nature, les plus anciennes`,
+        });
+      return details;
+    }
     case 'quote':
       return [
         { term: 'Source', value: provenance.source },
@@ -290,7 +299,10 @@ function labelOf(node: TraceNode, metric: TraceMetric): string {
   if (node.role === 'position' && node.asset) return node.asset.toUpperCase();
   if (node.provenance.kind === 'raw-row' && node.provenance.lineNo > 0)
     return `Ligne ${node.provenance.lineNo}`;
-  if (node.role === 'lot' && node.at) return `Lot du ${fmtDate(node.at)}`;
+  if (node.role === 'lot' && node.at)
+    return node.provenance.kind === 'lot' && node.provenance.mergedCount > 1
+      ? `${node.provenance.mergedCount} lots regroupés, depuis le ${fmtDate(node.at)}`
+      : `Lot du ${fmtDate(node.at)}`;
   const base = ROLE_LABELS[node.role];
   return node.at && OPERATION_ROLES.has(node.role) ? `${base} du ${fmtDate(node.at)}` : base;
 }

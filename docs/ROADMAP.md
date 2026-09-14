@@ -377,6 +377,12 @@ sont ressortis, qu'aucune des trois propositions n'annonçait :
   une fois et le partager fait tomber l'ouverture du portefeuille de **29,3 s à 162 ms** sur
   3 000 opérations. Le quadratique de `position.ts` reste, nommé et chiffré, avec ses deux
   voies de correction écrites — c'est lui, et non le fil, qui borne l'outil.
+- **Le quadratique est traité** (décision n° 152). Il était le prix de la **trace**, pas du
+  calcul : les montants ne dépendent pas des lots. Au-delà de 200 lots, les plus anciens de
+  même origine sont regroupés, et le regroupement **se dit** — à l'écran, dans la trace et dans
+  l'export. Trois mille opérations passent de **36,5 s à 1,4 s** de bout en bout, et doubler la
+  taille ne quadruple plus rien : la croissance est redevenue linéaire.
+
 - **P114 a renversé un arbitrage de la décision n° 120**, pour la même raison que P113 avant
   elle : l'argument qui écartait Argon2id (« une dépendance de plus ») était devenu faux, la
   dépendance étant déjà là. Et c'était la sauvegarde — le seul fichier qui **voyage** — qui

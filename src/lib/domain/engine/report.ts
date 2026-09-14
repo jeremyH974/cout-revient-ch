@@ -45,6 +45,8 @@ export interface LotReport {
   costInitial: Big;
   qtyRemaining: Big;
   costRemaining: Big;
+  /** Acquisitions regroupées dans ce lot ; **1** pour un lot ordinaire (décision n° 152). */
+  mergedCount: number;
   /** Prix all-in d'une unité du lot (coût initial ÷ quantité initiale). */
   unitCost: Big | null;
   value: Big | null;
@@ -70,12 +72,14 @@ export type HistoryKind =
  */
 export interface LotConsumption {
   lotId: string;
-  /** Événement qui a ouvert le lot (l'achat d'origine). */
+  /** Événement qui a ouvert le lot (l'achat d'origine, ou le plus ancien s'il est regroupé). */
   eventId: EventId;
   openedAt: NaiveDateTime;
   origin: LotOrigin;
   qty: Big;
   cost: Big;
+  /** Acquisitions regroupées dans le lot consommé ; **1** s'il n'en représente qu'une. */
+  mergedCount: number;
 }
 
 /** Une ligne de l'historique d'un actif, avec le PRU après l'opération. */

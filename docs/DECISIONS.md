@@ -4249,3 +4249,76 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      rougir le compteur de rejeux en nommant le cas — « rapport avec grand livre fourni : 1 attendu
      0 » ; déchiffrer un fichier de version 1 avec les paramètres d'Argon2id fait rougir le test du
      fichier gelé. Restaurés, les deux repassent au vert.
+
+152. **Le quadratique était le prix de la trace, pas du calcul** (14/09/2026).
+
+     **Le constat, et il tient en une phrase.** La méthode proportionnelle prend une part de
+     **chaque** lot ouvert à chaque cession, et n'en épuise aucun : `position.ts` ne connaissait que
+     `push` et l'itération, jamais de purge. Le coût d'un grand livre était donc
+     `achats × cessions` — 3,0 s pour 1 600 opérations, **11,3 s** pour 3 200. C'est ce que la
+     décision n° 151 avait nommé sans le traiter.
+
+     **Les montants ne dépendent pas des lots.** `qty` et `costBasis` sont tenus à part, et le coût
+     de cession en dérive : `costBasis × qty / this.qty`. Les lots ne portent que la **trace** —
+     quels achats ont payé cette vente — et l'affichage par lot. Le quadratique n'achetait donc
+     aucun chiffre : il achetait du détail.
+
+     **La recherche confirme que le lot n'a aucune existence dans le calcul.** L'article 150 VH bis
+     retient le _prix total d'acquisition du portefeuille_ ; l'article 150-0 D, le _prix moyen
+     pondéré_ ; IAS 2 et le PCG, un coût unitaire moyen. Aucun de ces régimes ne demande de savoir
+     quel achat a financé quelle vente — c'est l'inverse exact de FIFO, LIFO ou de l'identification
+     spécifique, où désigner le lot cédé **est** le calcul. Les logiciels établis sous coût moyen
+     n'affichent d'ailleurs aucune décomposition par lot.
+
+     **Ce qui est livré : une borne, et un regroupement qui se dit.** Au-delà de
+     `MAX_TRACKED_LOTS = 200`, les lots les plus anciens sont fondus deux à deux. Chaque lot porte un
+     `mergedCount` — le nombre d'acquisitions qu'il représente — et ce compteur traverse tout :
+     l'écran des lots, la trace « Pourquoi ce chiffre ? », l'export CSV. **Un regroupement subi en
+     silence serait un mensonge sur ce qu'on affiche** ; celui-ci s'annonce, se chiffre, et laisse
+     intactes les données sous-jacentes (les lignes brutes et l'historique ne bougent pas).
+
+     **Deux lots ne se regroupent que s'ils partagent leur origine**, et qu'ils se suivent.
+     L'origine n'est pas décorative : la trace s'en sert pour signaler un coût repris d'une migration
+     (`migrationMode`) ou une récompense valorisée à zéro (`rewardValuation`). Fondre un achat et une
+     récompense dans un même lot ferait disparaître cet avertissement — le regroupement doit coûter
+     du **détail**, jamais un **signal**. Si aucune paire voisine ne partage son origine, rien n'est
+     regroupé et la borne est dépassée : mieux vaut un calcul lent qu'une trace qui ment.
+
+     **Les invariants sont préservés par construction, pas par tolérance.** Additionner deux
+     quantités puis en prendre une fraction, ou prendre la fraction de chacune puis additionner,
+     donne le même total : c'est la propriété même de la méthode proportionnelle. L'égalité
+     `Σ lots = quantité` que l'auto-vérification contrôle en direct reste donc **exacte**. C'est ce
+     qui a fait écarter l'autre voie envisagée — dériver l'état d'un lot d'un facteur de rétention
+     cumulé, élégant et en O(1), mais qui aurait troqué cette exactitude contre une tolérance.
+
+     **La mesure.**
+
+     |                                             |   Avant   |    Après     |
+     | ------------------------------------------- | :-------: | :----------: |
+     | Moteur, 1 600 opérations                    | 3 042 ms  | **1 137 ms** |
+     | Moteur, 3 200 opérations                    | 11 349 ms | **2 416 ms** |
+     | Navigateur, 3 000 opérations — import       | 7 233 ms  | **1 309 ms** |
+     | Navigateur, 3 000 opérations — portefeuille | 29 305 ms |  **130 ms**  |
+
+     Et surtout : doubler la taille ne quadruple plus rien, **il double**. La croissance est redevenue
+     linéaire au-delà de la borne.
+
+     **Pourquoi 200.** Un versement programmé hebdomadaire pendant trois ans fait 156 lots : la borne
+     ne doit pas mordre sur un usage ordinaire — et elle ne peut pas coûter cher à un investisseur
+     qui accumule, dont le coût vaut `achats × cessions` et qui cède peu. Elle ne mord que lorsqu'il y
+     a beaucoup des deux, c'est-à-dire exactement le cas où la décomposition d'une vente sur deux
+     cents lots a cessé d'être lisible. Abaisser à 40 gagnerait encore 4,5× (mesuré), au prix de la
+     liste de lots d'un investisseur ordinaire : refusé.
+
+     **Le garde-fou de charge a été écrit pour ce jour.** `tests/perf/engine-load.test.ts` annonçait
+     que ses chiffres « doivent changer le jour où quelqu'un s'attaque au quadratique, et ce test est
+     là pour l'exiger » (décision n° 85). Il affirme désormais les deux régimes : quadratique **sous**
+     la borne — un portefeuille ordinaire garde sa trace entière —, linéaire **au-delà**.
+
+     **Contre-épreuve** (décision n° 75), deux fois : faire perdre au regroupement le coût du lot
+     absorbé fait rougir l'invariant exact en montrant les deux sommes qui divergent ; faire
+     traverser les origines fait rougir le cloisonnement en nommant le décalage — « achats
+     regroupés : 602 attendu 546 ». Le second garde-fou a d'abord été **inopérant** : le scénario
+     n'avait qu'une seule origine, donc la falsification ne changeait rien. Une récompense tous les
+     onze événements l'a rendu observable — même famille que les décisions n° 136, 145 et 149, et
+     c'est la quatrième fois qu'un test creux se révèle en le falsifiant plutôt qu'en le lisant.

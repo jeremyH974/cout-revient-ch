@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { PositionReport } from '$lib/domain/engine';
+  import { MAX_TRACKED_LOTS } from '$lib/domain/engine/position';
   import { fmtDateTime } from '$lib/format/fr';
   import { fmtPrice as fmtPriceBase } from '$lib/format/fr';
   import Money from '../shared/Money.svelte';
@@ -9,6 +10,10 @@
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { position }: { position: PositionReport } = $props();
+  /** Acquisitions absorbées par un regroupement : zéro tant que la borne n'a pas mordu. */
+  const merged = $derived(
+    position.lots.reduce((acc, lot) => acc + (lot.mergedCount > 1 ? lot.mergedCount : 0), 0),
+  );
   const labels: Record<string, string> = {
     purchase: 'ACHAT',
     reward: 'RÉCOMPENSE',
@@ -24,7 +29,10 @@
   <p class="muted note">
     Un lot par achat. Chaque vente consomme la même fraction de chaque lot : la somme des latents
     des lots est exactement le latent de l'actif. Le « % » de chaque lot est son latent rapporté à
-    son coût restant (écart du prix au prix all-in du lot).
+    son coût restant (écart du prix au prix all-in du lot).{#if merged > 0}
+      <br />Au-delà de {MAX_TRACKED_LOTS} lots, les plus anciens de même nature sont regroupés — ici
+      {merged} acquisitions le sont. Les montants n'en sont pas affectés : ils ne dépendent pas des lots,
+      seule leur décomposition est moins détaillée.{/if}
   </p>
   {#each position.lots as lot (lot.id)}
     <article class="lot">
@@ -33,6 +41,9 @@
           ><strong>{labels[lot.origin] ?? lot.origin}</strong>
           <span class="muted">{fmtDateTime(lot.openedAt)}</span></span
         >
+        {#if lot.mergedCount > 1}<span class="chip merged"
+            >{lot.mergedCount} acquisitions regroupées</span
+          >{/if}
         {#if lot.counterAsset && lot.counterAsset !== 'eur'}<span class="chip"
             >payé en {lot.counterAsset.toUpperCase()}</span
           >{/if}
@@ -54,6 +65,9 @@
 {/if}
 
 <style>
+  .chip.merged {
+    background: var(--bg-sunken);
+  }
   .empty,
   .note {
     padding: var(--space-3) var(--space-4);

@@ -116,7 +116,8 @@ describe('exports CSV', () => {
     const lots = lines(lotsToCsv(report));
     expect(lots).toHaveLength(3);
     expect(lots[1]).toMatch(
-      /^"BTC";01\/01\/2026 10:00;"purchase";"EUR";1;0,5;100;50;100;125;75;150$/,
+      // La colonne « Acquisitions regroupées » vaut 1 pour un lot ordinaire (décision n° 152).
+      /^"BTC";01\/01\/2026 10:00;"purchase";"EUR";1;1;0,5;100;50;100;125;75;150$/,
     );
     const series = lines(
       seriesToCsv(
