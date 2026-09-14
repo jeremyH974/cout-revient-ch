@@ -6,35 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-11T11:20:25Z',
-  coversFrom: '2026-06-11',
+  generatedAt: '2026-09-14T12:45:42Z',
+  coversFrom: '2026-06-17',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-11', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-11', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
-    { source: 'bls', checkedOn: '2026-09-01', count: 25, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-11', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-14', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-14', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'bls', checkedOn: '2026-09-01', count: 24, coversTo: '2026-12-15', upkeep: 'manual' },
+    { source: 'ecb', checkedOn: '2026-09-14', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-11',
+      checkedOn: '2026-09-14',
       count: 9,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'bls-ppi-2026-06-11',
-      kind: 'ppi',
-      at: '2026-06-11T12:30:00Z',
-      precision: 'exact',
-      title: 'Prix à la production (PPI)',
-      detail: 'Données de mai 2026',
-      tier: 'secondary',
-      source: 'bls',
-      url: 'https://www.bls.gov/schedule/news_release/ppi.htm',
-    },
     {
       id: 'fomc-decision-2026-06-17',
       kind: 'fomc-decision',
