@@ -42,6 +42,14 @@ jobs:
         id: contract
         continue-on-error: true
         run: node scripts/api-contract.mjs
+      # Les avis de sécurité qu'on a laissés ouverts faute de correctif : ce contrôle demande au
+      # registre npm si ce qui bloquait a cessé de bloquer. Rien d'autre ne le dirait — les
+      # correctifs automatiques de sécurité sont coupés, et dependabot ne propose jamais de montée
+      # de version pour une dépendance transitive (décision n° 155).
+      - name: Avis de sécurité laissés ouverts
+        id: advisories
+        continue-on-error: true
+        run: node scripts/check-blocked-advisories.ts
       - name: Garder le planning actif
         env:
           GH_TOKEN: ${{ github.token }}
@@ -51,6 +59,7 @@ jobs:
         env:
           SMOKE: ${{ steps.smoke.outcome }}
           CONTRACT: ${{ steps.contract.outcome }}
+          ADVISORIES: ${{ steps.advisories.outcome }}
         with:
           script: |
             const fs = require('node:fs');
@@ -60,6 +69,8 @@ jobs:
 
             let contract = '';
             try { contract = fs.readFileSync('monitor-results/api-contract.md', 'utf8'); } catch {}
+            let advisories = '';
+            try { advisories = fs.readFileSync('monitor-results/advisories.md', 'utf8'); } catch {}
             let state = { signature: 'état-du-contrat-illisible', failed: [], reprieved: [] };
             try { state = JSON.parse(fs.readFileSync('monitor-results/contract-state.json', 'utf8')); } catch {}
 
@@ -70,16 +81,23 @@ jobs:
             const smokeOk = process.env.SMOKE === 'success';
             const contractOk = process.env.CONTRACT === 'success';
             const alarming = !smokeOk || !contractOk;
-            const noteworthy = alarming || state.reprieved.length > 0;
-            const signature = `smoke:${smokeOk ? 'ok' : 'ko'}|${state.signature}`;
+            // Un avis qui redevient corrigeable est NOTABLE, jamais alarmant : il mérite un
+            // commentaire, une fois, pas un échec de surveillance toutes les six heures jusqu'à
+            // ce que quelqu'un agisse. L'empreinte le porte, donc il ne se répète pas.
+            const advisoriesMoved = process.env.ADVISORIES === 'failure';
+            const noteworthy = alarming || advisoriesMoved || state.reprieved.length > 0;
+            const signature = `smoke:${smokeOk ? 'ok' : 'ko'}|avis:${advisoriesMoved ? 'rouvrable' : 'bloqués'}|${state.signature}`;
             const MARK = (sig) => `<!-- monitor-state: ${sig} -->`;
 
             const body = [
               `Exécution : ${runUrl}`,
               `- Parcours sur le site en ligne : **${process.env.SMOKE}**`,
               `- Contrat des API tierces : **${process.env.CONTRACT}**`,
+              `- Avis de sécurité laissés ouverts : **${advisoriesMoved ? 'un dossier peut être rouvert' : 'toujours bloqués'}**`,
               '',
               contract,
+              '',
+              advisories,
               '',
               '_Ce corps d’issue est réécrit à chaque exécution ; un commentaire n’est ajouté que',
               'lorsque l’état change._',

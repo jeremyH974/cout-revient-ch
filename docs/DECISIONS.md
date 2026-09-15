@@ -4442,3 +4442,58 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Effet de bord heureux** : `tmp` 0.2 a laissé tomber `rimraf`, `glob`, `minimatch` et
      `os-tmpdir`, et deux copies dupliquées ont fusionné. Le verrou ne fait que retirer — huit
      paquets de moins.
+
+155. **Le correctif qui n'existe pas encore a quand même une date de réveil** (15/09/2026).
+
+     **La demande.** « Fais pareil pour les deux `extract-zip`, si un jour c'est possible. » La
+     décision n° 154 avait établi qu'aujourd'hui ce n'est pas possible : aucune version corrigée
+     n'existe, et la seule voie passerait par une majeure forcée sur le pilote de Chrome à
+     l'intérieur d'un outil abandonné. Reste la question posée : **qui nous préviendra le jour où
+     ce sera possible ?**
+
+     **La réponse était « personne », et c'est ce qui a rendu ce travail nécessaire.** Deux faits
+     se recoupent. D'abord, `automated-security-fixes` est **désactivé** sur ce dépôt : les
+     _alertes_ arrivent, les _PR_ de correction non — ce qui explique aussi que quatre PR
+     dependabot soient restées cinq semaines sans qu'aucune alerte ne pousse à agir. Ensuite,
+     dependabot ne propose **jamais** de montée de version pour une dépendance **transitive** : sa
+     seule voie serait une PR de sécurité, précisément celle qui est coupée. Un `extract-zip`
+     2.0.2 corrigé serait donc publié, accepté par le `^2.0.1` de son parent… et jamais installé,
+     sans que rien ne le signale.
+
+     **Ce qui n'aurait pas suffi.** Le garde-fou de la décision n° 154 vérifie l'arbre
+     **installé** : il rougit si `extract-zip` change de version ou disparaît. C'est la bonne
+     moitié du problème, et ce n'est que la moitié — un correctif publié que rien n'a encore tiré
+     lui reste invisible. Voir la parution demande d'interroger le registre, donc de sortir sur le
+     réseau, donc de ne pas être un test (aucun test de ce dépôt ne sort sur Internet).
+
+     **Ce qui est livré.** `scripts/check-blocked-advisories.ts` porte la liste des avis qu'on a
+     délibérément laissés ouverts, chacun avec **ce qui le rouvrirait** — ici : `extract-zip`
+     au-dessus de 2.0.1, ou `@lhci/cli` au-dessus de 0.15.1, c'est-à-dire l'outil republié après
+     quinze mois de gel. Il tourne dans la surveillance existante, toutes les six heures, et écrit
+     dans l'issue de monitoring.
+
+     **Notable, jamais alarmant.** Un avis redevenu corrigeable mérite un commentaire, **une
+     fois** — pas un échec de surveillance toutes les six heures jusqu'à ce que quelqu'un agisse.
+     C'est le cri au loup que la décision n° 74 a éteint, et l'empreinte d'état qu'elle a
+     introduite sert exactement à ça : la sonnerie se fait entendre au changement, puis se tait.
+
+     **Et une panne du registre ne fait pas échouer ce contrôle**, contrairement à l'audit de
+     production (décision n° 99). La différence tient à ce que chacun protège. L'audit est un
+     **garde** : il ne doit jamais dire « rien à signaler » quand il n'a pas pu regarder, parce
+     qu'un déploiement en dépend. Celui-ci est un **rappel** : rien n'en dépend, et le faire crier
+     sur un `503` éteindrait la seule chose qu'il apporte — l'attention. L'impossibilité de
+     regarder est écrite dans le résumé, pas transformée en alarme.
+
+     **La liste est adossée à l'arbre installé** (règle n° 90) : le plancher surveillé doit égaler
+     la version réellement présente. Sans cela, monter `extract-zip` sans toucher au veilleur le
+     laisserait surveiller un seuil périmé — la panne la plus silencieuse possible pour une
+     sonnerie de réveil.
+
+     **Contre-épreuve** (décision n° 75), double d'un seul geste : abaisser le seuil surveillé à
+     1.0.0 fait rougir le test d'accrochage en nommant l'écart — « extract-zip installé en 2.0.1 :
+     attendu 1.0.0 » — **et** fait sonner le veilleur, qui sort en 1 sur « 1 avis peut désormais
+     être traité ». Les deux moitiés du garde-fou se prouvent par la même falsification.
+
+     **Ce qui reste à trancher, et qui ne m'appartient pas** : activer
+     `automated-security-fixes`. Il ferait ouvrir une PR dès qu'un correctif paraît, pour ce
+     dossier comme pour les suivants. C'est un réglage du dépôt, pas une ligne de code.
