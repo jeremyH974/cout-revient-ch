@@ -15,6 +15,13 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm run audit:prod` — `npm audit` des dépendances de production, **avec la distinction qui
   manque à npm** : un verdict de vulnérabilité échoue tout de suite, une panne du registre se
   réessaie puis se nomme (décision n° 99). C'est cette commande que la CI exécute.
+  Les failles de **développement** (Lighthouse CI, Stryker) ne la concernent pas : elles se traitent
+  par les `overrides` de `package.json`, **toujours scopés à leur parent**, jamais globaux — un
+  override global rétrograde en silence une future majeure. Avant d'en poser un, vérifier que la
+  version corrigée n'est pas déjà dans la plage que le parent déclare : cinq alertes sur neuf
+  n'étaient qu'un verrou périmé (décision n° 154). Le plancher réellement installé, lui, est adossé
+  à `tests/integration/dependency-floors.test.ts`. **Piège** : un override ne mord pas tant que le
+  verrou porte une version satisfaisante — pour le falsifier, effacer aussi son entrée du verrou.
 - `npm run bench` — mesure le coût du moteur (`tests/perf/*.bench.ts`), **hors CI** : Vitest ne
   ramasse que `*.test.ts`. Le garde-fou qui tourne, lui, ne chronomètre rien — il compte des
   grandeurs déterministes (décisions n° 85 et 87).
