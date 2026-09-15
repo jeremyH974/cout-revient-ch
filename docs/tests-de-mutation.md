@@ -51,7 +51,8 @@ correction : **87,5 %**.
 | `domain/tax-fr.ts`             |      70,7 % |         43 |
 
 Les 172 survivants restants sont un **arriéré**, pas une urgence : chacun est une assertion
-manquante à écrire quand on retouche le module concerné.
+manquante à écrire quand on retouche le module concerné. _(Cet arriéré a été traité le 15/09/2026 —
+voir plus bas.)_
 
 ### Le relevé du 13/09/2026, après l'écran de déclaration
 
@@ -120,21 +121,107 @@ absences, l'année). Les connaître évite de les refaire.
 filtre `Boolean(id)` rend muet exactement le cas qu'on veut attraper : le chiffre qui perd sa
 source. La parade est une assertion nominative à côté du croisement.
 
+## Le relevé du 15/09/2026 : l'arriéré traité (décision n° 153)
+
+Les 175 survivants laissés en arriéré ont été repris moteur par moteur.
+
+| Périmètre                      |         Avant |                                 Après |
+| ------------------------------ | ------------: | ------------------------------------: |
+| **Ensemble muté**              | 86,47 % — 233 |                      **96,51 % — 60** |
+| `domain/tax-fr.ts`             |  71,04 % — 86 |                      **96,53 % — 10** |
+| `domain/declarations-fr.ts`    |  75,41 % — 30 |                       **95,28 % — 6** |
+| `domain/equity-tax-fr.ts`      |  77,65 % — 19 |                       **94,12 % — 5** |
+| `domain/lending/tax-fr.ts`     |  78,81 % — 32 |                      **90,73 % — 14** |
+| `domain/interest-income-fr.ts` |   78,95 % — 8 |                       **97,37 % — 1** |
+| `domain/equity-income-fr.ts`   |  80,50 % — 31 |                       **98,11 % — 3** |
+| `domain/tax-boxes.ts`          |   96,39 % — 7 |                       **99,48 % — 1** |
+| `derive/tax-return.ts`         |  95,05 % — 20 | 95,05 % — 20 (équivalents, ci-dessus) |
+
+### La distinction que le score global écrasait
+
+Les 233 mutants non tués n'étaient pas de même nature : **175 étaient exécutés sans être vérifiés,
+58 n'étaient jamais atteints**. `tax-fr.ts` en portait 43 à lui seul — c'est-à-dire qu'aucun test de
+ce moteur ne l'avait jamais fait traverser par une récompense, un dépôt, un retrait ni un solde
+d'ouverture. Les trois compteurs que le rapport affiche en réserve (« le prix d'acquisition est
+sous-estimé ») n'étaient donc vérifiés par rien. Un `NoCoverage` est un pan de code que personne
+n'appelle : un trou plus large qu'un survivant, et souvent plus vite comblé.
+
+### Cinq familles, les mêmes dans les sept moteurs
+
+Aux trois de septembre (**les mots**, **les absences**, **la bonne année**) s'en ajoutent deux, et
+ces cinq-là suffisent à expliquer la quasi-totalité de l'arriéré :
+
+4. **Les tris ne sont éprouvés par rien.** Retirer un `.sort(...)` survivait dans **six** modules.
+   Un ordre est pourtant ce que l'utilisateur lit : s'il dépend de l'ordre d'arrivée des lignes d'un
+   relevé, il change d'un import à l'autre. Pire pour `tax-fr.ts`, dont l'en-tête promet d'accepter
+   un grand livre « dans n'importe quel ordre » alors que le prix total d'acquisition se consomme
+   cession après cession : un rejeu désordonné donne d'autres chiffres, et rien ne le disait.
+5. **Les drapeaux d'état ne sont affirmés que dans un sens.** `hasLosses`, `hasUndesignated`,
+   `hasWithholding` : leur valeur initiale pouvait être inversée sans qu'aucun test ne rougisse.
+   Ils commandent l'affichage de réserves entières — un drapeau bloqué montre ou cache un
+   avertissement, sans qu'un seul montant ne bouge.
+
+### Ce que la mesure a corrigé dans le moteur
+
+Deux vrais défauts, trouvés en cherchant des assertions manquantes :
+
+- **`declarations-fr.ts` ne redimensionnait pas le solde d'un fractionnement.** Le commentaire du
+  module disait lui-même que « le hasard a tenu lieu de garde-fou ». Il ne tenait plus : un relevé
+  rapporte les mouvements **suivants** en quantités post-fractionnement — c'est pour cela que
+  `engine/position.ts` redimensionne ses lots —, si bien qu'un retrait intégral laissait ici un
+  solde **négatif**, et `holdsAny` ne regarde que la nullité. Le compte paraissait ouvert le jour
+  même où il était soldé. Corrigé en miroir de `position.ts`.
+- **`tax-fr.ts` portait un compteur mort.** `if (event.kind === 'deposit' …) externalInflows++`
+  était posé dans la branche `acquisition`, que `taxKindOf` ne rend jamais pour un dépôt : une copie
+  littérale de la branche voisine, dans un chemin qu'aucun dépôt n'atteint. Sept mutants y vivaient
+  à l'abri. Retiré.
+
+### Les 60 qui restent, et pourquoi ils restent
+
+Tous vérifiés **empiriquement** — mutation appliquée, suite relancée, aucun test rouge — et non pas
+supposés. On n'écrit pas d'assertion pour un mutant qui ne change rien, et on ne tord pas le code
+pour le faire tomber.
+
+- **Du code défensif structurellement inatteignable** (24). Dans `lending/tax-fr.ts`, le second
+  calcul de la première année (lignes 251-255) ne peut jamais trouver plus petit que le premier, qui
+  balaie déjà **tous** les événements. Dans `lending/` et `equity-tax-fr.ts`, `cohorts.sort(...)`
+  trie un tableau que la boucle annuelle remplit déjà par années croissantes, et le `break` qui suit
+  n'économise qu'un tour : une fois la place à zéro, `min(reste, 0) = 0` rend chaque itération
+  neutre. Ces gardes restent — elles coûtent un mutant, pas un risque.
+- **Des comparateurs de tri dont seul le signe compte** (9). `Array.prototype.sort` ne consulte que
+  la **branche négative** du comparateur : `a.at > b.at ? 1 : 0` peut valoir `true`, `false`, `>=`
+  ou `<=` sans que la permutation change. La branche `a.at < b.at`, elle, est bien éprouvée — c'est
+  la seule qui décide.
+- **Un premier membre de garde impliqué par le second** (5). Sur
+  `if (event.kind !== 'income' || event.nature !== 'interest')`, remplacer le premier membre par
+  `false` ne change rien : un événement d'un autre genre ne porte pas de `nature`, donc le second
+  membre l'écarte déjà. Le premier membre sert au **compilateur**, pas à l'exécution.
+- **Les 20 de `tax-return.ts`**, inchangés et déjà instruits plus haut.
+- **Un artefact de l'outil** (1) : voir le piège n° 5.
+
 ## Comment on s'en sert
 
 ```bash
-npm run mutation
+npm run mutation                                   # le relevé, environ 3 minutes
+npm run mutation:survivants                        # le score par fichier
+npm run mutation:survivants domain/tax-fr.ts       # ce qui reste à vérifier dans un module
 ```
 
-Environ **1 min 30 s**. Le rapport lisible sort dans `reports/mutation/index.html` (dossier ignoré
-par git). Un mutant survivant se lit comme une question : _quel test aurait dû rougir ici ?_ La
-réponse est presque toujours une **assertion** manquante, pas un test manquant.
+Le rapport HTML sort dans `reports/mutation/index.html` (dossier ignoré par git) : 1,3 Mo, bon pour
+flâner, inutilisable pour travailler. **C'est `mutation:survivants` qui sert** : il lit le rapport
+JSON du même relevé et rend, pour chaque mutant non tué, le **fragment exact** qu'il remplace — pas
+la ligne. La nuance n'est pas cosmétique : une ligne porte souvent plusieurs mutants distincts, et
+lue entière, la mutation d'un seul membre de garde ressemble à un trou béant. Cette confusion a
+coûté une demi-heure et une fausse piste donnée à un agent, le 15/09/2026.
 
-`thresholds.break` vaut **85**, posé **sous** le score mesuré : c'est un cliquet contre la
+Un mutant non tué se lit comme une question : _quel test aurait dû rougir ici ?_ La réponse est
+presque toujours une **assertion** manquante, pas un test manquant.
+
+`thresholds.break` vaut **94**, posé **sous** le score mesuré (96,51 %) : c'est un cliquet contre la
 régression, jamais une cible. Un score qu'on atteint en écrivant des tests pour le chiffre ne vaut
 rien.
 
-## Trois pièges, tous vécus
+## Cinq pièges, tous vécus
 
 1. **Le fichier incrémental rejoue des résultats périmés.** `reports/stryker-incremental.json`
    conserve le verdict de fichiers **sortis du périmètre** : on croit mesurer, on relit un cache.
@@ -153,6 +240,30 @@ rien.
    `stryker.config.json`. **Ancrez les motifs avec `/`** : un `dist` nu exclut aussi `mcp/dist`,
    dont un test a besoin, et la course initiale échoue alors sur « mcp/dist/server.js est
    introuvable » — un message qui envoie chercher très loin de la cause.
+
+4. **Dix ouvriers, et deux morts d'affilée** (15/09/2026). Stryker prend la **moitié des cœurs** par
+   défaut : dix ici, chacun démarrant son Vitest. Sur une machine de 16 Go dont 1,8 libre, deux
+   courses de suite sont mortes — `EPERM (rename)` de nouveau, puis
+   `Fatal process out of memory`. Deux symptômes, une cause : trop d'ouvriers. Le piège n° 2 avait
+   réglé la collision **entre** exécutions, pas celle qui se joue **au sein** d'une même : un seul
+   bac à sable, mais plusieurs processus qui y pré-bundlent ensemble dans le même `.vite` vide.
+   Réglé des deux côtés — `concurrency: 4` dans `stryker.config.json`, et un cache **par processus**
+   dans le bac à sable (`vite.config.ts`). La course passe de 2 à 3 minutes : le prix d'un relevé
+   qui aboutit.
+
+   **Le corollaire est plus dangereux que la panne.** Une course qui meurt laisse le rapport
+   précédent en place, et la commande de lecture rend alors des chiffres **au mot près identiques** :
+   on croit n'avoir rien gagné alors qu'on n'a rien mesuré. C'est arrivé, et seule l'égalité parfaite
+   avec le relevé de la veille a mis la puce à l'oreille. `mutation:survivants` date donc toujours
+   son relevé, et crie si `src/` a changé depuis. **Vérifiez le code de retour de `npm run mutation`,
+   jamais la seule présence d'un rapport.**
+
+5. **Un mutant qui casse le chargement du module est compté « survivant »** (15/09/2026). Muter
+   l'arrière de `TAX_BOXES.map((box) => [box.code, box])` en `() => undefined` fait échouer
+   l'évaluation du module entier : **zéro test ne démarre**, donc zéro test n'échoue, et Stryker le
+   classe survivant par défaut (`testsCompleted: 0` dans le rapport JSON). Aucun test ne peut le
+   tuer — le rendre vert demanderait de tromper l'outil. Un seul mutant de tout le périmètre est
+   dans ce cas ; il est laissé tel quel, et compté au dénominateur.
 
 ## Le périmètre, et pourquoi il est étroit
 
@@ -175,10 +286,12 @@ qu'un utilisateur recopiera dans une déclaration.
 
 Écrit ici pour ne pas avoir à le redécouvrir dans six mois (décision n° 147).
 
-| Écarté                                       | Raison                                                                                                                                                                                      |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fusionner la couverture des tests E2E**    | Une ligne « couverte » par un parcours s'est **exécutée**, elle n'a pas été **vérifiée** — précisément l'angle mort. `coherence.spec.ts` compare déjà l'écran au moteur, ce qui vaut mieux. |
-| **Relever le seuil global de couverture**    | Il ne regarde pas la zone aveugle ; le relever durcirait des tests-alibis là où on est déjà mesuré.                                                                                         |
-| **Tester les composants en mode navigateur** | `vitest-browser-svelte` est mûr, mais 21 000 lignes de composants en navigateur, c'est des dizaines de minutes de CI pour un développeur seul.                                              |
-| **Muter toute l'application**                | Voir ci-dessus : le dossier `domain` entier dépasse vingt-cinq minutes. Le périmètre pur suffit à la classe de défaut visée.                                                                |
-| **Lancer la mutation en CI**                 | Pas tant que le coût d'un élargissement n'est pas connu. Un jour, plutôt en hebdomadaire sur le cron existant qu'à chaque PR : le mode incrémental a besoin d'un fichier conservé.          |
+| Écarté                                       | Raison                                                                                                                                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Fusionner la couverture des tests E2E**    | Une ligne « couverte » par un parcours s'est **exécutée**, elle n'a pas été **vérifiée** — précisément l'angle mort. `coherence.spec.ts` compare déjà l'écran au moteur, ce qui vaut mieux.      |
+| **Relever le seuil global de couverture**    | Il ne regarde pas la zone aveugle ; le relever durcirait des tests-alibis là où on est déjà mesuré.                                                                                              |
+| **Tester les composants en mode navigateur** | `vitest-browser-svelte` est mûr, mais 21 000 lignes de composants en navigateur, c'est des dizaines de minutes de CI pour un développeur seul.                                                   |
+| **Muter toute l'application**                | Voir ci-dessus : le dossier `domain` entier dépasse vingt-cinq minutes. Le périmètre pur suffit à la classe de défaut visée.                                                                     |
+| **Lancer la mutation en CI**                 | Pas tant que le coût d'un élargissement n'est pas connu. Un jour, plutôt en hebdomadaire sur le cron existant qu'à chaque PR : le mode incrémental a besoin d'un fichier conservé.               |
+| **Passer en `coverageAnalysis: "all"`**      | Soupçonné un instant de fausser le verdict. Vérifié le 15/09/2026 sur `interest-income-fr.ts` : **même score, même survivant**. `perTest` reste, et son unique artefact connu est le piège n° 5. |
+| **Muter `domain/second-opinion.ts`**         | 726 lignes pures, et un candidat sérieux — mais ce module **compare** des chiffres, il n'en produit aucun que l'utilisateur recopie. À reconsidérer le jour où on élargit, en mesurant le coût.  |

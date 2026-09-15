@@ -8,9 +8,14 @@
 import { describe, expect, it } from 'vitest';
 import { computePortfolio } from './engine/aggregate';
 import type { PortfolioReport } from './engine/report';
-import { equityTaxFr } from './equity-tax-fr';
+import { EQUITY_TAX_ASSUMPTIONS, equityTaxFr } from './equity-tax-fr';
 import { toDecimalString } from './money';
-import { DEFAULT_ENGINE_SETTINGS, type LedgerEvent, type TradeEvent } from './types';
+import {
+  DEFAULT_ENGINE_SETTINGS,
+  type LedgerEvent,
+  type SplitEvent,
+  type TradeEvent,
+} from './types';
 
 let seq = 0;
 const base = () => ({
@@ -43,6 +48,14 @@ const buy = (at: string, asset: string, qty: string, eur: string) =>
 /** Cession : on remet des titres, on reçoit des euros. `eur` = produit net de frais. */
 const sell = (at: string, asset: string, qty: string, eur: string) =>
   trade(at, [asset, qty], ['eur', eur], eur);
+/** Fractionnement : ni cession ni acquisition, rien n’est réalisé (`Position.split`). */
+const split = (at: string, asset: string, ratio: string): SplitEvent => ({
+  ...base(),
+  kind: 'split',
+  at,
+  asset,
+  ratio,
+});
 
 const report = (events: LedgerEvent[]): PortfolioReport =>
   computePortfolio({ events, prices: {}, settings: DEFAULT_ENGINE_SETTINGS });
@@ -87,18 +100,34 @@ describe('oracle du BOFiP : l’exemple officiel du prix moyen pondéré', () =>
 
 describe('l’année, et ce qui va case 3VH', () => {
   it('compense d’abord DANS l’année : la case ne reçoit que le solde', () => {
-    const y = yearOf(
-      [
-        buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
-        buy('2025-01-06T10:00:00', 'eq:b', '10', '1000'),
-        sell('2025-05-05T10:00:00', 'eq:a', '10', '1300'),
-        sell('2025-06-05T10:00:00', 'eq:b', '10', '500'),
-      ],
-      2025,
-    )!;
+    const events = [
+      buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
+      buy('2025-01-06T10:00:00', 'eq:b', '10', '1000'),
+      sell('2025-05-05T10:00:00', 'eq:a', '10', '1300'),
+      sell('2025-06-05T10:00:00', 'eq:b', '10', '500'),
+    ];
+    const y = yearOf(events, 2025)!;
     expect([y.gainsEur, y.lossesEur, y.netEur]).toEqual(['300', '500', '-200']);
     expect(y.lossOfYearEur).toBe('200');
     expect(y.taxableEur).toBe('0');
+    // La moins-value nette de l'année doit faire passer l'indicateur à `true` : c'est lui qui
+    // commande l'affichage des réserves sur le report des moins-values, pas un montant.
+    expect(tax(events, 2025).hasLosses).toBe(true);
+  });
+
+  it('un net exactement nul n’est pas une moins-value : rien à reporter, rien à signaler', () => {
+    // Gain et perte de la même année s'annulent pile : ni cohorte de report, ni passage de
+    // l'indicateur `hasLosses` — un solde nul n'est pas un solde négatif.
+    const events = [
+      buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
+      buy('2025-01-06T10:00:00', 'eq:b', '10', '1000'),
+      sell('2025-05-05T10:00:00', 'eq:a', '10', '1100'),
+      sell('2025-06-05T10:00:00', 'eq:b', '10', '900'),
+    ];
+    const y = yearOf(events, 2025)!;
+    expect(y.netEur).toBe('0');
+    expect(y.carryForward).toEqual([]);
+    expect(tax(events, 2025).hasLosses).toBe(false);
   });
 
   it('3VH ne CUMULE JAMAIS les moins-values antérieures', () => {
@@ -183,6 +212,53 @@ describe('le périmètre, et le taux', () => {
     // Le millésime 2025 n'existe même pas : rien n'y a été cédé, donc rien n'y est à déclarer.
     expect(tax(events).years.map((y) => y.year)).toEqual([2026]);
     expect(yearOf(events, 2026)!.gainsEur).toBe('200');
+    // Aucune moins-value n'a jamais existé : l'indicateur qui commande l'affichage des réserves
+    // doit rester bas — pas seulement ne jamais être remonté à `true` par erreur.
+    expect(tax(events).hasLosses).toBe(false);
+  });
+
+  it('une date de cession illisible n’efface pas les autres années : elle est seule écartée', () => {
+    // `yearOf` rend NaN pour une date qu'il ne sait pas lire. Sans le garde, `Math.min(first, NaN)`
+    // contamine `first` pour de bon (NaN se propage à toutes les comparaisons suivantes) : la
+    // cession 2025, pourtant valide, disparaîtrait de TOUT le résultat au lieu que seule l'entrée
+    // illisible soit ignorée.
+    const events = [
+      buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
+      sell('2025-06-05T10:00:00', 'eq:a', '10', '1200'),
+      buy('2020-01-05T10:00:00', 'eq:b', '10', '500'),
+      sell('AAAA-06-05T10:00:00', 'eq:b', '10', '600'),
+    ];
+    const ledger = tax(events, 2025);
+    expect(ledger.years.map((y) => y.year)).toEqual([2025]);
+    expect(ledger.years[0]!.gainsEur).toBe('200');
+  });
+
+  it('un fractionnement n’est ni une cession ni un revenu : la plus-value l’ignore', () => {
+    // `Position.split` pousse un historique avec `realized: ZERO` (donc non nul) mais
+    // `valueEur: null` : seule la moitié du garde qui regarde `valueEur` l'écarte. Sans elle, le
+    // fractionnement serait traité comme une cession à zéro euro de produit.
+    const events = [
+      buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
+      split('2025-03-05T10:00:00', 'eq:a', '2'),
+      sell('2025-06-05T10:00:00', 'eq:a', '20', '1200'),
+    ];
+    const y = yearOf(events, 2025)!;
+    expect(y.cessions.length).toBe(1);
+    // Le coût ne bouge pas au fractionnement (décision du moteur) : 1200 − 1000, pas 1200 − 0.
+    expect(y.gainsEur).toBe('200');
+  });
+
+  it('classe les cessions par date, même venues d’actifs différents', () => {
+    // `allPositions` groupe par actif : sans le tri final, les cessions d'eq:a (achetée en
+    // premier) précéderaient toujours celles d'eq:b dans la liste, même vendue avant elle.
+    const events = [
+      buy('2025-01-05T10:00:00', 'eq:a', '10', '1000'),
+      buy('2025-01-06T10:00:00', 'eq:b', '10', '1000'),
+      sell('2025-11-05T10:00:00', 'eq:a', '10', '1100'),
+      sell('2025-03-05T10:00:00', 'eq:b', '10', '1050'),
+    ];
+    const y = yearOf(events, 2025)!;
+    expect(y.cessions.map((c) => c.at)).toEqual(['2025-03-05T10:00:00', '2025-11-05T10:00:00']);
   });
 
   it('applique le taux du millésime : 30 % avant 2025, 31,4 % ensuite', () => {
@@ -214,7 +290,26 @@ describe('le périmètre, et le taux', () => {
     expect([sansFrais.gainsEur, avecFrais.gainsEur]).toEqual(['200', '180']);
   });
 
-  it('un portefeuille sans aucune cession de titre ne produit aucun millésime', () => {
-    expect(tax([buy('2025-01-05T10:00:00', 'eq:a', '10', '1000')]).years).toEqual([]);
+  it('un portefeuille sans aucune cession de titre ne produit aucun millésime, ni aucune moins-value', () => {
+    const ledger = tax([buy('2025-01-05T10:00:00', 'eq:a', '10', '1000')]);
+    expect(ledger.years).toEqual([]);
+    // Le retour anticipé fixe `hasLosses` à `false` à la main : une lecture inversée ne se
+    // verrait sur aucun montant, seulement sur l'indicateur qui commande l'affichage des réserves.
+    expect(ledger.hasLosses).toBe(false);
+    expect(ledger.assumptions).toBe(EQUITY_TAX_ASSUMPTIONS);
+  });
+});
+
+describe('les réserves affichées sous le montant', () => {
+  it('les cite mot pour mot, dans l’ordre où l’écran doit les afficher', () => {
+    // Ce sont les mots que l'utilisateur lit SOUS un chiffre qu'il recopie en déclaration : une
+    // réserve tronquée ou disparue se vérifie en entier, pas seulement en nombre ou en longueur.
+    expect(EQUITY_TAX_ASSUMPTIONS).toEqual([
+      'Les moins-values les plus anciennes sont imputées les premières : ce sont elles qui expirent en premier. Le texte ne fixe pas d’ordre.',
+      'Les moins-values antérieures à ce que l’application connaît lui sont invisibles : elle ne compte que les cessions qu’elle a importées. Si vous en reportez d’avant, le net imposable affiché est trop élevé.',
+      'Aucun abattement pour durée de détention n’est appliqué : il est réservé aux titres acquis avant 2018, et seulement en cas d’option pour le barème.',
+      'La déclaration 2074 est présumée nécessaire, un courtier étranger ne calculant pas les plus-values selon les règles françaises. C’est une lecture du critère de dispense, pas une doctrine qui nomme ce cas.',
+      'Les dividendes ne figurent pas ici : ils relèvent des revenus de capitaux mobiliers, régime distinct.',
+    ]);
   });
 });

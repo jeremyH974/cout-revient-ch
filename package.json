@@ -28,6 +28,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "mutation": "stryker run",
+    "mutation:survivants": "node scripts/mutants-survivants.mjs",
     "bench": "vitest bench --run",
     "audit:prod": "node scripts/audit-deps.ts",
     "lint": "eslint . && prettier --check . && node scripts/check-no-personal-exports.js",

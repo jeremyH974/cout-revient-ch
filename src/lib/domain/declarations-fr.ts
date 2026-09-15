@@ -108,13 +108,18 @@ function applyLegs(balances: Map<string, Big>, event: LedgerEvent): void {
     case 'income':
       // Revenu en especes : aucune quantite d'actif ne bouge, le solde du compte est inchange.
       return;
-    case 'split':
-      // **Ce cas manquait, et personne ne l'a vu.** Le fractionnement est né la veille (décision
-      // n° 111) et ce `switch` ne l'a jamais appris : sans `default` mais sans garde non plus,
-      // TypeScript se taisait. Un fractionnement multiplie la quantité détenue sans rien acquérir
-      // ni céder ; le solde du 3916-bis ne regarde que « détient-on encore quelque chose ? », donc
-      // l'effet était nul — cette fois. C'est le hasard qui a tenu lieu de garde-fou.
+    case 'split': {
+      // **Le hasard ne tenait plus lieu de garde-fou.** Ce cas est longtemps resté un `return` nu,
+      // au motif qu'un fractionnement n'acquiert ni ne cède : le solde du 3916-bis ne regardant que
+      // « détient-on encore quelque chose ? », l'effet paraissait nul. Il ne l'est pas. Le relevé
+      // rapporte les mouvements SUIVANTS en quantités POST-fractionnement — c'est pour cela que
+      // `engine/position.ts` redimensionne ses lots —, si bien qu'un retrait intégral laissait ici
+      // un solde NÉGATIF, que `holdsAny` lit comme « détient encore » : le compte paraissait ouvert
+      // alors qu'il venait d'être vidé (décision n° 153).
+      const held = balances.get(event.asset);
+      if (held !== undefined) balances.set(event.asset, held.times(event.ratio));
       return;
+    }
     default: {
       const missing: never = event;
       throw new Error(`Type d'événement sans effet de solde déclaré : ${JSON.stringify(missing)}`);
