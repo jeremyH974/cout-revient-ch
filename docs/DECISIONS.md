@@ -4387,3 +4387,58 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      en sens inverse — « attendu false, reçu true » pour le compte soldé, l'inverse pour celui qui
      garde la moitié. Et le garde-fou du rapport périmé a été éprouvé sur le rapport périmé qui
      venait de me tromper : il l'a nommé.
+
+154. **Cinq alertes de sécurité sur neuf n'étaient qu'un verrou périmé** (15/09/2026).
+
+     **Le point de départ.** GitHub annonçait onze vulnérabilités sur la branche par défaut, dont
+     huit hautes. Toutes en périmètre `development` : aucune n'atteint l'application livrée, et
+     `npm run audit:prod` — qui ne regarde que ce qui est livré — n'avait jamais rien eu à dire.
+     C'est exactement la distinction que la décision n° 99 existe pour poser, et elle a tenu.
+
+     **Ce que la lecture a renversé.** L'instinct dit « poser des `overrides` ». Mais en croisant, pour
+     chaque paquet, ce que son parent **déclare** avec ce qui est **publié**, cinq des neuf cas
+     corrigeables ne demandaient aucun `override` : `fast-uri` (quatre alertes hautes) et `js-yaml`
+     (une haute) étaient déjà corrigés **dans la ligne que leur parent accepte** (`^3.0.1`,
+     `^3.13.1`). Ce n'était pas la contrainte qui était trop basse, c'était le **verrou** qui était
+     vieux. Un `npm install` suffisait. Poser un `override` là où une résolution neuve suffit ajoute
+     une contrainte permanente pour un gain nul.
+
+     **Ce qui en demandait vraiment un, et pourquoi.** `@lhci/cli` est figé depuis le 25/06/2025 et
+     déclare `tmp@^0.1.0` et `uuid@^8.3.1` : les versions corrigées sont hors de ces plages, et aucun
+     correctif amont n'arrivera. `typed-rest-client`, lui, épingle `qs` à **exactement** la version
+     vulnérable. Trois forçages, chacun **scopé à son parent** — jamais global : un `"js-yaml":
+"^3.15.2"` global rétrograderait en silence un futur js-yaml 4.x, et c'est le piège de l'outil.
+
+     **Deux sauts de majeure, vérifiés au site d'appel plutôt qu'au numéro.** `@lhci/cli` fait
+     `require('uuid')` puis `uuid.v4()` : uuid 11 publie un build CJS à exports nommés, l'appel tient
+     — et la course réelle de Lighthouse CI l'a confirmé, le fichier `flags-<uuid>.json` étant écrit
+     **avant** que Lighthouse ne démarre. Il fait `tmp.fileSync({postfix:'.html'})` dans
+     `src/open/open.js`, c'est-à-dire la commande `lhci open`, que `autorun` n'exécute jamais.
+
+     **Le refus assumé.** `extract-zip` porte deux failles hautes et **aucune version corrigée
+     n'existe** : le correctif amont a consisté à s'en débarrasser, `@puppeteer/browsers` 3.x l'ayant
+     remplacé par `modern-tar`. Mais `puppeteer-core@24.43.1` l'épingle à 2.13.2 exactement et
+     `lighthouse@12.6.1` demande `^24.10.0` : il faudrait forcer une majeure sur le pilote de Chrome,
+     dans un outil que plus personne ne publie, sans test pour rattraper la casse. Et l'exposition est
+     mince : `extract-zip` décompresse l'archive Chrome téléchargée chez Google en TLS ; l'exploiter
+     suppose qu'on nous serve un faux Chrome — auquel cas le binaire qu'on s'apprête à **exécuter**
+     est un problème plus grave qu'une traversée de chemin.
+
+     **Le piège de npm, et le garde-fou creux qu'il a failli produire.** Un `override` ne mord pas
+     tant que le verrou porte déjà une version satisfaisante : retirer celui de `js-yaml` puis
+     relancer `npm install` ne rétrograde **rien**. Ma première contre-épreuve est donc restée verte,
+     et j'ai bien failli livrer un test que je n'avais jamais vu rougir — la sixième fois dans ce
+     dépôt. La falsification juste demande d'effacer **aussi** l'entrée du verrou et le dossier
+     installé : `uuid` retombe alors à 8.3.2 et le test le nomme, version et plancher compris.
+
+     **Ce qui est livré.** Trois `overrides` scopés, et
+     `tests/integration/dependency-floors.test.ts`, qui ne vérifie pas l'existence des `overrides`
+     mais **l'état de l'arbre** : toutes les copies installées, à toutes les profondeurs, au-dessus
+     de leur plancher. `fast-uri` et `js-yaml` y figurent sans `override`, pour que le verrou ne
+     puisse pas redescendre en silence. `extract-zip` y a sa ligne aussi, figée à 2.0.1 : ce test ne
+     protège de rien, il **rougit le jour où la situation change** — un correctif est apparu, ou
+     l'arbre a bougé, et dans les deux cas la décision est à reprendre.
+
+     **Effet de bord heureux** : `tmp` 0.2 a laissé tomber `rimraf`, `glob`, `minimatch` et
+     `os-tmpdir`, et deux copies dupliquées ont fusionné. Le verrou ne fait que retirer — huit
+     paquets de moins.
