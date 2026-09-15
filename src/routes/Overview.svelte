@@ -148,9 +148,20 @@
     }
   }
 
-  // Mêmes contrôles que les réglages, montés une seule fois (`state/checks.svelte.ts`).
-  const checks = $derived(selfChecks.actionable);
-  const blocking = $derived(selfChecks.blocking);
+  /**
+   * Mêmes contrôles que les réglages, montés une seule fois (`state/checks.svelte.ts`) — mais
+   * **séparés selon ce qu'ils disent**, parce qu'ils ne méritent pas la même place (décision n° 156).
+   *
+   * Un `fail` dit « le chiffre au-dessus est faux » : il reste collé au chiffre, en tête d'écran.
+   * Un `warn` dit « tu devrais faire quelque chose » — apparier un virement, télécharger une
+   * sauvegarde : c'est un conseil, pas un démenti, et sa place est dans la réconciliation.
+   *
+   * Avant, un seul `fail` hissait **toute** la liste en tête : un démenti et cinq conseils, sur six
+   * lignes doubles, au-dessus de la courbe. L'écran qu'on vient lire pour un chiffre commençait par
+   * une page de choses à faire.
+   */
+  const failing = $derived(selfChecks.actionable.filter((c) => c.level === 'fail'));
+  const advisory = $derived(selfChecks.actionable.filter((c) => c.level !== 'fail'));
 
   /** Part d'un espace dans le patrimoine, en pourcentage affichable ; `null` si le total est nul. */
   function shareOf(value: Big): number | null {
@@ -182,12 +193,12 @@
 <AppBar title="Vue d'ensemble" />
 
 {#snippet verify()}
-  <section class="card verify" class:blocking aria-labelledby="verify-title">
-    <h2 id="verify-title">À vérifier</h2>
+  <section class="card verify blocking" aria-labelledby="verify-title">
+    <h2 id="verify-title">Ce chiffre est à prendre avec réserve</h2>
     <ul class="checks">
-      {#each checks as check (check.id)}
-        <li class={check.level}>
-          <span class="mark" aria-hidden="true">{check.level === 'fail' ? '!' : '·'}</span>
+      {#each failing as check (check.id)}
+        <li class="fail">
+          <span class="mark" aria-hidden="true">!</span>
           <span>
             <strong>{check.label}</strong> — {check.detail}
             {#if check.action}<span class="muted">{check.action}</span>{/if}
@@ -195,9 +206,6 @@
         </li>
       {/each}
     </ul>
-    <p class="small">
-      <a href={router.href({ name: 'reconciliation' })}>Voir la réconciliation complète</a>
-    </p>
   </section>
 {/snippet}
 
@@ -256,7 +264,7 @@
   {/if}
 </section>
 
-{#if blocking}{@render verify()}{/if}
+{#if failing.length > 0}{@render verify()}{/if}
 
 <!-- 2. La réconciliation : trois lignes qui expliquent le chiffre du dessus. -->
 {#if reconciliation}
@@ -502,7 +510,26 @@
   </section>
 {/if}
 
-{#if !blocking && checks.length > 0}{@render verify()}{/if}
+<!--
+  Les conseils ne s'énumèrent plus ici : une ligne qui compte, qui NOMME, et qui pointe.
+
+  La ligne porte les libellés, le lien porte l'action. C'est ce partage qui permet d'envoyer vers la
+  **réconciliation** — l'écran fait pour agir sur les données, et le seul chemin contextuel vers lui
+  depuis ici — sans rien masquer : les points qu'elle ne couvre pas (la sauvegarde, les prix) sont
+  lus en clair sur la ligne, et leur détail vit dans les réglages, où `SelfChecks` rend la liste
+  entière.
+-->
+{#if advisory.length > 0}
+  <p class="advisory small">
+    <a href={router.href({ name: 'reconciliation' })}>
+      {advisory.length === 1 ? '1 point à vérifier' : `${advisory.length} points à vérifier`}
+    </a>
+    — {advisory
+      .map((c) => c.label)
+      .slice(0, 3)
+      .join(', ')}{advisory.length > 3 ? '…' : ''}
+  </p>
+{/if}
 
 <p class="links small">
   <a href={router.href({ name: 'report' })}>Rapport PDF</a> ·
@@ -870,6 +897,12 @@
   }
   .checks li.fail .mark {
     color: var(--loss);
+  }
+  /* Une ligne, pas une carte : un conseil ne doit pas peser autant qu'un chiffre. */
+  .advisory {
+    text-align: center;
+    color: var(--fg-muted);
+    text-wrap: pretty;
   }
   .links {
     text-align: center;
