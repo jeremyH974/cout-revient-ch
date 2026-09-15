@@ -207,6 +207,23 @@ export function assetMetricPoints({ step, points, days }: AssetSeriesInput): Met
 
 export type Period = '1d' | '1w' | '1m' | '3m' | '1y' | 'all';
 
+/**
+ * Les plages, dans l'ordre où un écran les propose — **une seule liste pour toute l'application**
+ * (décision n° 156).
+ *
+ * Il en existait trois, chacune locale à son composant : `1S/1M/3M/1A/Tout` sur la vue d'ensemble,
+ * `1J/1S/1M/Tout` sur la courbe d'équité, `7 jours/30 jours/Tout` sur le résultat de trading. Deux
+ * écrans ne parlaient donc pas de la même période sans que rien ne le dise. Aucun standard externe
+ * ne départage ces vocabulaires — Yahoo, Robinhood et TradingView divergent tous ; l'anomalie
+ * n'était pas le vocabulaire choisi, c'était d'en avoir trois.
+ *
+ * Sert aussi de garde à la relecture du réglage persisté : une valeur inconnue retombe au défaut.
+ */
+export const PERIODS: readonly Period[] = ['1d', '1w', '1m', '3m', '1y', 'all'];
+
+/** La plage retenue quand rien n'a été choisi, ou quand ce qui l'a été n'existe plus. */
+export const DEFAULT_PERIOD: Period = '1m';
+
 export interface DayWindow {
   /** `null` = depuis le début (période « Tout »). */
   from: DayString | null;
