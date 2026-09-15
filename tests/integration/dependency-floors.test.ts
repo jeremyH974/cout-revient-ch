@@ -127,6 +127,11 @@ describe('les planchers de version tenus par les overrides', () => {
  * Ce test ne protège de rien ; il **rougit le jour où la situation change**, et c'est ce qu'on lui
  * demande : une version différente veut dire qu'un correctif est apparu, ou que l'arbre a bougé
  * sous nos pieds. Dans les deux cas, la décision est à reprendre.
+ *
+ * Il ne voit cependant que l'arbre **installé**. Un correctif publié que rien n'a encore tiré lui
+ * reste invisible — et c'est le cas ordinaire ici, dependabot ne proposant pas de montée de version
+ * pour une dépendance transitive. Cette moitié-là est surveillée par
+ * `scripts/check-blocked-advisories.ts`, qui interroge le registre (décision n° 155).
  */
 describe('l’exception assumée', () => {
   it('extract-zip reste la seule faille non corrigée, et toujours en 2.0.1', () => {

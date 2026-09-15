@@ -95,8 +95,12 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 - `npm run e2e` — build puis tests Playwright (`tests/e2e/*.spec.ts`, Chromium desktop + mobile,
   WebKit sur les parcours visuels) ; `npm run e2e:ui` pour l'explorateur ; `npm run lhci` — build
   puis Lighthouse CI (seuils dans `lighthouserc.json`). Les deux tournent en CI avant tout déploiement.
-  `npm run monitor` — surveillance du site en ligne (`tests/monitor/`) + contrat des API tierces
-  (`scripts/api-contract.mjs`), exécutée toutes les 6 h par `.github/workflows/monitor.yml`.
+  `npm run monitor` — surveillance du site en ligne (`tests/monitor/`), contrat des API tierces
+  (`scripts/api-contract.mjs`) et **réveil des avis de sécurité laissés ouverts**
+  (`scripts/check-blocked-advisories.ts` : le registre npm a-t-il publié ce qui débloquerait un avis
+  qu'on a refermé faute de correctif ? Décision n° 155 — rien d'autre ne le dirait, les correctifs
+  automatiques de sécurité étant coupés et dependabot ne proposant pas de montée de version pour une
+  dépendance transitive). Exécutée toutes les 6 h par `.github/workflows/monitor.yml`.
   Première fois : `npx playwright install chromium webkit`. Sous Windows, `vite preview` n'écoute
   que sur `::1` (d'où `--host 127.0.0.1` dans les configs) et Lighthouse peut échouer au nettoyage
   de son profil Chrome (`EPERM`) : la CI Linux fait foi pour Lighthouse.
