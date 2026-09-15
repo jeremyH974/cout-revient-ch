@@ -48,6 +48,16 @@ function measure(events: readonly LedgerEvent[]): Load {
   return { consumptions, maxDecimals };
 }
 
+/**
+ * **Ce fichier ne chronomètre rien** (décisions n° 85 et 87) : il compte des grandeurs
+ * déterministes. Mais pour les compter, il faut rejouer 2 400 opérations, et c'est long — 17 s sur
+ * un coureur GitHub sous instrumentation de couverture, contre 3 s sur une machine de travail. Le
+ * `testTimeout` global de 15 s a fait rougir la CI le 15/09/2026 sur un test que rien ne mettait en
+ * défaut, ce qui est le pire des garde-fous : celui qui échoue sans rien accuser. Une attente
+ * généreuse ne l'affaiblit en rien, puisque la durée n'est pas ce qu'il vérifie.
+ */
+const HEAVY_TIMEOUT_MS = 120_000;
+
 describe('charge du moteur', () => {
   const small = measure(roundTrip(60));
   const large = measure(roundTrip(120));
@@ -68,22 +78,30 @@ describe('charge du moteur', () => {
    * le jour où quelqu'un s'attaque au quadratique, et ce test est là pour l'exiger ». Voilà ce
    * jour : au-delà de la borne, doubler la taille ne quadruple plus rien, il double.
    */
-  it('au-delà de la borne, doubler la taille DOUBLE la trace au lieu de la quadrupler', () => {
-    const big = measure(roundTrip(1200));
-    const bigger = measure(roundTrip(2400));
-    const ratio = bigger.consumptions / big.consumptions;
-    expect(ratio, 'linéaire attendu au-delà de la borne').toBeGreaterThan(1.8);
-    expect(ratio, 'le quadratique est revenu').toBeLessThan(2.2);
-  });
+  it(
+    'au-delà de la borne, doubler la taille DOUBLE la trace au lieu de la quadrupler',
+    () => {
+      const big = measure(roundTrip(1200));
+      const bigger = measure(roundTrip(2400));
+      const ratio = bigger.consumptions / big.consumptions;
+      expect(ratio, 'linéaire attendu au-delà de la borne').toBeGreaterThan(1.8);
+      expect(ratio, 'le quadratique est revenu').toBeLessThan(2.2);
+    },
+    HEAVY_TIMEOUT_MS,
+  );
 
-  it('aucune position ne suit plus de lots que la borne', () => {
-    // La grandeur déterministe qui résume tout : c'est elle qui plafonne le coût d'une cession.
-    for (const n of [600, 1200, 2400]) {
-      const run = runLedger(roundTrip(n), DEFAULT_ENGINE_SETTINGS);
-      for (const position of run.positions.values())
-        expect(position.lots.length, `${n} opérations`).toBeLessThanOrEqual(MAX_TRACKED_LOTS);
-    }
-  });
+  it(
+    'aucune position ne suit plus de lots que la borne',
+    () => {
+      // La grandeur déterministe qui résume tout : c'est elle qui plafonne le coût d'une cession.
+      for (const n of [600, 1200, 2400]) {
+        const run = runLedger(roundTrip(n), DEFAULT_ENGINE_SETTINGS);
+        for (const position of run.positions.values())
+          expect(position.lots.length, `${n} opérations`).toBeLessThanOrEqual(MAX_TRACKED_LOTS);
+      }
+    },
+    HEAVY_TIMEOUT_MS,
+  );
 
   it('la précision des quantités est BORNÉE : elle ne dépend plus de la taille', () => {
     // Avant la décision n° 87, ces deux nombres valaient 692 et 1501 : `fraction` portait les 30
