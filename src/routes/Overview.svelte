@@ -50,7 +50,11 @@
    * Pas de « 1J » : la série de patrimoine est quotidienne, une fenêtre d'un jour n'y contient que
    * deux points et donnerait une variation qui n'en est pas une.
    */
-  let period = $state<Period>('1m');
+  /**
+   * La plage vient des réglages, pas d'un état local : c'est ce qui fait qu'un écran et le suivant
+   * parlent de la même période, et qu'elle survit au rechargement (décision n° 156).
+   */
+  const period = $derived<Period>(app.state.ui.period);
   const PERIOD_LABEL: Record<Period, string> = {
     '1d': 'sur 1 jour',
     '1w': 'sur 1 semaine',
@@ -221,7 +225,10 @@
         différente.</Info
       >
     </h2>
-    <PeriodToggle bind:value={period} available={['1w', '1m', '3m', '1y', 'all']} />
+    <PeriodToggle
+      bind:value={() => period, (v) => app.setUi({ period: v })}
+      available={['1w', '1m', '3m', '1y', 'all']}
+    />
   </div>
 
   <p class="display" data-testid="net-worth-hero"><Money value={netWorth} strong /></p>

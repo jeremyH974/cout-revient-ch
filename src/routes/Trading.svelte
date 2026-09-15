@@ -15,6 +15,7 @@
     type TradingTotals,
   } from '$lib/domain/trading/compute';
   import { rateLookup } from '$lib/fx';
+  import { dayToMs, periodWindow, todayOf, type Period } from '$lib/history';
   import { fmtRelative } from '$lib/format/fr';
   import { msToParisNaive } from '$lib/import/time';
   import { router } from '$lib/router.svelte';
@@ -25,16 +26,19 @@
   import Money from '../components/shared/Money.svelte';
   import Qty from '../components/shared/Qty.svelte';
   import PositionRow from '../components/trading/PositionRow.svelte';
+  import PeriodToggle from '../components/charts/PeriodToggle.svelte';
   import TradingTabs from '../components/trading/TradingTabs.svelte';
   import { app } from '../state/app.svelte';
 
-  type Period = '7d' | '30d' | 'all';
-  const PERIODS: { id: Period; label: string; days: number | null }[] = [
-    { id: '7d', label: '7 jours', days: 7 },
-    { id: '30d', label: '30 jours', days: 30 },
-    { id: 'all', label: 'Tout', days: null },
-  ];
-  let period = $state<Period>('30d');
+  /**
+   * Le résultat suit la plage de l'application (décision n° 156). Il avait son propre vocabulaire —
+   * « 7 jours / 30 jours / Tout » — si bien que la vue d'ensemble et cet écran pouvaient afficher
+   * deux périodes différentes sans que rien ne le dise.
+   *
+   * Ce bloc, lui, se calcule depuis les fills : il peut honorer n'importe quelle fenêtre. C'est la
+   * COURBE, plus haut, qui ne le peut pas — ses fenêtres viennent de la plateforme.
+   */
+  const period = $derived<Period>(app.state.ui.period);
   let selected = $state<string>('all');
 
   const report = $derived(app.tradingReport);
@@ -42,8 +46,8 @@
   const current = $derived(selected === 'all' ? null : (accountReport(report, selected) ?? null));
   const scoped = $derived(current ? { ...report, accounts: [current] } : report);
   const since = $derived.by((): number => {
-    const days = PERIODS.find((p) => p.id === period)?.days ?? null;
-    return days === null ? 0 : nowMs() - days * 86_400_000;
+    const { from } = periodWindow(period, todayOf(nowMs()));
+    return from === null ? 0 : dayToMs(from);
   });
   const totals: TradingTotals = $derived(totalsSince(scoped, since));
   const allTotals: TradingTotals = $derived(totalsSince(scoped, 0));
@@ -94,6 +98,13 @@
     )?.trip.id ?? null;
 
   // --- Courbe `portfolio` (équité ou P&L), convertie point par point au taux BCE du jour --------
+  /**
+   * **Ces fenêtres ne sont pas les nôtres** : Hyperliquid ne sert que jour, semaine, mois et tout.
+   * La courbe garde donc son propre sélecteur là où le reste de l'écran suit la plage de
+   * l'application — et le dit sous le graphique (décision n° 156). Lui faire afficher une plage
+   * libre reviendrait à annoncer une période qu'on n'honore pas ; la recalculer depuis les fills
+   * est un autre chantier, qui changerait la source et donc le chiffre.
+   */
   type CurvePeriod = 'day' | 'week' | 'month' | 'allTime';
   const CURVE_PERIODS: { id: CurvePeriod; label: string }[] = [
     { id: 'day', label: '1J' },
@@ -343,6 +354,9 @@
       <p class="muted small">
         Courbe fournie par la plateforme ({label(curveAccount)}), convertie au taux BCE de chaque
         jour ; le P&L de la courbe est celui de la plateforme (période glissante).
+        <strong>Ses fenêtres sont celles d'Hyperliquid</strong> — jour, semaine, mois, tout — et ne suivent
+        donc pas la plage choisie plus haut : afficher ici une période qu'on ne reçoit pas reviendrait
+        à l'inventer.
       </p>
     {/if}
   </section>
@@ -350,16 +364,10 @@
   <section class="card">
     <div class="head">
       <h2>Résultat</h2>
-      <div class="segments" role="group" aria-label="Période">
-        {#each PERIODS as p (p.id)}
-          <button
-            type="button"
-            class="segment"
-            aria-pressed={period === p.id}
-            onclick={() => (period = p.id)}>{p.label}</button
-          >
-        {/each}
-      </div>
+      <PeriodToggle
+        bind:value={() => period, (v) => app.setUi({ period: v })}
+        available={['1w', '1m', '3m', '1y', 'all']}
+      />
     </div>
     <dl class="kpis">
       <div class="main">

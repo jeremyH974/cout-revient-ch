@@ -3,6 +3,7 @@ import type { AlertGate, AlertEvent, AlertRule, AlertRuleState } from '../domain
 import type { PriceQuoteInput } from '../domain/engine/report';
 import { EMPTY_FX_CACHE, type Currency, type FxCache } from '../fx/types';
 import { METRICS, type Metric } from '../history/metrics';
+import { DEFAULT_PERIOD, PERIODS, type Period } from '../history/series';
 import { KEYED_FLAVORS, type ExplorerFlavor } from '../import/onchain/etherscan';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { emptyHlState, type HlState } from '../import/hyperliquid/data';
@@ -81,6 +82,16 @@ export interface UiSettings {
   priceSource: 'auto' | 'off';
   /** Devise d'affichage ; l'euro reste la devise des données. */
   displayCurrency: Currency;
+  /**
+   * **La plage d'analyse, pour toute l'application** (décision n° 156).
+   *
+   * Elle est ici, et non dans chaque composant, parce qu'un chiffre et une courbe qui ne parlent
+   * pas de la même période est exactement ce qui rend un écran illisible. Elle vit dans les
+   * réglages plutôt que dans l'URL : le partage de cette application est une IMAGE, le routeur est
+   * à hash sans modèle de requête, et aucune donnée ne voyage — le seul bénéfice restant d'une URL
+   * serait le bouton retour, ce qui ne paie pas son prix.
+   */
+  period: Period;
   /** Métrique tracée par défaut sur les cartes « Évolution ». */
   chartMetric: Metric;
   /** Métrique par défaut sur la page d'un actif (PRU vs prix). */
@@ -242,6 +253,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   hideClosed: false,
   priceSource: 'auto',
   displayCurrency: 'EUR',
+  period: DEFAULT_PERIOD,
   chartMetric: 'value',
   assetChartMetric: 'pru',
   lastBackupAt: null,
@@ -1009,6 +1021,8 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
   };
   if (!['EUR', 'USD'].includes(state.ui.displayCurrency))
     state = { ...state, ui: { ...state.ui, displayCurrency: 'EUR' } };
+  if (!PERIODS.includes(state.ui.period))
+    state = { ...state, ui: { ...state.ui, period: DEFAULT_PERIOD } };
   if (!METRICS.includes(state.ui.chartMetric))
     state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };
   if (!METRICS.includes(state.ui.assetChartMetric))

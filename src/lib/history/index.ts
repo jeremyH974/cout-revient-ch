@@ -45,6 +45,8 @@ export {
   lastPointAtOrBefore,
   mergeLivePoint,
   periodPerformance,
+  DEFAULT_PERIOD,
+  PERIODS,
   periodWindow,
   sliceSeries,
   valueSeries,
