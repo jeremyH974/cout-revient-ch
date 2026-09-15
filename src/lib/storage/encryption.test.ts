@@ -17,6 +17,7 @@ import {
   isEncryptedBackup,
   type EncryptedBackup,
   type EncryptedBackupV1,
+  type EncryptedBackupV2,
 } from './encryption';
 import { KDF_PARAMS } from './kdf';
 
@@ -170,5 +171,45 @@ describe('les sauvegardes de version 1 restent lisibles', () => {
 
   it('BACKUP_KDF_ITERATIONS reste la valeur avec laquelle la version 1 fut écrite', () => {
     expect(BACKUP_KDF_ITERATIONS).toBeGreaterThanOrEqual(600_000);
+  });
+});
+
+/**
+ * **Le même gel, pour la version 2 — et il manquait.**
+ *
+ * Tous les autres tests de l'Argon2id sont des ALLERS-RETOURS : ils chiffrent puis déchiffrent avec
+ * le même code. Ils restent donc verts même si la dérivation change de sortie — et ce jour-là,
+ * toutes les sauvegardes déjà écrites deviendraient illisibles, en silence, sans qu'aucun test ne
+ * bouge. C'est exactement ce contre quoi le fichier v1 gelé ci-dessus protège la version 1.
+ *
+ * Le trou s'est vu le 15/09/2026, en relisant une montée de `@noble/hashes` 2.3.0 → 2.4.0 qui
+ * annonçait « Speed-up Argon2 by 20 % » et de nouveaux défauts de coût. La sortie s'est révélée
+ * identique octet pour octet — mais rien, dans ce dépôt, n'aurait pu le dire.
+ *
+ * Fichier **gelé**, produit par le code du jour et conservé tel quel. Son contenu clair est
+ * `{"gele":"v2"}`, sa phrase `phrase de test`, et il porte les **vrais** `KDF_PARAMS` : c'est le
+ * chemin réel qu'on veut prouver, pas une version allégée. Il coûte une dérivation d'environ
+ * 250 ms, payée une fois.
+ */
+describe('les sauvegardes de version 2 s’ouvrent toujours', () => {
+  const FROZEN_V2: EncryptedBackupV2 = {
+    app: 'cout-revient-ch',
+    encrypted: true,
+    version: 2,
+    kdf: 'argon2id',
+    params: { m: 47_104, t: 1, p: 1 },
+    salt: 'pDDOg8jpckF+ZkYs6QAPRA==',
+    iv: 'brLi+1QUUJjjrfY+',
+    ciphertext: 'tX5GucuoG5aZ/L45bSgsI0Lab6WqbM30B6tCnzY=',
+    exportedAt: '2026-09-15T16:21:44.382Z',
+  };
+
+  it('le fichier gelé se déchiffre avec les paramètres qu’il porte', async () => {
+    expect(await decryptBackup(FROZEN_V2, 'phrase de test')).toBe('{"gele":"v2"}');
+  });
+
+  it('et il porte bien les paramètres réels, pas des paramètres de test', () => {
+    // Sans quoi le gel ne prouverait rien du coût que les vraies sauvegardes payent.
+    expect(FROZEN_V2.params).toEqual(KDF_PARAMS);
   });
 });
