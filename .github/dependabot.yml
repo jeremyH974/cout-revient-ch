@@ -32,3 +32,13 @@ updates:
     open-pull-requests-limit: 5
     cooldown:
       default-days: 7
+    # Dependabot traite `github/codeql-action/init` et `github/codeql-action/analyze` comme DEUX
+    # dépendances, et ouvre donc deux PR pour un changement indivisible : l'action refuse de tourner
+    # si les deux versions diffèrent (« Loaded a configuration file for version 4.37.8, but running
+    # version 4.37.9 »). Chacune des deux PR échouait donc seule, et fusionner l'une aurait cassé
+    # l'analyse sur `main` jusqu'à ce que l'autre arrive. Les PR #83 et #85 sont restées ouvertes
+    # cinq semaines pour cette raison. Un groupe les rassemble en une seule PR, vérifiable.
+    groups:
+      codeql-action:
+        patterns:
+          - 'github/codeql-action*'
