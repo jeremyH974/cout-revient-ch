@@ -146,11 +146,23 @@ const REGISTRY = 'https://registry.npmjs.org';
 const TIMEOUT_MS = 15_000;
 const ATTEMPTS = 2;
 
+/**
+ * Le chemin du registre pour un paquet. Le registre npm veut la forme `@portee%2fnom` : le `@`
+ * reste littéral, la barre oblique est échappée.
+ *
+ * **`replaceAll`, et non `replace`** : `String.replace` avec une chaîne ne remplace que la
+ * **première** occurrence, si bien qu'un nom en portant deux en laisserait une intacte et
+ * changerait le chemin interrogé. La table de ce fichier est écrite en dur, donc rien n'est
+ * exploitable — mais le code serait faux dès qu'elle ne le serait plus, et c'est CodeQL
+ * (`js/incomplete-sanitization`) qui l'a nommé.
+ */
+export const registryPath = (name: string): string => name.replaceAll('/', '%2f');
+
 /** La dernière version publiée d'un paquet, ou `null` si le registre n'a rien rendu d'exploitable. */
 async function latestOf(name: string): Promise<string | null> {
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
     try {
-      const response = await fetch(`${REGISTRY}/${name.replace('/', '%2f')}`, {
+      const response = await fetch(`${REGISTRY}/${registryPath(name)}`, {
         signal: AbortSignal.timeout(TIMEOUT_MS),
         headers: { accept: 'application/vnd.npm.install-v1+json' },
       });

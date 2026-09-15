@@ -15,6 +15,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BLOCKED,
   isAbove,
+  registryPath,
   summarise,
   unblocked,
   type BlockedAdvisory,
@@ -50,6 +51,20 @@ describe('comparer deux versions', () => {
 
   it('ignore une préversion : elle ne débloque rien', () => {
     expect(isAbove('2.0.1-beta.1', '2.0.1')).toBe(false);
+  });
+});
+
+describe('le chemin interrogé sur le registre', () => {
+  it('échappe TOUTES les barres obliques, pas seulement la première', () => {
+    // `String.replace` avec une chaîne ne remplace que la première occurrence : un nom en portant
+    // deux en laisserait une intacte, et la requête partirait sur un autre chemin. Signalé par
+    // CodeQL (`js/incomplete-sanitization`) sur ce fichier même.
+    expect(registryPath('@lhci/cli')).toBe('@lhci%2fcli');
+    expect(registryPath('github/codeql-action/init')).toBe('github%2fcodeql-action%2finit');
+  });
+
+  it('laisse intact un nom sans portée', () => {
+    expect(registryPath('extract-zip')).toBe('extract-zip');
   });
 });
 
