@@ -4322,3 +4322,68 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      n'avait qu'une seule origine, donc la falsification ne changeait rien. Une récompense tous les
      onze événements l'a rendu observable — même famille que les décisions n° 136, 145 et 149, et
      c'est la quatrième fois qu'un test creux se révèle en le falsifiant plutôt qu'en le lisant.
+
+153. **Le score disait 86 %, et la moitié du moteur crypto n'était jamais appelée** (15/09/2026).
+
+     **Le constat, et la distinction que le score écrasait.** Le test de mutation (décision n° 147)
+     laissait un arriéré de 233 mutants non tués sur les sept moteurs fiscaux. Ces 233 n'étaient pas
+     de même nature : **175 étaient exécutés sans être vérifiés, 58 n'étaient jamais atteints**.
+     `tax-fr.ts` en portait 43 à lui seul — autrement dit, aucun test n'avait jamais fait traverser
+     le moteur des actifs numériques par une récompense, un dépôt, un retrait ni un solde
+     d'ouverture. Les trois compteurs que le rapport affiche en réserve (« le prix d'acquisition est
+     sous-estimé ») n'étaient donc vérifiés par rien.
+
+     **Cinq familles, les mêmes dans les sept moteurs.** Aux trois déjà nommées en septembre — les
+     **mots** (une réserve vidée ne fait rougir personne), les **absences**, la **bonne année** —
+     s'en ajoutent deux qui suffisent à expliquer le reste. Les **tris** : retirer un `.sort(...)`
+     survivait dans six modules sur huit, alors que `tax-fr.ts` promet dans son en-tête d'accepter
+     un grand livre « dans n'importe quel ordre » et que le prix total d'acquisition se consomme
+     cession après cession. Les **drapeaux d'état** : `hasLosses`, `hasUndesignated`,
+     `hasWithholding` pouvaient être inversés à l'initialisation sans qu'un montant ne bouge — ils
+     commandent l'affichage de réserves entières.
+
+     **Mesurer les tests a corrigé le moteur, deux fois.** `declarations-fr.ts` ne redimensionnait
+     pas le solde d'un fractionnement ; son commentaire disait lui-même que « le hasard a tenu lieu
+     de garde-fou ». Il ne tenait plus : un relevé rapporte les mouvements SUIVANTS en quantités
+     post-fractionnement — c'est pour cela que `engine/position.ts` redimensionne ses lots —, si
+     bien qu'un retrait intégral laissait un solde **négatif**, que `holdsAny` lit comme « détient
+     encore ». Le compte paraissait ouvert le jour même où il était soldé. Et `tax-fr.ts` portait un
+     compteur **mort** : `if (event.kind === 'deposit' …) externalInflows++` posé dans la branche
+     `acquisition`, que `taxKindOf` ne rend jamais pour un dépôt — une copie littérale de la branche
+     voisine, où sept mutants vivaient à l'abri.
+
+     **Les 60 qui restent ne se forcent pas.** Du code défensif structurellement inatteignable (24),
+     des comparateurs de tri dont `Array.prototype.sort` ne consulte que la branche négative (9), un
+     premier membre de garde déjà impliqué par le second (5), les 20 de `tax-return.ts` déjà
+     instruits, un artefact de l'outil (1). Tous vérifiés **empiriquement** — mutation appliquée,
+     suite relancée, aucun test rouge — et non supposés. On n'écrit pas d'assertion pour un mutant
+     qui ne change rien, et on ne tord pas le code pour le faire tomber.
+
+     **L'outil était une part du problème.** Le rapport n'existait qu'en HTML de 1,3 Mo : d'où
+     `npm run mutation:survivants`, qui lit le JSON et rend le **fragment exact** qu'un mutant
+     remplace. La nuance décide de tout : sur `if (event.kind !== 'income' || event.nature !==
+'interest')`, le survivant ne remplace que le premier membre — le second écarte déjà les mêmes
+     événements, le mutant est équivalent. Lu comme une ligne entière, il ressemblait à un trou
+     béant, et c'est cette lecture fausse que j'avais donnée à un agent. La mesure a tranché ; la
+     lecture, elle, a été corrigée dans l'outil.
+
+     **Et deux relevés sont morts avant d'aboutir.** Stryker prend la moitié des cœurs : dix ici,
+     chacun démarrant son Vitest, sur une machine de 16 Go dont 1,8 libre. `EPERM (rename)` d'abord,
+     `Fatal process out of memory` ensuite — deux symptômes, une cause. Réglé par `concurrency: 4`
+     et un cache de pré-bundling **par processus** dans le bac à sable. Le corollaire est plus
+     dangereux que la panne : **une course qui meurt laisse le rapport précédent en place**, et la
+     lecture rend alors des chiffres au mot près identiques. Seule l'égalité parfaite avec le relevé
+     de la veille a mis la puce à l'oreille. `mutation:survivants` date désormais son relevé et crie
+     si `src/` a changé depuis.
+
+     **La mesure.** 86,47 % → **96,51 %**, 233 mutants non tués → **60**, sur 938 lignes de tests
+     ajoutées et deux lignes de moteur corrigées. Par module : `tax-fr` 71,04 → 96,53 ;
+     `declarations-fr` 75,41 → 95,28 ; `equity-tax-fr` 77,65 → 94,12 ; `lending/tax-fr` 78,81 →
+     90,73 ; `interest-income-fr` 78,95 → 97,37 ; `equity-income-fr` 80,50 → 98,11 ; `tax-boxes`
+     96,39 → 99,48. Cliquet resserré de 85 à **94**, toujours posé sous le score mesuré.
+
+     **Contre-épreuve** (décision n° 75). Chaque famille d'assertions a été éprouvée en faussant
+     réellement le moteur, puis restauré : le fractionnement neutralisé fait rougir les deux tests
+     en sens inverse — « attendu false, reçu true » pour le compte soldé, l'inverse pour celui qui
+     garde la moitié. Et le garde-fou du rapport périmé a été éprouvé sur le rapport périmé qui
+     venait de me tromper : il l'a nommé.

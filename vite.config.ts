@@ -76,15 +76,22 @@ export default defineConfig(({ mode }) => {
   return {
     base: isPrivate ? '/' : BASE,
     /*
-     * Cache de pré-bundling HORS de `node_modules` (décision n° 147).
+     * Cache de pré-bundling HORS de `node_modules`, et UN PAR PROCESSUS dans le bac à sable de
+     * Stryker (décisions n° 147 et 153).
      *
      * Stryker relie `node_modules` à son bac à sable au lieu de le copier ; le cache de Vite y étant
      * logé par défaut, deux processus écrivaient le même dossier et Windows refusait le renommage
      * final — `EPERM: operation not permitted, rename …/deps___vitest___temp_… -> …/deps___vitest__`.
      * Une exécution sur deux échouait, sur une erreur qui n'accusait ni le code ni les tests.
-     * Ici, chaque copie du projet a le sien.
+     *
+     * Le sortir de `node_modules` a réglé la collision ENTRE exécutions, pas celle qui se joue au
+     * SEIN d'une exécution : un seul bac à sable, mais plusieurs processus de test qui y démarrent
+     * ensemble et pré-bundlent tous dans le même `.vite` vide. L'erreur est revenue deux fois de
+     * suite le 15/09/2026, et un rapport périmé se lit alors comme un relevé sans progrès.
+     * Chaque processus du bac à sable a donc désormais son propre sous-dossier ; hors bac à sable,
+     * rien ne change et le cache reste partagé d'une commande à l'autre.
      */
-    cacheDir: '.vite',
+    cacheDir: process.cwd().includes('.stryker-tmp') ? `.vite/${process.pid}` : '.vite',
     preview: {
       port: Number(process.env['PORT']) || (isPrivate ? PRIVATE_PORT : 4173),
       strictPort: false,

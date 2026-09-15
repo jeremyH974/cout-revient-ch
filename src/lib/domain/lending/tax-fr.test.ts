@@ -50,6 +50,22 @@ const writeOff = (id: string, at: string): LoanEvent => ({
   proof: 'failed-proceedings',
 });
 
+const recovery = (
+  id: string,
+  at: string,
+  principal: string,
+  interest: string,
+  withheld: string,
+): LoanEvent => ({
+  id: `rc:${id}:${at}`,
+  loanId: id,
+  at,
+  kind: 'recovery',
+  principal,
+  interest,
+  withheld,
+});
+
 function ledger(loans: Loan[], events: LoanEvent[], throughYear: number) {
   const report = computeLending({ loans, events, asOf: `${throughYear}-12-31` });
   return lendingTaxFr({ report, events, throughYear });
@@ -73,6 +89,17 @@ describe('le taux des revenus de placement n’a pas la date d’effet des cessi
   it('passe à 31,4 % sur les intérêts versés à partir de 2026', () => {
     expect(rcmRateFor(2026).pfu).toBe('0.314');
     expect(rcmRateFor(2026).social).toBe('0.186');
+  });
+
+  /**
+   * Le croisement avec la veille (`format/tax-source.test.ts`) écarte les identifiants vides avant
+   * de chercher : un `sourceId` à `""` y passerait inaperçu, et le taux perdrait sa source sans que
+   * rien ne rougisse (même piège que `income-tax-fr.test.ts`). D'où l'assertion nominative ici.
+   */
+  it('porte le libellé et l’identifiant de veille exacts, pas seulement le taux', () => {
+    expect(rcmRateFor(2025).label).toBe('30 % (12,8 % + 17,2 %)');
+    expect(rcmRateFor(2026).label).toBe('31,4 % (12,8 % + 18,6 %)');
+    expect(rcmRateFor(2026).sourceId).toBe('pfu-rcm-31_4');
   });
 });
 
@@ -137,6 +164,15 @@ describe('la ventilation se lit dans le taux effectif, elle ne se présume pas',
     expect(y.withholding).toBe('none');
     expect(y.incomeTaxCredit).toBe('0');
   });
+
+  it('ne ventile rien non plus quand aucun intérêt brut n’a été perçu, même avec un prélèvement', () => {
+    // gross <= 0 : un taux effectif ne se calcule pas sur une base nulle (division par zéro dans
+    // `shapeOf`). Un prélèvement sans intérêt brut en face est une anomalie, pas un régime connu.
+    const y = year('0', '5');
+    expect(y.withholding).toBe('unknown');
+    expect(y.incomeTaxCredit).toBeNull();
+    expect(y.socialPaid).toBeNull();
+  });
 });
 
 describe('imputation des pertes en capital', () => {
@@ -158,6 +194,8 @@ describe('imputation des pertes en capital', () => {
     expect(y2020.lossRealised).toBe('10000');
     expect(y2020.lossImputed).toBe('0');
     expect(y2020.carryForward).toEqual([{ origin: 2020, amount: '10000' }]);
+    // Pendant positif du test « garde-fous » : une perte réelle doit lever le signal.
+    expect(scenario(2020).hasLosses).toBe(true);
   });
 
   it('n’impute jamais plus que les intérêts de l’année', () => {
@@ -232,6 +270,63 @@ describe('imputation des pertes en capital', () => {
   });
 });
 
+describe('un recouvrement après une perte reste rattaché à l’année du constat', () => {
+  it('rattache la perte nette à l’année de la mise en perte, et compte l’intérêt du recouvrement dans la sienne', () => {
+    const l = ledger(
+      [loan('a')],
+      [
+        sub('a', '2020-01-01T00:00:00', '10000'),
+        writeOff('a', '2020-06-01T00:00:00'),
+        recovery('a', '2021-06-01T00:00:00', '4000', '200', '60'),
+      ],
+      2021,
+    );
+    const y2020 = l.years.find((x) => x.year === 2020)!;
+    const y2021 = l.years.find((x) => x.year === 2021)!;
+    // La perte nette (10 000 − 4 000 de recouvrement, TAX_ASSUMPTIONS[3]) reste à 2020 : ce n’est
+    // pas parce que le recouvrement s’encaisse en 2021 que la perte s’y déplace.
+    expect(y2020.lossRealised).toBe('6000');
+    expect(y2020.carryForward).toEqual([{ origin: 2020, amount: '6000' }]);
+    // Un recouvrement porte aussi un intérêt réel, encaissé en 2021 : il doit compter dans SON
+    // année à lui, distincte de l’année d’origine de la perte.
+    expect(y2021.interestGross).toBe('200');
+    expect(y2021.withheld).toBe('60');
+    expect(y2021.lossImputed).toBe('200');
+    expect(y2021.carryForward).toEqual([{ origin: 2020, amount: '5800' }]);
+  });
+});
+
+describe('la première année se retrouve même quand les événements n’arrivent pas dans l’ordre', () => {
+  it('démarre à la plus ancienne année, pas à la première rencontrée dans le tableau', () => {
+    const l = ledger(
+      [loan('a')],
+      [
+        rep('a', '2024-06-01T00:00:00', '300', '90'),
+        rep('a', '2022-06-01T00:00:00', '100', '30'), // la plus ancienne, au milieu du tableau
+        rep('a', '2023-06-01T00:00:00', '200', '60'),
+      ],
+      2024,
+    );
+    expect(l.years.map((y) => y.year)).toEqual([2022, 2023, 2024]);
+    expect(l.years.find((y) => y.year === 2022)?.interestGross).toBe('100');
+  });
+});
+
+describe('une date d’événement illisible n’emporte pas les autres années', () => {
+  it('ignore l’événement à l’année illisible sans perdre les années valides', () => {
+    const l = ledger(
+      [loan('a')],
+      [
+        rep('a', 'date-illisible', '999', '300'), // yearOf() ne peut en tirer aucune année
+        rep('a', '2024-06-01T00:00:00', '100', '30'),
+      ],
+      2024,
+    );
+    expect(l.years.map((y) => y.year)).toEqual([2024]);
+    expect(l.years[0]?.interestGross).toBe('100');
+  });
+});
+
 describe('garde-fous du grand livre', () => {
   it('ne rend aucune année quand il n’y a rien à déclarer', () => {
     const empty = lendingTaxFr({
@@ -243,10 +338,30 @@ describe('garde-fous du grand livre', () => {
     expect(empty.hasLosses).toBe(false);
   });
 
+  it('ne signale aucune perte tant qu’aucun prêt n’a été passé en perte', () => {
+    // hasLosses conditionne l’avertissement « faites vérifier » (TAX_ASSUMPTIONS[3]) : il ne doit
+    // pas s’allumer quand il n’y a eu aucune perte, même sur plusieurs années avec des intérêts.
+    const l = ledger(
+      [loan('a')],
+      [
+        sub('a', '2024-01-01T00:00:00', '5000'),
+        rep('a', '2024-06-01T00:00:00', '200', '60'),
+        rep('a', '2025-06-01T00:00:00', '200', '60'),
+      ],
+      2025,
+    );
+    expect(l.hasLosses).toBe(false);
+    expect(l.years.map((y) => y.lossRealised)).toEqual(['0', '0']);
+  });
+
   it('énonce ses hypothèses au lieu de les faire passer pour du droit', () => {
     const l = ledger([loan('a')], [sub('a', '2025-01-01T00:00:00', '100')], 2025);
     expect(l.assumptions).toHaveLength(4);
     expect(l.assumptions[0]).toContain('plus anciennes');
     expect(l.assumptions[1]).toContain('8 000');
+    // Le mot que l’utilisateur lit sous un taux qui ne correspond à aucun régime connu.
+    expect(l.assumptions[2]).toContain('ventilé du tout');
+    // La réserve qui l’avertit qu’une imputation déjà faite serait à revoir après un recouvrement.
+    expect(l.assumptions[3]).toContain('faites-la vérifier');
   });
 });

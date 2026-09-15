@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   dividendTaxFr,
+  DIVIDEND_TAX_ASSUMPTIONS,
   NOTICE_RATES,
   TREATY_DIVIDEND_RATES,
   type DividendTaxInput,
@@ -51,6 +52,8 @@ describe('le crédit est plafonné au taux conventionnel', () => {
     expect(jp.declaredEur).toBe('88.41338');
     // Ce qui dépasse le plafond est perdu côté français, et l'application le chiffre.
     expect(jp.excessEur).toBe('11.58662');
+    // Un seul pays, et il est désigné : rien n'attend d'arbitrage de l'utilisateur.
+    expect(l.hasUndesignated).toBe(false);
   });
 
   it('le taux s’applique au NET, jamais au brut', () => {
@@ -112,6 +115,9 @@ describe('ce que l’application refuse de calculer', () => {
     });
     const fr = countryOf(l, 2025, 'FR')!;
     expect([fr.outcome, fr.creditEur, fr.declaredEur]).toEqual(['domestic', '0', '0']);
+    // La retenue française n'est pas un « excédent conventionnel » : elle n'entre dans aucun
+    // plafond à dépasser, donc rien à en tirer ici non plus.
+    expect(fr.excessEur).toBe('0');
     // Elle figure tout de même dans le brut et la retenue de l'année : rien n'est caché.
     expect([yearOf(l, 2025)!.grossEur, yearOf(l, 2025)!.withheldEur]).toEqual(['100', '25']);
     expect(yearOf(l, 2025)!.creditEur).toBe('0');
@@ -123,7 +129,26 @@ describe('ce que l’application refuse de calculer', () => {
       { ...dividend('2025-03-02T00:00:00', 'eq:a', '-30', '0'), nature: 'conversion-fee' },
       { ...dividend('2025-03-03T00:00:00', 'eq:a', '10', '1.5'), asset: null },
     ];
-    expect(ledger(autres, { 'eq:a': 'US' }).years).toEqual([]);
+    const l = ledger(autres, { 'eq:a': 'US' });
+    expect(l.years).toEqual([]);
+    // Aucun dividende retenu : le drapeau par défaut ne doit pas se lire comme une désignation
+    // manquante qui n'existe tout simplement pas.
+    expect(l.hasUndesignated).toBe(false);
+  });
+
+  it('une date illisible n’efface pas les dividendes des autres années', () => {
+    // yearOf ne lit que les 4 premiers caractères de `at` : un format déjà validé en amont ne
+    // les rend jamais non numériques, mais si la garde disparaissait, Math.min propagerait le
+    // NaN et effacerait silencieusement TOUTES les années, y compris les valides.
+    const l = ledger(
+      [
+        dividend('2025-04-02T00:00:00', 'eq:aapl', '100', '17.6'),
+        dividend('xxxx-01-01T00:00:00', 'eq:aapl', '50', '0'),
+      ],
+      { 'eq:aapl': 'US' },
+    );
+    expect(l.years.map((y) => y.year)).toEqual([2025]);
+    expect(yearOf(l, 2025)!.grossEur).toBe('100');
   });
 });
 
@@ -163,6 +188,23 @@ describe('le regroupement suit le formulaire', () => {
     // La France ne contribue ni au crédit ni au 2DC.
     expect(countryOf(l, 2025, 'FR')!.declaredEur).toBe('0');
     expect(Number(y.creditEur)).toBeLessThan(Number(y.withheldEur));
+    // Case 8PL : seuls les pays CRÉDITÉS y contribuent (US + JP + NL), jamais le domestique —
+    // la France ne doit pas gonfler ce total alors qu'elle est hors du mécanisme.
+    expect(y.netForeignEur).toBe('50.41');
+  });
+
+  it('saute une année sans dividende entre deux années qui en ont', () => {
+    // 2026 est dans la fenêtre [2025, 2027] mais ne reçoit aucun événement : la garde doit
+    // sauter cette année sans déréférencer une case absente de la table.
+    const l = ledger(
+      [
+        dividend('2025-04-02T00:00:00', 'eq:aapl', '100', '17.6'),
+        dividend('2027-04-02T00:00:00', 'eq:aapl', '50', '8.8'),
+      ],
+      { 'eq:aapl': 'US' },
+      2027,
+    );
+    expect(l.years.map((y) => y.year)).toEqual([2025, 2027]);
   });
 });
 
@@ -175,9 +217,82 @@ describe('la table des taux', () => {
     expect(inconnus, `taux absents des valeurs de la notice : ${inconnus.join(', ')}`).toEqual([]);
   });
 
+  it('porte exactement les huit valeurs discrètes de la notice, aucune de plus ni de moins', () => {
+    // Six d'entre elles (0,053 / 0,087 / 0,136 / 0,22 / 0,25 / 0,333) ne servent aucun pays de
+    // la table aujourd'hui : elles restent le garde-fou anti-coquille du PROCHAIN pays ajouté,
+    // et le test ci-dessus ne les couvre pas tant qu'aucun pays ne les emploie.
+    expect(NOTICE_RATES).toEqual([
+      '0.053',
+      '0.087',
+      '0.111',
+      '0.136',
+      '0.176',
+      '0.22',
+      '0.25',
+      '0.333',
+    ]);
+  });
+
   it('garde au moins un pays « /c », sinon la branche sans crédit ne serait jamais prise', () => {
     expect(Object.values(TREATY_DIVIDEND_RATES).filter((r) => r === null).length).toBeGreaterThan(
       0,
     );
+  });
+});
+
+describe('les réserves affichées sous les montants', () => {
+  it('rappelle que le pays ne se déduit pas de l’ISIN', () => {
+    expect(DIVIDEND_TAX_ASSUMPTIONS[0]).toBe(
+      'Le pays de la source est celui que vous désignez, titre par titre. Il ne se déduit pas de l’ISIN : un certificat de dépôt (ADR) japonais porte un ISIN américain.',
+    );
+  });
+
+  it('rappelle que le crédit se calcule par pays et par année, comme les colonnes du 2047', () => {
+    expect(DIVIDEND_TAX_ASSUMPTIONS[1]).toBe(
+      'Le crédit est calculé par pays et par année, comme le formulaire 2047 le présente en colonnes — et non ligne à ligne.',
+    );
+  });
+
+  it('prévient que le crédit affiché peut être SURESTIMÉ, faute du second plafond', () => {
+    // La phrase que l'utilisateur lit juste sous un crédit qu'il recopierait sans elle en le
+    // croyant acquis : la faire disparaître serait pire qu'une erreur de calcul.
+    expect(DIVIDEND_TAX_ASSUMPTIONS[2]).toBe(
+      'Le second plafond légal, l’impôt français afférent à ces revenus, n’est pas appliqué : il dépend de l’ensemble de votre foyer, que l’application ne connaît pas. Le crédit affiché peut donc être surestimé si ces revenus sont peu ou pas imposés chez vous.',
+    );
+  });
+
+  it('prévient que l’excédent de retenue n’est ni imputable ni restituable par l’application', () => {
+    expect(DIVIDEND_TAX_ASSUMPTIONS[3]).toBe(
+      'La retenue qui dépasse le taux conventionnel n’est pas imputable en France. L’application la chiffre ; elle n’indique aucune démarche de restitution auprès de l’État de la source.',
+    );
+  });
+
+  it('écarte explicitement les dividendes de source française du mécanisme', () => {
+    expect(DIVIDEND_TAX_ASSUMPTIONS[4]).toBe(
+      'Un dividende de source française n’entre pas dans ce mécanisme : il est montré à part, sans arbitrage sur le sort de la retenue subie.',
+    );
+  });
+});
+
+describe('les tris affichés à l’écran', () => {
+  it('ordonne pays et actifs, quel que soit l’ordre d’arrivée des lignes du relevé', () => {
+    // L'ordre d'arrivée suit le relevé importé, jamais l'alphabet : sans un tri explicite,
+    // l'écran changerait d'ordre d'un import à l'autre pour les mêmes titres.
+    const l = ledger(
+      [
+        dividend('2025-01-01T00:00:00', 'eq:zzz', '10', '0'), // non désigné, 1er arrivé
+        dividend('2025-01-02T00:00:00', 'eq:msft', '20', '0'), // US, 'msft' avant 'aapl'
+        dividend('2025-01-03T00:00:00', 'eq:aapl', '30', '0'), // US aussi
+        dividend('2025-01-04T00:00:00', 'eq:aaa', '5', '0'), // non désigné, 2e arrivé
+        dividend('2025-01-05T00:00:00', 'eq:mufg', '40', '0'), // JP, arrive après US
+      ],
+      { 'eq:msft': 'US', 'eq:aapl': 'US', 'eq:mufg': 'JP' },
+    );
+    const y = yearOf(l, 2025)!;
+    // Alphabétique : non désigné, puis JP, puis US — l'ordre des lignes reçues aurait donné
+    // non désigné, US, JP.
+    expect(y.countries.map((c) => c.country)).toEqual([null, 'JP', 'US']);
+    expect(countryOf(l, 2025, 'US')!.assets).toEqual(['eq:aapl', 'eq:msft']);
+    expect(y.undesignated).toEqual(['eq:aaa', 'eq:zzz']);
   });
 });

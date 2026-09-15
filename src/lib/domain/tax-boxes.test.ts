@@ -197,6 +197,18 @@ describe('registre canonique des cases', () => {
     expect(checkboxes).toEqual(['3CN', '2OP']);
   });
 
+  /**
+   * Le troisième membre du triplet `kind` (`box`/`checkbox` ci-dessus, `form` ici) : ce sont les
+   * seules entrées qui ouvrent un formulaire au lieu d'une case à recopier. Cinq des huit codes
+   * ajoutés par ce registre (2047, 2074, 2074-CMV, 2086, 3916-bis) portent un équivalent local dont
+   * la forme (`{ box, form, label, ref, sourceId }`) ne connaît pas `kind` : l'adossement ci-dessus
+   * ne les croise donc jamais sur ce champ, contrairement à `entry` et au libellé.
+   */
+  it('n’ouvre un formulaire, jamais une case à recopier, que pour les annexes', () => {
+    const forms = TAX_BOXES.filter((b) => b.kind === 'form').map((b) => b.code);
+    expect(forms).toEqual(['2047', '2074', '2074-CMV', '2086', '3916-bis']);
+  });
+
   it('donne un montant à toute case qui n’est ni une annexe ni une option', () => {
     // L'autre sens : `kind: 'box'` doit rester la règle, et `form`/`checkbox` l'exception.
     const amounts = TAX_BOXES.filter((b) => b.kind === 'box').map((b) => b.code);
@@ -263,9 +275,26 @@ describe('l’ordre du registre suit les dépendances du parcours', () => {
       expect(taxBox(code)!.entry, code).toBe('carried');
   });
 
-  it('marque « à saisir » les annexes elles-mêmes et les options', () => {
-    for (const code of ['2047', '2074', '2086', '3916-bis', '2OP', '3CN'])
-      expect(taxBox(code)!.entry, code).toBe('typed');
+  /**
+   * L'énoncé précédent ne citait que six des neuf cases `typed` — les annexes et les options —,
+   * jamais 2074-CMV, 2CK ou 2TU : ni annexe ni option, mais une case sans report automatique, donc
+   * elle aussi à la charge de l'utilisateur. L'adossement plus haut ne le croise pas non plus,
+   * `entry` étant absent de la forme des registres locaux. D'où une liste EXHAUSTIVE (comme pour
+   * `checkbox` et `prefilled` ci-dessus), pas une énumération partielle.
+   */
+  it('marque « à saisir » toute case sans report automatique — annexes, options, et le reste', () => {
+    const typed = TAX_BOXES.filter((b) => b.entry === 'typed').map((b) => b.code);
+    expect(typed).toEqual([
+      '2047',
+      '2074',
+      '2074-CMV',
+      '2086',
+      '3CN',
+      '2CK',
+      '2TU',
+      '2OP',
+      '3916-bis',
+    ]);
   });
 });
 

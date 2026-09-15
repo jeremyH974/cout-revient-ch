@@ -306,8 +306,10 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
   for (const event of events) {
     const kind = taxKindOf(event);
     if (kind === 'acquisition') {
+      // Aucun compteur d'entrée sans coût connu ici : un achat ou un solde d'ouverture porte
+      // toujours son coût, et `taxKindOf` rend `external-in` pour un dépôt. La ligne qui s'y
+      // trouvait était une copie de la branche suivante, dans un chemin qu'aucun dépôt n'atteint.
       pta = pta.plus(acquisitionCost(event));
-      if (event.kind === 'deposit' && event.costEur === null) externalInflows++;
       continue;
     }
     if (kind === 'reward') {

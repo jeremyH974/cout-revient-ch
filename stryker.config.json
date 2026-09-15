@@ -1,12 +1,12 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/` et les sept moteurs fiscaux. Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 85` est un CLIQUET posé sous le score mesuré (86,47 % le 13/09/2026), jamais une cible ; on le resserre à chaque gain durable. Voir docs/tests-de-mutation.md.",
+  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/` et les sept moteurs fiscaux. Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 94` est un CLIQUET posé sous le score mesuré (96,51 % le 15/09/2026, contre 86,47 % la veille), jamais une cible ; on le resserre à chaque gain durable. Voir docs/tests-de-mutation.md.",
   "packageManager": "npm",
   "testRunner": "vitest",
   "vitest": {
     "configFile": "vite.config.ts"
   },
-  "reporters": ["progress", "clear-text", "html"],
+  "reporters": ["progress", "clear-text", "html", "json"],
   "coverageAnalysis": "perTest",
   "mutate": [
     "src/lib/derive/**/*.ts",
@@ -32,6 +32,8 @@
     "/playwright-report",
     "/blob-report"
   ],
+  "_comment_concurrency": "Stryker prend la MOITIÉ des cœurs par défaut — dix ouvriers ici, chacun démarrant son Vitest. Le 15/09/2026, sur 16 Go dont 1,8 libre, deux courses de suite sont mortes : `EPERM (rename)` sur le cache de pré-bundling que plusieurs ouvriers écrivaient ensemble, puis `Fatal process out of memory`. Deux symptômes, une cause : trop d'ouvriers. Quatre tiennent dans la mémoire d'une machine de travail, et la course passe de 2 à 4 minutes — le prix d'un relevé qui aboutit. L'autre moitié du remède est dans `vite.config.ts` : un cache par processus dans le bac à sable (décision n° 153).",
+  "concurrency": 4,
   "incremental": true,
   "incrementalFile": "reports/stryker-incremental.json",
   "htmlReporter": {
@@ -41,6 +43,6 @@
   "thresholds": {
     "high": 90,
     "low": 80,
-    "break": 85
+    "break": 94
   }
 }

@@ -61,6 +61,30 @@ describe('les intérêts se regroupent par année', () => {
   it('ne rend aucun millésime quand rien n’a été versé', () => {
     expect(ledger([]).years).toEqual([]);
   });
+
+  it('rend les années dans l’ordre chronologique, même reçues à l’envers', () => {
+    // Le relevé n'arrive pas forcément trié : sans le tri explicite, l'ordre suivrait celui
+    // d'arrivée des lignes plutôt que le calendrier.
+    const l = ledger(
+      [
+        income('2027-01-01T00:00:00', '5'),
+        income('2025-01-01T00:00:00', '10'),
+        income('2026-01-01T00:00:00', '7'),
+      ],
+      2027,
+    );
+    expect(l.years.map((y) => y.year)).toEqual([2025, 2026, 2027]);
+  });
+
+  it('signale une retenue si AU MOINS une année en porte une, pas si toutes en portent', () => {
+    // `some` (au moins une) et `every` (toutes) rendent le même résultat tant qu'il n'y a qu'une
+    // année dans le relevé — d'où deux années, l'une avec retenue et l'autre sans.
+    const l = ledger([
+      income('2025-01-01T00:00:00', '100', { withheldEur: '15' }),
+      income('2026-01-01T00:00:00', '50'),
+    ]);
+    expect(l.hasWithholding).toBe(true);
+  });
 });
 
 describe('ce que le module refuse de calculer, et le dit', () => {
@@ -88,5 +112,25 @@ describe('ce que le module refuse de calculer, et le dit', () => {
   it('rappelle que le formulaire 2047 est requis pour un payeur étranger', () => {
     expect(INTEREST_TAX_BOXES.foreign.box).toBe('2047');
     expect(INTEREST_TAX_BOXES.foreign.label).toContain('cadre 30');
+  });
+});
+
+describe('les réserves affichées sous les montants', () => {
+  it('prévient qu’aucun impôt n’est estimé, faute de connaître la qualification exacte', () => {
+    expect(INTEREST_TAX_ASSUMPTIONS[1]).toBe(
+      'Aucun impôt n’est estimé ici : le taux dépend de la qualification de ces intérêts, qui décide de l’année où la CSG passe à 10,6 %, et l’administration ne l’énonce pas pour un payeur étranger sans prélèvement forfaitaire.',
+    );
+  });
+
+  it('prévient qu’aucun crédit d’impôt n’est calculé sur ces intérêts', () => {
+    expect(INTEREST_TAX_ASSUMPTIONS[2]).toBe(
+      'Aucun crédit d’impôt n’est calculé : ces intérêts ne portent aucune retenue à la source. Si votre relevé en portait une, l’application la montrerait sans la créditer — la colonne « intérêts » de la notice 2047 n’y figure pas.',
+    );
+  });
+
+  it('écarte les frais de conversion de devise de tout calcul de revenu imposable', () => {
+    expect(INTEREST_TAX_ASSUMPTIONS[3]).toBe(
+      'Les frais de conversion de devise ne sont pas déductibles ici : ce sont des frais de change sur des liquidités, pas des frais de garde de titres. Ils réduisent votre résultat, pas votre revenu imposable.',
+    );
   });
 });
