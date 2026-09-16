@@ -108,9 +108,12 @@ test('démo : le tableau de bord Trading recoupe le moteur (équité, positions,
   expect(await rows.count()).toBe(Math.min(50, fillCount));
   await page.goto('#/trading');
   // Le P&L net « Tout » = réalisé − frais perps + funding du moteur (carte Résultat).
+  // Le sélecteur du bloc « Résultat » est désormais le composant partagé (décision n° 156) : un
+  // `radiogroup` de `radio`, et non plus un `group` de `button`. Le sélecteur de la courbe, lui,
+  // garde ses fenêtres de plateforme sous le libellé « Période de la courbe ».
   await page
-    .getByRole('group', { name: 'Période', exact: true })
-    .getByRole('button', { name: 'Tout' })
+    .getByRole('radiogroup', { name: 'Période', exact: true })
+    .getByRole('radio', { name: 'Tout' })
     .click();
   const net = report.totals.realized.minus(report.totals.perpFees).plus(report.totals.funding);
   await expect(page.locator('.kpis .main dd')).toHaveText(

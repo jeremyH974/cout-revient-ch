@@ -18,9 +18,9 @@
     MIN_SAMPLE,
     type StatsDimension,
   } from '$lib/domain/trading/stats';
-  import { fmtPct } from '$lib/format/fr';
-  import { periodWindow, todayOf, type Period } from '$lib/history';
-  import PeriodToggle from '../../components/charts/PeriodToggle.svelte';
+  import { fmtPct, fmtPeriod } from '$lib/format/fr';
+  import { resolveWindow, todayOf, type Period } from '$lib/history';
+  import RangePicker from '../../components/charts/RangePicker.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Money from '../../components/shared/Money.svelte';
   import PnlCalendar from '../../components/trading/PnlCalendar.svelte';
@@ -31,19 +31,13 @@
   const toDisplay = (t: JournaledTrip, value: Big): Big | null =>
     app.quoteToDisplay(t.trip.quote, value);
 
-  const PERIOD_LABEL: Record<Period, string> = {
-    '1d': 'sur 1 jour',
-    '1w': 'sur 1 semaine',
-    '1m': 'sur 1 mois',
-    '3m': 'sur 3 mois',
-    '1y': 'sur 1 an',
-    all: 'sur tout l’historique',
-  };
   /** « 1 jour » n'a aucun sens pour des statistiques : mêmes périodes que la Vue d'ensemble. */
-  const PERIODS: Period[] = ['1w', '1m', '3m', '1y', 'all'];
-  let period = $state<Period>('all');
+  const PERIODS: Period[] = ['1w', '1m', '3m', '1y', 'all', 'custom'];
+  const period = $derived<Period>(app.state.ui.period);
+  const customRange = $derived(app.state.ui.customRange);
+  const periodLabel = $derived(fmtPeriod(period, customRange));
   // Pas `window` : le nom est déjà celui de l'objet global.
-  const dayWindow = $derived(periodWindow(period, todayOf(nowMs())));
+  const dayWindow = $derived(resolveWindow(period, customRange, todayOf(nowMs())));
   const scoped = $derived(tripsClosedIn(app.roundTrips, dayWindow));
   const stats = $derived(computeStats(scoped, toDisplay));
   /** Y a-t-il de quoi faire des statistiques, périodes confondues ? (sinon : écran d'accueil vide) */
@@ -74,7 +68,7 @@
     const lines = [
       'Voici mes statistiques de trading (résumé anonymisé, sans montants). Analyse ce qui marche, ce qui ne marche pas, et propose 3 axes de travail concrets.',
       '',
-      `Période : ${PERIOD_LABEL[period].replace(/^sur /, '')}${dayWindow.from === null ? '' : ` (trades clos du ${dayWindow.from} au ${dayWindow.to})`}`,
+      `Période : ${periodLabel.replace(/^sur /, '')}${dayWindow.from === null ? '' : ` (trades clos du ${dayWindow.from} au ${dayWindow.to})`}`,
       `Trades clos : ${stats.closed} (gagnés ${stats.wins}, perdus ${stats.losses}, neutres ${stats.breakeven})${stats.smallSample ? ' — échantillon < 30, prudence' : ''}`,
       `Taux de réussite : ${stats.winRate === null ? 'n/a' : fmtPct(stats.winRate, { sign: false })}`,
       `Profit factor : ${ratio(stats.profitFactor)} · Payoff (gain moyen / perte moyenne) : ${ratio(stats.payoff)}`,
@@ -127,14 +121,14 @@
   <!-- La période gouverne tout l'écran sauf le calendrier, qui a sa propre navigation. -->
   <div class="period-bar">
     <span class="muted small">Période</span>
-    <PeriodToggle bind:value={period} available={PERIODS} />
+    <RangePicker id="stats" available={PERIODS} />
   </div>
 
   {#if stats.closed === 0}
     <section class="card">
       <p class="muted">
-        Aucun trade clos {PERIOD_LABEL[period]} — élargissez la période. Les positions encore ouvertes
-        n'entrent dans aucune statistique : elles n'ont pas encore de résultat.
+        Aucun trade clos {periodLabel} — élargissez la période. Les positions encore ouvertes n'entrent
+        dans aucune statistique : elles n'ont pas encore de résultat.
       </p>
     </section>
   {:else}
@@ -150,7 +144,7 @@
       <h2>
         Vue d'ensemble ({stats.closed} trade{stats.closed > 1 ? 's' : ''} clos{period === 'all'
           ? ''
-          : ` ${PERIOD_LABEL[period]}`})
+          : ` ${periodLabel}`})
       </h2>
       <dl class="kpis">
         <div class="main">

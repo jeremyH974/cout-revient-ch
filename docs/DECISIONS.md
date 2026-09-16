@@ -4555,3 +4555,49 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
 
      **Contre-épreuve** (décision n° 75) : faire lire à l'écran Trading une plage en dur au lieu du
      réglage fait rougir le parcours en nommant la pastille — « 3M : attendu true, reçu false ».
+
+157. **La plage libre ne demandait que des champs, pas un calcul** (16/09/2026).
+
+     **Le point de départ, et il était juste.** La décision n° 156 annonçait que `DayWindow` accepte
+     déjà n'importe quelles bornes, donc que la plage libre ne coûterait qu'un composant de saisie.
+     Vérifié : `sliceSeries`, `netWorthChange`, `tripsClosedIn` n'ont pas changé d'une ligne.
+
+     **Ce que l'implémentation a trouvé en plus.** `PeriodToggle` déclarait **son propre** type
+     `Period`, copie de celui du domaine — la même fragmentation que les trois vocabulaires, un cran
+     plus bas, et invisible tant que les deux listes coïncidaient. Et le dictionnaire des libellés
+     (« sur 1 mois », « depuis le début ») était écrit **deux fois**, dans deux écrans, avec deux
+     formulations différentes pour « tout ». Les deux sont supprimés : le type vient de
+     `$lib/history`, les mots de `fmtPeriod` dans la couche d'affichage.
+
+     **Une plage libre n'a pas de durée à annoncer.** Dire « sur 1 mois » quand l'utilisateur a saisi
+     du 3 mars au 12 avril serait faux, et « sur une période personnalisée » ne dirait rien. Elle
+     nomme donc ses bornes — « du 03/03/2026 au 12/04/2026 » —, la seule information utile. C'est
+     pourquoi le libellé est devenu une **fonction** et non une table.
+
+     **Deux champs, jamais un glissement.** Le critère 2.5.7 de WCAG 2.2 interdit une sélection qui
+     ne s'obtiendrait qu'en glissant sur une frise. `input type="date"` est nativement utilisable au
+     clavier et annoncé par les lecteurs d'écran, sans dépendance ni code de calendrier — ce qui
+     compte double sous une CSP stricte, où tout greffon de calendrier serait un risque de plus. Les
+     bornes se limitent l'une l'autre (`min`/`max`), et la plage retenue est annoncée dans une zone
+     `aria-live="polite"` : changer une borne change tous les chiffres de l'écran, et un lecteur
+     d'écran n'a aucun autre moyen de l'apprendre.
+
+     **`custom` sans bornes n'existe pas.** Ce serait substituer une période en silence — exactement
+     ce que la décision n° 156 refuse d'afficher ailleurs. L'état est rendu inatteignable des deux
+     côtés : la pastille « Dates » **amorce** la plage sur le dernier mois plutôt que sur du vide, et
+     la relecture du réglage normalise un `custom` orphelin. Le repli de `resolveWindow` est une
+     ceinture pour un cas qui ne doit pas arriver, pas un comportement sur lequel on s'appuie.
+
+     **Une saisie inversée se lit dans l'ordre**, plutôt que de rendre une fenêtre vide. Un écran qui
+     affiche « aucune donnée » à quelqu'un qui a simplement rempli les deux champs à l'envers
+     l'accuse d'un problème qu'il n'a pas.
+
+     **Trois axes, toujours séparés.** La plage est un champ, les bornes libres en sont un autre, et
+     la granularité d'agrégation comme la comparaison de périodes en seront deux de plus. Les mêler
+     obligerait à reprendre la forme de l'état au premier ajout — c'est ce que GA4 et Lightdash
+     évitent en traitant comparaison et granularité comme des contrôles distincts.
+
+     **Contre-épreuve** (décision n° 75) : faire lire à Trading une plage en dur fait rougir le
+     parcours en nommant la pastille ; et le parcours de la plage libre exige les deux champs, leur
+     type `date`, la saisie au clavier, et la phrase « du 03/03/2026 au 12/04/2026 » — sans laquelle
+     l'écran annoncerait une durée qu'il n'applique pas.

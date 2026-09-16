@@ -1,12 +1,15 @@
-<script module lang="ts">
-  export type Period = '1d' | '1w' | '1m' | '3m' | '1y' | 'all';
-</script>
-
 <script lang="ts">
+  /**
+   * Ce composant définissait **son propre** type `Period`, copie de celui du domaine : la même
+   * fragmentation que les trois vocabulaires, un cran plus bas (décision n° 157). Il lit désormais
+   * le type et la liste de `$lib/history`, seule source.
+   */
+  import { DEFAULT_PERIOD, PRESET_PERIODS, type Period } from '$lib/history';
+
   let {
-    value = $bindable<Period>('1m'),
-    available = ['1d', '1w', '1m', '3m', '1y', 'all'] as Period[],
-  }: { value?: Period; available?: Period[] } = $props();
+    value = $bindable<Period>(DEFAULT_PERIOD),
+    available = PRESET_PERIODS as Period[],
+  }: { value?: Period; available?: readonly Period[] } = $props();
 
   const labels: Record<Period, string> = {
     '1d': '1J',
@@ -15,6 +18,8 @@
     '3m': '3M',
     '1y': '1A',
     all: 'Tout',
+    // Une pastille qui n'est pas une durée mais une PORTE : elle ouvre deux champs de date.
+    custom: 'Dates',
   };
 </script>
 

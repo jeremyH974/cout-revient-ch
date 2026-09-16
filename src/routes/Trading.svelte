@@ -15,7 +15,7 @@
     type TradingTotals,
   } from '$lib/domain/trading/compute';
   import { rateLookup } from '$lib/fx';
-  import { dayToMs, periodWindow, todayOf, type Period } from '$lib/history';
+  import { dayToMs, resolveWindow, todayOf, type Period } from '$lib/history';
   import { fmtRelative } from '$lib/format/fr';
   import { msToParisNaive } from '$lib/import/time';
   import { router } from '$lib/router.svelte';
@@ -26,7 +26,7 @@
   import Money from '../components/shared/Money.svelte';
   import Qty from '../components/shared/Qty.svelte';
   import PositionRow from '../components/trading/PositionRow.svelte';
-  import PeriodToggle from '../components/charts/PeriodToggle.svelte';
+  import RangePicker from '../components/charts/RangePicker.svelte';
   import TradingTabs from '../components/trading/TradingTabs.svelte';
   import { app } from '../state/app.svelte';
 
@@ -46,7 +46,7 @@
   const current = $derived(selected === 'all' ? null : (accountReport(report, selected) ?? null));
   const scoped = $derived(current ? { ...report, accounts: [current] } : report);
   const since = $derived.by((): number => {
-    const { from } = periodWindow(period, todayOf(nowMs()));
+    const { from } = resolveWindow(period, app.state.ui.customRange, todayOf(nowMs()));
     return from === null ? 0 : dayToMs(from);
   });
   const totals: TradingTotals = $derived(totalsSince(scoped, since));
@@ -364,10 +364,7 @@
   <section class="card">
     <div class="head">
       <h2>Résultat</h2>
-      <PeriodToggle
-        bind:value={() => period, (v) => app.setUi({ period: v })}
-        available={['1w', '1m', '3m', '1y', 'all']}
-      />
+      <RangePicker id="trading" available={['1w', '1m', '3m', '1y', 'all', 'custom']} />
     </div>
     <dl class="kpis">
       <div class="main">

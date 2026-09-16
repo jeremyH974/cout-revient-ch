@@ -23,14 +23,14 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { D, ZERO, type Big } from '$lib/domain/money';
-  import { displayGap, fmtDate } from '$lib/format/fr';
+  import { displayGap, fmtDate, fmtPeriod } from '$lib/format/fr';
   import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
-  import { periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import { resolveWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import { netWorthChange, netWorthPartChanges } from '$lib/history/net-worth';
   import { router } from '$lib/router.svelte';
   import NetWorthCard from '../components/charts/NetWorthCard.svelte';
-  import PeriodToggle from '../components/charts/PeriodToggle.svelte';
+  import RangePicker from '../components/charts/RangePicker.svelte';
   import ShareSheet from '../components/shared/ShareSheet.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import Delta from '../components/shared/Delta.svelte';
@@ -55,14 +55,9 @@
    * parlent de la même période, et qu'elle survit au rechargement (décision n° 156).
    */
   const period = $derived<Period>(app.state.ui.period);
-  const PERIOD_LABEL: Record<Period, string> = {
-    '1d': 'sur 1 jour',
-    '1w': 'sur 1 semaine',
-    '1m': 'sur 1 mois',
-    '3m': 'sur 3 mois',
-    '1y': 'sur 1 an',
-    all: 'depuis le début',
-  };
+  const customRange = $derived(app.state.ui.customRange);
+  /** « sur 1 mois », « depuis le début », ou les deux dates quand la plage est libre. */
+  const periodLabel = $derived(fmtPeriod(period, customRange));
 
   const trading = $derived(app.tradingReport);
   /**
@@ -103,7 +98,7 @@
   });
 
   const today = $derived(todayOf(nowMs()));
-  const window = $derived(periodWindow(period, today));
+  const window = $derived(resolveWindow(period, customRange, today));
   const series = $derived(history.netWorth);
   const visible = $derived(
     sliceSeries(series, { from: window.from ?? series[0]?.day ?? today, to: window.to }),
@@ -225,17 +220,14 @@
         différente.</Info
       >
     </h2>
-    <PeriodToggle
-      bind:value={() => period, (v) => app.setUi({ period: v })}
-      available={['1w', '1m', '3m', '1y', 'all']}
-    />
+    <RangePicker id="overview" available={['1w', '1m', '3m', '1y', 'all', 'custom']} />
   </div>
 
   <p class="display" data-testid="net-worth-hero"><Money value={netWorth} strong /></p>
 
   {#if change}
     <p class="variance">
-      <Delta value={change.gain} pct={change.pct} suffix={PERIOD_LABEL[period]} size="lg" />
+      <Delta value={change.gain} pct={change.pct} suffix={periodLabel} size="lg" />
       <span class="muted small">hors apports</span>
     </p>
   {:else if app.hasData}
@@ -421,7 +413,7 @@
               {#if moved}<Delta
                   value={moved.gain}
                   pct={moved.pct}
-                  suffix={PERIOD_LABEL[period]}
+                  suffix={periodLabel}
                   size="sm"
                 />{/if}
             </span>
@@ -441,7 +433,7 @@
             {/if}
             {#if moved && !moved.contributions.eq(ZERO)}
               · apports <Delta value={moved.contributions} size="sm" />
-              {PERIOD_LABEL[period]}
+              {periodLabel}
             {/if}
           </p>
         </li>
