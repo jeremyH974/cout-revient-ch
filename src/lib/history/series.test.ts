@@ -10,6 +10,7 @@ import {
   mergeLivePoint,
   periodPerformance,
   periodWindow,
+  resolveWindow,
   sliceSeries,
   valueSeries,
   type FlowPoint,
@@ -320,5 +321,48 @@ describe('valueSeries — part portée au coût', () => {
     const [p] = valueSeries({ holdings: solde, prices: {}, days });
     expect(p!.missing).toEqual([]);
     expect(p!.estimatedValue.toString()).toBe('0');
+  });
+});
+
+/**
+ * La plage libre (décision n° 157). `DayWindow` acceptait déjà n'importe quelles bornes : ce qui se
+ * vérifie ici n'est pas le calcul — il n'a rien appris — mais la **traduction** d'un choix en
+ * fenêtre, seul endroit où un `custom` peut mentir.
+ */
+describe('résoudre un choix de plage en fenêtre', () => {
+  const today = '2026-09-16';
+
+  it('rend les bornes saisies, telles quelles', () => {
+    expect(resolveWindow('custom', { from: '2026-03-03', to: '2026-04-12' }, today)).toEqual({
+      from: '2026-03-03',
+      to: '2026-04-12',
+    });
+  });
+
+  it('lit une saisie inversée dans l’ordre, plutôt que de rendre une fenêtre vide', () => {
+    // Une fenêtre vide afficherait « aucune donnée » à quelqu'un qui a simplement rempli les deux
+    // champs à l'envers — un écran qui accuse l'utilisateur d'un problème qu'il n'a pas.
+    expect(resolveWindow('custom', { from: '2026-04-12', to: '2026-03-03' }, today)).toEqual({
+      from: '2026-03-03',
+      to: '2026-04-12',
+    });
+  });
+
+  it('accepte une plage d’un seul jour', () => {
+    expect(resolveWindow('custom', { from: today, to: today }, today)).toEqual({
+      from: today,
+      to: today,
+    });
+  });
+
+  it('ignore les bornes quand la plage n’est pas libre', () => {
+    // Le piège serait qu'une plage libre saisie puis abandonnée continue de gouverner l'écran.
+    expect(resolveWindow('1m', { from: '2020-01-01', to: '2020-02-01' }, today)).toEqual(
+      periodWindow('1m', today),
+    );
+  });
+
+  it('retombe sur « tout » pour un custom sans bornes, un état que la relecture normalise', () => {
+    expect(resolveWindow('custom', null, today)).toEqual({ from: null, to: today });
   });
 });

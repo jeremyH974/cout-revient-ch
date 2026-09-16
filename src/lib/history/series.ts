@@ -205,7 +205,31 @@ export function assetMetricPoints({ step, points, days }: AssetSeriesInput): Met
   });
 }
 
-export type Period = '1d' | '1w' | '1m' | '3m' | '1y' | 'all';
+export type Period = '1d' | '1w' | '1m' | '3m' | '1y' | 'all' | 'custom';
+
+/**
+ * Les plages, dans l'ordre où un écran les propose — **une seule liste pour toute l'application**
+ * (décision n° 156).
+ *
+ * Il en existait trois, chacune locale à son composant : `1S/1M/3M/1A/Tout` sur la vue d'ensemble,
+ * `1J/1S/1M/Tout` sur la courbe d'équité, `7 jours/30 jours/Tout` sur le résultat de trading. Deux
+ * écrans ne parlaient donc pas de la même période sans que rien ne le dise. Aucun standard externe
+ * ne départage ces vocabulaires — Yahoo, Robinhood et TradingView divergent tous ; l'anomalie
+ * n'était pas le vocabulaire choisi, c'était d'en avoir trois.
+ *
+ * Sert aussi de garde à la relecture du réglage persisté : une valeur inconnue retombe au défaut.
+ */
+export const PRESET_PERIODS: readonly Period[] = ['1d', '1w', '1m', '3m', '1y', 'all'];
+
+/**
+ * Tout ce qu'un réglage peut porter : les presets, **plus la plage libre**. La distinction n'est
+ * pas cosmétique — `custom` n'est pas une pastille comme les autres, elle ouvre deux champs de date
+ * et ne veut rien dire sans eux.
+ */
+export const PERIODS: readonly Period[] = [...PRESET_PERIODS, 'custom'];
+
+/** La plage retenue quand rien n'a été choisi, ou quand ce qui l'a été n'existe plus. */
+export const DEFAULT_PERIOD: Period = '1m';
 
 export interface DayWindow {
   /** `null` = depuis le début (période « Tout »). */
@@ -213,9 +237,41 @@ export interface DayWindow {
   to: DayString;
 }
 
+/** Une plage libre, telle que l'utilisateur l'a saisie. Bornes incluses. */
+export interface CustomRange {
+  from: DayString;
+  to: DayString;
+}
+
+/**
+ * **Le seul endroit qui traduit un choix en fenêtre** (décision n° 157).
+ *
+ * Un `custom` sans bornes ne se rattrape pas ici : ce serait substituer une période en silence,
+ * exactement ce qu'on refuse d'afficher ailleurs. L'état est rendu inatteignable en amont — la
+ * relecture du réglage le normalise (`withDefaults`), et l'écran n'écrit `custom` qu'avec ses deux
+ * dates. Le repli sur `all` est donc une ceinture pour un cas qui ne doit pas arriver, pas un
+ * comportement sur lequel on s'appuie.
+ */
+export function resolveWindow(
+  period: Period,
+  custom: CustomRange | null,
+  toDay: DayString,
+): DayWindow {
+  if (period !== 'custom') return periodWindow(period, toDay);
+  if (custom === null) return { from: null, to: toDay };
+  // Saisie inversée : on la lit dans l'ordre plutôt que de rendre une fenêtre vide, qui donnerait
+  // « aucune donnée » là où l'utilisateur a simplement rempli les deux champs à l'envers.
+  return custom.from <= custom.to
+    ? { from: custom.from, to: custom.to }
+    : { from: custom.to, to: custom.from };
+}
+
 /** Bornes d'une période se terminant à `toDay` (mois et années calendaires, UTC). */
 export function periodWindow(period: Period, toDay: DayString): DayWindow {
   switch (period) {
+    case 'custom':
+      // Une plage libre n'a pas de bornes déductibles : `resolveWindow` est la porte d'entrée.
+      return { from: null, to: toDay };
     case '1d':
       return { from: addDays(toDay, -1), to: toDay };
     case '1w':

@@ -7,6 +7,7 @@
 import { Big, D, type DecimalString } from '../domain/money';
 import type { NaiveDateTime } from '../domain/types';
 import { CURRENCY_INFO, type Currency } from '../fx/types';
+import type { CustomRange, Period } from '../history/series';
 
 const HALF_UP = Big.roundHalfUp;
 const MINUS = '−';
@@ -181,6 +182,31 @@ export function fmtDate(naive: NaiveDateTime): string {
   const [y, m, d] = naive.slice(0, 10).split('-');
   return `${d}/${m}/${y}`;
 }
+
+/**
+ * Le suffixe qu'un écran met après une variation : « sur 1 mois », « depuis le début », ou — pour
+ * une plage libre — les deux dates en toutes lettres (décision n° 157).
+ *
+ * Une plage libre n'a pas de durée à annoncer : dire « sur 1 mois » quand l'utilisateur a saisi
+ * du 3 mars au 12 avril serait faux, et « sur une période personnalisée » ne dirait rien. Elle
+ * nomme donc ses bornes, qui sont la seule information utile.
+ */
+export function fmtPeriod(period: Period, custom: CustomRange | null): string {
+  if (period !== 'custom') return PERIOD_WORDS[period];
+  if (custom === null) return 'depuis le début';
+  const [from, to] = custom.from <= custom.to ? [custom.from, custom.to] : [custom.to, custom.from];
+  return `du ${fmtDate(from)} au ${fmtDate(to)}`;
+}
+
+const PERIOD_WORDS: Record<Period, string> = {
+  '1d': 'sur 1 jour',
+  '1w': 'sur 1 semaine',
+  '1m': 'sur 1 mois',
+  '3m': 'sur 3 mois',
+  '1y': 'sur 1 an',
+  all: 'depuis le début',
+  custom: 'depuis le début',
+};
 
 /** Noms de mois, index 1-12. Écrits ici plutôt que tirés d'`Intl` : un `NaiveDateTime` ne passe */
 /** jamais par un `Date`, et la casse française d'`Intl` varie d'un moteur à l'autre. */

@@ -4497,3 +4497,107 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Ce qui reste à trancher, et qui ne m'appartient pas** : activer
      `automated-security-fixes`. Il ferait ouvrir une PR dès qu'un correctif paraît, pour ce
      dossier comme pour les suivants. C'est un réglage du dépôt, pas une ligne de code.
+
+156. **Trois vocabulaires de plage, et un écran qui commençait par une liste de corvées** (16/09/2026).
+
+     **Deux demandes, un même défaut.** « Ces messages gâchent la vue d'ensemble » et « je voudrais
+     choisir la plage d'analyse partout ». Les deux disent la même chose : l'écran qu'on ouvre pour
+     lire un chiffre ne présente pas ce chiffre en premier, et ne dit pas de quelle période il parle.
+
+     **Ce que l'exploration a renversé.** Le moteur n'avait rien à apprendre : `series.ts` sépare
+     depuis toujours le **preset** (`Period`) de la **fenêtre** (`DayWindow { from, to }`), et
+     `sliceSeries` ne travaille que sur la fenêtre. Une plage libre, de date à date, est donc déjà ce
+     que le calcul sait consommer. Ce qui manquait était en surface — trois vocabulaires
+     (`1S/1M/3M/1A/Tout`, `1J/1S/1M/Tout`, `7 jours/30 jours/Tout`), chacun dans l'état **local** de
+     son composant, si bien que deux écrans pouvaient afficher deux périodes différentes sans que
+     rien ne le dise, et qu'un rechargement ramenait tout au défaut.
+
+     **Aucun standard externe ne départage ces vocabulaires** : Yahoo sert `1D/5D/1M/6M/YTD/1Y/5Y/All`,
+     Robinhood `1H/1D/1W/1M/3M/1Y/5Y`, TradingView une notation lettre+nombre, CoinGecko
+     `24H/7D/1M/3M/YTD/1Y/Max`. L'anomalie n'était donc pas le vocabulaire choisi — c'était d'en
+     avoir trois. Une seule liste, `PERIODS`, et un seul composant, `PeriodToggle`.
+
+     **La plage vit dans les réglages, pas dans l'URL** — et c'est un écart assumé par rapport à la
+     convention d'ingénierie dominante (« si ça change l'écran, ça va dans l'URL »). Cette convention
+     sert d'abord à **envoyer un lien**. Ici le bouton « Partager » partage une **image**, le routeur
+     est à hash sans modèle de requête, et aucune donnée ne voyage : le lien ne transporterait rien.
+     Le bénéfice restant — « ça se souvient » — `UiSettings` le donne déjà, à côté de `chartMetric`.
+     Ajouter un modèle de requête au routeur pour le seul bouton retour ne paie pas son prix.
+
+     **Là où la source impose sa fenêtre, on le dit.** La courbe d'équité ne vient pas de nous :
+     Hyperliquid ne sert que jour, semaine, mois, tout. Elle garde donc son propre sélecteur, et
+     l'annonce sous le graphique. Le bloc « Résultat », lui, se calcule depuis les fills : il peut
+     honorer n'importe quelle fenêtre, donc il suit la plage. **Afficher une période qu'on ne reçoit
+     pas reviendrait à l'inventer** — c'est le précédent CoinGecko, qui documente sa granularité
+     imposée au lieu de la cacher.
+
+     **Le bloc « À vérifier », et la règle qui décide.** Un seul contrôle en échec hissait la liste
+     **entière** en tête d'écran : un démenti et cinq conseils, six lignes doubles, au-dessus de la
+     courbe. La règle posée : _un contrôle qui dit « ce chiffre-là est faux » reste collé au chiffre ;
+     un contrôle qui dit « tu devrais faire X » s'en va._ Les échecs gardent leur place, sous un titre
+     qui dit enfin ce qu'ils signifient ; les conseils deviennent **une ligne** qui compte, qui NOMME,
+     et qui pointe. La ligne porte les libellés, le lien porte l'action — ce partage permet d'envoyer
+     vers la réconciliation sans masquer la sauvegarde ni les prix, qui se lisent en clair sur la
+     ligne. La vue d'ensemble en était d'ailleurs la **troisième** copie : `SelfChecks` rend déjà la
+     liste entière dans les réglages.
+
+     **Accessibilité.** Le sélecteur reste un `radiogroup` de `radio` — jamais un `tablist`, qui
+     promettrait des panneaux inexistants, ni un `toolbar`, réservé à des commandes indépendantes.
+     Les pastilles font 44 × 36 px, au-dessus du minimum de 24 × 24 du critère 2.5.8 de WCAG 2.2. Le
+     segmented control ad hoc du bloc « Résultat » (`role="group"` + `aria-pressed`) disparaît au
+     profit du composant partagé ; axe passe sur toutes les routes.
+
+     **Ce qui est prêt sans être câblé.** `DayWindow` accepte déjà n'importe quelles bornes : la
+     plage libre à deux dates ne demandera que le composant de saisie, pas une reprise du calcul.
+     Écarté pour l'instant, et pour des raisons nommées : l'ancrage sur une année fiscale décalée
+     (l'année fiscale ici est l'année civile), et `focusgroup` (Chrome 150, trop récent pour en
+     dépendre).
+
+     **Contre-épreuve** (décision n° 75) : faire lire à l'écran Trading une plage en dur au lieu du
+     réglage fait rougir le parcours en nommant la pastille — « 3M : attendu true, reçu false ».
+
+157. **La plage libre ne demandait que des champs, pas un calcul** (16/09/2026).
+
+     **Le point de départ, et il était juste.** La décision n° 156 annonçait que `DayWindow` accepte
+     déjà n'importe quelles bornes, donc que la plage libre ne coûterait qu'un composant de saisie.
+     Vérifié : `sliceSeries`, `netWorthChange`, `tripsClosedIn` n'ont pas changé d'une ligne.
+
+     **Ce que l'implémentation a trouvé en plus.** `PeriodToggle` déclarait **son propre** type
+     `Period`, copie de celui du domaine — la même fragmentation que les trois vocabulaires, un cran
+     plus bas, et invisible tant que les deux listes coïncidaient. Et le dictionnaire des libellés
+     (« sur 1 mois », « depuis le début ») était écrit **deux fois**, dans deux écrans, avec deux
+     formulations différentes pour « tout ». Les deux sont supprimés : le type vient de
+     `$lib/history`, les mots de `fmtPeriod` dans la couche d'affichage.
+
+     **Une plage libre n'a pas de durée à annoncer.** Dire « sur 1 mois » quand l'utilisateur a saisi
+     du 3 mars au 12 avril serait faux, et « sur une période personnalisée » ne dirait rien. Elle
+     nomme donc ses bornes — « du 03/03/2026 au 12/04/2026 » —, la seule information utile. C'est
+     pourquoi le libellé est devenu une **fonction** et non une table.
+
+     **Deux champs, jamais un glissement.** Le critère 2.5.7 de WCAG 2.2 interdit une sélection qui
+     ne s'obtiendrait qu'en glissant sur une frise. `input type="date"` est nativement utilisable au
+     clavier et annoncé par les lecteurs d'écran, sans dépendance ni code de calendrier — ce qui
+     compte double sous une CSP stricte, où tout greffon de calendrier serait un risque de plus. Les
+     bornes se limitent l'une l'autre (`min`/`max`), et la plage retenue est annoncée dans une zone
+     `aria-live="polite"` : changer une borne change tous les chiffres de l'écran, et un lecteur
+     d'écran n'a aucun autre moyen de l'apprendre.
+
+     **`custom` sans bornes n'existe pas.** Ce serait substituer une période en silence — exactement
+     ce que la décision n° 156 refuse d'afficher ailleurs. L'état est rendu inatteignable des deux
+     côtés : la pastille « Dates » **amorce** la plage sur le dernier mois plutôt que sur du vide, et
+     la relecture du réglage normalise un `custom` orphelin. Le repli de `resolveWindow` est une
+     ceinture pour un cas qui ne doit pas arriver, pas un comportement sur lequel on s'appuie.
+
+     **Une saisie inversée se lit dans l'ordre**, plutôt que de rendre une fenêtre vide. Un écran qui
+     affiche « aucune donnée » à quelqu'un qui a simplement rempli les deux champs à l'envers
+     l'accuse d'un problème qu'il n'a pas.
+
+     **Trois axes, toujours séparés.** La plage est un champ, les bornes libres en sont un autre, et
+     la granularité d'agrégation comme la comparaison de périodes en seront deux de plus. Les mêler
+     obligerait à reprendre la forme de l'état au premier ajout — c'est ce que GA4 et Lightdash
+     évitent en traitant comparaison et granularité comme des contrôles distincts.
+
+     **Contre-épreuve** (décision n° 75) : faire lire à Trading une plage en dur fait rougir le
+     parcours en nommant la pastille ; et le parcours de la plage libre exige les deux champs, leur
+     type `date`, la saisie au clavier, et la phrase « du 03/03/2026 au 12/04/2026 » — sans laquelle
+     l'écran annoncerait une durée qu'il n'applique pas.

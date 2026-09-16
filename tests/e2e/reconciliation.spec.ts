@@ -45,12 +45,15 @@ test('démo propre : ni ligne à qualifier, ni écart Coinhouse, ni doublon ; le
 }) => {
   await openDemo(page);
 
-  // Le badge « À vérifier » de la vue d'ensemble pointe désormais vers la réconciliation (au moins
-  // la sauvegarde n'a pas encore été téléchargée sur une démo fraîche : la carte est visible).
+  // La vue d'ensemble ne déroule plus les conseils : elle en garde UNE ligne, qui compte, nomme et
+  // pointe ici (décision n° 156). Sur une démo fraîche la sauvegarde n'a pas encore été
+  // téléchargée, donc il y a au moins un point à vérifier.
   await page.goto('#/');
-  const reconLink = page.getByRole('link', { name: 'Voir la réconciliation complète' });
+  const reconLink = page.getByRole('link', { name: /points? à vérifier/ });
   await expect(reconLink).toBeVisible();
   await expect(reconLink).toHaveAttribute('href', '#/reconciliation');
+  // Et elle NOMME ce qu'elle compte : sans les libellés, le lien serait une devinette.
+  await expect(page.getByText(/points? à vérifier — /)).toBeVisible();
 
   await page.goto('#/reconciliation');
   await expect(page.getByRole('heading', { level: 1, name: 'Réconciliation' })).toBeVisible();

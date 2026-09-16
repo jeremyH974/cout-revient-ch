@@ -119,7 +119,13 @@ test('trade manuel : saisie, P&L calculé, journal, statistiques avec garde-fou,
   );
 
   // Statistiques : 1 trade clos, avertissement d'échantillon, ventilation par sens.
+  //
+  // La plage est désormais celle de l'application (décision n° 156), et son défaut est « 1 mois » :
+  // ce trade de juillet tombe donc hors fenêtre, et l'écran le DIT — « aucun trade clos sur 1 mois,
+  // élargissez la période ». C'est le prix assumé d'une plage unique, et la sortie est à un clic.
   await page.goto('#/trading/stats');
+  await expect(page.getByText(/Aucun trade clos sur 1 mois/)).toBeVisible();
+  await page.getByRole('radio', { name: 'Tout', exact: true }).click();
   await expect(page.getByText('Échantillon trop petit')).toBeVisible();
   await expect(
     page.getByRole('heading', { name: /Vue d'ensemble \(1 trades? clos\)/ }),

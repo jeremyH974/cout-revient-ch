@@ -23,14 +23,14 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { D, ZERO, type Big } from '$lib/domain/money';
-  import { displayGap, fmtDate } from '$lib/format/fr';
+  import { displayGap, fmtDate, fmtPeriod } from '$lib/format/fr';
   import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
-  import { periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import { resolveWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import { netWorthChange, netWorthPartChanges } from '$lib/history/net-worth';
   import { router } from '$lib/router.svelte';
   import NetWorthCard from '../components/charts/NetWorthCard.svelte';
-  import PeriodToggle from '../components/charts/PeriodToggle.svelte';
+  import RangePicker from '../components/charts/RangePicker.svelte';
   import ShareSheet from '../components/shared/ShareSheet.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import Delta from '../components/shared/Delta.svelte';
@@ -50,15 +50,14 @@
    * Pas de « 1J » : la série de patrimoine est quotidienne, une fenêtre d'un jour n'y contient que
    * deux points et donnerait une variation qui n'en est pas une.
    */
-  let period = $state<Period>('1m');
-  const PERIOD_LABEL: Record<Period, string> = {
-    '1d': 'sur 1 jour',
-    '1w': 'sur 1 semaine',
-    '1m': 'sur 1 mois',
-    '3m': 'sur 3 mois',
-    '1y': 'sur 1 an',
-    all: 'depuis le début',
-  };
+  /**
+   * La plage vient des réglages, pas d'un état local : c'est ce qui fait qu'un écran et le suivant
+   * parlent de la même période, et qu'elle survit au rechargement (décision n° 156).
+   */
+  const period = $derived<Period>(app.state.ui.period);
+  const customRange = $derived(app.state.ui.customRange);
+  /** « sur 1 mois », « depuis le début », ou les deux dates quand la plage est libre. */
+  const periodLabel = $derived(fmtPeriod(period, customRange));
 
   const trading = $derived(app.tradingReport);
   /**
@@ -99,7 +98,7 @@
   });
 
   const today = $derived(todayOf(nowMs()));
-  const window = $derived(periodWindow(period, today));
+  const window = $derived(resolveWindow(period, customRange, today));
   const series = $derived(history.netWorth);
   const visible = $derived(
     sliceSeries(series, { from: window.from ?? series[0]?.day ?? today, to: window.to }),
@@ -148,9 +147,20 @@
     }
   }
 
-  // Mêmes contrôles que les réglages, montés une seule fois (`state/checks.svelte.ts`).
-  const checks = $derived(selfChecks.actionable);
-  const blocking = $derived(selfChecks.blocking);
+  /**
+   * Mêmes contrôles que les réglages, montés une seule fois (`state/checks.svelte.ts`) — mais
+   * **séparés selon ce qu'ils disent**, parce qu'ils ne méritent pas la même place (décision n° 156).
+   *
+   * Un `fail` dit « le chiffre au-dessus est faux » : il reste collé au chiffre, en tête d'écran.
+   * Un `warn` dit « tu devrais faire quelque chose » — apparier un virement, télécharger une
+   * sauvegarde : c'est un conseil, pas un démenti, et sa place est dans la réconciliation.
+   *
+   * Avant, un seul `fail` hissait **toute** la liste en tête : un démenti et cinq conseils, sur six
+   * lignes doubles, au-dessus de la courbe. L'écran qu'on vient lire pour un chiffre commençait par
+   * une page de choses à faire.
+   */
+  const failing = $derived(selfChecks.actionable.filter((c) => c.level === 'fail'));
+  const advisory = $derived(selfChecks.actionable.filter((c) => c.level !== 'fail'));
 
   /** Part d'un espace dans le patrimoine, en pourcentage affichable ; `null` si le total est nul. */
   function shareOf(value: Big): number | null {
@@ -182,12 +192,12 @@
 <AppBar title="Vue d'ensemble" />
 
 {#snippet verify()}
-  <section class="card verify" class:blocking aria-labelledby="verify-title">
-    <h2 id="verify-title">À vérifier</h2>
+  <section class="card verify blocking" aria-labelledby="verify-title">
+    <h2 id="verify-title">Ce chiffre est à prendre avec réserve</h2>
     <ul class="checks">
-      {#each checks as check (check.id)}
-        <li class={check.level}>
-          <span class="mark" aria-hidden="true">{check.level === 'fail' ? '!' : '·'}</span>
+      {#each failing as check (check.id)}
+        <li class="fail">
+          <span class="mark" aria-hidden="true">!</span>
           <span>
             <strong>{check.label}</strong> — {check.detail}
             {#if check.action}<span class="muted">{check.action}</span>{/if}
@@ -195,9 +205,6 @@
         </li>
       {/each}
     </ul>
-    <p class="small">
-      <a href={router.href({ name: 'reconciliation' })}>Voir la réconciliation complète</a>
-    </p>
   </section>
 {/snippet}
 
@@ -213,14 +220,14 @@
         différente.</Info
       >
     </h2>
-    <PeriodToggle bind:value={period} available={['1w', '1m', '3m', '1y', 'all']} />
+    <RangePicker id="overview" available={['1w', '1m', '3m', '1y', 'all', 'custom']} />
   </div>
 
   <p class="display" data-testid="net-worth-hero"><Money value={netWorth} strong /></p>
 
   {#if change}
     <p class="variance">
-      <Delta value={change.gain} pct={change.pct} suffix={PERIOD_LABEL[period]} size="lg" />
+      <Delta value={change.gain} pct={change.pct} suffix={periodLabel} size="lg" />
       <span class="muted small">hors apports</span>
     </p>
   {:else if app.hasData}
@@ -256,7 +263,7 @@
   {/if}
 </section>
 
-{#if blocking}{@render verify()}{/if}
+{#if failing.length > 0}{@render verify()}{/if}
 
 <!-- 2. La réconciliation : trois lignes qui expliquent le chiffre du dessus. -->
 {#if reconciliation}
@@ -406,7 +413,7 @@
               {#if moved}<Delta
                   value={moved.gain}
                   pct={moved.pct}
-                  suffix={PERIOD_LABEL[period]}
+                  suffix={periodLabel}
                   size="sm"
                 />{/if}
             </span>
@@ -426,7 +433,7 @@
             {/if}
             {#if moved && !moved.contributions.eq(ZERO)}
               · apports <Delta value={moved.contributions} size="sm" />
-              {PERIOD_LABEL[period]}
+              {periodLabel}
             {/if}
           </p>
         </li>
@@ -502,7 +509,26 @@
   </section>
 {/if}
 
-{#if !blocking && checks.length > 0}{@render verify()}{/if}
+<!--
+  Les conseils ne s'énumèrent plus ici : une ligne qui compte, qui NOMME, et qui pointe.
+
+  La ligne porte les libellés, le lien porte l'action. C'est ce partage qui permet d'envoyer vers la
+  **réconciliation** — l'écran fait pour agir sur les données, et le seul chemin contextuel vers lui
+  depuis ici — sans rien masquer : les points qu'elle ne couvre pas (la sauvegarde, les prix) sont
+  lus en clair sur la ligne, et leur détail vit dans les réglages, où `SelfChecks` rend la liste
+  entière.
+-->
+{#if advisory.length > 0}
+  <p class="advisory small">
+    <a href={router.href({ name: 'reconciliation' })}>
+      {advisory.length === 1 ? '1 point à vérifier' : `${advisory.length} points à vérifier`}
+    </a>
+    — {advisory
+      .map((c) => c.label)
+      .slice(0, 3)
+      .join(', ')}{advisory.length > 3 ? '…' : ''}
+  </p>
+{/if}
 
 <p class="links small">
   <a href={router.href({ name: 'report' })}>Rapport PDF</a> ·
@@ -870,6 +896,12 @@
   }
   .checks li.fail .mark {
     color: var(--loss);
+  }
+  /* Une ligne, pas une carte : un conseil ne doit pas peser autant qu'un chiffre. */
+  .advisory {
+    text-align: center;
+    color: var(--fg-muted);
+    text-wrap: pretty;
   }
   .links {
     text-align: center;
