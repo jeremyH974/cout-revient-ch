@@ -744,6 +744,12 @@ export function generateHlFixture(): HlFixture {
     from: number,
     points: number,
     wobble: string,
+    /**
+     * Part de l'équité finale **déposée** à mi-fenêtre : l'équité saute, le P&L non. Sans elle,
+     * variation d'équité et résultat coïncidaient sur toutes les fenêtres, et rien ne pouvait
+     * vérifier qu'un écran affiche le second plutôt que la première (décision n° 162).
+     */
+    depositShare = '0',
   ): [
     string,
     { accountValueHistory: [number, string][]; pnlHistory: [number, string][]; vlm: string },
@@ -751,16 +757,19 @@ export function generateHlFixture(): HlFixture {
     const accountValueHistory: [number, string][] = [];
     const pnlHistory: [number, string][] = [];
     const step = (SNAPSHOT_TIME - from) / points;
+    const deposit = finalValue.times(depositShare);
+    const traded = finalValue.minus(deposit);
     for (let i = 0; i <= points; i++) {
       const t = Math.round(from + i * step);
       const progress = i / points;
       // Trajet déterministe : départ à 92 % de l'équité finale, oscillation amortie, arrivée exacte.
       const osc = Math.sin(i * 2.399963) * (1 - progress);
-      const value = finalValue
+      const result = traded
         .times(new Big('0.92').plus(new Big(String(progress)).times('0.08')))
-        .plus(finalValue.times(wobble).times(String(osc)));
+        .plus(traded.times(wobble).times(String(osc)));
+      const value = i * 2 >= points ? result.plus(deposit) : result;
       accountValueHistory.push([t, value.round(6, HALF_UP).toString()]);
-      pnlHistory.push([t, value.minus(finalValue.times('0.92')).round(6, HALF_UP).toString()]);
+      pnlHistory.push([t, result.minus(traded.times('0.92')).round(6, HALF_UP).toString()]);
     }
     accountValueHistory[points] = [SNAPSHOT_TIME, finalValue.toString()];
     return [label, { accountValueHistory, pnlHistory, vlm: '123456.7' }];
@@ -768,7 +777,9 @@ export function generateHlFixture(): HlFixture {
   const portfolio = [
     portfolioPeriod('day', SNAPSHOT_TIME - 24 * 3_600_000, 24, '0.004'),
     portfolioPeriod('week', SNAPSHOT_TIME - 7 * 86_400_000, 28, '0.01'),
-    portfolioPeriod('month', SNAPSHOT_TIME - 30 * 86_400_000, 30, '0.02'),
+    // Un dépôt à mi-fenêtre sur 30 jours seulement : « Tout » alimente aussi la courbe de patrimoine
+    // de la vue d'ensemble, que ce scénario n'a pas à déplacer.
+    portfolioPeriod('month', SNAPSHOT_TIME - 30 * 86_400_000, 30, '0.02', '0.15'),
     portfolioPeriod('allTime', CURVE_START, 40, '0.03'),
     portfolioPeriod('perpDay', SNAPSHOT_TIME - 24 * 3_600_000, 24, '0.004'),
     portfolioPeriod('perpWeek', SNAPSHOT_TIME - 7 * 86_400_000, 28, '0.01'),

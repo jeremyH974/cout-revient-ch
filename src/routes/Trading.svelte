@@ -14,9 +14,10 @@
     totalsSince,
     type TradingTotals,
   } from '$lib/domain/trading/compute';
+  import { curveWindow } from '$lib/domain/trading/curve';
   import { rateLookup } from '$lib/fx';
   import { dayToMs, resolveWindow, todayOf, type Period } from '$lib/history';
-  import { fmtRelative } from '$lib/format/fr';
+  import { fmtRelative, roundsToZero } from '$lib/format/fr';
   import { msToParisNaive } from '$lib/import/time';
   import { router } from '$lib/router.svelte';
   import { DISCUSSIONS_URL } from '$lib/support/links';
@@ -118,6 +119,22 @@
   const curveAccount = $derived(
     current ? current.accountId : accounts.length === 1 ? accounts[0]!.id : null,
   );
+  /** Les fenêtres de la plateforme, dites en durée plutôt qu'en sigle. */
+  const CURVE_WORDS: Record<CurvePeriod, string> = {
+    day: 'Sur 24 h',
+    week: 'Sur 7 jours',
+    month: 'Sur 30 jours',
+    allTime: "Depuis l'ouverture du compte",
+  };
+  /**
+   * Gain ou perte de la fenêtre affichée (décision n° 162) : la réponse que la courbe d'équité ne
+   * donne pas, puisqu'elle monte aussi à chaque dépôt. Même compte et même fenêtre que la courbe.
+   */
+  const curveResult = $derived.by(() => {
+    if (curveAccount === null) return null;
+    const series = app.state.hyperliquid.accounts[curveAccount]?.portfolio?.[curvePeriod];
+    return series ? curveWindow(series.accountValueHistory, series.pnlHistory) : null;
+  });
   const curvePoints = $derived.by((): ChartPoint[] => {
     if (curveAccount === null) return [];
     const series = app.state.hyperliquid.accounts[curveAccount]?.portfolio?.[curvePeriod];
@@ -338,6 +355,25 @@
         synchronisation, puis conservée hors ligne).
       </p>
     {:else}
+      {#if curveResult}
+        <div class="period">
+          <p class="period-result">
+            {CURVE_WORDS[curvePeriod]} : {#if roundsToZero(money(curveResult.pnl))}<strong
+                >résultat nul</strong
+              >{:else}<strong>{curveResult.pnl.lt(ZERO) ? 'perte de' : 'gain de'}</strong>
+              <Money value={money(curveResult.pnl)} sign colored strong />{/if}
+          </p>
+          <p class="muted small period-detail">
+            Équité de <Money value={money(curveResult.startValue)} /> à
+            <Money
+              value={money(curveResult.endValue)}
+            />{#if roundsToZero(money(curveResult.flows))}, sans dépôt ni retrait sur la période.{:else},
+              dont
+              <Money value={money(curveResult.flows)} sign /> de dépôts, retraits et transferts : de l'argent
+              ajouté ou retiré, pas du résultat.{/if}
+          </p>
+        </div>
+      {/if}
       <EvolutionChart
         points={curvePoints}
         currency={app.currency}
@@ -536,6 +572,16 @@
     display: grid;
     gap: var(--space-3);
     margin-bottom: var(--space-3);
+  }
+  .period {
+    display: grid;
+    gap: var(--space-1);
+  }
+  .period p {
+    margin: 0;
+  }
+  .period-result {
+    font-size: var(--fs-md);
   }
   .label {
     font-size: var(--fs-xs);

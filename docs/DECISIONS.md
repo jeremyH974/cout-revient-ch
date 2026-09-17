@@ -4880,3 +4880,40 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      gardes rougissent en nommant la cause : « demo-1, acquisitionShareEur : moteur 2000, test
      1993.33… » et « plus-value = l. 218 − [l. 223 × (l. 217 / l. 212)] = 990.00, le fichier dit
      996.67 ».
+
+162. **Une courbe d'équité ne dit pas si l'on gagne** (17/09/2026).
+
+     **La question.** « Pourquoi la valeur du compte ne correspond pas à mon plus haut sur le
+     graphique ? J'aimerais savoir si je suis en perte ou en gain sur la période sélectionnée. » Deux
+     confusions en une. Le plus haut étiqueté sur la courbe n'est qu'un instant de la fenêtre. Et la
+     courbe d'équité monte à chaque dépôt : lire un gain dans sa pente, c'est compter comme résultat
+     l'argent qu'on a soi-même apporté.
+
+     **La réponse est dans la série de P&L de la plateforme.** `domain/trading/curve.ts`
+     (`curveWindow`) rend, pour la fenêtre affichée, le **résultat** — dernier point de `pnlHistory`
+     moins le premier : la plateforme repart de zéro à chaque fenêtre, et la différence reste juste
+     si elle ne le faisait pas —, l'équité de départ et d'arrivée, et le reste de la variation,
+     **déduit** : `(fin − départ) − résultat`, soit les dépôts, retraits et transferts. Déduit plutôt
+     que relu dans le grand livre, pour que `départ + résultat + mouvements = fin` tienne exactement
+     (propriété), y compris sur une fenêtre dont l'historique local serait incomplet. La ligne
+     s'affiche au-dessus de la courbe : « Sur 30 jours : gain de +… ».
+
+     **Pas les fills.** Le bloc « Résultat » calcule déjà un réalisé par période depuis les fills,
+     mais il ignore le latent au début de la fenêtre : une position ouverte à cheval sur la borne
+     fausserait le chiffre. La série de la plateforme le contient, et c'est la même source que la
+     courbe juste en dessous — la ligne et la courbe ne peuvent pas se contredire.
+
+     **Au taux du jour.** Comme toute la synthèse Trading, les montants de la ligne sont convertis au
+     taux BCE du jour, ce qui garde l'addition exacte ; la courbe, elle, convertit chaque point au
+     taux de son jour. En dollars, les deux coïncident.
+
+     **Ce qui reste ouvert : l'écart entre la courbe et « Valeur du compte ».** La valeur du compte
+     est recalculée par l'application depuis l'instantané — équité perps et spot valorisé — et se
+     recoupe avec dépôts nets + P&L. La courbe est celle de la plateforme, qui peut additionner ce que
+     l'application ne valorise pas (vaults, HYPE en staking, jetons sans cours). Nommer la cause
+     exige de savoir ce que la série additionne, sur un compte qui présente l'écart : ce sera une
+     décision à part, pas une supposition affichée.
+
+     **Contre-épreuve** (décision n° 75) : prendre le dernier point de P&L au lieu de la différence,
+     ou inverser le signe des mouvements, fait rougir le test qui les nomme ; à l'écran, afficher la
+     variation d'équité à la place du résultat fait échouer le parcours Trading.

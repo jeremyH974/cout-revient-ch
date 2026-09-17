@@ -60,7 +60,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   recalculés depuis les prix, pour que le seuil ne puisse pas contredire le net affiché ;
   `observedFeeRates` et `sizeBreakeven` : médiane des taux réellement payés par rôle, et point mort
   exact d'un aller-retour hypothétique selon son sens — prix à atteindre, écart, gain brut minimum —
-  pour l'onglet « Seuil », docs/DECISIONS.md n° 158).
+  pour l'onglet « Seuil », docs/DECISIONS.md n° 158), `curve.ts` (`curveWindow` : gain ou perte
+  d'une fenêtre de la courbe de la plateforme, lu sur sa série de P&L, équité de départ et
+  d'arrivée, et dépôts, retraits et transferts **déduits** de la différence, pour que l'addition
+  tombe juste, docs/DECISIONS.md n° 162).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,

@@ -4,7 +4,9 @@ import {
   computeTradingAccount,
   type TradingAccountReport,
 } from '../../src/lib/domain/trading/compute';
-import { fmtMoney } from '../../src/lib/format/fr';
+import { curveWindow } from '../../src/lib/domain/trading/curve';
+import { fmtMoney, roundsToZero } from '../../src/lib/format/fr';
+import type { HlPortfolio } from '../../src/lib/import/hyperliquid/api-types';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount } from '../../src/lib/import/hyperliquid/sync';
@@ -20,7 +22,11 @@ test.beforeEach(async ({ context }) => {
 });
 
 /** Rapport attendu, calculé par le moteur lui-même depuis la fixture (jamais de chiffres en dur). */
-async function expectedReport(): Promise<{ fixture: HlFixture; report: TradingAccountReport }> {
+async function expectedReport(): Promise<{
+  fixture: HlFixture;
+  report: TradingAccountReport;
+  portfolio: HlPortfolio;
+}> {
   const fixture = JSON.parse(
     readFileSync('tests/fixtures/hyperliquid/demo.json', 'utf8'),
   ) as HlFixture;
@@ -34,7 +40,11 @@ async function expectedReport(): Promise<{ fixture: HlFixture; report: TradingAc
     spotAsInvestment: false,
     eurUsdRate: () => EUR_USD,
   });
-  return { fixture, report: computeTradingAccount(normalized.trading) };
+  return {
+    fixture,
+    report: computeTradingAccount(normalized.trading),
+    portfolio: sync.data.portfolio ?? {},
+  };
 }
 
 /** « 1 234,56 € » → 1234.56, en tolérant les espaces insécables et le signe moins typographique. */
@@ -95,10 +105,41 @@ async function expectDashboard(page: Page, report: TradingAccountReport): Promis
 test('démo : le tableau de bord Trading recoupe le moteur (équité, positions, réconciliation)', async ({
   page,
 }) => {
-  const { report } = await expectedReport();
+  const { report, portfolio } = await expectedReport();
   await openDemo(page);
   await page.goto('#/trading');
   await expectDashboard(page, report);
+
+  // Gain ou perte de la fenêtre de la courbe (décision n° 162), recoupé avec la série de la
+  // plateforme : 30 jours par défaut, puis tout l'historique.
+  const evolution = page.locator('section.evolution');
+  const eur = (value: import('big.js').Big) => normalize(fmtMoney(value.div(EUR_USD), 'EUR'));
+  for (const [id, label, words] of [
+    ['month', '1M', 'Sur 30 jours'],
+    ['allTime', 'Tout', "Depuis l'ouverture du compte"],
+  ] as const) {
+    await evolution
+      .getByRole('group', { name: 'Période de la courbe' })
+      .getByRole('button', { name: label, exact: true })
+      .click();
+    const series = portfolio[id]!;
+    const result = curveWindow(series.accountValueHistory, series.pnlHistory)!;
+    const pnl = result.pnl.div(EUR_USD);
+    await expect(evolution.locator('.period-result')).toHaveText(
+      roundsToZero(pnl)
+        ? `${words} : résultat nul`
+        : `${words} : ${pnl.lt('0') ? 'perte de' : 'gain de'} ${normalize(fmtMoney(pnl, 'EUR', { sign: true }))}`,
+    );
+    await expect(evolution.locator('.period-detail')).toContainText(
+      `Équité de ${eur(result.startValue)} à ${eur(result.endValue)}`,
+    );
+    // Les mouvements de la fenêtre sont nommés à part : la démo dépose à mi-parcours sur 30 jours.
+    await expect(evolution.locator('.period-detail')).toContainText(
+      roundsToZero(result.flows.div(EUR_USD))
+        ? 'sans dépôt ni retrait'
+        : `dont ${normalize(fmtMoney(result.flows.div(EUR_USD), 'EUR', { sign: true }))} de dépôts, retraits et transferts`,
+    );
+  }
   // Onglet Fills : les exécutions vivent là, 50 par 50.
   await page.getByLabel('Espace Trading').getByRole('link', { name: 'Fills' }).click();
   await expect(page).toHaveURL(/#\/trading\/fills$/);
