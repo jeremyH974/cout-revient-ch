@@ -72,6 +72,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   ne dépend pas de la taille : seule la valeur grandit avec elle. Le funding et le glissement de
   prix d'un ordre au marché ne sont pas comptés, et l'écran le rappelle.
 
+- **Choisissez la période que vous analysez — la même d'un écran à l'autre, et de date à date si
+  vous le voulez.** La vue d'ensemble et l'espace Trading partagent désormais un seul sélecteur :
+  1S, 1M, 3M, 1A, Tout, et **Dates**, qui ouvre deux champs pour une plage libre. Chaque chiffre dit
+  de quelle période il parle — « sur 1 mois », ou « du 03/03/2026 au 12/04/2026 » — et votre choix
+  est retenu d'une visite à l'autre. Auparavant, chaque écran avait ses propres boutons, revenait à
+  sa valeur par défaut à chaque rechargement, et deux écrans pouvaient montrer deux périodes
+  différentes sans le signaler. Seule exception, écrite sous le graphique : la courbe d'équité du
+  Trading garde ses propres fenêtres, parce qu'Hyperliquid ne fournit que jour, semaine, mois et
+  tout. Les deux dates se saisissent au clavier, et le changement de période est annoncé aux
+  lecteurs d'écran.
+
 - **Le chiffrement de cet appareil existait déjà — vous ne pouviez simplement pas le trouver.**
   Il est proposé, désormais, juste après un import de vos vraies données : le moment où vos chiffres
   viennent de s'afficher, et le seul où la question a un sens. Pas à l'installation sur une
@@ -127,6 +138,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   plafonnent pas au même taux — s'y fier créditerait près de 60 % de trop. Vous désignez donc le
   pays depuis la fiche d'un titre ; sans désignation, l'application montre les montants et ne
   calcule aucun crédit. Ce n'est ni une déclaration, ni un conseil fiscal.
+
+### Changed
+
+- **La vue d'ensemble s'ouvre sur votre patrimoine, plus sur une liste de vérifications.** Un seul
+  contrôle en échec faisait monter la liste entière en haut de l'écran, au-dessus de la courbe :
+  l'écran qu'on ouvre pour lire un chiffre commençait par une liste de conseils. Désormais,
+  seul ce qui met en doute le chiffre affiché reste à côté de lui, sous le titre « Ce chiffre est à
+  prendre avec réserve ». Les recommandations — copie de secours, prix, opérations à qualifier… —
+  tiennent en **une ligne** qui les compte, les nomme et mène à l'écran où les traiter ; leur liste
+  complète reste dans les réglages.
 
 ### Fixed
 
