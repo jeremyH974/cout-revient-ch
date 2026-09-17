@@ -6,6 +6,7 @@
    */
   import { onMount } from 'svelte';
   import { D, ZERO, type Big } from '$lib/domain/money';
+  import { executionLines, tradeCosts, type ExecutionLine } from '$lib/domain/trading/costs';
   import {
     DEFAULT_MISTAKES,
     DEFAULT_SETUPS,
@@ -14,7 +15,8 @@
     type JournalEntry,
     type TradePlan,
   } from '$lib/domain/trading/journal';
-  import { fmtDateTime, fmtPct, fmtPrice, fmtQty } from '$lib/format/fr';
+  import { fmtDateTime, fmtPct, fmtPrice, fmtQty, fmtSmallPct } from '$lib/format/fr';
+  import { breakevenSentence, rolesSentence, unavailableSentence } from '$lib/format/trade-costs';
   import { addDays } from '$lib/history';
   import { router } from '$lib/router.svelte';
   import EvolutionChart, {
@@ -73,6 +75,34 @@
       ? found.trip.netPnl.div(previewRisk)
       : null,
   );
+
+  // --- Frais, seuil de rentabilité, rôle de chaque exécution (décision n° 158) -----------------
+  const lines = $derived.by(() => {
+    if (!found || found.trip.source === 'manual') return [];
+    const account = app.tradingReport.accounts.find((a) => a.accountId === found.trip.accountId);
+    return executionLines(found.trip, account?.executions ?? []);
+  });
+  const costs = $derived(found ? tradeCosts(found.trip, lines) : null);
+  const breakeven = $derived(found && costs ? breakevenSentence(found.trip, costs) : null);
+  const roles = $derived(costs ? rolesSentence(costs) : null);
+  // Un ordre découpé en tranches reste une ligne, mais un scalpeur peut en aligner des dizaines :
+  // affichage progressif, remis à zéro quand on change de trade.
+  const LINES_PAGE = 20;
+  let shownLines = $state(LINES_PAGE);
+  $effect(() => {
+    void id;
+    shownLines = LINES_PAGE;
+  });
+  const visibleLines = $derived(lines.slice(0, shownLines));
+  const remainingLines = $derived(lines.length - shownLines);
+  const moreLines = $derived(
+    `Afficher ${Math.min(LINES_PAGE, remainingLines)} de plus ` +
+      `(${remainingLines} restante${remainingLines > 1 ? 's' : ''})`,
+  );
+  /** Ce qu'une ligne regroupe ou partage : « · 5 fills · part de ce trade (retournement) ». */
+  const lineNotes = (line: ExecutionLine): string =>
+    (line.fills > 1 ? ` · ${line.fills} fills` : '') +
+    (line.shared ? ' · part de ce trade (retournement)' : '');
 
   function toggle(list: string[], value: string): string[] {
     return list.includes(value) ? list.filter((x) => x !== value) : [...list, value];
@@ -233,6 +263,44 @@
     {/if}
   </section>
 
+  {#if costs}
+    <section class="card costs" aria-labelledby="costs-title">
+      <h2 id="costs-title">Frais et seuil de rentabilité</h2>
+      {#if costs.unavailable}
+        <p class="muted small">{unavailableSentence(costs.unavailable)}</p>
+      {:else}
+        <dl class="cost-kpis">
+          {#if costs.feeShareOfGross}
+            <div>
+              <dt>Part du brut en frais</dt>
+              <dd class="num">{fmtPct(costs.feeShareOfGross, { sign: false })}</dd>
+            </div>
+          {/if}
+          <div>
+            <dt>Taux de frais moyen</dt>
+            <dd class="num">{fmtSmallPct(costs.averageFeeRate)}</dd>
+          </div>
+          <div>
+            <dt>Seuil de rentabilité</dt>
+            <dd class="num">{fmtSmallPct(costs.breakevenMove)}</dd>
+          </div>
+          {#if costs.capturedMove}
+            <div>
+              <dt>Mouvement capté</dt>
+              <dd class="num">{fmtSmallPct(costs.capturedMove, { sign: true })}</dd>
+            </div>
+          {:else if costs.breakevenPrice}
+            <div>
+              <dt>Point mort</dt>
+              <dd class="num">{fmtPrice(costs.breakevenPrice, 'USD')}</dd>
+            </div>
+          {/if}
+        </dl>
+        {#if breakeven}<p class="muted small">{breakeven}</p>{/if}
+      {/if}
+    </section>
+  {/if}
+
   {#if chartPoints.length >= 2}
     <section class="card chart">
       <h2>Prix de {t.symbol} autour du trade</h2>
@@ -249,8 +317,55 @@
       <p class="muted small">
         Prix quotidien ({app.currency === 'EUR' ? 'EUR, taux BCE' : 'USD'}) sur la fenêtre du trade
         (± 7 jours) ; entrées et sorties en marqueurs, niveaux en pointillés (entrée moyenne,
-        liquidation, stop et objectif du plan). Les prix d'exécution exacts sont dans l'onglet
-        Fills.
+        liquidation, stop et objectif du plan).{lines.length > 0
+          ? " Les prix d'exécution exacts sont détaillés plus bas."
+          : ''}
+      </p>
+    </section>
+  {/if}
+
+  {#if lines.length > 0}
+    <section class="card executions" aria-labelledby="executions-title">
+      <h2 id="executions-title">Exécutions</h2>
+      {#if roles}<p class="muted small">{roles}</p>{/if}
+      <ul class="rows" aria-label="Exécutions du trade">
+        {#each visibleLines as line (line.id)}
+          <li>
+            <div class="main">
+              <p class="line-title">
+                <strong>{line.direction}</strong>
+                <span class="role {line.role}">{line.role}</span>
+                {#if line.liquidation}<span class="badge liq">liquidation</span>{/if}
+              </p>
+              <span class="muted small"
+                >{fmtDateTime(line.at)} · <Qty value={line.qty} /> @ {fmtPrice(
+                  line.price,
+                  'USD',
+                )}{lineNotes(line)}</span
+              >
+            </div>
+            <div class="side">
+              <Money value={money(line.fee.neg())} sign colored />
+              <span class="muted small num"
+                >{#if line.feeRate}{fmtSmallPct(
+                    line.feeRate,
+                  )}{:else}{#each Object.entries(line.feeNative) as [asset, paid] (asset)}<Qty
+                      value={paid}
+                      {asset}
+                    />{/each}{/if}</span
+              >
+            </div>
+          </li>
+        {/each}
+      </ul>
+      {#if remainingLines > 0}
+        <button class="secondary" type="button" onclick={() => (shownLines += LINES_PAGE)}>
+          {moreLines}
+        </button>
+      {/if}
+      <p class="muted small">
+        Taker : l'ordre a été exécuté tout de suite contre le carnet, au tarif plein. Maker : il
+        attendait dans le carnet, au tarif réduit — parfois même rémunéré.
       </p>
     </section>
   {/if}
@@ -357,13 +472,21 @@
 
 <style>
   .top,
-  .chart {
+  .chart,
+  .costs,
+  .executions {
     display: grid;
     gap: var(--space-3);
   }
-  .chart h2 {
+  .chart h2,
+  .costs h2,
+  .executions h2 {
     margin: 0;
     font-size: var(--fs-md);
+  }
+  .costs p,
+  .executions p {
+    margin: 0;
   }
   .title {
     display: flex;
@@ -399,23 +522,83 @@
     border-color: var(--warn);
     color: var(--warn);
   }
-  .kpis {
+  .kpis,
+  .cost-kpis {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2) var(--space-3);
     margin: 0;
   }
-  .kpis div {
+  .kpis div,
+  .cost-kpis div {
     display: grid;
     gap: 2px;
   }
-  .kpis dt {
+  .kpis dt,
+  .cost-kpis dt {
     font-size: var(--fs-xs);
     color: var(--fg-muted);
   }
-  .kpis dd {
+  .kpis dd,
+  .cost-kpis dd {
     margin: 0;
     font-size: var(--fs-md);
+  }
+  .rows {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+  }
+  .rows li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: var(--tap);
+    padding: var(--space-2) 0;
+  }
+  .rows li + li {
+    border-top: 1px solid var(--border);
+  }
+  .rows .main {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .rows .side {
+    display: grid;
+    gap: 2px;
+    justify-items: end;
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .line-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .role {
+    font-size: var(--fs-xs);
+    padding: 1px 6px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    color: var(--fg-muted);
+  }
+  .role.maker {
+    border-color: var(--gain);
+    color: var(--gain);
+  }
+  .secondary {
+    justify-self: start;
+    min-height: var(--tap);
+    padding: 0 var(--space-3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    font-weight: 600;
   }
   .journal {
     display: grid;
@@ -493,6 +676,7 @@
   }
   @media (min-width: 768px) {
     .kpis,
+    .cost-kpis,
     .plan .grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }

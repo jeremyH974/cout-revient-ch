@@ -15,6 +15,7 @@ import {
   fmtMonth,
   fmtEurWhole,
   fmtRate,
+  fmtSmallPct,
 } from './fr';
 
 /** Espaces insécables d'Intl (U+00A0, U+202F) → espace simple, sans caractère invisible dans la source. */
@@ -171,6 +172,25 @@ describe('fmtRate', () => {
   it('ne se confond pas avec fmtPct, qui sert aux ratios mesurés', () => {
     // `fmtPct` impose une décimale : « 30,0 % » ferait passer un taux légal pour une mesure.
     expect(fmtRate('0.30')).not.toBe(fmtPct('0.30', { sign: false }));
+  });
+});
+
+describe('fmtSmallPct', () => {
+  it('garde les trois décimales où se lisent un taux de frais et un seuil de rentabilité', () => {
+    expect(nbsp(fmtSmallPct('0.00035'))).toBe('0,035 %');
+    expect(nbsp(fmtSmallPct(D('104.979').div('150060')))).toBe('0,070 %');
+    expect(nbsp(fmtSmallPct('0.0125'))).toBe('1,250 %');
+    expect(fmtSmallPct(null)).toBe('—');
+    // Là où fmtPct écrase tout à « 0,0 % ».
+    expect(nbsp(fmtPct('0.00035', { sign: false }))).toBe('0,0 %');
+  });
+
+  it('arrondit une seule fois, half-up, et décide du signe après l’arrondi', () => {
+    expect(nbsp(fmtSmallPct('0.000005'))).toBe('0,001 %');
+    expect(nbsp(fmtSmallPct('0.000004999'))).toBe('0,000 %');
+    expect(nbsp(fmtSmallPct('-0.0002'))).toBe('−0,020 %');
+    expect(nbsp(fmtSmallPct('0.00095', { sign: true }))).toBe('+0,095 %');
+    expect(nbsp(fmtSmallPct('-0.000004', { sign: true }))).toBe('0,000 %');
   });
 });
 

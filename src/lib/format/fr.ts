@@ -110,6 +110,23 @@ export function fmtPct(ratio: Big | DecimalString | null, opts: { sign?: boolean
   return signed(PCT_1.format(toNumber(rounded.abs(), 3)), rounded, opts.sign ?? true);
 }
 
+const PCT_3 = intl({ style: 'percent', minimumFractionDigits: 3, maximumFractionDigits: 3 });
+
+/**
+ * Petit ratio de marché → pourcentage à trois décimales : un taux de frais (0,00035 → « 0,035 % »)
+ * ou un mouvement de prix de quelques points de base. `fmtPct` arrondirait les deux à « 0,0 % »,
+ * et c'est précisément dans ces décimales-là que se joue la rentabilité d'un trade (décision
+ * n° 158). Pas de « + » par défaut : un taux n'a pas de sens à annoncer.
+ */
+export function fmtSmallPct(
+  ratio: Big | DecimalString | null,
+  opts: { sign?: boolean } = {},
+): string {
+  if (ratio === null) return '—';
+  const rounded = roundHalfUp(D(ratio), 5);
+  return signed(PCT_3.format(toNumber(rounded.abs(), 5)), rounded, opts.sign ?? false);
+}
+
 /** Nombre sans unité (ratio de Sortino, multiple…), `dp` décimales, arrondi une seule fois. */
 export function fmtRatio(value: Big | DecimalString | null, dp = 2): string {
   if (value === null) return '—';

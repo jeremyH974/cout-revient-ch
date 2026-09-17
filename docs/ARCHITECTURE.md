@@ -53,7 +53,12 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   diverger. La somme de la grille sur tout l'historique **est** `totals.net`, docs/DECISIONS.md
   n° 35 et n° 95), `stats.ts` (`computeStats`, `statsBuckets` et `tripsClosedIn` : le filtre de
   période de l'écran Statistiques, qui retient les aller-retours **clos** dans une fenêtre de jours
-  — le calendrier, lui, ne suit pas ce filtre, docs/DECISIONS.md n° 95).
+  — le calendrier, lui, ne suit pas ce filtre, docs/DECISIONS.md n° 95), `costs.ts`
+  (`executionLines` : les exécutions d'un aller-retour, tranches d'un même instant regroupées, part
+  d'un retournement au prorata exact de la reconstruction, rôle maker/taker ; `tradeCosts` : part du
+  brut en frais, taux moyen, seuil de rentabilité et point mort — tirés du brut du moteur, jamais
+  recalculés depuis les prix, pour que le seuil ne puisse pas contredire le net affiché,
+  docs/DECISIONS.md n° 158).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
