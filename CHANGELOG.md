@@ -36,6 +36,28 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La fiche d'un trade dit enfin ce que les frais vous ont pris, et ce qu'il fallait gagner pour
+  les payer.** Un P&L net juste ne suffisait pas à le comprendre : sur Hyperliquid, la colonne
+  « Closed PnL » ne retire que les frais de sa propre ligne, et rien n'indiquait quelle part du gain
+  les frais avaient absorbée. Sous le P&L, une nouvelle carte donne la **part du gain brut partie en
+  frais**, votre **taux de frais moyen**, le **seuil de rentabilité** — le mouvement de prix qu'il
+  fallait pour couvrir les frais et le funding — et le mouvement réellement capté. Sur une position
+  encore ouverte, elle donne le **point mort** : le prix au-delà duquel une sortie ne perd rien, en
+  supposant des frais de sortie au taux moyen du trade, taux écrit en toutes lettres.
+  Plus bas, chaque **exécution** est listée avec son rôle, **maker** (votre ordre attendait dans le
+  carnet, tarif réduit) ou **taker** (il l'a traversé, tarif plein), et son taux de frais. Les
+  tranches d'un même ordre tiennent en une ligne, comme dans l'historique d'Hyperliquid, pour que
+  les deux écrans se recoupent.
+
+- **Un onglet « Seuil » dans l'espace Trading : combien gagner, au minimum, avant même d'entrer.**
+  Tapez vos tailles habituelles — « 10 20 30 » — et vous lisez, pour chacune, le gain brut en dessous
+  duquel l'aller-retour perd de l'argent, en pourcentage et en valeur, selon que vous entrez et
+  sortez en taker ou en maker. Le prix est pré-rempli avec le cours actuel (à défaut, votre dernier
+  prix exécuté) et les taux avec ceux que vous payez **réellement**, relevés sur vos dernières
+  exécutions. Tout reste modifiable, et vos tailles sont retenues pour chaque actif. Le pourcentage
+  ne dépend pas de la taille : seule la valeur grandit avec elle. Le funding et le glissement de
+  prix d'un ordre au marché ne sont pas comptés, et l'écran le rappelle.
+
 - **Le chiffrement de cet appareil existait déjà — vous ne pouviez simplement pas le trouver.**
   Il est proposé, désormais, juste après un import de vos vraies données : le moment où vos chiffres
   viennent de s'afficher, et le seul où la question a un sens. Pas à l'installation sur une

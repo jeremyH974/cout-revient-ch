@@ -1,9 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { D } from '../../src/lib/domain/money';
+import { executionLines, tradeCosts } from '../../src/lib/domain/trading/costs';
 import { journaledTrips } from '../../src/lib/domain/trading/journal';
 import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
-import { fmtMoney } from '../../src/lib/format/fr';
+import { fmtMoney, fmtPct, fmtPrice, fmtSmallPct } from '../../src/lib/format/fr';
+import { breakevenSentence, rolesSentence } from '../../src/lib/format/trade-costs';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount } from '../../src/lib/import/hyperliquid/sync';
@@ -17,8 +19,8 @@ test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
 });
 
-/** Aller-retours attendus, reconstruits par le moteur depuis la fixture (aucun chiffre en dur). */
-async function expectedTrips() {
+/** Exécutions et aller-retours attendus, reconstruits par le moteur depuis la fixture. */
+async function expectedTrading() {
   const fixture = JSON.parse(
     readFileSync('tests/fixtures/hyperliquid/demo.json', 'utf8'),
   ) as HlFixture;
@@ -31,11 +33,13 @@ async function expectedTrips() {
     spotAsInvestment: false,
     eurUsdRate: () => EUR_USD,
   });
-  return journaledTrips(
-    buildRoundTrips(normalized.trading.executions, normalized.trading.funding),
-    [],
-    {},
-  );
+  const { executions, funding } = normalized.trading;
+  return { executions, trips: journaledTrips(buildRoundTrips(executions, funding), [], {}) };
+}
+
+/** Aller-retours attendus (aucun chiffre en dur). */
+async function expectedTrips() {
+  return (await expectedTrading()).trips;
 }
 
 test('démo : la liste des trades recoupe le moteur, le journal se sauvegarde et survit au rechargement', async ({
@@ -82,6 +86,93 @@ test('démo : la liste des trades recoupe le moteur, le journal se sauvegarde et
   await expect(
     page.getByRole('list', { name: 'Trades' }).getByText('Cassure').first(),
   ).toBeVisible();
+});
+
+test('fiche d’un trade : part du brut en frais, seuil de rentabilité et rôle de chaque exécution recoupent le moteur', async ({
+  page,
+}) => {
+  const { executions, trips } = await expectedTrading();
+  const analysed = trips.map((journaled, index) => {
+    const lines = executionLines(journaled.trip, executions);
+    return { index, trip: journaled.trip, lines, costs: tradeCosts(journaled.trip, lines) };
+  });
+  // Un trade clos gagnant sur le prix, aux exécutions maker ET taker ; une position ouverte dont un
+  // ordre a traversé le carnet en plusieurs tranches à la même milliseconde.
+  const closed = analysed.find(
+    (a) =>
+      a.trip.status === 'closed' &&
+      a.costs.feeShareOfGross !== null &&
+      a.costs.makerFills > 0 &&
+      a.costs.takerFills > 0,
+  );
+  const open = analysed.find(
+    (a) => a.trip.status === 'open' && a.costs.breakevenPrice && a.lines.some((l) => l.fills > 1),
+  );
+  const flipped = analysed.find((a) => a.lines.some((l) => l.shared));
+  expect(closed && open && flipped, 'la démo doit porter les trois cas').toBeTruthy();
+
+  const rows = page.getByRole('list', { name: 'Trades' }).getByRole('listitem');
+  const card = page.getByRole('region', { name: 'Frais et seuil de rentabilité' });
+  const kpi = (label: string) =>
+    card
+      .locator('dl > div')
+      .filter({ has: page.locator('dt', { hasText: label }) })
+      .locator('dd');
+  const executionsList = page.getByRole('list', { name: 'Exécutions du trade' });
+  const showTrade = async (index: number) => {
+    await page.goto('#/trading/trades');
+    await rows.nth(index).getByRole('link').click();
+    await expect(page).toHaveURL(/#\/trading\/trade\//);
+  };
+
+  await openDemo(page);
+
+  // Trade clos : les quatre chiffres, la phrase du seuil, et le rôle de chaque ligne dans l'ordre.
+  const c = closed!;
+  await showTrade(c.index);
+  await expect(kpi('Part du brut en frais')).toHaveText(
+    normalize(fmtPct(c.costs.feeShareOfGross, { sign: false })),
+  );
+  await expect(kpi('Taux de frais moyen')).toHaveText(
+    normalize(fmtSmallPct(c.costs.averageFeeRate)),
+  );
+  await expect(kpi('Seuil de rentabilité')).toHaveText(
+    normalize(fmtSmallPct(c.costs.breakevenMove)),
+  );
+  await expect(kpi('Mouvement capté')).toHaveText(
+    normalize(fmtSmallPct(c.costs.capturedMove, { sign: true })),
+  );
+  await expect(card.getByText(normalize(breakevenSentence(c.trip, c.costs)!))).toBeVisible();
+  await expect(page.getByText(rolesSentence(c.costs)!, { exact: true })).toBeVisible();
+  const lines = c.lines.slice(0, 20);
+  await expect(executionsList.getByRole('listitem')).toHaveCount(lines.length);
+  expect(await executionsList.locator('.role').allTextContents()).toEqual(lines.map((l) => l.role));
+  // Frais de la première ligne, convertis au taux stubé comme le reste de l'écran.
+  await expect(executionsList.getByRole('listitem').first()).toContainText(
+    normalize(fmtMoney(lines[0]!.fee.neg().div(EUR_USD), 'EUR', { sign: true })),
+  );
+  await expect(executionsList.getByRole('listitem').first()).toContainText(
+    normalize(fmtSmallPct(lines[0]!.feeRate)),
+  );
+
+  // Position ouverte : point mort et hypothèse nommés ; les tranches d'un ordre tiennent en une ligne.
+  const o = open!;
+  await showTrade(o.index);
+  await expect(kpi('Point mort')).toHaveText(normalize(fmtPrice(o.costs.breakevenPrice, 'USD')));
+  await expect(card.getByText(normalize(breakevenSentence(o.trip, o.costs)!))).toBeVisible();
+  const sweep = o.lines.findIndex((l) => l.fills > 1);
+  await expect(executionsList.getByRole('listitem').nth(sweep)).toContainText(
+    `${o.lines[sweep]!.fills} fills`,
+  );
+  if (o.lines.length > 20) {
+    await expect(executionsList.getByRole('listitem')).toHaveCount(20);
+    await page.getByRole('button', { name: /^Afficher \d+ de plus/ }).click();
+  }
+  await expect(executionsList.getByRole('listitem')).toHaveCount(o.lines.length);
+
+  // Retournement : la ligne partagée le dit.
+  await showTrade(flipped!.index);
+  await expect(executionsList.getByText('part de ce trade (retournement)')).toBeVisible();
 });
 
 test('trade manuel : saisie, P&L calculé, journal, statistiques avec garde-fou, suppression', async ({

@@ -17,6 +17,7 @@
   import Watch from './routes/Watch.svelte';
   import TradeAdd from './routes/trading/TradeAdd.svelte';
   import TradeStats from './routes/trading/TradeStats.svelte';
+  import Breakeven from './routes/trading/Breakeven.svelte';
   import Fills from './routes/trading/Fills.svelte';
   import TradeDetail from './routes/trading/TradeDetail.svelte';
   import Trades from './routes/trading/Trades.svelte';
@@ -135,6 +136,8 @@
           <TradeAdd />
         {:else if route.name === 'tradeStats'}
           <TradeStats />
+        {:else if route.name === 'tradeBreakeven'}
+          <Breakeven />
         {:else if route.name === 'fills'}
           <Fills />
         {:else if route.name === 'trading'}

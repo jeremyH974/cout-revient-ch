@@ -47,7 +47,7 @@ sous-compte).
 | `tid`                                           | nombre             | converti en chaîne, **seule clé de dédoublonnage**                                                                                             |
 | `oid`, `hash`                                   | nombre / chaîne    | conservés, jamais utilisés comme clé                                                                                                           |
 | `dir`                                           | chaîne             | libellé d'affichage ; observés : `Open Long`, `Close Long`, `Open Short`, `Close Short`, `Long > Short`, `Buy`, `Sell`, `Spot Dust Conversion` |
-| `crossed`                                       | booléen            | `true` = taker                                                                                                                                 |
+| `crossed`                                       | booléen            | `true` = taker, `false` = maker ; affiché par exécution sur la fiche du trade (décision n° 158)                                                |
 | `feeToken`                                      | chaîne             | `USDC` et aussi `USDH` observés                                                                                                                |
 | `builderFee`                                    | chaîne, jamais vu  | conservé si présent (déjà inclus dans `fee`)                                                                                                   |
 | `twapId`                                        | chaîne \| `null`   | présent mais toujours `null` hors TWAP en sonde                                                                                                |
@@ -85,9 +85,15 @@ normaliseur (`normalize.ts`) gère aussi, par prudence, `internalTransfer`, `sub
 ## Règles d'or
 
 1. **`closedPnl` est BRUT de frais.** Vérifié par reconstruction de 4 aller-retours : l'écart entre
-   `closedPnl` et (prix de sortie − prix d'entrée moyen) × quantité est de l'ordre de 1e-12 (bruit
-   d'arrondi), très inférieur aux frais réels. P&L net = Σ `closedPnl` − Σ frais + Σ funding
-   (`domain/trading/compute.ts`).
+   `closedPnl` et (prix de sortie − prix d'entrée moyen) × quantité est très inférieur aux frais
+   réels. P&L net = Σ `closedPnl` − Σ frais + Σ funding (`domain/trading/compute.ts`).
+   **Cet écart n'est un bruit d'arrondi (≈ 1e-12) que si l'entrée tient en un seul prix.** Dès
+   qu'elle en compte plusieurs, la plateforme calcule `closedPnl` sur un prix d'entrée **arrondi à
+   sa précision de prix** — un dixième de dollar sur BTC —, et l'écart atteint l'ordre de ce pas ×
+   la quantité. Constaté le 17/09/2026 sur un aller-retour réel à deux ouvertures : l'écart
+   retombait au centime sur le prix d'entrée arrondi au dixième. C'est `closedPnl` qui est crédité
+   au compte ; le moteur le reprend donc tel quel et ne recalcule jamais le brut depuis les prix
+   moyens (décision n° 158) — un test qui exigerait l'égalité stricte échouerait sur un vrai compte.
 2. **`startPosition` est la position signée avant le fill** (négative = short), exacte fill après fill
    y compris à travers un retournement (`dir: 'Long > Short'`).
 3. **`tid` est le seul identifiant unique.** `hash`, `oid` et `time` peuvent se répéter sur plusieurs

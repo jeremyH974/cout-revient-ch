@@ -4601,3 +4601,101 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      parcours en nommant la pastille ; et le parcours de la plage libre exige les deux champs, leur
      type `date`, la saisie au clavier, et la phrase « du 03/03/2026 au 12/04/2026 » — sans laquelle
      l'écran annoncerait une durée qu'il n'applique pas.
+
+158. **Un net juste qui ne disait ni ce que les frais avaient pris, ni ce qu'il fallait gagner**
+     (17/09/2026).
+
+     **Le point de départ.** Un aller-retour réel, recoupé ligne à ligne avec Hyperliquid : le net
+     de la fiche était juste au centime, et pourtant illisible pour son propriétaire. La colonne
+     « Closed PnL » de la plateforme ne retire que les frais de **sa** ligne — les frais d'ouverture
+     y figurent en négatif sur les lignes d'ouverture —, si bien que le chiffre de la clôture
+     ressemble à un gain qui n'est pas le net. Et rien, sur la fiche, ne disait que les frais avaient
+     absorbé l'essentiel du brut, ni quel mouvement de prix il fallait pour les couvrir.
+
+     **Trois lectures, toutes tirées des chiffres du moteur.** `domain/trading/costs.ts` rend la part
+     du brut partie en frais, le taux moyen, le **seuil de rentabilité** (le mouvement favorable qui
+     couvre frais et funding, en fraction du prix d'entrée moyen) avec son **point mort**, et le rôle
+     de chaque exécution. Rien n'y est recalculé depuis les prix : le brut reste Σ `closedPnl`. Un
+     brut recalculé depuis les prix moyens aurait **contredit** le net affiché — la plateforme compte
+     `closedPnl` sur un prix d'entrée arrondi à sa précision de prix, et l'écart atteint l'ordre de ce
+     pas × la quantité dès que l'entrée compte plusieurs prix (la règle d'or n° 1 de
+     `docs/hyperliquid-import.md`, qui le donnait pour un bruit de 1e-12, est corrigée). Garantie
+     tenue par une propriété : sur un trade clos, **le net est positif si et seulement si le
+     mouvement capté dépasse le seuil** — les deux ratios partagent le même dénominateur.
+
+     **Trade clos : les frais sont ce qu'ils ont été.** Le point mort est la sortie moyenne
+     `entrée ± (frais − funding) ÷ quantité`. La question posée est « que devait faire le prix, vu ce
+     que j'ai payé » ; faire dépendre les frais de sortie du prix hypothétique aurait déplacé le point
+     mort de quelques centimes et rompu l'équivalence exacte avec le net.
+
+     **Position ouverte : une hypothèse, et elle est nommée.** La sortie n'a pas encore payé ses
+     frais. On la suppose au **taux moyen du trade jusqu'ici**, et le point mort se résout alors
+     exactement, frais de sortie proportionnels au prix compris ; la phrase écrit le taux retenu. Le
+     tarif réel de la sortie dépend du volume sur 14 jours, d'éventuelles remises et du rôle de
+     l'ordre, que l'application ne connaît pas : l'afficher comme un fait aurait été une invention.
+
+     **Un seuil négatif se dit en mots.** Quand le funding reçu (et, sur une position ouverte, le
+     gain déjà réalisé) dépasse les frais, le « mouvement nécessaire » est négatif. Plutôt qu'un
+     « −0,010 % » que personne ne sait lire, la phrase dit que le funding couvrait déjà les frais, et
+     de quel côté du point mort une sortie gagne.
+
+     **Maker ou taker : `crossed` était importé depuis le début, et jamais montré.** Les exécutions
+     consécutives qui partagent l'instant, le sens, le libellé, le rôle et la liquidation forment une
+     ligne : un ordre qui traverse le carnet en trente tranches reste une ligne, comme dans
+     l'historique de la plateforme, et les deux écrans se recoupent. Le rôle est **dans** la clé : un
+     ordre en partie exécuté tout de suite, en partie posé, ne fusionne pas ses deux tarifs. Sur un
+     retournement, chaque trade ne prend que sa part du fill, au prorata **calculé comme
+     `buildRoundTrips`** — même produit, même division —, si bien que la somme des lignes retombe
+     exactement sur les frais du trade (propriété).
+
+     **Ce qui n'est pas affiché, et pourquoi.** La part du brut, seulement sur un trade clos au brut
+     et aux frais positifs : un ratio sur un brut négatif ne se lit pas. Aucun seuil quand une part
+     des frais est payée dans un autre jeton (HYPE), que le moteur ne valorise pas — le seuil serait
+     sous-estimé, et **un seuil trop bas est pire que pas de seuil**. Aucun non plus sur un historique
+     partiel, dont l'entrée est inconnue.
+
+     **Et avant d'entrer : un onglet « Seuil ».** La fiche répond après coup ; la question suivante
+     est venue aussitôt — « pour 10, 20 ou 30 BTC, combien faut-il gagner au minimum ? ». Proposé
+     d'abord en carte du tableau de bord, il est devenu un **onglet** de l'espace Trading à la demande
+     de son utilisateur : un outil qu'on ouvre pour préparer un trade n'a pas à allonger l'écran qu'on
+     ouvre pour lire ses résultats. Le gain brut minimum y vaut les deux taux de frais additionnés,
+     multipliés par `taille × prix` — frais d'entrée et de sortie **au prix saisi**. Le point mort
+     exact paierait des frais de sortie un peu plus élevés, un quart de centime pour 10 000 $ au tarif
+     taker de 0,035 % ; la formule simple, elle, se vérifie de tête. Trois lignes — taker/taker,
+     maker/taker, maker/maker —, parce que le type d'ordre pèse davantage que tout le reste : selon le
+     palier de la grille d'Hyperliquid, un aller-retour taker/taker coûte trois à quatre fois un
+     aller-retour maker/maker.
+
+     **Les taux viennent de l'historique, pas d'une grille.** La grille d'Hyperliquid dépend du volume
+     sur 14 jours et des remises (staking, parrainage) : la recopier, c'était la voir vieillir en
+     silence. Le taux proposé est la **médiane** des cinquante dernières exécutions perps de chaque
+     rôle — pas la dernière, qu'un builder fee ou un fill minuscule aux frais arrondis suffirait à
+     déplacer —, et faute d'exécution d'un rôle, le champ reste vide plutôt que rempli d'un taux
+     supposé. Le prix proposé est le cours actuel, à défaut le dernier prix exécuté, et l'écran dit
+     lequel. Tout reste modifiable.
+
+     **Les tailles sont mémorisées par actif** (`ui.breakevenSizes`, champ additif, sans montée de
+     schéma) : « 10 » ne pèse pas la même chose en BTC et en SOL. Le texte est gardé tel que tapé et
+     relu à chaque affichage ; un champ vidé reste vide, sans quoi le pré-remplissage reviendrait sous
+     les doigts de qui s'apprête à saisir d'autres tailles. La virgule étant décimale en français,
+     une seule virgule reste une décimale (« 0,5 ») et plusieurs font une liste (« 10,20,30 »). Le
+     funding et le glissement d'un ordre au marché ne sont pas comptés, et l'écran le dit : ils
+     s'ajoutent au seuil.
+
+     **Cinq onglets ne tiennent pas sur tous les téléphones.** La CI l'a dit, pas le poste de
+     développement : avec les polices Linux, la barre mesurait 424 px pour un écran de 412, alors que
+     Windows passait « Tableau de bord » sur deux lignes et tenait. Une page qui déborde fait dézoomer
+     le navigateur mobile, et la navigation basse intercepte alors les clics — quatre parcours Trading
+     expiraient pour cette seule raison. La barre passe désormais **à la ligne** plutôt que de pousser
+     la page (WCAG 1.4.10), et un test la vérifie à **320 px**, largeur où l'ancienne barre déborde
+     sur n'importe quel poste : la régression se voit en local, pas seulement en CI.
+
+     **Trois décimales de pourcentage.** `fmtPct` arrondit au dixième : un taux de 0,035 % et un seuil
+     de 0,07 % y deviennent tous deux « 0,0 % ». `fmtSmallPct` garde les trois décimales où se joue la
+     rentabilité d'un trade.
+
+     **Contre-épreuve** (décision n° 75) : sept falsifications du moteur et du formatage rougissent
+     chacune le test qui les nomme — prorata du retournement, funding oublié sur un trade clos, signe
+     du taux de sortie d'une position ouverte, rôle retiré de la clé de regroupement, frais en jeton
+     tiers non signalés, arrondi du pourcentage, sens « monté / baissé » d'un short. À l'écran,
+     inverser maker et taker fait rougir le parcours E2E sur la liste des rôles.

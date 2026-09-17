@@ -178,6 +178,8 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         // (n° 157), absente d'une sauvegarde qui ne la connaissait pas.
         period: '1m',
         customRange: null,
+        // Tailles de l'onglet « Seuil » (n° 158) : une sauvegarde d'avant n'en connaît aucune.
+        breakevenSizes: {},
         twelveDataApiKey: null,
         alphaVantageApiKey: null,
       },
