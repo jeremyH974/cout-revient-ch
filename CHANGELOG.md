@@ -58,6 +58,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **« Suis-je en gain ou en perte ? » — la réponse est écrite au-dessus de la courbe.** La courbe
+  d'équité du tableau de bord Trading monte aussi quand vous déposez de l'argent, et son plus haut
+  n'est qu'un instant de la période. Elle est désormais précédée d'une ligne claire — « Sur 30
+  jours : gain de +1 234,56 $ » —, tirée de la courbe de P&L d'Hyperliquid pour la fenêtre choisie
+  (24 h, 7 jours, 30 jours ou depuis l'ouverture du compte), puis de l'équité de départ et
+  d'arrivée, et de la part qui vient de vos dépôts, retraits et transferts : de l'argent ajouté ou
+  retiré, pas du résultat.
+
 - **La fiche d'un trade dit enfin ce que les frais vous ont pris, et ce qu'il fallait gagner pour
   les payer.** Un P&L net juste ne suffisait pas à le comprendre : sur Hyperliquid, la colonne
   « Closed PnL » ne retire que les frais de sa propre ligne, et rien n'indiquait quelle part du gain
