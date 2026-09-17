@@ -4710,3 +4710,110 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      du taux de sortie d'une position ouverte, rôle retiré de la clé de regroupement, frais en jeton
      tiers non signalés, arrondi du pourcentage, sens « monté / baissé » d'un short. À l'écran,
      inverser maker et taker fait rougir le parcours E2E sur la liste des rôles.
+
+159. **Le quotient de la méthode globale prenait le prix net, et le formulaire dit le contraire** (17/09/2026).
+
+     **Le constat.** L'annexe 2086 calcule la plus-value en ligne 224 : `l. 218 − [l. 223 × (l. 217
+/ l. 212)]`. La ligne **217** est le prix de cession net des soultes, **avant frais** ; la ligne
+     **218**, le prix net des frais **et** des soultes. Le quotient et la différence prennent donc
+     deux lignes différentes. Le moteur prenait le prix net aux deux endroits : il imputait trop peu
+     de prix d'acquisition, surestimait **chaque** plus-value de `PTA × frais ÷ valeur globale`, et
+     laissait un PTA trop élevé qui se propageait ensuite à toutes les cessions suivantes.
+
+     **La loi ne tranche pas, la doctrine si.** L'article 150 VH bis écrit « prix de cession » aux
+     deux termes de la formule, et précise ailleurs que ce prix « est réduit, sur justificatifs, des
+     frais supportés ». Lu seul, il laisse la question ouverte. Le BOFiP la ferme
+     (BOI-RPPM-PVBMC-30-20, § 50, 02/09/2019) : les frais « ne viennent pas en diminution du prix de
+     cession pour la détermination du quotient du prix de cession sur la valeur globale du
+     portefeuille (ils doivent seulement être déduits du prix de cession qui constitue le premier
+     terme de la différence) ». Deux sources primaires indépendantes, le formulaire et la doctrine,
+     disent la même chose ; la doctrine est opposable à l'administration.
+
+     **L'information était déjà là.** `docs/coinhouse-export.md` disait que la contre-valeur d'une
+     vente est « reçue nette de frais » et que le frais effectif vaut `Frais − Remise` ; chaque
+     événement d'échange portait `fee.grossEur` et `fee.rebateEur`. La formule ne s'en servait
+     simplement pas.
+
+     **Pourquoi personne ne l'avait vu.** Tous les échanges des tests fiscaux avaient `fee: null`,
+     donc un prix avant frais égal au prix net. Et le test de mutation, porté à 96,51 % deux jours
+     plus tôt (décision n° 153), ne pouvait pas le voir non plus : **il vérifie le code qui existe,
+     pas un terme que ce code n'a jamais eu.** C'est la relecture du formulaire, pour préparer un banc
+     d'essai public (décision n° 160), qui l'a fait apparaître — un banc construit sur le moteur tel
+     quel aurait **certifié** l'erreur.
+
+     **Ce qui est livré.** `TaxCession.feesEur` (ligne 214 : frais bruts moins la remise, jamais
+     négatifs) ; le quotient sur le prix avant frais, la différence sur le prix après frais ; la
+     reconstitution de la valeur d'avant cession, quand aucune n'est annotée, rend au portefeuille le
+     prix **avant** frais, qui est ce qui l'a réellement quitté. L'aperçu d'une vente accepte des
+     frais facultatifs et applique la même formule ; ses appelants n'en passent pas encore, ce qui
+     laisse son comportement inchangé tant que l'écran ne les connaît pas.
+
+     **Ce que la lecture a révélé d'autre, et qui est traité à part** : le lecteur de fichiers 2086
+     du second avis associe les colonnes **numérotées** à un agencement antérieur du formulaire (216
+     prix d'acquisition, 220 plus-value), quand l'agencement actuel porte 216 soulte, 220 prix
+     d'acquisition et 224 plus-value. Un fichier aux colonnes numérotées du formulaire actuel y
+     serait mal lu. La correction demande de reconnaître le millésime au jeu d'en-têtes plutôt que
+     de renuméroter à l'aveugle — une tâche distincte.
+
+     **Contre-épreuve** (décision n° 75) : remettre le prix net dans le quotient fait rougir trois
+     tests en nommant la ligne — « l. 223 × (l. 217 / l. 212) : attendu 2500, reçu 2475 », « l. 224 :
+     attendu 470, reçu 495 » — et, dans le banc d'essai, les trois cas porteurs de frais et
+     **seulement** eux.
+
+160. **Un banc d'essai public, parce qu'aucun n'existait** (17/09/2026).
+
+     **Le constat qui a retourné la proposition.** P73 annonçait un banc d'essai d'exactitude.
+     L'inventaire a montré que la vérification existait déjà — un oracle indépendant qui recalcule le
+     portefeuille depuis le CSV brut, dix jeux synthétiques, un dépôt public sous licence MIT. **Ce
+     qui manquait était la publication** : les chiffres attendus n'existaient qu'à l'intérieur
+     d'assertions de test, illisibles sans exécuter notre code — c'est-à-dire sans nous croire.
+
+     **Aucun précédent.** Recherche du 16/09/2026 : aucun banc d'essai public et rejouable
+     d'exactitude fiscale en France, en Allemagne, au Royaume-Uni ou aux États-Unis. OpenFisca est un
+     moteur de référence auquel contribuer ; les qualifications des administrations valident un
+     format de transmission ; les comparatifs de la presse ne publient ni cas ni méthode. Premier
+     arrivé, donc — mais aussi aucune norme à copier : les conventions viennent d'ailleurs, là où
+     l'exactitude se prouve depuis longtemps (vecteurs de test du NIST, Test262, MLPerf).
+
+     **Ce qui est livré.** `tests/fixtures/exactitude/v1/` : huit cas de l'article 150 VH bis, chacun
+     avec ce qu'il prouve et ses sources, et pour chaque cession **toutes les lignes de l'annexe
+     2086** de 212 à 224, la ligne 224 écrite en toutes lettres pour se refaire à la calculatrice.
+     Un manifeste porte l'empreinte SHA-256 du jeu, qu'un `sha256sum` quelconque retrouve. Une page,
+     `docs/exactitude.md`. Une commande, `npm run exactitude`, qui tourne aussi dans `npm test`, donc
+     en intégration continue sur chaque commit.
+
+     **Trois voix qui doivent s'accorder, et pourquoi trois.** Le **moteur** de l'application ; une
+     **implémentation de référence** en fractions exactes `BigInt`, sans `big.js` ni une ligne de
+     `src/` ; et la **page publiée**, dont un test exige qu'elle dise exactement ce que dit le jeu.
+     Les attendus ne sont jamais tapés à la main : ils sortent de la référence, et le test vérifie
+     qu'elle les retrouve encore. Aucune tolérance : un banc qui accorderait un écart devrait d'abord
+     justifier son écart.
+
+     **Le périmètre : ce que la loi impose à tous, et rien d'autre.** Pas de PRU, de réalisé ni de
+     latent — deux méthodes légitimes y donnent deux chiffres. Pas de récompenses ni de dépôts au
+     coût inconnu — leur traitement est un choix de méthode (décision n° 9). La valeur globale du
+     portefeuille est une **donnée d'entrée**, comme sur le formulaire. Aucun résultat d'un autre
+     outil n'est publié, et aucun ne le sera : la comparaison appartient à celui qui la fait. C'est
+     aussi ce qui tient le banc à l'écart du droit de la publicité comparative, dont la charge de la
+     preuve pèse sur celui qui compare.
+
+     **Figé pour de vrai.** Une version publiée ne change plus : le générateur **refuse** de la
+     réécrire, et toute correction ouvre la version suivante. Un tiers qui cite « v1 » sait que ce
+     qu'il cite ne bougera pas sous lui — c'est la différence entre un jeu d'essai et un tableau qu'on
+     retouche.
+
+     **Ses limites, écrites dans la page plutôt que tues.** Il est indépendant du moteur par son
+     **code**, pas par son **auteur**. Aucune relecture par un tiers n'a encore eu lieu — la pièce
+     que tous les bancs d'essai qui ont gardé leur autorité possèdent. Huit cas éprouvent une formule
+     et ses cas limites ; ils ne prouvent pas une exactitude générale.
+
+     **Ce qu'il a déjà rapporté** : la décision n° 159. Préparer le jeu a obligé à relire le
+     formulaire au lieu de la description que le dépôt en donnait, et la formule du moteur était
+     fausse.
+
+     **Contre-épreuves** (décision n° 75), une par garde : l'ancienne formule du moteur fait rougir
+     vh-02, vh-03 et vh-05 — « vh-02, cession du 2026-03-15, fraction imputée : reçu 2475, attendu
+     2500 » — et laisse les cinq cas sans frais au vert, comme ils doivent ; un attendu retouché à la
+     main fait rougir l'empreinte, la redérivation et le moteur ; un chiffre retouché dans la page
+     fait rougir la concordance de la page ; et le générateur, sur une version publiée, s'arrête sans
+     rien écrire.

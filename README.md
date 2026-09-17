@@ -179,6 +179,11 @@ questions, idées et sondages se discutent dans
 - **Oracle indépendant** : un test recalcule PRU, coûts, réalisé, lots et PRU après chaque ligne
   depuis le CSV avec un code distinct du moteur et doit concorder à 10⁻⁹ près (fixture et export
   réel local).
+- **Banc d'essai public d'exactitude** ([`docs/exactitude.md`](docs/exactitude.md)) : huit cas
+  figés de l'article 150 VH bis, chaque ligne de l'annexe 2086 attendue, chaque plus-value écrite
+  en toutes lettres pour se refaire à la calculatrice. Rejouable par n'importe qui, y compris avec
+  un autre outil : `npm run exactitude`. Sa préparation a corrigé la formule du moteur sur les
+  frais de cession.
 - **Surveillance automatique** (`.github/workflows/monitor.yml`, toutes les 6 h) : parcours
   Playwright sur le site en ligne + contrat des API de prix (CoinGecko, Coinbase, Kraken,
   Hyperliquid, DefiLlama, BCE) ; une issue « [monitoring] » s'ouvre en cas d'échec et se referme

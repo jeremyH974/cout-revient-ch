@@ -329,6 +329,7 @@ describe('buildReconciliation', () => {
           at: '2026-01-05T10:00:00',
           year: 2026,
           proceedsEur: '100',
+          feesEur: '0',
           globalValueEur: null,
           ptaBefore: '50',
           acquisitionShareEur: null,

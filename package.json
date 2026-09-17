@@ -29,6 +29,8 @@
     "test:coverage": "vitest run --coverage",
     "mutation": "stryker run",
     "mutation:survivants": "node scripts/mutants-survivants.mjs",
+    "exactitude": "vitest run tests/exactitude --reporter=verbose",
+    "exactitude:generer": "node tests/exactitude/generate.ts",
     "bench": "vitest bench --run",
     "audit:prod": "node scripts/audit-deps.ts",
     "lint": "eslint . && prettier --check . && node scripts/check-no-personal-exports.js",
