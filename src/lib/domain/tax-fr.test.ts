@@ -711,10 +711,12 @@ describe('quelle année le rapport décrit', () => {
 });
 
 /**
- * **La ligne 224 de l'annexe 2086, telle que le formulaire l'imprime** (décision n° 159).
+ * **La formule de l'annexe 2086, telle que le formulaire l'imprime** (décision n° 159).
  *
  * `l. 218 − [l. 223 × (l. 217 / l. 212)]` : le rapport prend le prix de cession AVANT frais
- * (l. 217), la soustraction le prix APRÈS frais (l. 218). Deux lignes, pas une.
+ * (l. 217), la soustraction le prix APRÈS frais (l. 218). Deux lignes, pas une. La plus-value
+ * d'une cession n'a pas de numéro sur le formulaire : la ligne 224 est leur somme pour le
+ * déclarant (décision n° 161).
  *
  * Le moteur prenait le net aux deux endroits, et **aucun des tests de ce fichier ne pouvait le
  * voir** : tous leurs échanges avaient `fee: null`, donc un prix avant frais égal au prix net. Le
@@ -757,7 +759,7 @@ describe('la formule de l’annexe 2086 : le rapport avant frais, la soustractio
     // Avec le net aux deux endroits, on aurait 2 970 − 2 475 = 495 : 25 € de plus-value en trop,
     // c'est-à-dire exactement PTA × frais ÷ valeur globale.
     const c = cessionOf({ gross: '30', rebate: '0' });
-    expect(c.gainEur, 'l. 224').toBe('470');
+    expect(c.gainEur, 'plus-value de la cession').toBe('470');
     expect(c.ptaAfter, 'PTA restant, que la cession suivante consommera').toBe('7500');
   });
 

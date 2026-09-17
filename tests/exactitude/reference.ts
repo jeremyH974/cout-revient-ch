@@ -120,10 +120,16 @@ export interface CessionAttendue {
   l223: string;
   /** La fraction du prix d'acquisition imputée : `l. 223 × (l. 217 / l. 212)`, bornée par l. 223. */
   fraction: string;
+  /**
+   * La plus-value de la cession : `l. 218 − fraction`. **Son nom est inexact, et il reste** : sur le
+   * formulaire, cette ligne de formule n'a pas de numéro, et la ligne 224 est la somme des cessions
+   * du déclarant (décision n° 161). Le nom est celui du jeu publié en v1, dont l'empreinte ne change
+   * plus ; une version suivante le corrigera.
+   */
   l224: string;
   /** Ce qui reste du prix d'acquisition pour les cessions suivantes. */
   ptaApres: string;
-  /** La ligne 224 refaite en toutes lettres, pour qui vérifie à la calculatrice. */
+  /** La plus-value de la cession refaite en toutes lettres, pour qui vérifie à la calculatrice. */
   calcul: string;
 }
 
