@@ -18,9 +18,9 @@ import type { CostBasisMethod, SecondOpinionTool } from '../../domain/second-opi
 export type SecondOpinionFormat = 'waltio-2086';
 
 /**
- * Champs que la détection sait situer dans un en-tête. Les numéros de case du cerfa 2086 servent
- * d'alias au même titre que les libellés : un tableur exporté depuis un outil fiscal les porte
- * souvent seuls.
+ * Champs que la détection sait situer dans un en-tête : une ligne de l'annexe 2086 chacun, plus la
+ * méthode. Les numéros de ligne du formulaire servent d'alias au même titre que les libellés : un
+ * tableur exporté depuis un outil fiscal les porte souvent seuls.
  */
 export type SecondOpinionField =
   | 'cessionDate'
@@ -28,16 +28,34 @@ export type SecondOpinionField =
   | 'proceeds'
   | 'fees'
   | 'netProceeds'
+  | 'soulte'
+  | 'proceedsNetOfSoultes'
+  | 'netProceedsAfterSoultes'
   | 'acquisition'
   | 'capitalFraction'
-  | 'soulte'
+  | 'priorSoultes'
+  | 'netAcquisition'
   | 'gain'
   | 'method';
 
 /**
  * En-têtes acceptés par champ, comparés après normalisation (minuscules, accents retirés, espaces
- * multiples réduits, apostrophes unifiées). Le premier libellé de chaque liste est celui que
- * l'écran cite quand la détection renonce.
+ * multiples réduits, apostrophes unifiées).
+ *
+ * **Les numéros sont ceux du formulaire, relus sur le formulaire** — les sept millésimes du cerfa
+ * n° 16043, des revenus 2019 à 2025, qui numérotent tous de la même façon (décision n° 161) : 211
+ * à 218 pour le prix de cession, 220 à 223 pour le prix d'acquisition. La première version de ce
+ * tableau avait été écrite sans pouvoir relire le formulaire, et numérotait 216 le prix
+ * d'acquisition et 220 la plus-value — ce qu'aucun millésime n'a jamais fait : un fichier aux
+ * colonnes numérotées y voyait comparer son prix d'acquisition à notre plus-value.
+ *
+ * **La plus-value d'une cession n'a pas de numéro** sur le formulaire : c'est la ligne de formule
+ * « l. 218 − [l. 223 × (l. 217 / l. 212)] », juste au-dessus de la 224, qui est la plus-value
+ * **globale du déclarant** — la somme de ses cessions. Dans un fichier à une ligne par cession, une
+ * colonne « 224 » ne peut porter que la plus-value de la ligne : c'est ainsi qu'elle est lue.
+ *
+ * Seuls les numéros du déclarant 1 sont reconnus. Ceux du déclarant 2 (251 à 264) et de la personne
+ * à charge (311 à 324) font refuser le fichier en nommant les colonnes cherchées.
  */
 const HEADERS: Record<SecondOpinionField, readonly string[]> = {
   cessionDate: ['211', 'date de la cession', 'date de cession', 'date'],
@@ -50,15 +68,35 @@ const HEADERS: Record<SecondOpinionField, readonly string[]> = {
   proceeds: ['213', 'prix de cession', 'prix de cession brut', 'montant de la cession'],
   fees: ['214', 'frais de cession', 'frais'],
   netProceeds: ['215', 'prix de cession net des frais', 'prix de cession net'],
-  acquisition: ['216', "prix total d'acquisition", 'prix total dacquisition'],
+  soulte: [
+    '216',
+    'soulte recue ou versee lors de la cession',
+    'soulte recue ou versee',
+    'soulte',
+    'soulte recue',
+  ],
+  proceedsNetOfSoultes: ['217', 'prix de cession net des soultes'],
+  netProceedsAfterSoultes: [
+    '218',
+    'prix de cession net des frais et soultes',
+    'prix de cession net des frais et des soultes',
+  ],
+  acquisition: ['220', "prix total d'acquisition", 'prix total dacquisition'],
   capitalFraction: [
-    '217',
+    '221',
+    "fractions de capital initial contenues dans le prix total d'acquisition",
     'fractions de capital initial contenues dans le prix total de cession',
     'fractions de capital initial',
   ],
-  soulte: ['218', 'soulte', 'soulte recue'],
+  priorSoultes: [
+    '222',
+    "soultes recues en cas d'echanges anterieurs a la cession",
+    "soultes recues en cas d'echanges anterieurs",
+  ],
+  netAcquisition: ['223', "prix total d'acquisition net", 'prix total dacquisition net'],
   gain: [
-    '220',
+    '224',
+    'plus-values et moins-values',
     'plus-value ou moins-value',
     'plus ou moins-value',
     'plus-value / moins-value',
@@ -176,9 +214,9 @@ const LOOKED_FOR: readonly string[] = [
   'Date de la cession (211)',
   'Valeur globale du portefeuille (212)',
   'Prix de cession (213)',
-  'Prix de cession net des frais (215)',
-  "Prix total d'acquisition (216)",
-  'Plus-value ou moins-value (220)',
+  'Prix de cession net des frais et soultes (218)',
+  "Prix total d'acquisition net (223)",
+  'Plus-value ou moins-value de la cession',
 ];
 
 /**
@@ -235,7 +273,7 @@ const hasAll = (canonical: readonly string[], names: readonly string[]): boolean
  * Reconnaît l'en-tête d'un fichier de second avis.
  *
  * L'annexe 2086 est acceptée dès qu'une **date de cession** et au moins un **prix de cession** ou
- * une **plus-value** sont situés : exiger les neuf cases ferait renoncer la détection sur un
+ * une **plus-value** sont situés : exiger les treize lignes ferait renoncer la détection sur un
  * tableur dont deux colonnes ont été retirées, pour aucun gain de sûreté — chaque valeur est de
  * toute façon relue et normalisée ligne à ligne (`claims.ts`), et une case absente devient une
  * réclamation absente, jamais un zéro.
@@ -259,6 +297,7 @@ export function detectSecondOpinion(header: readonly string[]): SecondOpinionDet
   const hasAmount =
     columns.proceeds !== undefined ||
     columns.netProceeds !== undefined ||
+    columns.netProceedsAfterSoultes !== undefined ||
     columns.gain !== undefined;
   if (columns.cessionDate !== undefined && hasAmount) {
     const unknownColumns = found.filter(

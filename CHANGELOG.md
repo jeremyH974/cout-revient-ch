@@ -37,14 +37,24 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - **La plus-value d'une vente de cryptos était surestimée dès que la vente payait des frais.** Pour
   savoir quelle part de votre prix d'acquisition imputer à une vente, la méthode globale rapporte le
   prix de vente à la valeur de tout votre portefeuille. Ce rapport se calcule sur le prix **avant**
-  frais, qui ne se retirent qu'ensuite : c'est ce que font la ligne 224 du formulaire 2086 et la
-  doctrine fiscale (BOFiP, BOI-RPPM-PVBMC-30-20, § 50). L'application prenait le prix **après** frais
+  frais, qui ne se retirent qu'ensuite : c'est la formule qu'imprime le formulaire 2086, et ce que
+  dit la doctrine fiscale (BOFiP, BOI-RPPM-PVBMC-30-20, § 50). L'application prenait le prix **après** frais
   aux deux endroits. Exemple : 10 000 € investis, un portefeuille de 12 000 €, une vente de 3 000 €
   dont 30 € de frais — la plus-value est de 470 €, l'application affichait 495 €. Le prix
   d'acquisition restant était trop élevé d'autant, et l'écart se reportait sur les ventes suivantes.
   Si vous avez déjà établi une 2086 avec l'application et que vos ventes portaient des frais,
   refaites le calcul. L'erreur a été trouvée en préparant un **banc d'essai public** : huit cas
   figés, dont chaque résultat se refait à la calculatrice (`docs/exactitude.md` dans le dépôt).
+
+- **Le second avis lisait de travers une annexe 2086 aux colonnes numérotées.** Si votre fichier
+  désignait ses colonnes par les numéros de ligne du formulaire, la colonne 220 — votre prix
+  d'acquisition — était comparée à notre plus-value, et la 216 — une soulte — à notre prix
+  d'acquisition : l'écran annonçait des écarts « à examiner » qui n'existaient pas. Les numéros sont
+  désormais ceux du formulaire, relus sur ses sept éditions depuis 2020, qui numérotent toutes de la
+  même façon. Et chaque montant est désormais comparé à la ligne qui désigne le même chiffre, y
+  compris dans un fichier en libellés : votre prix d'acquisition **net** des fractions déjà imputées
+  (ligne 223), pas le brut (ligne 220), qui ne lui est égal que jusqu'à votre première vente.
+  L'export de l'application, relu par le second avis, n'était pas concerné.
 
 ### Added
 
