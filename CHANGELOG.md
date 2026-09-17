@@ -34,6 +34,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
   de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
 
+- **La plus-value d'une vente de cryptos était surestimée dès que la vente payait des frais.** Pour
+  savoir quelle part de votre prix d'acquisition imputer à une vente, la méthode globale rapporte le
+  prix de vente à la valeur de tout votre portefeuille. Ce rapport se calcule sur le prix **avant**
+  frais, qui ne se retirent qu'ensuite : c'est ce que font la ligne 224 du formulaire 2086 et la
+  doctrine fiscale (BOFiP, BOI-RPPM-PVBMC-30-20, § 50). L'application prenait le prix **après** frais
+  aux deux endroits. Exemple : 10 000 € investis, un portefeuille de 12 000 €, une vente de 3 000 €
+  dont 30 € de frais — la plus-value est de 470 €, l'application affichait 495 €. Le prix
+  d'acquisition restant était trop élevé d'autant, et l'écart se reportait sur les ventes suivantes.
+  Si vous avez déjà établi une 2086 avec l'application et que vos ventes portaient des frais,
+  refaites le calcul. L'erreur a été trouvée en préparant un **banc d'essai public** : huit cas
+  figés, dont chaque résultat se refait à la calculatrice (`docs/exactitude.md` dans le dépôt).
+
 ### Added
 
 - **La fiche d'un trade dit enfin ce que les frais vous ont pris, et ce qu'il fallait gagner pour
