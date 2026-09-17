@@ -7,15 +7,21 @@
  */
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { dayOfEpoch, daysSinceEpoch } from '../date';
 import { D, ZERO } from '../money';
 import { journaledTrips, type JournaledTrip } from './journal';
 import { buildRoundTrips } from './round-trips';
 import {
   activeMonths,
+  activeWeekYears,
   activeYears,
   calendarMonth,
   calendarMonths,
+  calendarWeeks,
   calendarYears,
+  isoWeekDays,
+  isoWeekOf,
+  isoWeeksInYear,
   realizedEvents,
   type CalendarDay,
   type QuoteToDisplay,
@@ -414,6 +420,61 @@ describe('calendarYears — une case par année', () => {
   });
 });
 
+describe('semaines ISO — la numérotation des agendas', () => {
+  it('lundi en premier, et la semaine 1 est celle du premier jeudi de l’année', () => {
+    expect(isoWeekOf('2026-09-14')).toEqual({ year: 2026, week: 38 }); // lundi
+    expect(isoWeekOf('2026-09-17')).toEqual({ year: 2026, week: 38 });
+    expect(isoWeekOf('2026-09-20')).toEqual({ year: 2026, week: 38 }); // dimanche
+    expect(isoWeekOf('2026-09-21')).toEqual({ year: 2026, week: 39 });
+    expect(isoWeekOf('2026-01-01')).toEqual({ year: 2026, week: 1 }); // un jeudi
+    expect(isoWeekOf('pas une date')).toBeNull();
+  });
+
+  it('aux bords d’année, le jeudi décide : fin décembre peut ouvrir l’année suivante', () => {
+    expect(isoWeekOf('2024-12-30')).toEqual({ year: 2025, week: 1 });
+    expect(isoWeekOf('2027-01-01')).toEqual({ year: 2026, week: 53 });
+    expect(isoWeekOf('2021-01-03')).toEqual({ year: 2020, week: 53 });
+  });
+
+  it('52 ou 53 semaines, et les bornes lundi–dimanche de chacune', () => {
+    expect([2015, 2020, 2021, 2026, 2027].map(isoWeeksInYear)).toEqual([53, 53, 52, 53, 52]);
+    expect(isoWeekDays('2026-W38')).toEqual({ from: '2026-09-14', to: '2026-09-20' });
+    expect(isoWeekDays('2026-W53')).toEqual({ from: '2026-12-28', to: '2027-01-03' });
+    expect(isoWeekDays('2025-W01')).toEqual({ from: '2024-12-30', to: '2025-01-05' });
+    expect(isoWeekDays('2027-W53')).toBeNull();
+    expect(isoWeekDays('2026-W00')).toBeNull();
+    expect(isoWeekDays('2026-38')).toBeNull();
+  });
+});
+
+describe('calendarWeeks — les semaines d’une année', () => {
+  it('une case par semaine, même sans trade ; les jours de bord d’année vont à leur semaine ISO', () => {
+    const events = [
+      ev('2026-09-15', '10', { tripId: 't1', opens: true }),
+      ev('2026-09-18', '-4', { tripId: 't1', closes: true }),
+      ev('2027-01-01', '7', { tripId: 't2' }),
+      ev('2024-12-30', '100', { tripId: 't3' }),
+    ];
+    const grid = calendarWeeks(events, '2026', identity);
+    expect(grid.buckets).toHaveLength(53);
+    expect(grid.buckets[0]!.key).toBe('2026-W01');
+    expect(grid.buckets[52]!.key).toBe('2026-W53');
+    expect(grid.buckets[37]).toMatchObject({ key: '2026-W38', count: 1, opened: 1, closed: 1 });
+    expect(grid.buckets[37]!.pnl.eq(D('6'))).toBe(true);
+    // Le vendredi 1er janvier 2027 ferme la semaine 53 de 2026, pas l'année 2027.
+    expect(grid.buckets[52]!.pnl.eq(D('7'))).toBe(true);
+    expect(grid.total.eq(D('13'))).toBe(true);
+    expect(calendarWeeks(events, '2027', identity).total.eq(ZERO)).toBe(true);
+    expect(calendarWeeks(events, '2025', identity).buckets[0]!.pnl.eq(D('100'))).toBe(true);
+  });
+
+  it('années ISO actives : celles des semaines, pas celles des jours', () => {
+    const events = [ev('2027-01-01', '1'), ev('2026-06-01', '2'), ev('2024-12-30', '3')];
+    expect(activeWeekYears(events)).toEqual(['2025', '2026']);
+    expect(activeWeekYears([])).toEqual([]);
+  });
+});
+
 describe('activeYears', () => {
   it('années distinctes, triées croissant', () => {
     const events = [ev('2026-08-05', '1'), ev('2024-06-01', '2'), ev('2026-01-20', '3')];
@@ -422,6 +483,45 @@ describe('activeYears', () => {
 
   it('aucun montant réalisé : liste vide', () => {
     expect(activeYears([])).toEqual([]);
+  });
+});
+
+describe('propriété — les semaines recoupent les jours, par-delà les bords d’année', () => {
+  it('chaque semaine = Σ de ses sept jours, et Σ de toutes les semaines = Σ de toutes les années', () => {
+    fc.assert(
+      fc.property(
+        fc.array(
+          fc.record({
+            // Du 15 décembre 2025 au 15 janvier 2027 : deux bords d'année ISO dans la fenêtre.
+            offset: fc.integer({ min: 0, max: 396 }),
+            amount: fc.integer({ min: -5_000, max: 5_000 }),
+          }),
+          { maxLength: 60 },
+        ),
+        (entries) => {
+          const start = daysSinceEpoch(2025, 12, 15);
+          const events = entries.map((e, i) =>
+            ev(dayOfEpoch(start + e.offset), String(e.amount), {
+              tripId: `t${i}`,
+              time: i,
+            }),
+          );
+          let weeks = ZERO;
+          for (const year of activeWeekYears(events)) {
+            const grid = calendarWeeks(events, year, identity);
+            weeks = weeks.plus(grid.total);
+            for (const bucket of grid.buckets) {
+              const { from, to } = isoWeekDays(bucket.key)!;
+              const inside = events
+                .filter((e) => e.day >= from && e.day <= to)
+                .reduce((acc, e) => acc.plus(e.amount), ZERO);
+              expect(bucket.pnl.eq(inside)).toBe(true);
+            }
+          }
+          expect(weeks.eq(calendarYears(events, identity).total)).toBe(true);
+        },
+      ),
+    );
   });
 });
 

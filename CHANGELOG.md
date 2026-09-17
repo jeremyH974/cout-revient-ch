@@ -58,6 +58,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Le calendrier de P&L se lit aussi à la semaine.** À côté de « Jour », « Mois » et « Année », le
+  choix « Semaine » affiche les semaines de l'année, avec pour chacune son numéro, ses dates, son
+  résultat et les trades ouverts et clos. Un clic sur une semaine liste ses trades et ce que chacun
+  y a réalisé. Les semaines sont celles des agendas (du lundi au dimanche, semaine 1 = celle du
+  premier jeudi de janvier) : une semaine à cheval sur deux années n'est comptée qu'une fois, et la
+  somme de toutes les semaines égale bien votre réalisé net.
+
 - **La courbe « Évolution » du Trading se zoome comme sur TradingView.** Molette ou pincement pour
   rapprocher autour du curseur, glisser pour se déplacer dans le temps, double-clic pour tout
   réafficher — et des boutons + / − / ← / → / « Tout afficher » pour qui préfère cliquer. L'échelle

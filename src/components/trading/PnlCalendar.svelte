@@ -1,10 +1,13 @@
 <script lang="ts">
   /**
    * Calendrier de P&L (P22) : grille du P&L réalisé net, façon TradeZella — cases teintées
-   * gain/perte, navigation, case cliquable. Trois mailles au choix (décision n° 95) : **jour**
-   * (un mois de jours, totaux hebdomadaires, jour cliquable pour voir les trades concernés),
-   * **mois** (les 12 mois d'une année) et **année** (une case par année). Les deux mailles larges
-   * redescendent d'un cran au clic — l'année ouvre ses mois, le mois ouvre ses jours.
+   * gain/perte, navigation, case cliquable. Quatre mailles au choix (décisions n° 95 et 165) :
+   * **jour** (un mois de jours, totaux hebdomadaires, jour cliquable pour voir les trades
+   * concernés), **semaine** (les semaines ISO d'une année, semaine cliquable pour voir ses trades),
+   * **mois** (les 12 mois d'une année) et **année** (une case par année). Le mois et l'année
+   * redescendent d'un cran au clic — l'année ouvre ses mois, le mois ouvre ses jours. La semaine,
+   * elle, liste ses trades : elle chevauche souvent deux mois, et aucune grille de jours ne la
+   * montrerait entière.
    *
    * Chaque montant est rattaché au jour où la plateforme l'a réalisé (fill, frais, funding), pas
    * au jour de clôture de l'aller-retour : c'est la règle de l'exchange et celle du tableau de
@@ -15,10 +18,14 @@
   import { ZERO, type Big } from '$lib/domain/money';
   import {
     activeMonths,
+    activeWeekYears,
     activeYears,
     calendarMonth,
     calendarMonths,
+    calendarWeeks,
     calendarYears,
+    isoWeekDays,
+    isoWeekOf,
     type CalendarBucket,
     type CalendarDay,
     type CalendarGrain,
@@ -69,25 +76,37 @@
 
   const GRAINS: { id: CalendarGrain; label: string }[] = [
     { id: 'day', label: 'Jour' },
+    { id: 'week', label: 'Semaine' },
     { id: 'month', label: 'Mois' },
     { id: 'year', label: 'Année' },
   ];
   let grain = $state<CalendarGrain>('day');
 
-  const today = nowIso().slice(0, 7);
+  const todayDay = nowIso().slice(0, 10);
+  const today = todayDay.slice(0, 7);
   const thisYear = today.slice(0, 4);
+  /** L'année ISO de la semaine en cours : le 1er janvier peut encore appartenir à la précédente. */
+  const thisWeekYear = String(isoWeekOf(todayDay)?.year ?? thisYear);
   const months = $derived(activeMonths(events));
   const years = $derived(activeYears(events));
+  const weekYears = $derived(activeWeekYears(events));
   // Initialisation unique (volontairement pas un `$derived`) : on ne veut pas ramener
   // l'utilisateur au dernier mois actif à chaque nouvelle synchronisation pendant qu'il navigue.
   // svelte-ignore state_referenced_locally
   let month = $state(months.at(-1) ?? today);
   // svelte-ignore state_referenced_locally
   let year = $state(years.at(-1) ?? thisYear);
+  // svelte-ignore state_referenced_locally
+  let weekYear = $state(weekYears.at(-1) ?? thisWeekYear);
   const minMonth = $derived(months[0] ?? today);
   const minYear = $derived(years[0] ?? thisYear);
-  const canPrev = $derived(grain === 'day' ? month > minMonth : year > minYear);
-  const canNext = $derived(grain === 'day' ? month < today : year < thisYear);
+  const minWeekYear = $derived(weekYears[0] ?? thisWeekYear);
+  const canPrev = $derived(
+    grain === 'day' ? month > minMonth : grain === 'week' ? weekYear > minWeekYear : year > minYear,
+  );
+  const canNext = $derived(
+    grain === 'day' ? month < today : grain === 'week' ? weekYear < thisWeekYear : year < thisYear,
+  );
 
   function shiftMonth(value: string, delta: number): string {
     const [y, m] = value.split('-').map(Number) as [number, number];
@@ -100,12 +119,13 @@
   function shift(delta: number): void {
     if (delta < 0 ? !canPrev : !canNext) return;
     if (grain === 'day') month = shiftMonth(month, delta);
+    else if (grain === 'week') weekYear = String(Number(weekYear) + delta);
     else year = String(Number(year) + delta);
-    selectedDay = null;
+    selection = null;
   }
   function setGrain(next: CalendarGrain): void {
     grain = next;
-    selectedDay = null;
+    selection = null;
   }
   /** Descente d'un cran : une année ouvre ses mois, un mois ouvre ses jours. */
   function drillInto(bucket: CalendarBucket): void {
@@ -116,38 +136,95 @@
   }
 
   const calendar = $derived(calendarMonth(events, month, toDisplay));
+  const weekGrid = $derived(calendarWeeks(events, weekYear, toDisplay));
   const monthGrid = $derived(calendarMonths(events, year, toDisplay));
   const yearGrid = $derived(calendarYears(events, toDisplay));
-  /** Grille affichée aux mailles larges ; `$derived` paresseux, l'autre n'est jamais calculée. */
-  const grid = $derived(grain === 'year' ? yearGrid : monthGrid);
+  /** Grille affichée aux mailles larges ; `$derived` paresseux, les autres ne sont pas calculées. */
+  const grid = $derived(grain === 'year' ? yearGrid : grain === 'week' ? weekGrid : monthGrid);
   const monthLabel = $derived(`${monthName(month)} ${month.slice(0, 4)}`);
   /** Ce que la navigation gouverne : un mois, une année, ou rien (la maille année tient tout). */
   const periodLabel = $derived.by((): string => {
     if (grain === 'day') return monthLabel;
+    if (grain === 'week') return weekYear;
     if (grain === 'month') return year;
     const first = years[0];
     const last = years.at(-1);
     if (first === undefined || last === undefined) return 'Aucun trade';
     return first === last ? first : `${first} – ${last}`;
   });
+  const weekNumber = (key: string): number => Number(key.slice(6));
+  const dayOfMonth = (day: string): string => {
+    const d = Number(day.slice(8, 10));
+    return d === 1 ? '1er' : String(d);
+  };
+  /** « 14–20 sept. », ou « 28 déc. – 3 janv. » quand la semaine chevauche deux mois. */
+  function weekRangeShort(key: string): string {
+    const days = isoWeekDays(key);
+    if (!days) return '';
+    const [from, to] = [days.from, days.to];
+    return from.slice(0, 7) === to.slice(0, 7)
+      ? `${Number(from.slice(8, 10))}–${Number(to.slice(8, 10))} ${monthShort(to)}`
+      : `${Number(from.slice(8, 10))} ${monthShort(from)} – ${Number(to.slice(8, 10))} ${monthShort(to)}`;
+  }
+  /** « du 14 au 20 septembre 2026 », « du 28 décembre 2026 au 3 janvier 2027 ». */
+  function weekRangeLong(key: string): string {
+    const days = isoWeekDays(key);
+    if (!days) return '';
+    const [from, to] = [days.from, days.to];
+    const end = `${dayOfMonth(to)} ${monthName(to)} ${to.slice(0, 4)}`;
+    if (from.slice(0, 7) === to.slice(0, 7)) return `du ${dayOfMonth(from)} au ${end}`;
+    if (from.slice(0, 4) === to.slice(0, 4))
+      return `du ${dayOfMonth(from)} ${monthName(from)} au ${end}`;
+    return `du ${dayOfMonth(from)} ${monthName(from)} ${from.slice(0, 4)} au ${end}`;
+  }
   const bucketLabel = (bucket: CalendarBucket): string =>
-    grain === 'year' ? bucket.key : `${monthName(bucket.key)} ${bucket.key.slice(0, 4)}`;
+    grain === 'year'
+      ? bucket.key
+      : grain === 'week'
+        ? `Semaine ${weekNumber(bucket.key)}, ${weekRangeLong(bucket.key)}`
+        : `${monthName(bucket.key)} ${bucket.key.slice(0, 4)}`;
   const bucketShort = (bucket: CalendarBucket): string =>
-    grain === 'year' ? bucket.key : monthShort(bucket.key);
+    grain === 'year'
+      ? bucket.key
+      : grain === 'week'
+        ? `S${weekNumber(bucket.key)}`
+        : monthShort(bucket.key);
   /** Trades non convertibles signalés sous le titre, dans la maille effectivement affichée. */
   const excludedCount = $derived(grain === 'day' ? calendar.excluded : grid.excluded);
 
-  let selectedDay = $state<string | null>(null);
+  /** Jour ou semaine sélectionné : sa clé, ses bornes, et le titre de la liste de ses trades. */
+  let selection = $state<{ key: string; from: string; to: string; title: string } | null>(null);
   function selectDay(day: CalendarDay): void {
     if (day.count === 0) return;
-    selectedDay = selectedDay === day.day ? null : day.day;
+    selection =
+      selection?.key === day.day
+        ? null
+        : {
+            key: day.day,
+            from: day.day,
+            to: day.day,
+            title: `Réalisé le ${fmtDate(`${day.day}T00:00:00`)}, par trade`,
+          };
+  }
+  function selectWeek(bucket: CalendarBucket): void {
+    const days = isoWeekDays(bucket.key);
+    if (bucket.count === 0 || !days) return;
+    selection =
+      selection?.key === bucket.key
+        ? null
+        : {
+            key: bucket.key,
+            ...days,
+            title: `Réalisé en semaine ${weekNumber(bucket.key)}, ${weekRangeLong(bucket.key)}, par trade`,
+          };
   }
   /**
-   * Trades concernés par le jour sélectionné, avec ce que CHACUN a réalisé ce jour-là (et non son
-   * résultat depuis l'ouverture) : c'est la seule décomposition dont la somme redonne la case.
+   * Trades concernés par le jour ou la semaine sélectionnés, avec ce que CHACUN y a réalisé (et non
+   * son résultat depuis l'ouverture) : c'est la seule décomposition dont la somme redonne la case.
    */
   const selectedTrades = $derived.by((): { trip: JournaledTrip; amount: Big | null }[] => {
-    if (selectedDay === null) return [];
+    if (selection === null) return [];
+    const { from, to } = selection;
     // Des Record, pas des Map : la règle `svelte/prefer-svelte-reactivity` interdit une Map mutée
     // dans du code réactif (elle ne redéclencherait pas le rendu).
     const byId: Record<string, JournaledTrip> = {};
@@ -155,7 +232,7 @@
     const order: string[] = [];
     const amounts: Record<string, Big | null> = {};
     for (const e of events) {
-      if (e.day !== selectedDay || e.tripId === null) continue;
+      if (e.day < from || e.day > to || e.tripId === null) continue;
       if (!(e.tripId in amounts)) {
         order.push(e.tripId);
         amounts[e.tripId] = ZERO;
@@ -198,9 +275,10 @@
     const label = `${dayNumber(day.day)} ${monthName(month)}`;
     return `${label} : ${amountText(day.pnl)}, ${activityLabel(day)}`;
   }
-  // Idem pour une case large : le clic descend d'un cran, l'étiquette le dit.
+  // Idem pour une case large : le clic descend d'un cran (ou liste les trades), l'étiquette le dit.
   function bucketAriaLabel(bucket: CalendarBucket): string {
-    const action = grain === 'year' ? 'voir les mois' : 'voir les jours';
+    const action =
+      grain === 'year' ? 'voir les mois' : grain === 'week' ? 'voir les trades' : 'voir les jours';
     return `${bucketLabel(bucket)} : ${amountText(bucket.pnl)}, ${activityLabel(bucket)} — ${action}`;
   }
 </script>
@@ -253,12 +331,22 @@
 </div>
 
 {#if grain !== 'day'}
-  <ul class="tiles" aria-label={grain === 'month' ? `Mois de ${year}` : 'Années'}>
+  <ul
+    class="tiles"
+    class:weeks={grain === 'week'}
+    aria-label={grain === 'week'
+      ? `Semaines de ${weekYear}`
+      : grain === 'month'
+        ? `Mois de ${year}`
+        : 'Années'}
+  >
     {#each grid.buckets as bucket (bucket.key)}
       <li>
         {#if bucket.count === 0}
           <span class="tile empty">
             <span class="tile-name muted">{bucketShort(bucket)}</span>
+            {#if grain === 'week'}<span class="tile-range muted">{weekRangeShort(bucket.key)}</span
+              >{/if}
             <span class="muted small" aria-hidden="true">—</span>
           </span>
         {:else}
@@ -269,9 +357,11 @@
             class:tone-gain={tone === 'gain'}
             class:tone-loss={tone === 'loss'}
             aria-label={bucketAriaLabel(bucket)}
-            onclick={() => drillInto(bucket)}
+            aria-pressed={grain === 'week' ? selection?.key === bucket.key : undefined}
+            onclick={() => (grain === 'week' ? selectWeek(bucket) : drillInto(bucket))}
           >
             <span class="tile-name">{bucketShort(bucket)}</span>
+            {#if grain === 'week'}<span class="tile-range">{weekRangeShort(bucket.key)}</span>{/if}
             <Money value={bucket.pnl} sign colored compact />
             {#if bucket.opened > 0 || bucket.closed > 0}
               <span class="count" aria-hidden="true">
@@ -288,7 +378,13 @@
     <p class="muted small">Aucun montant réalisé pour l'instant.</p>
   {:else}
     <p class="grid-total">
-      <span class="muted small">{grain === 'month' ? `Total ${year}` : 'Total'}</span>
+      <span class="muted small"
+        >{grain === 'week'
+          ? `Total des semaines de ${weekYear}`
+          : grain === 'month'
+            ? `Total ${year}`
+            : 'Total'}</span
+      >
       <Money value={grid.total} sign colored strong />
     </p>
   {/if}
@@ -322,7 +418,7 @@
                     class="day"
                     class:tone-gain={tone === 'gain'}
                     class:tone-loss={tone === 'loss'}
-                    aria-pressed={selectedDay === day.day}
+                    aria-pressed={selection?.key === day.day}
                     aria-label={dayAriaLabel(day)}
                     onclick={() => selectDay(day)}
                   >
@@ -348,9 +444,9 @@
   </div>
 {/if}
 
-{#if selectedDay !== null}
+{#if selection !== null}
   <div class="day-trades">
-    <h3>Réalisé le {fmtDate(`${selectedDay}T00:00:00`)}, par trade</h3>
+    <h3>{selection.title}</h3>
     <ul class="day-list">
       {#each selectedTrades as row (row.trip.trip.id)}
         <li>
@@ -371,11 +467,14 @@
   .note {
     margin: 0 0 var(--space-3);
   }
+  /* Quatre mailles et deux flèches ne tiennent pas sur une ligne à 320 px (WCAG 1.4.10) : l'en-tête
+     et les mailles passent à la ligne au lieu de déborder, comme le sélecteur de période. */
   .head {
     display: flex;
+    flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: var(--space-3);
+    gap: var(--space-2) var(--space-3);
     margin-bottom: var(--space-2);
   }
   .month {
@@ -409,6 +508,7 @@
   /* Même langage visuel que le sélecteur de période de la Vue d'ensemble. */
   .grains {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
   .grains button {
@@ -459,6 +559,19 @@
   .tile-name {
     font-size: var(--fs-sm);
     font-weight: 600;
+  }
+  .tile-range {
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
+  }
+  /* Cinquante-trois semaines : six colonnes quand la place le permet, pour tenir en neuf lignes. */
+  @media (min-width: 960px) {
+    .tiles.weeks {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+  .tile[aria-pressed='true'] {
+    box-shadow: inset 0 0 0 2px var(--accent-trading);
   }
   .tile.empty {
     border-style: dashed;

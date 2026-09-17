@@ -47,11 +47,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   auto-vérification permanente affichée sur `routes/Trading.svelte` ; `computeTrading` consolide
   plusieurs comptes, docs/DECISIONS.md n° 22), `calendar.ts` (`realizedEvents` : un montant par
   événement daté — `closedPnl − frais` au jour du fill, funding au jour du paiement — puis les
-  trois mailles de la carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte` :
-  `calendarMonth` (jours d'un mois), `calendarMonths` (douze mois d'une année) et `calendarYears`,
-  toutes trois bâties sur la **même** addition interne `groupEvents` pour qu'elles ne puissent pas
-  diverger. La somme de la grille sur tout l'historique **est** `totals.net`, docs/DECISIONS.md
-  n° 35 et n° 95), `stats.ts` (`computeStats`, `statsBuckets` et `tripsClosedIn` : le filtre de
+  quatre mailles de la carte « Calendrier de P&L » de `routes/trading/TradeStats.svelte` :
+  `calendarMonth` (jours d'un mois), `calendarWeeks` (semaines ISO d'une année), `calendarMonths`
+  (douze mois d'une année) et `calendarYears`, toutes bâties sur la **même** addition interne
+  `groupEvents` pour qu'elles ne puissent pas diverger. La somme de la grille sur tout l'historique
+  **est** `totals.net`, docs/DECISIONS.md n° 35, n° 95 et n° 165), `stats.ts` (`computeStats`, `statsBuckets` et `tripsClosedIn` : le filtre de
   période de l'écran Statistiques, qui retient les aller-retours **clos** dans une fenêtre de jours
   — le calendrier, lui, ne suit pas ce filtre, docs/DECISIONS.md n° 95), `costs.ts`
   (`executionLines` : les exécutions d'un aller-retour, tranches d'un même instant regroupées, part

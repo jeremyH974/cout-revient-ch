@@ -108,6 +108,34 @@ test('mobile étroit (320 px) : la barre d’onglets Trading passe à la ligne a
   ).toBeLessThanOrEqual(overflow.viewport);
 });
 
+/**
+ * Les mailles du calendrier de P&L à 320 px (décision n° 165) : avec la semaine, quatre boutons et
+ * deux flèches ne tiennent plus sur une ligne. Ils passent à la ligne au lieu de pousser la page.
+ */
+test('mobile étroit (320 px) : les mailles du calendrier passent à la ligne au lieu de déborder', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'projet mobile uniquement');
+  await openDemo(page);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('#/trading/stats');
+  const grains = page.getByRole('radiogroup', { name: 'Maille du calendrier' });
+  await grains.getByRole('radio', { name: 'Semaine', exact: true }).click();
+  await expect(page.getByRole('list', { name: /^Semaines de \d{4}$/ })).toBeVisible();
+  const overflow = await grains.evaluate((group) => ({
+    viewport: document.documentElement.clientWidth,
+    page: document.documentElement.scrollWidth,
+    controls: [...(group.parentElement?.querySelectorAll('button') ?? [])].map((b) =>
+      Math.round(b.getBoundingClientRect().right),
+    ),
+  }));
+  expect(
+    Math.max(overflow.page, ...overflow.controls),
+    `mailles du calendrier : ${JSON.stringify(overflow)}`,
+  ).toBeLessThanOrEqual(overflow.viewport);
+});
+
 test('desktop : en-tête de colonnes visible, libellé « Réalisé » réservé aux lecteurs d’écran', async ({
   page,
   isMobile,
