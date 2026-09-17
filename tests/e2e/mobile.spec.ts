@@ -37,6 +37,7 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
     '#/',
     '#/invest',
     '#/trading',
+    '#/trading/seuil',
     '#/more',
     '#/asset/btc',
     '#/asset/pepe',
@@ -77,6 +78,34 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
     }
   }
   expect(problems, 'pages qui débordent sur mobile').toEqual([]);
+});
+
+/**
+ * La barre d'onglets Trading à 320 px, la largeur du critère WCAG 1.4.10 (décision n° 158).
+ *
+ * Le test précédent ne voit un débordement qu'avec les polices du poste qui le lance : le cinquième
+ * onglet débordait de 12 px sur la CI Linux et tenait sous Windows. À 320 px, la barre déborde
+ * partout si elle ne passe pas à la ligne — la régression se voit donc aussi en local.
+ */
+test('mobile étroit (320 px) : la barre d’onglets Trading passe à la ligne au lieu de déborder', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, 'projet mobile uniquement');
+  await openDemo(page);
+  await page.setViewportSize({ width: 320, height: 720 });
+  await page.goto('#/trading/seuil');
+  const tabs = page.getByRole('navigation', { name: 'Espace Trading' });
+  await expect(tabs.getByRole('link', { name: 'Seuil' })).toBeVisible();
+  const overflow = await tabs.evaluate((nav) => ({
+    right: Math.round(nav.getBoundingClientRect().right),
+    viewport: document.documentElement.clientWidth,
+    links: [...nav.querySelectorAll('a')].map((a) => Math.round(a.getBoundingClientRect().right)),
+  }));
+  expect(
+    Math.max(overflow.right, ...overflow.links),
+    `barre d'onglets : ${JSON.stringify(overflow)}`,
+  ).toBeLessThanOrEqual(overflow.viewport);
 });
 
 test('desktop : en-tête de colonnes visible, libellé « Réalisé » réservé aux lecteurs d’écran', async ({

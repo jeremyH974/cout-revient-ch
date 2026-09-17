@@ -4682,6 +4682,14 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      funding et le glissement d'un ordre au marché ne sont pas comptés, et l'écran le dit : ils
      s'ajoutent au seuil.
 
+     **Cinq onglets ne tiennent pas sur tous les téléphones.** La CI l'a dit, pas le poste de
+     développement : avec les polices Linux, la barre mesurait 424 px pour un écran de 412, alors que
+     Windows passait « Tableau de bord » sur deux lignes et tenait. Une page qui déborde fait dézoomer
+     le navigateur mobile, et la navigation basse intercepte alors les clics — quatre parcours Trading
+     expiraient pour cette seule raison. La barre passe désormais **à la ligne** plutôt que de pousser
+     la page (WCAG 1.4.10), et un test la vérifie à **320 px**, largeur où l'ancienne barre déborde
+     sur n'importe quel poste : la régression se voit en local, pas seulement en CI.
+
      **Trois décimales de pourcentage.** `fmtPct` arrondit au dixième : un taux de 0,035 % et un seuil
      de 0,07 % y deviennent tous deux « 0,0 % ». `fmtSmallPct` garde les trois décimales où se joue la
      rentabilité d'un trade.
