@@ -10,8 +10,11 @@ import {
   parseSizeList,
   priceInputText,
   qtyInputText,
+  fmtBreakevenPrice,
   rateInputText,
   rolesSentence,
+  targetLead,
+  targetMove,
   unavailableSentence,
 } from './trade-costs';
 
@@ -57,7 +60,7 @@ describe('breakevenSentence — trade clos', () => {
       }),
     );
     expect(plain(text)).toBe(
-      'Le prix devait baisser de 0,070 % (34,993 $ par BTC, soit une sortie sous 49 985,01 $) ' +
+      'Le prix devait baisser de 0,070 % (34,993 $ par BTC, soit une sortie sous 49 985,00 $) ' +
         'pour couvrir les frais et le funding ; il a baissé de 0,120 %.',
     );
   });
@@ -192,5 +195,33 @@ describe('onglet « Seuil » : champs saisis à la française', () => {
     expect(priceInputText(null)).toBe('');
     expect(qtyInputText(D('30'))).toBe('30');
     expect(qtyInputText(D('0.15'))).toBe('0,15');
+  });
+});
+
+describe('onglet « Seuil » : le prix à atteindre', () => {
+  it('targetLead dit le sens du mouvement selon le sens du trade', () => {
+    expect(plain(targetLead('long', 'BTC', D('65000')))).toBe(
+      'Long entré à 65 000,00 $ : le BTC doit monter au-dessus de ces prix pour couvrir les frais.',
+    );
+    expect(plain(targetLead('short', 'SOL', D('150.5')))).toBe(
+      'Short entré à 150,50 $ : le SOL doit descendre sous ces prix pour couvrir les frais.',
+    );
+  });
+
+  it('targetMove signe le chemin comme le marché : + pour un long, − pour un short', () => {
+    const row = { distance: D('45.5'), move: D('0.0007') };
+    expect(plain(targetMove('long', row))).toBe('+45,50 $ · +0,070 %');
+    expect(plain(targetMove('short', row))).toBe('−45,50 $ · −0,070 %');
+    // Rebates plus forts que les frais : le point mort d'un long passe sous l'entrée.
+    expect(plain(targetMove('long', { distance: D('-1.3'), move: D('-0.00002') }))).toBe(
+      '−1,30 $ · −0,002 %',
+    );
+  });
+});
+
+describe('fmtBreakevenPrice — un point mort jamais affiché du mauvais côté', () => {
+  it('vers le haut pour un long, vers le bas pour un short', () => {
+    expect(plain(fmtBreakevenPrice(D('65432.1041'), 'long'))).toBe('65 432,11 $');
+    expect(plain(fmtBreakevenPrice(D('65432.1099'), 'short'))).toBe('65 432,10 $');
   });
 });

@@ -3,7 +3,13 @@ import { expect, test } from '@playwright/test';
 import { ONE } from '../../src/lib/domain/money';
 import { observedFeeRates, sizeBreakeven } from '../../src/lib/domain/trading/costs';
 import { fmtMoney, fmtSmallPct } from '../../src/lib/format/fr';
-import { parseFrDecimal, parseSizeList, rateInputText } from '../../src/lib/format/trade-costs';
+import {
+  fmtBreakevenPrice,
+  parseFrDecimal,
+  parseSizeList,
+  rateInputText,
+  targetMove,
+} from '../../src/lib/format/trade-costs';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount } from '../../src/lib/import/hyperliquid/sync';
@@ -33,7 +39,7 @@ async function demoExecutions() {
   }).trading.executions;
 }
 
-test('onglet Seuil : gain brut minimum par taille et par type d’ordre, recoupé avec le moteur ; tailles retenues', async ({
+test('onglet Seuil : prix à atteindre et gain brut minimum, en long et en short, recoupés avec le moteur ; tailles retenues', async ({
   page,
 }) => {
   const rates = observedFeeRates(await demoExecutions());
@@ -53,31 +59,49 @@ test('onglet Seuil : gain brut minimum par taille et par type d’ordre, recoup�
   await expect(page.getByLabel('Frais maker (%)')).toHaveValue(rateInputText(maker));
 
   await page.getByLabel(/^Tailles/).fill('10 20 30');
-  const price = parseFrDecimal(await page.getByLabel('Prix ($)').inputValue());
-  expect(price, 'le prix doit être pré-rempli').not.toBeNull();
+  const price = parseFrDecimal(await page.getByLabel("Prix d'entrée ($)").inputValue());
+  expect(price, 'le prix d’entrée doit être pré-rempli').not.toBeNull();
 
-  const table = page.getByRole('table');
-  const sizes = parseSizeList('10 20 30');
-  await expect(table.getByRole('columnheader')).toHaveCount(2 + sizes.length);
-  for (const [label, entry, exit] of [
+  const scenarios = [
     ['Taker → taker', taker!, taker!],
     ['Maker → taker', maker!, taker!],
     ['Maker → maker', maker!, maker!],
-  ] as const) {
-    const cells = table
-      .getByRole('row')
-      .filter({ has: page.getByRole('rowheader', { name: label }) })
-      .getByRole('cell');
-    await expect(cells.first()).toContainText(
-      normalize(fmtSmallPct(sizeBreakeven(price!, ONE, entry, exit).move)),
-    );
-    for (const [i, qty] of sizes.entries()) {
-      const grossMin = sizeBreakeven(price!, qty, entry, exit).grossMin;
-      // En euros au taux stubé, comme tout l'écran ; en dollars sur la ligne du dessous.
-      await expect(cells.nth(i + 1)).toContainText(
-        normalize(fmtMoney(grossMin.div(EUR_USD), 'EUR')),
+  ] as const;
+  const direction = page.getByRole('group', { name: 'Sens du trade' });
+  const targets = page.getByRole('region', { name: 'Prix à atteindre' });
+  const table = page.getByRole('table');
+  const sizes = parseSizeList('10 20 30');
+  await expect(table.getByRole('columnheader')).toHaveCount(2 + sizes.length);
+
+  for (const sens of ['long', 'short'] as const) {
+    await direction.getByRole('button', { name: sens === 'long' ? 'Long' : 'Short' }).click();
+    await expect(
+      direction.getByRole('button', { name: sens === 'long' ? 'Long' : 'Short' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    for (const [label, entry, exit] of scenarios) {
+      const unit = sizeBreakeven(sens, price!, ONE, entry, exit)!;
+      // Le prix que l'actif doit atteindre, en clair, pour chaque type d'ordre.
+      const target = targets.locator('dl > div').filter({
+        has: page.locator('dt', { hasText: label }),
+      });
+      await expect(target.locator('dd')).toContainText(
+        normalize(fmtBreakevenPrice(unit.exitPrice, sens)),
       );
-      await expect(cells.nth(i + 1)).toContainText(normalize(fmtMoney(grossMin, 'USD')));
+      await expect(target.locator('dd')).toContainText(normalize(targetMove(sens, unit)));
+
+      const cells = table
+        .getByRole('row')
+        .filter({ has: page.getByRole('rowheader', { name: label }) })
+        .getByRole('cell');
+      await expect(cells.first()).toContainText(normalize(fmtSmallPct(unit.move)));
+      for (const [i, qty] of sizes.entries()) {
+        const grossMin = sizeBreakeven(sens, price!, qty, entry, exit)!.grossMin;
+        // En euros au taux stubé, comme tout l'écran ; en dollars sur la ligne du dessous.
+        await expect(cells.nth(i + 1)).toContainText(
+          normalize(fmtMoney(grossMin.div(EUR_USD), 'EUR')),
+        );
+        await expect(cells.nth(i + 1)).toContainText(normalize(fmtMoney(grossMin, 'USD')));
+      }
     }
   }
 

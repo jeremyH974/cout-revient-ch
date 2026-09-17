@@ -6,7 +6,7 @@
  * ferait lire l'inverse de ce que les chiffres disent.
  */
 import { ZERO, parseDecimal, type Big } from '../domain/money';
-import type { CostsUnavailable, TradeCosts } from '../domain/trading/costs';
+import type { CostsUnavailable, SizeBreakeven, TradeCosts } from '../domain/trading/costs';
 import type { RoundTrip } from '../domain/trading/round-trips';
 import { fmtPrice, fmtSmallPct, roundHalfUp } from './fr';
 
@@ -26,6 +26,13 @@ function pastMove(trip: TripFacts, move: Big): string {
   return `${rose ? 'est monté' : 'a baissé'} de ${fmtSmallPct(move.abs())}`;
 }
 
+/**
+ * Un point mort, arrondi du côté qui ne ment pas : vers le haut pour un long, vers le bas pour un
+ * short. Qui atteint le prix affiché couvre alors ses frais, jamais à un demi-centime près.
+ */
+export const fmtBreakevenPrice = (price: Big, direction: RoundTrip['direction']): string =>
+  fmtPrice(price, 'USD', { toward: direction === 'long' ? 'up' : 'down' });
+
 const perUnit = (distance: Big, trip: TripFacts): string =>
   `${fmtPrice(distance.abs(), 'USD')} par ${trip.symbol}`;
 
@@ -37,7 +44,7 @@ const perUnit = (distance: Big, trip: TripFacts): string =>
 export function breakevenSentence(trip: TripFacts, costs: TradeCosts): string | null {
   const { breakevenMove: move, breakevenDistance: distance, breakevenPrice: price } = costs;
   if (move === null || distance === null || price === null) return null;
-  const exit = `${winningSide(trip)} ${fmtPrice(price, 'USD')}`;
+  const exit = `${winningSide(trip)} ${fmtBreakevenPrice(price, trip.direction)}`;
 
   if (trip.status === 'closed') {
     const captured = costs.capturedMove;
@@ -61,7 +68,7 @@ export function breakevenSentence(trip: TripFacts, costs: TradeCosts): string | 
     `Pour sortir sans perte, frais et funding compris, le prix doit ${favorable(trip)} ` +
     `d'au moins ${fmtSmallPct(move)} ` +
     `depuis l'entrée moyenne (${perUnit(distance, trip)}) : point mort à ` +
-    `${fmtPrice(price, 'USD')}${assumption}.`
+    `${fmtBreakevenPrice(price, trip.direction)}${assumption}.`
   );
 }
 
@@ -136,3 +143,28 @@ export const priceInputText = (price: Big | null): string =>
 
 /** Quantité → texte de champ, sans perte : les quantités de la plateforme ont au plus 8 décimales. */
 export const qtyInputText = (qty: Big): string => inputText(qty, 8);
+
+/**
+ * En-tête de la carte « Prix à atteindre » : le sens du trade dit où le prix doit aller — un short
+ * gagne quand il baisse, et l'écran doit le dire en toutes lettres.
+ */
+export function targetLead(direction: RoundTrip['direction'], symbol: string, entry: Big): string {
+  const at = fmtPrice(entry, 'USD');
+  return direction === 'long'
+    ? `Long entré à ${at} : le ${symbol} doit monter au-dessus de ces prix pour couvrir les frais.`
+    : `Short entré à ${at} : le ${symbol} doit descendre sous ces prix pour couvrir les frais.`;
+}
+
+/**
+ * Le chemin jusqu'au point mort, signé comme le **marché** et non comme le trade : « +53,4724 $ ·
+ * +0,070 % » pour un long, « −53,4396 $ · −0,070 % » pour un short. Un signe négatif sur un long
+ * n'est pas une erreur : des rebates plus forts que les frais placent le point mort sous l'entrée.
+ */
+export function targetMove(
+  direction: RoundTrip['direction'],
+  row: Pick<SizeBreakeven, 'distance' | 'move'>,
+): string {
+  const price = direction === 'long' ? row.distance : row.distance.neg();
+  const pct = direction === 'long' ? row.move : row.move.neg();
+  return `${price.lt(ZERO) ? '−' : '+'}${fmtPrice(price.abs(), 'USD')} · ${fmtSmallPct(pct, { sign: true })}`;
+}
