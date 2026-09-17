@@ -58,6 +58,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La courbe « Évolution » du Trading se zoome comme sur TradingView.** Molette ou pincement pour
+  rapprocher autour du curseur, glisser pour se déplacer dans le temps, double-clic pour tout
+  réafficher — et des boutons + / − / ← / → / « Tout afficher » pour qui préfère cliquer. L'échelle
+  verticale se recale sur la période zoomée, pour que les variations se voient vraiment. Le zoom
+  s'arrête à la finesse de la courbe d'Hyperliquid, qui ne compte qu'un point toutes les deux heures
+  environ : le détail minute par minute arrivera avec une courbe reconstruite depuis vos exécutions.
+
 - **« Suis-je en gain ou en perte ? » — la réponse est écrite au-dessus de la courbe.** La courbe
   d'équité du tableau de bord Trading monte aussi quand vous déposez de l'argent, et son plus haut
   n'est qu'un instant de la période. Elle est désormais précédée d'une ligne claire — « Sur 30

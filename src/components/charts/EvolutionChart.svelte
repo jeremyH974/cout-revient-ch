@@ -40,6 +40,7 @@
   import { D } from '$lib/domain/money';
   import { fmtDate, fmtMasked, fmtMoney, fmtPct, fmtPrice } from '$lib/format/fr';
   import type { Currency } from '$lib/fx/types';
+  import { pointMs } from '$lib/history/days';
   import { formatInstant, spansMidnight } from '$lib/history/intraday-series';
   import { numberToDecimal } from '$lib/pricing/types';
   import {
@@ -52,9 +53,18 @@
     tickIndices,
     type Segment,
   } from './geometry';
+  import {
+    fullWindow,
+    isFullView,
+    minimumSpan,
+    panWindow,
+    visibleRange,
+    zoomWindow,
+    type TimeWindow,
+  } from './zoom';
 
   let {
-    points,
+    points: allPoints,
     format = 'money',
     currency = 'EUR',
     markers = [],
@@ -67,6 +77,7 @@
     band = false,
     labels = { primary: 'Valeur', secondary: null },
     discreet = false,
+    zoomable = false,
   }: {
     points: ChartPoint[];
     /** Nature de la courbe : montant (masquable), pourcentage ou prix unitaire. */
@@ -91,12 +102,148 @@
     labels?: { primary: string; secondary: string | null };
     /** Mode discret : montants masqués (« •••• € ») ; prix unitaires et pourcentages lisibles. */
     discreet?: boolean;
+    /**
+     * Zoom et déplacement dans le temps, façon TradingView (décision n° 163) : molette ou pincement
+     * autour du curseur, glisser pour se déplacer, double-clic pour tout afficher, et des boutons
+     * pour qui ne peut pas glisser (WCAG 2.5.7). Seuls les points de la fenêtre sont tracés.
+     */
+    zoomable?: boolean;
   } = $props();
 
   const uid = `chart-${Math.random().toString(36).slice(2, 8)}`;
   let width = $state(320);
   let hover = $state<number | null>(null);
   const PAD = { top: 28, right: 12, bottom: 26, left: 12 };
+
+  // --- Zoom : une fenêtre de temps visible, bornée à la série entière -------------------------
+  const allTimes = $derived(allPoints.map((p) => pointMs(p.day)));
+  const full = $derived(zoomable ? fullWindow(allTimes) : null);
+  const minSpan = $derived(full ? minimumSpan(allTimes, full) : 0);
+  let view = $state<TimeWindow | null>(null);
+  // Une autre série (autre période, autre métrique) repart de la vue entière. Bornes lues en
+  // nombres : un objet recalculé à l'identique ne doit pas effacer le zoom.
+  const fullFrom = $derived(full?.from ?? 0);
+  const fullTo = $derived(full?.to ?? 0);
+  $effect(() => {
+    void fullFrom;
+    void fullTo;
+    view = null;
+  });
+  const fullView = $derived(isFullView(view, full));
+  const range = $derived(visibleRange(allTimes, zoomable ? view : null));
+  const points = $derived(
+    zoomable && view ? allPoints.slice(range.start, range.end + 1) : allPoints,
+  );
+  /** Une fenêtre qui recouvre la série entière n'est pas un zoom : on revient à la vue entière. */
+  const setView = (next: TimeWindow): void => {
+    view = full && next.from <= full.from && next.to >= full.to ? null : next;
+  };
+  const plotWidth = (): number => Math.max(width - PAD.left - PAD.right, 1);
+  /** Instant sous l'abscisse `px` (relative au graphique), sur la plage réellement tracée. */
+  const timeAt = (px: number): number => {
+    const first = pointMs(points[0]?.day ?? '');
+    const last = pointMs(points[points.length - 1]?.day ?? '');
+    return first + ((px - PAD.left) / plotWidth()) * (last - first);
+  };
+  const zoomBy = (factor: number): void => {
+    if (!full) return;
+    const current = view ?? full;
+    setView(zoomWindow(current, full, (current.from + current.to) / 2, factor, minSpan));
+  };
+  const panBy = (share: number): void => {
+    if (!full || !view) return;
+    setView(panWindow(view, full, share * (view.to - view.from)));
+  };
+  const atMinSpan = $derived(full !== null && (view ?? full).to - (view ?? full).from <= minSpan);
+  const atStart = $derived(full === null || view === null || view.from <= full.from);
+  const atEnd = $derived(full === null || view === null || view.to >= full.to);
+
+  let svg = $state<SVGSVGElement | null>(null);
+  /** Pointeurs posés (pincement) et glissement en cours : de simples variables, pas d'état tracé. */
+  let touches: Record<number, { x: number; y: number }> = {};
+  let drag: { x: number; view: TimeWindow } | null = null;
+  let pinch: { distance: number; anchor: number; view: TimeWindow } | null = null;
+  let dragging = $state(false);
+
+  // La molette doit pouvoir empêcher le défilement de la page : écouteur non passif, posé à la main.
+  $effect(() => {
+    const el = svg;
+    if (!zoomable || !el) return;
+    const onWheel = (event: WheelEvent): void => {
+      if (!full) return;
+      const scale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? height : 1;
+      const dx = event.deltaX * scale;
+      const dy = event.deltaY * scale;
+      const current = view ?? full;
+      if (Math.abs(dx) > Math.abs(dy)) {
+        // Glissement horizontal du pavé tactile : se déplacer, si l'on est zoomé.
+        if (isFullView(view, full)) return;
+        event.preventDefault();
+        setView(panWindow(current, full, (dx / plotWidth()) * (current.to - current.from)));
+        return;
+      }
+      const factor = Math.exp(-dy * 0.0015);
+      // Tout est déjà affiché et l'on éloigne encore : la page défile normalement.
+      if (factor < 1 && isFullView(view, full)) return;
+      event.preventDefault();
+      const px = event.clientX - el.getBoundingClientRect().left;
+      setView(zoomWindow(current, full, timeAt(px), factor, minSpan));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  });
+
+  function onPointerDown(event: PointerEvent): void {
+    onPointer(event);
+    if (!zoomable || !full || !svg) return;
+    touches = { ...touches, [event.pointerId]: { x: event.clientX, y: event.clientY } };
+    const active = Object.values(touches);
+    if (active.length === 2) {
+      const [a, b] = active as [{ x: number; y: number }, { x: number; y: number }];
+      const left = svg.getBoundingClientRect().left;
+      pinch = {
+        distance: Math.hypot(a.x - b.x, a.y - b.y),
+        anchor: timeAt((a.x + b.x) / 2 - left),
+        view: view ?? full,
+      };
+      drag = null;
+      dragging = false;
+      return;
+    }
+    if (active.length === 1 && view && (event.pointerType !== 'mouse' || event.button === 0)) {
+      drag = { x: event.clientX, view };
+      dragging = true;
+      svg.setPointerCapture?.(event.pointerId);
+    }
+  }
+  function onPointerMove(event: PointerEvent): void {
+    onPointer(event);
+    if (!zoomable || !full) return;
+    if (touches[event.pointerId]) {
+      touches = { ...touches, [event.pointerId]: { x: event.clientX, y: event.clientY } };
+    }
+    const active = Object.values(touches);
+    if (pinch && active.length === 2) {
+      const [a, b] = active as [{ x: number; y: number }, { x: number; y: number }];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      if (pinch.distance > 0) {
+        setView(zoomWindow(pinch.view, full, pinch.anchor, distance / pinch.distance, minSpan));
+      }
+      return;
+    }
+    if (drag) {
+      const shift = -((event.clientX - drag.x) / plotWidth()) * (drag.view.to - drag.view.from);
+      setView(panWindow(drag.view, full, shift));
+    }
+  }
+  function onPointerUp(event: PointerEvent): void {
+    const { [event.pointerId]: _released, ...rest } = touches;
+    void _released;
+    touches = rest;
+    if (Object.keys(touches).length < 2) pinch = null;
+    drag = null;
+    dragging = false;
+  }
 
   /** Nombre SVG → chaîne décimale : jamais de flottant vers big.js ; l'arrondi reste dans fr.ts. */
   const dec = (v: number): string => numberToDecimal(v) ?? '0';
@@ -304,17 +451,65 @@
   {#if points.length < 2 || !stats}
     <p class="empty muted">Pas encore assez de données pour tracer une courbe.</p>
   {:else}
+    {#if zoomable && full}
+      <div class="zoom" role="group" aria-label="Zoom de la courbe">
+        <button
+          type="button"
+          class="zoom-btn"
+          aria-label="Zoom avant"
+          disabled={atMinSpan}
+          onclick={() => zoomBy(1.6)}>+</button
+        >
+        <button
+          type="button"
+          class="zoom-btn"
+          aria-label="Zoom arrière"
+          disabled={fullView}
+          onclick={() => zoomBy(1 / 1.6)}>−</button
+        >
+        <button
+          type="button"
+          class="zoom-btn"
+          aria-label="Plus tôt"
+          disabled={atStart}
+          onclick={() => panBy(-0.4)}>←</button
+        >
+        <button
+          type="button"
+          class="zoom-btn"
+          aria-label="Plus tard"
+          disabled={atEnd}
+          onclick={() => panBy(0.4)}>→</button
+        >
+        <button type="button" class="zoom-reset" disabled={fullView} onclick={() => (view = null)}
+          >Tout afficher</button
+        >
+        <span class="zoom-state" aria-live="polite"
+          >{fullView
+            ? 'Molette ou pincement pour zoomer, glisser pour se déplacer'
+            : `Zoom : ${label(points[0]!.day)} → ${label(points[points.length - 1]!.day)}`}</span
+        >
+      </div>
+    {/if}
     <svg
+      bind:this={svg}
       viewBox="0 0 {width} {height}"
       {width}
       {height}
       role="img"
+      class:zoomed={zoomable && !fullView}
+      class:dragging
       aria-label="{labels.primary} : de {fmt(points[0]!.primary)} le {label(points[0]!.day)} à {fmt(
         points[points.length - 1]!.primary,
       )} le {label(points[points.length - 1]!.day)}"
-      onpointermove={onPointer}
-      onpointerdown={onPointer}
+      onpointermove={onPointerMove}
+      onpointerdown={onPointerDown}
+      onpointerup={onPointerUp}
+      onpointercancel={onPointerUp}
       onpointerleave={() => (hover = null)}
+      ondblclick={() => {
+        if (zoomable) view = null;
+      }}
     >
       <defs>
         <linearGradient id="{uid}-fill" x1="0" y1="0" x2="0" y2="1">
@@ -517,6 +712,39 @@
     display: block;
     touch-action: pan-y;
     cursor: crosshair;
+  }
+  svg.zoomed {
+    cursor: grab;
+  }
+  svg.dragging {
+    cursor: grabbing;
+  }
+  .zoom {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+    margin-bottom: var(--space-2);
+  }
+  .zoom-btn,
+  .zoom-reset {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--fg);
+    font-weight: 700;
+  }
+  .zoom-btn:disabled,
+  .zoom-reset:disabled {
+    opacity: 0.45;
+  }
+  .zoom-state {
+    margin-left: var(--space-2);
+    font-size: var(--fs-xs);
+    color: var(--fg-muted);
   }
   .grid {
     stroke: var(--border);
