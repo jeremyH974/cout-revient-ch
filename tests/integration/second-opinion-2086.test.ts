@@ -88,6 +88,9 @@ function cession(input: {
     at: input.at,
     year: Number(input.at.slice(0, 4)),
     proceedsEur: input.proceeds,
+    // Sans frais, le prix avant frais (l. 217) égale le prix net (l. 218) : la formule corrigée
+    // (décision n° 159) donne ici exactement le même rapport.
+    feesEur: '0',
     globalValueEur: input.globalValue,
     ptaBefore: input.ptaBefore,
     acquisitionShareEur: share.toString(),

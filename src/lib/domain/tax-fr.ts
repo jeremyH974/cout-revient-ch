@@ -143,8 +143,20 @@ export interface TaxCession {
   eventId: EventId;
   at: NaiveDateTime;
   year: number;
-  /** Prix de cession retenu : le produit NET perçu (frais de la plateforme déduits). */
+  /**
+   * Prix de cession **net des frais** — la ligne 218 de l'annexe 2086 (sans soulte : 218 = 215).
+   * C'est lui dont on retranche la fraction du prix d'acquisition, et lui que le seuil de 305 €
+   * additionne (ligne 51 = Σ l. 218).
+   */
   proceedsEur: DecimalString;
+  /**
+   * Frais de cession **effectivement supportés** — la ligne 214 : frais bruts moins la remise.
+   *
+   * Ils ne servent pas qu'à l'affichage : le **rapport** de la formule prend le prix AVANT frais
+   * (ligne 217), la soustraction le prix APRÈS frais (ligne 218). Le moteur prenait le net aux deux
+   * endroits, et imputait donc trop peu de prix d'acquisition (décision n° 159).
+   */
+  feesEur: DecimalString;
   /** Valeur globale du portefeuille au jour de la cession ; `null` si elle n'a pas pu être établie. */
   globalValueEur: DecimalString | null;
   ptaBefore: DecimalString;
@@ -251,6 +263,18 @@ export function taxKindOf(event: LedgerEvent): TaxEventKind {
   }
 }
 
+/**
+ * Frais de cession **effectivement supportés** par le cédant, en euros — la ligne 214 de l'annexe
+ * 2086 : frais bruts moins la remise (`docs/coinhouse-export.md` : « frais effectif = Frais −
+ * Remise »). Jamais négatifs : une remise supérieure au frais ne ferait pas de la cession une
+ * cession plus chère que son prix, et la ligne 214 ne porte pas de signe.
+ */
+export function cessionFees(event: LedgerEvent): Big {
+  if (event.kind !== 'trade' || event.fee === null) return ZERO;
+  const net = D(event.fee.grossEur).minus(event.fee.rebateEur);
+  return net.gt(ZERO) ? net : ZERO;
+}
+
 /** Coût d'acquisition en euros porté par un événement, quand il en porte un. */
 function acquisitionCost(event: LedgerEvent): Big {
   if (event.kind === 'trade') return D(event.valueEur);
@@ -289,12 +313,15 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
     .sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
   const annotations = input.annotations ?? {};
 
-  // Produits encaissés par jour : ils servent à reconstituer la valeur d'avant la cession.
+  // Valeur sortie du portefeuille, par jour : elle sert à reconstituer la valeur d'avant la cession.
+  // C'est le prix AVANT frais (l. 217) qui quittait le portefeuille, pas l'euro net encaissé : les
+  // frais faisaient partie de ce que valaient les actifs cédés.
   const proceedsByDay = new Map<string, Big>();
   for (const event of events) {
     if (taxKindOf(event) !== 'cession' || event.kind !== 'trade') continue;
     const day = dayOf(event.at);
-    proceedsByDay.set(day, (proceedsByDay.get(day) ?? ZERO).plus(event.valueEur));
+    const before = D(event.valueEur).plus(cessionFees(event));
+    proceedsByDay.set(day, (proceedsByDay.get(day) ?? ZERO).plus(before));
   }
 
   let pta = ZERO;
@@ -328,7 +355,12 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
     }
     if (kind !== 'cession' || event.kind !== 'trade') continue;
 
+    /** Ligne 218 : prix de cession net des frais (sans soulte, c'est aussi la 215). */
     const proceeds = D(event.valueEur);
+    /** Ligne 214 : frais effectivement supportés. */
+    const fees = cessionFees(event);
+    /** Ligne 217 : prix de cession AVANT frais (sans soulte, c'est la 213). */
+    const beforeFees = proceeds.plus(fees);
     const day = dayOf(event.at);
     const annotated = annotations[event.id];
     const closing = input.closingValueAt?.(day) ?? null;
@@ -344,8 +376,18 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
     let share: Big | null = null;
     let gain: Big | null = null;
     if (globalValue !== null && globalValue.gt(ZERO)) {
-      // La fraction imputée ne peut pas dépasser le PTA restant (cession de tout le portefeuille).
-      const raw = ptaBefore.times(proceeds).div(globalValue);
+      /*
+       * La formule de l'annexe 2086, ligne 224 : l. 218 − [l. 223 × (l. 217 / l. 212)].
+       *
+       * **Le rapport prend le prix AVANT frais, la soustraction le prix APRÈS frais** — deux lignes
+       * différentes du formulaire. Le moteur prenait le net aux deux endroits : il imputait trop
+       * peu de prix d'acquisition, surestimait chaque plus-value de `PTA × frais ÷ valeur globale`,
+       * et laissait un PTA trop élevé qui se propageait à toutes les cessions suivantes. C'est la
+       * préparation du banc d'essai public qui l'a fait voir (décision n° 159).
+       *
+       * La fraction imputée ne peut pas dépasser le PTA restant (cession de tout le portefeuille).
+       */
+      const raw = ptaBefore.times(beforeFees).div(globalValue);
       share = raw.gt(ptaBefore) ? ptaBefore : raw;
       gain = proceeds.minus(share);
       pta = ptaBefore.minus(share);
@@ -355,6 +397,7 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
       at: event.at,
       year: yearOf(event.at),
       proceedsEur: toDecimalString(proceeds),
+      feesEur: toDecimalString(fees),
       globalValueEur: globalValue === null ? null : toDecimalString(globalValue),
       ptaBefore: toDecimalString(ptaBefore),
       acquisitionShareEur: share === null ? null : toDecimalString(share),
@@ -493,8 +536,14 @@ export function dac8Summary(events: readonly LedgerEvent[], year: number): Dac8Y
 export interface CessionPreviewInput {
   /** Prix total d'acquisition avant la cession simulée (`TaxLedger.ptaAfter`). */
   ptaBefore: Big;
-  /** Produit net attendu de la vente. */
+  /** Produit net attendu de la vente (ligne 218). */
   proceedsEur: Big;
+  /**
+   * Frais attendus (ligne 214) : ils entrent dans le RAPPORT de la formule, pas dans la
+   * soustraction (décision n° 159). Absents, l'aperçu les suppose nuls — il le fait déjà pour le
+   * prix, qu'il ne connaît pas mieux.
+   */
+  feesEur?: Big | undefined;
   /** Valeur globale du portefeuille AVANT la vente (positions actuelles, cet actif compris). */
   globalValueEur: Big;
   year: number;
@@ -530,7 +579,10 @@ export function previewCession(input: CessionPreviewInput): CessionPreview | nul
   const yearProceedsBefore = input.yearProceedsEur ?? ZERO;
   const yearNetBefore = input.yearNetEur ?? ZERO;
 
-  const raw = input.ptaBefore.times(input.proceedsEur).div(input.globalValueEur);
+  // Même formule que le grand livre : rapport sur le prix avant frais (l. 217), soustraction sur
+  // le prix après frais (l. 218).
+  const fees = input.feesEur !== undefined && input.feesEur.gt(ZERO) ? input.feesEur : ZERO;
+  const raw = input.ptaBefore.times(input.proceedsEur.plus(fees)).div(input.globalValueEur);
   const share = raw.gt(input.ptaBefore) ? input.ptaBefore : raw;
   const gain = input.proceedsEur.minus(share);
 

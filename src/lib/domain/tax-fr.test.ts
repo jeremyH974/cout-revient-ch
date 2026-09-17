@@ -708,3 +708,83 @@ describe('quelle année le rapport décrit', () => {
     expect([...years].sort((a, b) => b - a)).toEqual(years);
   });
 });
+
+/**
+ * **La ligne 224 de l'annexe 2086, telle que le formulaire l'imprime** (décision n° 159).
+ *
+ * `l. 218 − [l. 223 × (l. 217 / l. 212)]` : le rapport prend le prix de cession AVANT frais
+ * (l. 217), la soustraction le prix APRÈS frais (l. 218). Deux lignes, pas une.
+ *
+ * Le moteur prenait le net aux deux endroits, et **aucun des tests de ce fichier ne pouvait le
+ * voir** : tous leurs échanges avaient `fee: null`, donc un prix avant frais égal au prix net. Le
+ * test de mutation ne le pouvait pas davantage — il éprouve le code existant, pas un terme que ce
+ * code n'a jamais eu. C'est la lecture du formulaire, pour préparer un banc d'essai public, qui l'a
+ * fait voir.
+ *
+ * Les montants sont choisis pour se vérifier de tête : 10 000 € de PTA, une valeur globale de
+ * 12 000 €, une cession de 3 000 € dont 30 € de frais.
+ */
+describe('la formule de l’annexe 2086 : le rapport avant frais, la soustraction après', () => {
+  /** Une vente en euros qui porte ses frais, remise comprise : frais effectif = brut − remise. */
+  const sellWithFees = (
+    at: string,
+    netEur: string,
+    grossFee: string,
+    rebate: string,
+  ): TradeEvent => ({
+    ...sell(at, 'btc', netEur),
+    fee: { asset: 'eur', gross: grossFee, rebate, grossEur: grossFee, rebateEur: rebate },
+  });
+
+  const cessionOf = (fee: { gross: string; rebate: string }) => {
+    const events = [
+      buy('2026-01-10T10:00:00', 'btc', '10000'),
+      sellWithFees('2026-03-15T10:00:00', '2970', fee.gross, fee.rebate),
+    ];
+    const id = events[1]!.id;
+    return ledger(events, { annotations: { [id]: '12000' } }).cessions[0]!;
+  };
+
+  it('impute la fraction du PTA sur le prix AVANT frais : 10 000 × 3 000 ÷ 12 000', () => {
+    const c = cessionOf({ gross: '30', rebate: '0' });
+    expect(c.proceedsEur, 'l. 218, prix net des frais').toBe('2970');
+    expect(c.feesEur, 'l. 214, frais supportés').toBe('30');
+    expect(c.acquisitionShareEur, 'l. 223 × (l. 217 / l. 212)').toBe('2500');
+  });
+
+  it('retranche cette fraction du prix APRÈS frais : 2 970 − 2 500', () => {
+    // Avec le net aux deux endroits, on aurait 2 970 − 2 475 = 495 : 25 € de plus-value en trop,
+    // c'est-à-dire exactement PTA × frais ÷ valeur globale.
+    const c = cessionOf({ gross: '30', rebate: '0' });
+    expect(c.gainEur, 'l. 224').toBe('470');
+    expect(c.ptaAfter, 'PTA restant, que la cession suivante consommera').toBe('7500');
+  });
+
+  it('ne compte comme frais que ce que le cédant supporte : le brut moins la remise', () => {
+    // 40 € de frais bruts et 10 € de remise sont 30 € de frais : même cession que ci-dessus.
+    const c = cessionOf({ gross: '40', rebate: '10' });
+    expect(c.feesEur).toBe('30');
+    expect(c.acquisitionShareEur).toBe('2500');
+    expect(c.gainEur).toBe('470');
+  });
+
+  it('ne rend jamais des frais négatifs quand la remise dépasse le frais', () => {
+    const c = cessionOf({ gross: '10', rebate: '25' });
+    expect(c.feesEur).toBe('0');
+    // Sans frais, le prix avant frais égale le prix net : 10 000 × 2 970 ÷ 12 000.
+    expect(c.acquisitionShareEur).toBe('2475');
+  });
+
+  it('applique la même formule à l’aperçu d’une vente qu’on n’a pas encore passée', () => {
+    const preview = previewCession({
+      ptaBefore: D('10000'),
+      proceedsEur: D('2970'),
+      feesEur: D('30'),
+      globalValueEur: D('12000'),
+      year: 2026,
+    });
+    expect(preview?.acquisitionShareEur).toBe('2500');
+    expect(preview?.gainEur).toBe('470');
+    expect(preview?.ptaAfterEur).toBe('7500');
+  });
+});
