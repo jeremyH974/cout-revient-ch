@@ -90,11 +90,13 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
   });
 
   /**
-   * Les mailles mois et année du calendrier de P&L (décision n° 95) ne sont pas le tableau de la
-   * maille jour mais une grille de tuiles cliquables, et elles n'apparaissent qu'après un clic —
-   * donc jamais dans la liste de routes ci-dessus.
+   * Les mailles semaine, mois et année du calendrier de P&L (décisions n° 95 et 165) ne sont pas le
+   * tableau de la maille jour mais une grille de tuiles cliquables, et elles n'apparaissent qu'après
+   * un clic — donc jamais dans la liste de routes ci-dessus.
    */
-  test('avec la démo : le calendrier de P&L aux mailles mois et année', async ({ page }) => {
+  test('avec la démo : le calendrier de P&L aux mailles semaine, mois et année', async ({
+    page,
+  }) => {
     await openDemo(page);
     await page.goto('#/trading/stats');
     const grains = page.getByRole('radiogroup', { name: 'Maille du calendrier' });
@@ -104,6 +106,19 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     await grains.getByRole('radio', { name: 'Année', exact: true }).click();
     await expect(page.getByRole('list', { name: 'Années' })).toBeVisible();
     await expectNoViolations(page, 'calendrier de P&L — maille année');
+    await grains.getByRole('radio', { name: 'Semaine', exact: true }).click();
+    const weeks = page.getByRole('list', { name: /^Semaines de \d{4}$/ });
+    await expect(weeks).toBeVisible();
+    // Une semaine sélectionnée : sa liste de trades et l'état pressé de la case sont vérifiés aussi.
+    await weeks.getByRole('button').first().click();
+    await expect(
+      page.getByRole('heading', { level: 3, name: /^Réalisé en semaine/ }),
+    ).toBeVisible();
+    // Le clic a fait défiler la page, et la barre du haut, fixe, recouvre alors les onglets : axe y
+    // verrait une cible masquée qui n'a rien à voir avec la grille. On revient en haut, comme les
+    // autres vérifications de ce fichier.
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expectNoViolations(page, 'calendrier de P&L — maille semaine');
   });
 
   test('avec la démo : #/trading/trade/<id> (détail et journal)', async ({ page }) => {

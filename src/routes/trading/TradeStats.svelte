@@ -6,7 +6,7 @@
    *
    * Un sélecteur de période (le même qu'à la Vue d'ensemble) restreint tous ces chiffres aux
    * aller-retours **clos dans la fenêtre** ; « Tout » est le défaut. Le calendrier, lui, garde sa
-   * propre navigation et ses trois mailles : il ne suit pas le sélecteur (décision n° 95).
+   * propre navigation et ses quatre mailles : il ne suit pas le sélecteur (décision n° 95).
    */
   import { nowMs } from '$lib/clock';
   import type { Big } from '$lib/domain/money';
@@ -230,8 +230,8 @@
     <h2>Calendrier de P&L</h2>
     {#if period !== 'all'}
       <p class="muted small">
-        Le calendrier ne suit pas le filtre de période : il a sa propre navigation, et ses trois
-        mailles (jour, mois, année).
+        Le calendrier ne suit pas le filtre de période : il a sa propre navigation, et ses quatre
+        mailles (jour, semaine, mois, année).
       </p>
     {/if}
     <PnlCalendar trips={app.roundTrips} events={app.realized} />

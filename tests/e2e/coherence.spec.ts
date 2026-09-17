@@ -448,6 +448,26 @@ test('Trading : la somme du calendrier = le réalisé net du tableau de bord', a
   // Et le total affiché sous la grille = la somme de ses cases, telles qu'elles s'affichent.
   const gridTotal = toNumber(await page.locator('.grid-total .num').innerText());
   expect(Math.abs(gridTotal - byYear)).toBeLessThanOrEqual(tol(yearCells.length));
+
+  // Maille semaine (décision n° 165) : chaque jour tombe dans une seule semaine ISO, donc la somme
+  // des semaines de toutes les années atteignables refait le réalisé net, bords d'année compris.
+  await page
+    .getByRole('radiogroup', { name: 'Maille du calendrier' })
+    .getByRole('radio', { name: 'Semaine', exact: true })
+    .click();
+  const previousYear = page.getByRole('button', { name: 'Année précédente' });
+  let byWeek = 0;
+  let weekCells = 0;
+  for (;;) {
+    for (const raw of await page.locator('.tiles .num').allInnerTexts()) {
+      byWeek += toNumber(raw);
+      weekCells++;
+    }
+    if (await previousYear.isDisabled()) break;
+    await previousYear.click();
+  }
+  expect(weekCells).toBeGreaterThan(0);
+  expect(Math.abs(byWeek - realized)).toBeLessThanOrEqual(tol(weekCells));
 });
 
 /**

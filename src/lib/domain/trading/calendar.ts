@@ -16,7 +16,14 @@
  * http://howardhinnant.github.io/date_algorithms.html) — helpers partagés dans `../date`.
  * Pur, `big.js` seulement.
  */
-import { daysInMonth, daysSinceEpoch, weekdayMondayFirst } from '../date';
+import {
+  civilFromDays,
+  dayOfEpoch,
+  daysInMonth,
+  daysSinceEpoch,
+  epochDayOf,
+  weekdayMondayFirst,
+} from '../date';
 import { D, ZERO, type Big } from '../money';
 import type { JournaledTrip } from './journal';
 import { tripOfFunding, type RoundTrip } from './round-trips';
@@ -205,8 +212,8 @@ interface Grouping {
 
 /**
  * Cumule les montants réalisés par tranche de temps — la seule addition du module, partagée par
- * les trois mailles (jour, mois, année) pour qu'elles ne puissent pas diverger. `keyOf` rend la
- * tranche d'un événement, ou `null` pour l'écarter (hors du mois ou de l'année affichés).
+ * les quatre mailles (jour, semaine, mois, année) pour qu'elles ne puissent pas diverger. `keyOf`
+ * rend la tranche d'un événement, ou `null` pour l'écarter (hors de la période affichée).
  */
 function groupEvents(
   events: readonly RealizedEvent[],
@@ -325,12 +332,12 @@ export function calendarMonth(
   };
 }
 
-/** Maille du calendrier : une case par jour, par mois, ou par année. */
-export type CalendarGrain = 'day' | 'month' | 'year';
+/** Maille du calendrier : une case par jour, par semaine, par mois, ou par année. */
+export type CalendarGrain = 'day' | 'week' | 'month' | 'year';
 
-/** Une case du calendrier aux mailles mois et année. */
+/** Une case du calendrier aux mailles semaine, mois et année. */
 export interface CalendarBucket {
-  /** `YYYY-MM` (mois) ou `YYYY` (année). */
+  /** `YYYY-Www` (semaine ISO), `YYYY-MM` (mois) ou `YYYY` (année). */
   key: string;
   /** P&L réalisé net de la tranche (devise d'affichage), montants convertibles seulement. */
   pnl: Big;
@@ -344,7 +351,10 @@ export interface CalendarBucket {
   excluded: number;
 }
 
-/** Une grille de tranches : les 12 mois d'une année, ou toutes les années atteignables. */
+/**
+ * Une grille de tranches : les semaines ou les 12 mois d'une année, ou toutes les années
+ * atteignables.
+ */
 export interface CalendarGrid {
   buckets: CalendarBucket[];
   total: Big;
@@ -398,6 +408,77 @@ export function calendarMonths(
   );
   const keys: string[] = [];
   for (let m = 1; m <= 12; m++) keys.push(`${year}-${String(m).padStart(2, '0')}`);
+  return buildGrid(keys, grouped);
+}
+
+/*
+ * Semaines ISO 8601 (décision n° 165) : lundi en premier, comme la grille des jours, et la semaine 1
+ * est celle qui contient le premier jeudi de l'année. Une semaine appartient donc tout entière à une
+ * seule « année ISO » — celle de son jeudi —, si bien que chaque jour tombe dans exactement une
+ * case : les derniers jours de décembre peuvent ouvrir la semaine 1 de l'année suivante, les premiers
+ * de janvier fermer la 52e ou la 53e de la précédente. C'est la numérotation des agendas français.
+ */
+
+/** Semaine ISO d'un jour (`YYYY-MM-DD`) : année ISO et numéro, ou `null` si la date est illisible. */
+export function isoWeekOf(day: string): { year: number; week: number } | null {
+  const epochDay = epochDayOf(day);
+  if (epochDay === null) return null;
+  const thursday = epochDay - weekdayMondayFirst(epochDay) + 3;
+  const { year } = civilFromDays(thursday);
+  return { year, week: Math.floor((thursday - daysSinceEpoch(year, 1, 1)) / 7) + 1 };
+}
+
+/** Clé d'une semaine : `2026-W38`. */
+export const isoWeekKey = (year: number, week: number): string =>
+  `${year}-W${String(week).padStart(2, '0')}`;
+
+/** 52 ou 53 : le 28 décembre tombe toujours dans la dernière semaine ISO de son année. */
+export function isoWeeksInYear(year: number): number {
+  return isoWeekOf(`${String(year).padStart(4, '0')}-12-28`)?.week ?? 52;
+}
+
+/** Lundi et dimanche (`YYYY-MM-DD`) d'une semaine `YYYY-Www`, ou `null` si la clé est illisible. */
+export function isoWeekDays(key: string): { from: string; to: string } | null {
+  const match = /^(\d{4})-W(\d{2})$/.exec(key);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  if (week < 1 || week > isoWeeksInYear(year)) return null;
+  const jan4 = daysSinceEpoch(year, 1, 4);
+  const monday = jan4 - weekdayMondayFirst(jan4) + 7 * (week - 1);
+  return { from: dayOfEpoch(monday), to: dayOfEpoch(monday + 6) };
+}
+
+/** Années ISO (`YYYY`) distinctes ayant au moins un montant réalisé, triées croissant. */
+export function activeWeekYears(events: readonly RealizedEvent[]): string[] {
+  const years = new Set<string>();
+  for (const e of events) {
+    const week = isoWeekOf(e.day);
+    if (week) years.add(String(week.year));
+  }
+  return [...years].sort();
+}
+
+/**
+ * Les semaines de l'année ISO `year` (52 ou 53), y compris celles sans le moindre montant : comme les
+ * 12 mois d'une année, une grille complète. Même addition que les autres mailles ; la somme des
+ * semaines de toutes les années égale donc celle des jours, à l'unité près.
+ */
+export function calendarWeeks(
+  events: readonly RealizedEvent[],
+  year: string,
+  toDisplay: QuoteToDisplay,
+): CalendarGrid {
+  const grouped = groupEvents(
+    events,
+    (e) => {
+      const week = isoWeekOf(e.day);
+      return week && String(week.year) === year ? isoWeekKey(week.year, week.week) : null;
+    },
+    toDisplay,
+  );
+  const keys: string[] = [];
+  for (let w = 1; w <= isoWeeksInYear(Number(year)); w++) keys.push(isoWeekKey(Number(year), w));
   return buildGrid(keys, grouped);
 }
 

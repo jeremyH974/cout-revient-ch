@@ -5036,3 +5036,45 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      À l'écran, deux fautes font échouer le parcours : tracer la courbe de la plateforme malgré le
      détail (93 segments au lieu de plus de 308), ou garder la référence dans l'échelle zoomée (la
      ligne « départ » reste dans le cadre).
+
+165. **Le calendrier de P&L à la semaine : les semaines de l'agenda, et une liste plutôt qu'un
+     mois** (17/09/2026).
+
+     **La demande.** « Ajoute une temporalité semaine aussi dans les choix » : le calendrier
+     offrait jour, mois et année (n° 95). La maille jour montrait déjà un total par ligne, mais
+     seulement pour les jours du mois affiché, et un mois à la fois.
+
+     **Une case par semaine, les semaines d'une année.** Comme le mois montre les douze mois d'une
+     année, la semaine montre les 52 ou 53 semaines d'une année, dans une grille complète, semaines
+     vides comprises. La navigation se fait d'année en année. Chaque case dit son numéro (« S38 »),
+     ses dates (« 14–20 sept. »), son P&L et ses trades ouverts et clos.
+
+     **Les semaines ISO 8601, celles des agendas français.** Lundi en premier, comme la grille des
+     jours ; la semaine 1 est celle du premier jeudi de l'année. Une semaine appartient ainsi tout
+     entière à une seule année, celle de son jeudi. Les derniers jours de décembre peuvent donc
+     ouvrir la semaine 1 de l'année suivante, et les premiers de janvier fermer la 52e ou la 53e de
+     la précédente. C'est la seule numérotation où **chaque jour tombe dans exactement une case**.
+     Découper les semaines par année civile aurait coupé en deux les semaines de bord d'année, et
+     la même semaine aurait porté deux totaux.
+
+     **Au clic, la liste des trades, pas une grille de jours.** Le mois et l'année redescendent d'un
+     cran. La semaine ne peut pas : elle chevauche souvent deux mois, et aucune grille de jours ne la
+     montrerait entière. Le clic liste donc les trades de la semaine, avec ce que chacun y a réalisé
+     — la même liste que pour un jour, sur sept jours.
+
+     **La même addition que les trois autres mailles** (`groupEvents`). Une propriété vérifie, sur
+     des montants tirés au hasard de part et d'autre de deux bords d'année, que chaque semaine est la
+     somme de ses sept jours et que toutes les semaines refont toutes les années. Le parcours de
+     cohérence vérifie, à l'écran, que la somme des semaines refait le réalisé net du tableau de bord.
+     Les dates de semaine viennent de `date.ts`, en entiers purs : `civilFromDays`, l'inverse de
+     `daysSinceEpoch`, sans `Date`.
+
+     **Quatre boutons ne tiennent plus sur une ligne à 320 px.** L'en-tête du calendrier débordait de
+     5 px. Il passe à la ligne comme le sélecteur de période, et un test mobile le garde.
+
+     **Contre-épreuve** (décision n° 75) : chacune de ces fautes fait rougir le test qui la nomme —
+     - dater une semaine de l'année de son jour plutôt que de son jeudi ;
+     - borner toute année à 52 semaines ;
+     - ne regrouper qu'une semaine sur deux (la somme à l'écran s'écarte de 160,62) ;
+     - retirer le passage à la ligne (325 px pour 320) ;
+     - neutraliser la sélection d'une semaine.

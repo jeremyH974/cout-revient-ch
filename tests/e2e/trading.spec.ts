@@ -234,6 +234,25 @@ test('démo : la période restreint les statistiques, le calendrier garde sa mai
   // tombe hors de la dernière semaine. Un filtre inerte rendrait ces deux nombres égaux.
   expect(week).toBeLessThan(all);
 
+  // Maille semaine (décision n° 165) : les semaines ISO de l'année — 53 en 2026 —, et le clic liste
+  // les trades de la semaine plutôt que de descendre dans un mois qui ne la contiendrait pas entière.
+  await grains.getByRole('radio', { name: 'Semaine', exact: true }).click();
+  const weekList = page.getByRole('list', { name: /^Semaines de \d{4}$/ });
+  await expect(weekList.getByRole('listitem')).toHaveCount(53);
+  const firstWeek = weekList.getByRole('button').first();
+  await expect(firstWeek).toHaveAccessibleName(/^Semaine \d+, du .+ — voir les trades$/);
+  await firstWeek.click();
+  await expect(firstWeek).toHaveAttribute('aria-pressed', 'true');
+  const weekTrades = page.getByRole('heading', {
+    level: 3,
+    name: /^Réalisé en semaine \d+, du .+, par trade$/,
+  });
+  await expect(weekTrades).toBeVisible();
+  await expect(page.locator('.day-list').getByRole('link').first()).toBeVisible();
+  // Un second clic referme la liste ; changer de maille aussi.
+  await firstWeek.click();
+  await expect(weekTrades).toHaveCount(0);
+
   // Maille année : une case par année, et le clic redescend sur les mois de l'année choisie.
   await grains.getByRole('radio', { name: 'Année', exact: true }).click();
   const yearList = page.getByRole('list', { name: 'Années' });
