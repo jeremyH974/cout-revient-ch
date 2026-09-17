@@ -4658,13 +4658,24 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      est venue aussitôt — « pour 10, 20 ou 30 BTC, combien faut-il gagner au minimum ? ». Proposé
      d'abord en carte du tableau de bord, il est devenu un **onglet** de l'espace Trading à la demande
      de son utilisateur : un outil qu'on ouvre pour préparer un trade n'a pas à allonger l'écran qu'on
-     ouvre pour lire ses résultats. Le gain brut minimum y vaut les deux taux de frais additionnés,
-     multipliés par `taille × prix` — frais d'entrée et de sortie **au prix saisi**. Le point mort
-     exact paierait des frais de sortie un peu plus élevés, un quart de centime pour 10 000 $ au tarif
-     taker de 0,035 % ; la formule simple, elle, se vérifie de tête. Trois lignes — taker/taker,
-     maker/taker, maker/maker —, parce que le type d'ordre pèse davantage que tout le reste : selon le
-     palier de la grille d'Hyperliquid, un aller-retour taker/taker coûte trois à quatre fois un
-     aller-retour maker/maker.
+     ouvre pour lire ses résultats. Trois lignes — taker/taker, maker/taker, maker/maker —, parce que
+     le type d'ordre pèse davantage que tout le reste : selon le palier de la grille d'Hyperliquid, un
+     aller-retour taker/taker coûte trois à quatre fois un aller-retour maker/maker.
+
+     **Le prix à atteindre, en clair — et donc un point mort exact.** Première version : un
+     pourcentage et un montant, les deux frais appliqués au prix saisi. La demande suivante a été
+     « le prix que le BTC doit atteindre ». Il dépend du **sens** (au-dessus de l'entrée pour un long,
+     en dessous pour un short), d'où un choix Long / Short, pré-réglé sur le dernier trade de l'actif.
+     Et dès qu'un prix s'affiche, l'écart par unité, le pourcentage et la valeur doivent se recouper
+     au centime : le point mort est désormais **exact**, frais de sortie calculés au prix atteint,
+     `X = entrée × (1 ± taux d'entrée) ÷ (1 ∓ taux de sortie)`. L'approximation valait un quart de
+     centime pour 10 000 $ ; elle suffisait pour un montant, pas pour un prix qu'on recopie dans un
+     ordre.
+
+     **Un seuil s'arrondit du côté qui ne ment pas.** Arrondi au plus proche, un prix à atteindre peut
+     tomber d'un demi-centime du mauvais côté du point mort : qui l'atteint perdrait, de peu. Il
+     s'arrondit donc **vers le haut pour un long, vers le bas pour un short** (`roundToward`,
+     `fmtBreakevenPrice`), sur cet onglet comme pour le « point mort » de la fiche d'un trade.
 
      **Les taux viennent de l'historique, pas d'une grille.** La grille d'Hyperliquid dépend du volume
      sur 14 jours et des remises (staking, parrainage) : la recopier, c'était la voir vieillir en

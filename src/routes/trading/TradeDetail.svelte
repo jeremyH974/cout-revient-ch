@@ -16,7 +16,12 @@
     type TradePlan,
   } from '$lib/domain/trading/journal';
   import { fmtDateTime, fmtPct, fmtPrice, fmtQty, fmtSmallPct } from '$lib/format/fr';
-  import { breakevenSentence, rolesSentence, unavailableSentence } from '$lib/format/trade-costs';
+  import {
+    breakevenSentence,
+    fmtBreakevenPrice,
+    rolesSentence,
+    unavailableSentence,
+  } from '$lib/format/trade-costs';
   import { addDays } from '$lib/history';
   import { router } from '$lib/router.svelte';
   import EvolutionChart, {
@@ -292,7 +297,7 @@
           {:else if costs.breakevenPrice}
             <div>
               <dt>Point mort</dt>
-              <dd class="num">{fmtPrice(costs.breakevenPrice, 'USD')}</dd>
+              <dd class="num">{fmtBreakevenPrice(costs.breakevenPrice, t.direction)}</dd>
             </div>
           {/if}
         </dl>

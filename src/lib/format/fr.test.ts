@@ -16,6 +16,7 @@ import {
   fmtEurWhole,
   fmtRate,
   fmtSmallPct,
+  roundToward,
 } from './fr';
 
 /** Espaces insécables d'Intl (U+00A0, U+202F) → espace simple, sans caractère invisible dans la source. */
@@ -205,5 +206,22 @@ describe('fmtEurWhole', () => {
   it('ne remplace pas fmtEur, qui garde les centimes d’un montant à recopier', () => {
     expect(plain(fmtEur('1234.56'))).toBe('1 234,56 €');
     expect(plain(fmtEurWhole('1234.56'))).toBe('1 235 €');
+  });
+});
+
+describe('fmtPrice — arrondi dirigé pour un seuil', () => {
+  it('plafond (up) et plancher (down), au lieu du plus proche', () => {
+    expect(nbsp(fmtPrice('65432.1049', 'USD'))).toBe('65 432,10 $');
+    expect(nbsp(fmtPrice('65432.1049', 'USD', { toward: 'up' }))).toBe('65 432,11 $');
+    expect(nbsp(fmtPrice('65432.1099', 'USD', { toward: 'down' }))).toBe('65 432,10 $');
+    // Déjà exact à la précision affichée : rien ne bouge.
+    expect(nbsp(fmtPrice('100.1', 'USD', { toward: 'up' }))).toBe('100,10 $');
+  });
+
+  it('roundToward reste un plafond ou un plancher pour un nombre négatif', () => {
+    expect(roundToward(D('-1.234'), 2, 'up').toString()).toBe('-1.23');
+    expect(roundToward(D('-1.234'), 2, 'down').toString()).toBe('-1.24');
+    expect(roundToward(D('1.231'), 2, 'up').toString()).toBe('1.24');
+    expect(roundToward(D('1.239'), 2, 'down').toString()).toBe('1.23');
   });
 });

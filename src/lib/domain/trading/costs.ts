@@ -307,30 +307,59 @@ export function observedFeeRates(
   return { taker: median('taker'), maker: median('maker') };
 }
 
-/** Seuil d'un aller-retour hypothétique : ce que l'onglet « Seuil » affiche par taille. */
+/** Point mort d'un aller-retour hypothétique : ce que l'onglet « Seuil » affiche. */
 export interface SizeBreakeven {
   qty: Big;
-  /** Taille × prix. */
+  /** Taille × prix d'entrée. */
   notional: Big;
-  /** Taux d'entrée + taux de sortie : le mouvement minimal en fraction du prix, quelle que soit la taille. */
+  /**
+   * **Le prix que l'actif doit atteindre** : au-dessus de l'entrée pour un long, en dessous pour un
+   * short. Les frais de sortie y sont calculés à ce prix-là, ce qui en fait le point mort exact.
+   */
+  exitPrice: Big;
+  /** Écart entre ce prix et l'entrée, dans le sens du trade, par unité d'actif. */
+  distance: Big;
+  /** Le même écart en fraction du prix d'entrée : il ne dépend pas de la taille. */
   move: Big;
-  /** Frais d'entrée et de sortie : le gain brut en dessous duquel l'aller-retour perd. */
+  /** Gain brut minimum : `distance × taille`, égal aux frais d'entrée et de sortie au point mort. */
   grossMin: Big;
-  /** Le même mouvement par unité d'actif, dans la devise de cotation. */
-  perUnit: Big;
 }
 
 /**
- * Gain brut minimum pour couvrir les frais d'un aller-retour de `qty` au prix `price`, entrée au
- * taux `entryRate` et sortie au taux `exitRate`, **les deux appliqués au prix saisi**.
+ * Point mort d'un aller-retour de `qty` entré au prix `price`, entrée au taux `entryRate` et sortie
+ * au taux `exitRate` **appliqué au prix de sortie**. Il annule
+ * `± (X − entrée) × taille − frais d'entrée − frais de sortie(X)`, d'où, signe du haut pour un long :
  *
- * Le point mort exact sortirait un peu plus loin, et paierait donc des frais de sortie un peu plus
- * élevés : l'écart vaut environ `move × exitRate` du notionnel — un quart de centime pour 10 000 $
- * au tarif taker de 0,035 % —, sans commune mesure avec l'incertitude d'un prix saisi à la main.
- * La formule simple a l'avantage de se vérifier de tête.
+ *     X = entrée × (1 ± taux d'entrée) ÷ (1 ∓ taux de sortie)
+ *
+ * La première version appliquait les deux taux au prix d'entrée : un quart de centime d'écart pour
+ * 10 000 $, négligeable tant que l'écran ne montrait qu'un pourcentage et un montant. Il affiche
+ * désormais le **prix à atteindre**, et l'écart par unité, le pourcentage et la valeur doivent alors
+ * se recouper au centime près : qui multiplie l'un par l'autre doit retomber sur le troisième
+ * (décision n° 158).
+ *
+ * `null` pour des taux absurdes — sortie à 100 % ou plus sur un long, prix de sortie nul ou
+ * négatif : mieux vaut pas de point mort qu'un point mort faux.
  */
-export function sizeBreakeven(price: Big, qty: Big, entryRate: Big, exitRate: Big): SizeBreakeven {
-  const move = entryRate.plus(exitRate);
-  const notional = price.times(qty);
-  return { qty, notional, move, grossMin: notional.times(move), perUnit: price.times(move) };
+export function sizeBreakeven(
+  direction: RoundTrip['direction'],
+  price: Big,
+  qty: Big,
+  entryRate: Big,
+  exitRate: Big,
+): SizeBreakeven | null {
+  const sign = direction === 'long' ? ONE : ONE.neg();
+  const denominator = ONE.minus(sign.times(exitRate));
+  if (!denominator.gt(ZERO) || !price.gt(ZERO)) return null;
+  const exitPrice = price.times(ONE.plus(sign.times(entryRate))).div(denominator);
+  if (!exitPrice.gt(ZERO)) return null;
+  const distance = sign.times(exitPrice.minus(price));
+  return {
+    qty,
+    notional: price.times(qty),
+    exitPrice,
+    distance,
+    move: distance.div(price),
+    grossMin: distance.times(qty),
+  };
 }
