@@ -626,36 +626,64 @@ describe('observedFeeRates — les taux réellement payés', () => {
   });
 });
 
-describe('sizeBreakeven — gain brut minimum d’un aller-retour hypothétique', () => {
-  it('frais d’entrée et de sortie au prix saisi ; le pourcentage ne dépend pas de la taille', () => {
-    const taker = D('0.00035');
-    const ten = sizeBreakeven(D('50000'), D('10'), taker, taker);
-    expect(ten.notional.toString()).toBe('500000');
-    expect(ten.move.toString()).toBe('0.0007');
-    expect(ten.grossMin.toString()).toBe('350');
-    expect(ten.perUnit.toString()).toBe('35');
-    const thirty = sizeBreakeven(D('50000'), D('30'), taker, taker);
-    expect(thirty.grossMin.toString()).toBe('1050');
-    expect(thirty.move.eq(ten.move)).toBe(true);
-    // Maker à l'entrée, taker à la sortie.
-    expect(sizeBreakeven(D('50000'), D('10'), D('0.00008'), taker).grossMin.toString()).toBe('215');
+describe('sizeBreakeven — le prix à atteindre, et ce qu’il rapporte tout juste', () => {
+  const taker = D('0.00035');
+
+  it('long : le prix doit monter à entrée × (1 + taux d’entrée) ÷ (1 − taux de sortie)', () => {
+    const row = sizeBreakeven('long', D('50000'), D('10'), taker, taker)!;
+    expect(row.exitPrice.eq(D('50017.5').div('0.99965'))).toBe(true);
+    expect(row.distance.eq(row.exitPrice.minus('50000'))).toBe(true);
+    expect(row.move.eq(row.distance.div('50000'))).toBe(true);
+    expect(row.grossMin.eq(row.distance.times('10'))).toBe(true);
+    expect(row.notional.toString()).toBe('500000');
+    // Un peu plus de 35 $ par unité : les frais de sortie se paient au prix atteint, plus haut.
+    expect(row.distance.gt('35.01') && row.distance.lt('35.02')).toBe(true);
   });
 
-  it('propriété : la valeur est proportionnelle à la taille, et égale au mouvement par unité × taille', () => {
+  it('short : le prix doit descendre à entrée × (1 − taux d’entrée) ÷ (1 + taux de sortie)', () => {
+    const row = sizeBreakeven('short', D('50000'), D('10'), taker, taker)!;
+    expect(row.exitPrice.eq(D('49982.5').div('1.00035'))).toBe(true);
+    expect(row.distance.eq(D('50000').minus(row.exitPrice))).toBe(true);
+    // Un peu moins de 35 $ : la sortie, plus basse, paie moins de frais.
+    expect(row.distance.gt('34.98') && row.distance.lt('34.99')).toBe(true);
+  });
+
+  it('au point mort, le gain brut paie exactement les frais d’entrée et de sortie', () => {
+    const maker = D('0.00008');
+    for (const direction of ['long', 'short'] as const) {
+      const row = sizeBreakeven(direction, D('50000'), D('30'), maker, taker)!;
+      const fees = maker.times('50000').times('30').plus(taker.times(row.exitPrice).times('30'));
+      expect(row.grossMin.minus(fees).abs().lt('1e-20')).toBe(true);
+    }
+  });
+
+  it('taux absurdes ou prix nul : pas de point mort plutôt qu’un point mort faux', () => {
+    expect(sizeBreakeven('long', D('100'), ONE, taker, ONE)).toBeNull();
+    expect(sizeBreakeven('long', D('100'), ONE, taker, D('1.5'))).toBeNull();
+    expect(sizeBreakeven('short', D('100'), ONE, ONE, taker)).toBeNull();
+    expect(sizeBreakeven('long', ZERO, ONE, taker, taker)).toBeNull();
+  });
+
+  it('propriété : écart × taille = gain brut = frais au point mort, et ni le prix ni le % ne dépendent de la taille', () => {
     fc.assert(
       fc.property(
+        fc.constantFrom('long' as const, 'short' as const),
         fc.integer({ min: 1, max: 10_000_000 }),
         fc.integer({ min: 1, max: 100_000 }),
         fc.integer({ min: -3, max: 100 }),
         fc.integer({ min: -3, max: 100 }),
-        (price, qty, entry, exit) => {
+        (direction, price, qty, entry, exit) => {
           const p = D(String(price)).div('100');
           const q = D(String(qty)).div('1000');
           const a = D(String(entry)).div('100000');
           const b = D(String(exit)).div('100000');
-          const row = sizeBreakeven(p, q, a, b);
-          expect(row.grossMin.eq(row.perUnit.times(q))).toBe(true);
-          expect(row.grossMin.eq(sizeBreakeven(p, ONE, a, b).grossMin.times(q))).toBe(true);
+          const row = sizeBreakeven(direction, p, q, a, b)!;
+          const unit = sizeBreakeven(direction, p, ONE, a, b)!;
+          expect(row.grossMin.eq(row.distance.times(q))).toBe(true);
+          expect(row.exitPrice.eq(unit.exitPrice)).toBe(true);
+          expect(row.move.eq(unit.move)).toBe(true);
+          const fees = a.times(p).times(q).plus(b.times(row.exitPrice).times(q));
+          expect(row.grossMin.minus(fees).abs().lte(p.times(q).times('1e-25'))).toBe(true);
         },
       ),
     );

@@ -4,8 +4,12 @@ import { D } from '../../src/lib/domain/money';
 import { executionLines, tradeCosts } from '../../src/lib/domain/trading/costs';
 import { journaledTrips } from '../../src/lib/domain/trading/journal';
 import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
-import { fmtMoney, fmtPct, fmtPrice, fmtSmallPct } from '../../src/lib/format/fr';
-import { breakevenSentence, rolesSentence } from '../../src/lib/format/trade-costs';
+import { fmtMoney, fmtPct, fmtSmallPct } from '../../src/lib/format/fr';
+import {
+  breakevenSentence,
+  fmtBreakevenPrice,
+  rolesSentence,
+} from '../../src/lib/format/trade-costs';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
 import { syncAccount } from '../../src/lib/import/hyperliquid/sync';
@@ -158,7 +162,9 @@ test('fiche d’un trade : part du brut en frais, seuil de rentabilité et rôle
   // Position ouverte : point mort et hypothèse nommés ; les tranches d'un ordre tiennent en une ligne.
   const o = open!;
   await showTrade(o.index);
-  await expect(kpi('Point mort')).toHaveText(normalize(fmtPrice(o.costs.breakevenPrice, 'USD')));
+  await expect(kpi('Point mort')).toHaveText(
+    normalize(fmtBreakevenPrice(o.costs.breakevenPrice!, o.trip.direction)),
+  );
   await expect(card.getByText(normalize(breakevenSentence(o.trip, o.costs)!))).toBeVisible();
   const sweep = o.lines.findIndex((l) => l.fills > 1);
   await expect(executionsList.getByRole('listitem').nth(sweep)).toContainText(

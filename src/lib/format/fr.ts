@@ -148,12 +148,29 @@ function adaptiveDecimals(abs: Big, max: number): number {
   return Math.min(max, leadingZeros + 4);
 }
 
-/** Prix unitaire dans la devise d'affichage, décimales adaptées (0,000003886 € lisible). */
-export function fmtPrice(value: Big | DecimalString | null, currency: Currency = 'EUR'): string {
+/**
+ * Arrondi **dirigé**, réservé aux seuils : `up` est un plafond, `down` un plancher. Un prix à
+ * atteindre arrondi au plus proche peut tomber d'un demi-centime du mauvais côté du point mort — et
+ * qui atteint le prix affiché perdrait alors, de peu, mais perdrait (décision n° 158).
+ */
+export function roundToward(value: Big, dp: number, toward: 'up' | 'down'): Big {
+  const awayFromZero = (toward === 'up') === value.gte('0');
+  return value.round(dp, awayFromZero ? Big.roundUp : Big.roundDown);
+}
+
+/**
+ * Prix unitaire dans la devise d'affichage, décimales adaptées (0,000003886 € lisible). Arrondi au
+ * plus proche, sauf `toward`, pour un seuil qu'on ne doit jamais présenter du mauvais côté.
+ */
+export function fmtPrice(
+  value: Big | DecimalString | null,
+  currency: Currency = 'EUR',
+  opts: { toward?: 'up' | 'down' } = {},
+): string {
   if (value === null) return '—';
   const big = D(value);
   const dp = adaptiveDecimals(big.abs(), 10);
-  const rounded = roundHalfUp(big, dp);
+  const rounded = opts.toward ? roundToward(big, dp, opts.toward) : roundHalfUp(big, dp);
   const text = money(currency, Math.min(dp, 2), dp).format(toNumber(rounded.abs(), dp));
   return signed(text, rounded, false);
 }

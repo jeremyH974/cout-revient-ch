@@ -58,8 +58,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   d'un retournement au prorata exact de la reconstruction, rôle maker/taker ; `tradeCosts` : part du
   brut en frais, taux moyen, seuil de rentabilité et point mort — tirés du brut du moteur, jamais
   recalculés depuis les prix, pour que le seuil ne puisse pas contredire le net affiché ;
-  `observedFeeRates` et `sizeBreakeven` : médiane des taux réellement payés par rôle, et gain brut
-  minimum d'un aller-retour hypothétique pour l'onglet « Seuil », docs/DECISIONS.md n° 158).
+  `observedFeeRates` et `sizeBreakeven` : médiane des taux réellement payés par rôle, et point mort
+  exact d'un aller-retour hypothétique selon son sens — prix à atteindre, écart, gain brut minimum —
+  pour l'onglet « Seuil », docs/DECISIONS.md n° 158).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
