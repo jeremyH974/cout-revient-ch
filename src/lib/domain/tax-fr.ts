@@ -380,7 +380,11 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
        * La formule de l'annexe 2086, ligne 224 : l. 218 − [l. 223 × (l. 217 / l. 212)].
        *
        * **Le rapport prend le prix AVANT frais, la soustraction le prix APRÈS frais** — deux lignes
-       * différentes du formulaire. Le moteur prenait le net aux deux endroits : il imputait trop
+       * différentes du formulaire, et la doctrine le dit en toutes lettres (BOI-RPPM-PVBMC-30-20,
+       * § 50) : les frais « ne viennent pas en diminution du prix de cession pour la détermination du
+       * quotient », ils se déduisent seulement du premier terme de la différence. La loi, elle, écrit
+       * « prix de cession » aux deux endroits sans trancher. Le moteur prenait le net aux deux
+       * endroits : il imputait trop
        * peu de prix d'acquisition, surestimait chaque plus-value de `PTA × frais ÷ valeur globale`,
        * et laissait un PTA trop élevé qui se propageait à toutes les cessions suivantes. C'est la
        * préparation du banc d'essai public qui l'a fait voir (décision n° 159).

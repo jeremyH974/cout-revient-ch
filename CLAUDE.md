@@ -39,6 +39,14 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   **fragment exact** qu'il remplace. Toujours passer par lui plutôt que par le rapport HTML de
   1,3 Mo : une ligne porte souvent plusieurs mutants, et la lire entière fait prendre un mutant
   équivalent pour un trou béant. Il refuse de se taire quand `src/` a changé depuis le relevé.
+- `npm run exactitude` — **banc d'essai public d'exactitude** (`docs/exactitude.md`, décision
+  n° 160) : chaque cas de `tests/fixtures/exactitude/<version>/cas.json` doit être retrouvé par
+  **trois voix** — le moteur, une implémentation de référence en fractions `BigInt` écrite à part
+  (`tests/exactitude/reference.ts`), et la page publiée. Tourne aussi dans `npm test`.
+  `npm run exactitude:generer -- <version>` écrit les attendus, l'empreinte SHA-256 du manifeste
+  et la section de la page ; **les attendus ne se tapent jamais à la main**. Une version
+  `publiee: true` ne se régénère plus : toute correction ouvre la suivante. Le périmètre est ce
+  que la loi impose à tous — jamais un PRU, un réalisé ou un latent, sensibles à la méthode.
 - `npm run build` / `npm run preview`
 - `npm run prive` / `npm run prive:build` / `npm run prive:serve` — **variante personnelle locale**
   (décision n° 121) : origine dédiée `http://crch.localhost:7331` au lieu de `localhost:5173`, qui

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { D } from './money';
 import {
   EXEMPTION_THRESHOLD,
+  cessionFees,
   computeFrenchTax,
   dac8Summary,
   declarableYears,
@@ -766,6 +767,13 @@ describe('la formule de l’annexe 2086 : le rapport avant frais, la soustractio
     expect(c.feesEur).toBe('30');
     expect(c.acquisitionShareEur).toBe('2500');
     expect(c.gainEur).toBe('470');
+  });
+
+  it('ne prête des frais de cession qu’à un échange qui en porte', () => {
+    // `cessionFees` est exportée : un événement qui n'est pas un échange n'a pas de frais de
+    // cession, et ne doit ni en inventer ni faire échouer l'appel.
+    expect(cessionFees(reward('2026-02-01T10:00:00', 'btc', '100')).toString()).toBe('0');
+    expect(cessionFees(buy('2026-02-01T10:00:00', 'btc', '100')).toString()).toBe('0');
   });
 
   it('ne rend jamais des frais négatifs quand la remise dépasse le frais', () => {

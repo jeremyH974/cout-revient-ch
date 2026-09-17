@@ -1,0 +1,572 @@
+{
+  "banc": "exactitude",
+  "version": "v1",
+  "licence": "MIT",
+  "regime": "Cessions d'actifs numériques par des particuliers — CGI art. 150 VH bis, méthode globale",
+  "lecture": "Chaque montant attendu se refait à la calculatrice : la ligne 224 est écrite en toutes lettres dans le champ « calcul ». Les montants en euros d'un achat sont le prix d'acquisition retenu (ligne 220) ; ceux d'une vente, ce que le cédant a reçu NET des frais (ligne 218) ; la valeur globale du portefeuille (ligne 212) est une donnée d'entrée, comme sur le formulaire.",
+  "sources": [
+    {
+      "id": "cgi-150-vh-bis",
+      "libelle": "CGI art. 150 VH bis, version en vigueur au 01/07/2026",
+      "url": "https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000050366751"
+    },
+    {
+      "id": "bofip-pvbmc-30-20",
+      "libelle": "BOI-RPPM-PVBMC-30-20, § 50 (02/09/2019) : les frais ne diminuent pas le prix de cession du quotient",
+      "url": "https://bofip.impots.gouv.fr/bofip/11968-PGP.html/identifiant=BOI-RPPM-PVBMC-30-20-20190902"
+    },
+    {
+      "id": "formulaire-2086",
+      "libelle": "Annexe 2086 (millésime 2026), ligne 224 : l. 218 − [l. 223 × (l. 217 / l. 212)]",
+      "url": "https://www.impots.gouv.fr/sites/default/files/formulaires/2086/2026/2086_5515.pdf"
+    },
+    {
+      "id": "lfss-2026-art-12",
+      "libelle": "LOI n° 2025-1403 du 30/12/2025 (LFSS 2026), art. 12 : prélèvement forfaitaire unique de 31,4 % sur les cessions à compter de 2025",
+      "url": "https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000053226452"
+    }
+  ],
+  "cas": [
+    {
+      "id": "vh-01",
+      "titre": "Une cession, sans frais",
+      "prouve": "Le cas de base de la méthode globale : la fraction du prix d'acquisition imputée est le prix total d'acquisition multiplié par la part du portefeuille cédée.",
+      "sources": ["cgi-150-vh-bis", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "3000",
+          "frais": "0",
+          "valeurGlobale": "12000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "0",
+            "l217": "3000",
+            "l218": "3000",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "500",
+            "ptaApres": "7500",
+            "calcul": "3000 − 10000 × (3000 ÷ 12000) = 500"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "3000",
+            "exoneree": false,
+            "plusValues": "500",
+            "moinsValues": "0",
+            "net": "500",
+            "taux": "0.314",
+            "impot": "157"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-02",
+      "titre": "Des frais : le quotient avant, la différence après",
+      "prouve": "Le prix de cession du quotient est pris AVANT frais (ligne 217), celui de la différence APRÈS frais (ligne 218). Les confondre surestime la plus-value de prix d'acquisition × frais ÷ valeur globale — ici 25 €.",
+      "sources": ["bofip-pvbmc-30-20", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "2970",
+          "frais": "30",
+          "valeurGlobale": "12000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "30",
+            "l217": "3000",
+            "l218": "2970",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "470",
+            "ptaApres": "7500",
+            "calcul": "2970 − 10000 × (3000 ÷ 12000) = 470"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "2970",
+            "exoneree": false,
+            "plusValues": "470",
+            "moinsValues": "0",
+            "net": "470",
+            "taux": "0.314",
+            "impot": "147.58"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-03",
+      "titre": "Une remise sur les frais",
+      "prouve": "Seuls les frais supportés par le cédant réduisent le prix : 40 € de frais bruts et 10 € de remise sont 30 € de frais. Le résultat doit être celui de vh-02, au centime.",
+      "sources": ["cgi-150-vh-bis", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "2970",
+          "frais": "40",
+          "remise": "10",
+          "valeurGlobale": "12000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "30",
+            "l217": "3000",
+            "l218": "2970",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "470",
+            "ptaApres": "7500",
+            "calcul": "2970 − 10000 × (3000 ÷ 12000) = 470"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "2970",
+            "exoneree": false,
+            "plusValues": "470",
+            "moinsValues": "0",
+            "net": "470",
+            "taux": "0.314",
+            "impot": "147.58"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-04",
+      "titre": "Deux cessions, listées dans le désordre",
+      "prouve": "Le prix d'acquisition se consomme cession après cession : la seconde part de ce que la première a laissé (ligne 221). Les opérations sont données exprès dans l'ordre inverse — l'ordre du calcul est celui des dates, jamais celui du fichier.",
+      "sources": ["cgi-150-vh-bis", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-06-20T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "2000",
+          "frais": "0",
+          "valeurGlobale": "8000"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "3000",
+          "frais": "0",
+          "valeurGlobale": "12000"
+        },
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "0",
+            "l217": "3000",
+            "l218": "3000",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "500",
+            "ptaApres": "7500",
+            "calcul": "3000 − 10000 × (3000 ÷ 12000) = 500"
+          },
+          {
+            "date": "2026-06-20",
+            "l212": "8000",
+            "l213": "2000",
+            "l214": "0",
+            "l217": "2000",
+            "l218": "2000",
+            "l220": "10000",
+            "l221": "2500",
+            "l223": "7500",
+            "fraction": "1875",
+            "l224": "125",
+            "ptaApres": "5625",
+            "calcul": "2000 − 7500 × (2000 ÷ 8000) = 125"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "5000",
+            "exoneree": false,
+            "plusValues": "625",
+            "moinsValues": "0",
+            "net": "625",
+            "taux": "0.314",
+            "impot": "196.25"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-05",
+      "titre": "Céder tout le portefeuille",
+      "prouve": "Quand le prix avant frais égale la valeur globale, la fraction imputée est le prix d'acquisition restant tout entier : il ne reste rien pour la suite.",
+      "sources": ["cgi-150-vh-bis", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-05-02T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "11940",
+          "frais": "60",
+          "valeurGlobale": "12000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-05-02",
+            "l212": "12000",
+            "l213": "12000",
+            "l214": "60",
+            "l217": "12000",
+            "l218": "11940",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "10000",
+            "l224": "1940",
+            "ptaApres": "0",
+            "calcul": "11940 − 10000 × (12000 ÷ 12000) = 1940"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "11940",
+            "exoneree": false,
+            "plusValues": "1940",
+            "moinsValues": "0",
+            "net": "1940",
+            "taux": "0.314",
+            "impot": "609.16"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-06",
+      "titre": "Des échanges entre actifs numériques, stablecoin compris",
+      "prouve": "Un échange sans soulte entre actifs numériques est en sursis d'imposition, y compris contre un stablecoin : il ne crée aucune cession et ne touche pas au prix d'acquisition. Le résultat doit être celui de vh-01.",
+      "sources": ["cgi-150-vh-bis"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-02-01T10:00:00",
+          "nature": "echange",
+          "cede": "btc",
+          "recu": "usdc"
+        },
+        {
+          "date": "2026-02-15T10:00:00",
+          "nature": "echange",
+          "cede": "usdc",
+          "recu": "eth"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "eth",
+          "euros": "3000",
+          "frais": "0",
+          "valeurGlobale": "12000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "0",
+            "l217": "3000",
+            "l218": "3000",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "500",
+            "ptaApres": "7500",
+            "calcul": "3000 − 10000 × (3000 ÷ 12000) = 500"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "3000",
+            "exoneree": false,
+            "plusValues": "500",
+            "moinsValues": "0",
+            "net": "500",
+            "taux": "0.314",
+            "impot": "157"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-07",
+      "titre": "Le seuil de 305 €, pris au mot",
+      "prouve": "La loi exonère les cessions dont la somme « n'excède pas 305 € » : 305 € tout rond est exonéré malgré une plus-value, 305,01 € ne l'est plus. La notice du formulaire écrit « inférieur à 305 € » ; c'est le texte de loi qui tranche le cas limite.",
+      "sources": ["cgi-150-vh-bis", "lfss-2026-art-12"],
+      "taux": {
+        "2024": "0.30",
+        "2025": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2024-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "100"
+        },
+        {
+          "date": "2024-06-01T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "305",
+          "frais": "0",
+          "valeurGlobale": "610"
+        },
+        {
+          "date": "2025-06-01T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "305.01",
+          "frais": "0",
+          "valeurGlobale": "610.02"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2024-06-01",
+            "l212": "610",
+            "l213": "305",
+            "l214": "0",
+            "l217": "305",
+            "l218": "305",
+            "l220": "100",
+            "l221": "0",
+            "l223": "100",
+            "fraction": "50",
+            "l224": "255",
+            "ptaApres": "50",
+            "calcul": "305 − 100 × (305 ÷ 610) = 255"
+          },
+          {
+            "date": "2025-06-01",
+            "l212": "610.02",
+            "l213": "305.01",
+            "l214": "0",
+            "l217": "305.01",
+            "l218": "305.01",
+            "l220": "100",
+            "l221": "50",
+            "l223": "50",
+            "fraction": "25",
+            "l224": "280.01",
+            "ptaApres": "25",
+            "calcul": "305.01 − 50 × (305.01 ÷ 610.02) = 280.01"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2024,
+            "l51": "305",
+            "exoneree": true,
+            "plusValues": "255",
+            "moinsValues": "0",
+            "net": "255",
+            "taux": "0.30",
+            "impot": "0"
+          },
+          {
+            "annee": 2025,
+            "l51": "305.01",
+            "exoneree": false,
+            "plusValues": "280.01",
+            "moinsValues": "0",
+            "net": "280.01",
+            "taux": "0.314",
+            "impot": "87.92314"
+          }
+        ]
+      }
+    },
+    {
+      "id": "vh-08",
+      "titre": "Une moins-value dans la même année",
+      "prouve": "Plus-values et moins-values de l'année se compensent ; un solde négatif n'est pas imposé.",
+      "sources": ["cgi-150-vh-bis", "formulaire-2086"],
+      "taux": {
+        "2026": "0.314"
+      },
+      "operations": [
+        {
+          "date": "2026-01-10T10:00:00",
+          "nature": "achat",
+          "actif": "btc",
+          "euros": "10000"
+        },
+        {
+          "date": "2026-03-15T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "3000",
+          "frais": "0",
+          "valeurGlobale": "12000"
+        },
+        {
+          "date": "2026-09-01T10:00:00",
+          "nature": "vente",
+          "actif": "btc",
+          "euros": "1000",
+          "frais": "0",
+          "valeurGlobale": "3000"
+        }
+      ],
+      "attendu": {
+        "cessions": [
+          {
+            "date": "2026-03-15",
+            "l212": "12000",
+            "l213": "3000",
+            "l214": "0",
+            "l217": "3000",
+            "l218": "3000",
+            "l220": "10000",
+            "l221": "0",
+            "l223": "10000",
+            "fraction": "2500",
+            "l224": "500",
+            "ptaApres": "7500",
+            "calcul": "3000 − 10000 × (3000 ÷ 12000) = 500"
+          },
+          {
+            "date": "2026-09-01",
+            "l212": "3000",
+            "l213": "1000",
+            "l214": "0",
+            "l217": "1000",
+            "l218": "1000",
+            "l220": "10000",
+            "l221": "2500",
+            "l223": "7500",
+            "fraction": "2500",
+            "l224": "-1500",
+            "ptaApres": "5000",
+            "calcul": "1000 − 7500 × (1000 ÷ 3000) = -1500"
+          }
+        ],
+        "annees": [
+          {
+            "annee": 2026,
+            "l51": "4000",
+            "exoneree": false,
+            "plusValues": "500",
+            "moinsValues": "1500",
+            "net": "-1000",
+            "taux": "0.314",
+            "impot": "0"
+          }
+        ]
+      }
+    }
+  ]
+}
