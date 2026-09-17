@@ -377,7 +377,9 @@ export function computeFrenchTax(input: TaxInput): TaxLedger {
     let gain: Big | null = null;
     if (globalValue !== null && globalValue.gt(ZERO)) {
       /*
-       * La formule de l'annexe 2086, ligne 224 : l. 218 − [l. 223 × (l. 217 / l. 212)].
+       * La formule de l'annexe 2086 pour une cession : l. 218 − [l. 223 × (l. 217 / l. 212)]. Elle
+       * occupe une ligne sans numéro ; la ligne 224 juste en dessous en fait la somme pour le
+       * déclarant (décision n° 161).
        *
        * **Le rapport prend le prix AVANT frais, la soustraction le prix APRÈS frais** — deux lignes
        * différentes du formulaire, et la doctrine le dit en toutes lettres (BOI-RPPM-PVBMC-30-20,

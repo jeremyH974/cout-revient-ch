@@ -4817,3 +4817,66 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      main fait rougir l'empreinte, la redérivation et le moteur ; un chiffre retouché dans la page
      fait rougir la concordance de la page ; et le générateur, sur une version publiée, s'arrête sans
      rien écrire.
+
+161. **Le lecteur 2086 numérotait sans le formulaire, et aucun de ses sept millésimes ne lui donne raison** (17/09/2026).
+
+     **Le constat.** Le second avis lisait une colonne « 216 » comme le prix total d'acquisition,
+     « 217 » comme les fractions de capital initial, « 218 » comme une soulte et « 220 » comme la
+     plus-value. Sur le formulaire, 216 est la soulte, 217 le prix net des soultes, 218 le prix net
+     des frais et des soultes, 220 le prix total d'acquisition. Un fichier aux colonnes numérotées
+     voyait donc son prix d'acquisition comparé à notre plus-value, et une soulte — le plus souvent
+     nulle — à notre prix d'acquisition : de faux écarts « à examiner », sur la seule grandeur où le
+     second avis promet qu'un écart est réel (décision n° 67). La documentation de conception
+     l'avait écrit sans en tirer la conséquence : « la relecture du cerfa 2086 officiel n'a pas pu
+     être automatisée ».
+
+     **Pas un ancien millésime : une erreur.** La décision n° 159 supposait un agencement antérieur
+     du formulaire, et prévoyait de reconnaître le millésime d'un fichier à ses en-têtes. Les sept
+     millésimes ont été relus — cerfa n° 16043*01 à *07, revenus 2019 à 2025 ; les quatre plus
+     anciens ne sont plus servis par impots.gouv.fr et ont été relus dans les archives du Web. Tous
+     numérotent à l'identique, aucun n'a de ligne 219, aucun n'a jamais mis le prix d'acquisition
+     en 216. Le détecteur de millésime n'a donc pas été écrit :
+     il aurait reconnu une mise en page qui n'a jamais existé.
+
+     **Renuméroter ne suffisait pas : il fallait comparer les bonnes lignes.** Notre `ptaBefore` est
+     le prix d'acquisition **net** des fractions déjà imputées, c'est-à-dire la ligne 223 ; la 220
+     est le **brut**, égal au net jusqu'à la première cession seulement. Notre `proceedsEur` est le
+     prix net des frais et des soultes, la 218. Renuméroter en gardant « prix d'acquisition = 220 »
+     aurait déplacé le faux écart de la première cession à la deuxième — et il frappait déjà les
+     fichiers **en libellés**, où « Prix total d'acquisition » désigne aussi le brut. Une ligne brute
+     (213, 220) n'est plus lue qu'**à défaut**, et seulement dans un fichier qui ne porte aucune
+     colonne qui la distingue du net : une colonne « frais » ou « fractions de capital initial » dit
+     que le prix d'à côté est brut. Le repli reste nécessaire pour notre propre export, qui écrit des
+     montants nets sous « Prix de cession » et « Prix total d'acquisition ». C'est l'en-tête qui en
+     décide, pas une cellule vide sur une ligne.
+
+     **Ce que la relecture a précisé au passage : la ligne 224 n'est pas la plus-value d'une
+     cession.** Sur le formulaire, la formule `l. 218 − [l. 223 × (l. 217 / l. 212)]` occupe une
+     ligne **sans numéro** ; la 224, une rangée plus bas, est la « plus-value ou moins-value globale
+     du déclarant 1 », la somme de ses cessions, et la ligne 52 additionne 224, 264 et 324. La
+     position du texte dans le PDF le montre, et une proposition du 25/08/2026 l'écrivait déjà. Les
+     décisions n° 159 et 160, le moteur et le banc d'essai public appelaient « ligne 224 » la
+     plus-value de chaque cession. **Aucun montant n'en dépend.** Les textes sont corrigés ; la page du
+     banc porte une **précision datée** plutôt qu'une v1 réécrite, parce que sa règle est qu'une
+     version publiée ne change pas — la colonne `l224` de `cas.json` garde son nom jusqu'à la
+     version suivante. Dans un fichier à une ligne par cession, une colonne « 224 » ne peut porter
+     que la plus-value de la ligne : c'est ainsi que le lecteur la lit.
+
+     **Pourquoi les tests n'avaient rien vu, deux fois.** Les fixtures numérotées suivaient la même
+     table erronée, et leur plus-value était calculée avec le prix net dans le rapport — l'ancienne
+     formule du moteur. Quand la décision n° 159 a corrigé le moteur, ce test d'intégration est resté
+     vert : ses « chiffres du moteur » étaient écrits par une fonction du test qui recopiait
+     l'ancienne formule. Deux gardes s'ajoutent. Les chiffres du test sont **rendus au moteur**
+     (`computeFrenchTax` doit les retrouver un par un), et chaque ligne de la fixture concordante doit
+     **se recalculer par l'arithmétique du formulaire**, de la ligne 215 à la plus-value.
+
+     **Contre-épreuves** (décision n° 75), une par garde. Remettre l'ancienne numérotation fait rougir
+     douze tests, dont « numérote comme le formulaire : 216 est une soulte, 220 le prix
+     d'acquisition, 223 son net ». Un repli brut sans condition fait rougir le seul test du repli, en
+     nommant ce qu'il a lu de trop : « tax-proceeds=3000 » dans un fichier qui a une colonne de frais.
+     Préférer la 220 à la 223 fait naître un écart sur la deuxième cession. Et l'accident réel, rejoué
+     — l'ancienne formule écrite **à la fois** dans la fixture et dans le test —, laisse vertes les
+     deux épreuves de concordance, exactement comme il l'avait fait, tandis que les deux nouvelles
+     gardes rougissent en nommant la cause : « demo-1, acquisitionShareEur : moteur 2000, test
+     1993.33… » et « plus-value = l. 218 − [l. 223 × (l. 217 / l. 212)] = 990.00, le fichier dit
+     996.67 ».

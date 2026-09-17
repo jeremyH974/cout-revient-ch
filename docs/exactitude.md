@@ -21,8 +21,8 @@ cas et d'inviter la contradiction.
 
 Préparer ce banc a obligé à relire le formulaire 2086 et la doctrine plutôt que la description que
 le dépôt en donnait — et **le moteur s'est révélé faux** sur un point. Le formulaire calcule la
-plus-value en ligne 224 par `l. 218 − [l. 223 × (l. 217 / l. 212)]` : le quotient prend le prix de
-cession **avant** frais (ligne 217), la différence le prix **après** frais (ligne 218). Le BOFiP le
+plus-value de chaque cession par `l. 218 − [l. 223 × (l. 217 / l. 212)]` : le quotient prend le prix
+de cession **avant** frais (ligne 217), la différence le prix **après** frais (ligne 218). Le BOFiP le
 dit en toutes lettres (BOI-RPPM-PVBMC-30-20, § 50) : les frais « ne viennent pas en diminution du
 prix de cession pour la détermination du quotient ». Le moteur prenait le prix net aux deux
 endroits, et surestimait chaque plus-value de `prix d'acquisition × frais ÷ valeur globale`.
@@ -34,9 +34,9 @@ plus : il vérifie le code qui existe, pas un terme que ce code n'a jamais eu.
 ## Ce que la version 1 couvre, et ce qu'elle ne couvre pas
 
 **Couvert** : la méthode globale de l'article 150 VH bis du CGI, sur les seules grandeurs que la loi
-impose à tout le monde de la même façon — pour chaque cession, les lignes 212 à 224 de l'annexe
-2086 ; pour chaque année, le total de la ligne 51, l'exonération sous 305 €, le résultat net et
-l'impôt au taux de l'année.
+impose à tout le monde de la même façon — pour chaque cession, les lignes 212 à 223 de l'annexe
+2086 et la plus-value que le formulaire en tire ; pour chaque année, le total de la ligne 51,
+l'exonération sous 305 €, le résultat net et l'impôt au taux de l'année.
 
 **Délibérément non couvert** :
 
@@ -73,9 +73,10 @@ Le banc tourne à chaque commit, en intégration continue : **tout commit de `ma
 ## Le comparer à un autre outil
 
 Saisissez dans votre outil les quelques opérations d'un cas, indiquez-lui la valeur globale du
-portefeuille, et lisez les lignes 217, 218, 223 et 224. Les montants de ce document sont écrits
-exactement comme dans `cas.json`, pour se comparer par simple copier-coller. À opérations et valeur
-globale identiques, un écart en ligne 224 est un écart de **formule**.
+portefeuille, et lisez les lignes 217, 218 et 223, puis la plus-value de chaque cession. Les montants
+de ce document sont écrits exactement comme dans `cas.json`, pour se comparer par simple
+copier-coller. À opérations et valeur globale identiques, un écart sur la plus-value d'une cession
+est un écart de **formule**.
 
 **Aucun résultat d'un autre outil n'est publié ici**, et aucun ne le sera. La comparaison appartient
 à celui qui la fait.
@@ -83,7 +84,7 @@ globale identiques, un écart en ligne 224 est un écart de **formule**.
 ## Ses limites, dites en face
 
 - **Il est indépendant du moteur par son code, pas par son auteur.** La même personne a écrit le
-  moteur et l'implémentation de référence. Ce qui compense en partie : chaque ligne 224 est écrite
+  moteur et l'implémentation de référence. Ce qui compense en partie : chaque plus-value est écrite
   en toutes lettres, et se refait à la main.
 - **Aucune relecture par un tiers n'a encore eu lieu.** C'est la pièce qui manque : tous les bancs
   d'essai qui ont gardé leur autorité ont été vérifiés par quelqu'un qui n'avait aucun intérêt au
@@ -107,12 +108,27 @@ cours n'est pas réécrite** : une version suivante le corrige, et cette page di
 Une version publiée ne change jamais : son empreinte est dans `manifest.json`, et le générateur
 refuse de la réécrire. Une version retirée reste listée ici, avec la raison de son retrait.
 
+### Précisions apportées après publication
+
+Une précision ne touche ni un montant ni l'empreinte : elle corrige la façon dont cette page nomme ce
+qu'elle publie. Un montant faux, lui, ouvrirait une version suivante.
+
+- **17/09/2026 — la colonne « l. 224 » de la v1.** Sur le formulaire, la plus-value de chaque
+  cession est la ligne de formule `l. 218 − [l. 223 × (l. 217 / l. 212)]`, qui **n'a pas de
+  numéro**. La ligne 224, juste en dessous, est la « plus-value ou moins-value globale du déclarant
+  1 » : la somme de ses cessions, c'est-à-dire, pour un déclarant seul, la colonne « Net » du
+  tableau annuel. Les tableaux de la v1 appellent pourtant « l. 224 » la plus-value de chaque
+  cession, comme le champ `l224` de `cas.json`. Aucun montant n'est en cause, seulement le nom : les
+  tableaux et l'empreinte restent tels que publiés, et une version suivante renommera la colonne.
+  Relevé en relisant les sept millésimes du formulaire, des revenus 2019 à 2025 (décision n° 161).
+
 ## Les cas de la version 1
 
 Colonnes : **212** valeur globale du portefeuille · **213** prix de cession · **214** frais ·
 **217** prix net des soultes, avant frais · **218** prix net des frais et des soultes · **220** prix
 total d'acquisition · **221** fractions de capital déjà imputées · **223** prix total d'acquisition
-net · **224** plus ou moins-value. Le taux est le prélèvement forfaitaire unique de l'année
+net · **224** plus ou moins-value de la cession (voir la précision du 17/09/2026). Le taux est le
+prélèvement forfaitaire unique de l'année
 (impôt sur le revenu et prélèvements sociaux).
 
 <!-- exactitude:v1:debut — section générée par npm run exactitude:generer, ne pas éditer -->

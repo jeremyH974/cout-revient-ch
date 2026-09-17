@@ -25,7 +25,12 @@ import type {
 import type { NaiveDateTime } from '../../domain/types';
 import { isDecimalString } from '../../domain/money';
 import type { CsvTable } from '../csv';
-import { canonHeader, parseCostBasisMethod, type SecondOpinionDetection } from './detect';
+import {
+  canonHeader,
+  parseCostBasisMethod,
+  type SecondOpinionDetection,
+  type SecondOpinionField,
+} from './detect';
 
 /** Devises acceptées telles quelles : l'annexe 2086 est libellée en euros par la loi. */
 const EUR_TOKENS = new Set(['', 'eur', 'euro', 'euros', 'e']);
@@ -121,18 +126,41 @@ function verbatimOf(row: readonly string[]): string {
   return joined.length > VERBATIM_MAX ? `${joined.slice(0, VERBATIM_MAX - 1)}…` : joined;
 }
 
+type AmountField = Exclude<SecondOpinionField, 'cessionDate' | 'method'>;
+
 /**
- * Grandeurs qu'une ligne d'annexe 2086 porte, et la case dont chacune se lit. `tax-proceeds`
- * préfère la case 215 (prix de cession NET des frais) à la 213 : c'est elle que le calcul de la
- * plus-value retient, et c'est elle que `TaxCession.proceedsEur` produit de notre côté.
+ * Grandeurs qu'une ligne d'annexe 2086 porte, et les lignes du formulaire dont chacune se lit, par
+ * ordre de préférence. Chaque grandeur doit désigner **le même montant des deux côtés** :
+ *
+ * - `tax-proceeds` — notre `TaxCession.proceedsEur` est le prix **net des frais et des soultes**,
+ *   la ligne 218. Sans soulte, la 215 vaut la 218.
+ * - `tax-acquisition` — notre `ptaBefore` est le prix total d'acquisition **net** des fractions déjà
+ *   imputées, la ligne 223. La 220 est le prix **brut** : elle ne vaut la 223 que tant que rien n'a
+ *   été imputé, c'est-à-dire jusqu'à la première cession.
+ *
+ * Une ligne brute (213, 220) n'est lue qu'**à défaut**, et seulement dans un fichier qui ne porte
+ * aucune des lignes qui la distinguent du net. Un fichier qui a une colonne « frais » ou « fractions
+ * de capital initial » dit par là que son prix de cession ou son prix d'acquisition est brut : le
+ * comparer à notre net fabriquerait un écart. Le repli sert les fichiers qui ne font pas cette
+ * distinction — dont notre propre export, qui écrit un prix net sous « Prix de cession » et un
+ * prix d'acquisition net sous « Prix total d'acquisition ».
  */
 const TAX_2086_FIELDS: readonly {
   metric: ComparableMetric;
-  fields: readonly ('globalValue' | 'proceeds' | 'netProceeds' | 'acquisition' | 'gain')[];
+  fields: readonly AmountField[];
+  gross?: { field: AmountField; distinguishedBy: readonly AmountField[] };
 }[] = [
   { metric: 'tax-global-value', fields: ['globalValue'] },
-  { metric: 'tax-proceeds', fields: ['netProceeds', 'proceeds'] },
-  { metric: 'tax-acquisition', fields: ['acquisition'] },
+  {
+    metric: 'tax-proceeds',
+    fields: ['netProceedsAfterSoultes', 'netProceeds'],
+    gross: { field: 'proceeds', distinguishedBy: ['fees', 'soulte', 'proceedsNetOfSoultes'] },
+  },
+  {
+    metric: 'tax-acquisition',
+    fields: ['netAcquisition'],
+    gross: { field: 'acquisition', distinguishedBy: ['capitalFraction', 'priorSoultes'] },
+  },
   { metric: 'tax-gain', fields: ['gain'] },
 ];
 
@@ -158,6 +186,17 @@ export function readSecondOpinionClaims(
   const currencyIndex = table.header.findIndex((h) =>
     ['devise', 'currency', 'monnaie'].includes(canonHeader(h)),
   );
+
+  // Décidé une fois pour tout le fichier : c'est son EN-TÊTE qui dit s'il distingue le brut du net,
+  // pas une cellule vide sur une ligne.
+  const readable = TAX_2086_FIELDS.map(({ metric, fields, gross }) => ({
+    metric,
+    fields:
+      gross !== undefined &&
+      [...fields, ...gross.distinguishedBy].every((f) => columns[f] === undefined)
+        ? [...fields, gross.field]
+        : fields,
+  }));
 
   const claims: SecondOpinionClaim[] = [];
   const unreadableDates: number[] = [];
@@ -189,7 +228,7 @@ export function readSecondOpinionClaims(
       ? null
       : 'currency-not-eur';
 
-    for (const { metric, fields } of TAX_2086_FIELDS) {
+    for (const { metric, fields } of readable) {
       const source = fields.find((f) => columns[f] !== undefined && cell(row, f).trim() !== '');
       if (source === undefined) continue; // case absente : réclamation absente, jamais un zéro.
       const raw = cell(row, source);

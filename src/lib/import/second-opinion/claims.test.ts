@@ -68,25 +68,61 @@ describe('parseClaimDate', () => {
   });
 });
 
+/** Les réclamations d'une date, grandeur par grandeur. */
+const claimsOn = (read: ReturnType<typeof readFixture>, at: string) =>
+  Object.fromEntries(read.claims.filter((c) => c.at === at).map((c) => [c.metric, c.value]));
+
 describe('lecture d’une annexe 2086', () => {
   it('produit quatre réclamations par cession, datées', () => {
     const read = readFixture('2086-concordant.csv');
     expect(read.claims).toHaveLength(8);
     expect(read.declaredMethod).toBe('fr-global');
     expect(read.period).toEqual({ from: '2026-03-15T00:00:00', to: '2026-07-20T00:00:00' });
-    const first = read.claims.filter((c) => c.at === '2026-03-15T00:00:00');
-    expect(Object.fromEntries(first.map((c) => [c.metric, c.value]))).toEqual({
+    expect(claimsOn(read, '2026-03-15T00:00:00')).toEqual({
       'tax-global-value': '12000.00',
       'tax-proceeds': '2990.00',
       'tax-acquisition': '8000.00',
-      'tax-gain': '996.67',
+      'tax-gain': '990.00',
     });
   });
 
-  it('retient le prix de cession NET des frais (case 215), pas le brut (case 213)', () => {
+  it('compare les lignes qui désignent nos montants : le prix net (218) et le prix d’acquisition net (223)', () => {
+    // Deuxième cession : 2 000 € de prix d'acquisition ont déjà été imputés. Le brut (l. 220) reste
+    // à 8 000 € ; le net (l. 223), qui est notre `ptaBefore`, est à 6 000 €.
     const read = readFixture('2086-concordant.csv');
-    const proceeds = read.claims.find((c) => c.metric === 'tax-proceeds');
-    expect(proceeds?.value).toBe('2990.00');
+    expect(claimsOn(read, '2026-07-20T00:00:00')).toEqual({
+      'tax-global-value': '9500.00',
+      'tax-proceeds': '1495.00',
+      'tax-acquisition': '6000.00',
+      'tax-gain': '547.63',
+    });
+  });
+
+  it('les libellés du formulaire se lisent comme ses numéros', () => {
+    expect(claimsOn(readFixture('2086-libelles.csv'), '2026-03-15T00:00:00')).toEqual(
+      claimsOn(readFixture('2086-concordant.csv'), '2026-03-15T00:00:00'),
+    );
+  });
+
+  it('une ligne brute ne sert qu’à défaut, dans un fichier qui ne distingue pas le brut du net', () => {
+    const metrics = (csv: string) => {
+      const table = parseCsvText(csv);
+      return readSecondOpinionClaims(table, detectSecondOpinion(table.header)).claims.map(
+        (c) => `${c.metric}=${c.value}`,
+      );
+    };
+    // Sans colonne de frais ni de fractions imputées, le prix et le prix d'acquisition se lisent tels
+    // quels : c'est la forme de notre propre export.
+    expect(metrics('211,213,220\n15/03/2026,2990,8000\n')).toEqual([
+      'tax-proceeds=2990',
+      'tax-acquisition=8000',
+    ]);
+    // Une colonne de frais dit que le 213 est brut ; une colonne de fractions, que le 220 l'est.
+    // Aucun des deux n'est alors comparé à notre net.
+    expect(metrics('211,213,214\n15/03/2026,3000,10\n')).toEqual([]);
+    expect(metrics('211,220,221,224\n20/07/2026,8000,2000,547.63\n')).toEqual(['tax-gain=547.63']);
+    // Et une cellule nette vide ne rouvre pas le repli : c'est l'en-tête qui décide, pas la ligne.
+    expect(metrics('211,213,215\n15/03/2026,3000,\n')).toEqual([]);
   });
 
   it('conserve le verbatim de la ligne comme preuve', () => {
@@ -95,7 +131,7 @@ describe('lecture d’une annexe 2086', () => {
     expect(read.claims[0]!.line).toBe(2);
   });
 
-  it('lit aussi le fichier en libellés français, séparateur point-virgule', () => {
+  it('lit aussi le fichier en libellés du formulaire, séparateur point-virgule', () => {
     const read = readFixture('2086-libelles.csv');
     expect(read.claims).toHaveLength(4);
     expect(read.claims.every((c) => c.at === '2026-03-15T00:00:00')).toBe(true);

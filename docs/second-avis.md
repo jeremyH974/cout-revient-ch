@@ -25,11 +25,11 @@ grandeurs**, dans le code, vérifiée par des tests.
 
 ## La partition (`METRIC_CLASS`)
 
-| Classe             | Grandeurs                                                                                    | Un écart « à examiner » peut-il y naître ?    |
-| ------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------------- |
-| `invariant`        | `qty-held`, `proceeds-total`, `acquisitions-total`, `operation-count`                        | **Oui** — elles ne dépendent d'aucune méthode |
-| `method-sensitive` | `pru`, `cost-basis`, `realized`, `unrealized`                                                | **Non** dès que la méthode déclarée diffère   |
-| `statutory`        | `tax-global-value`, `tax-proceeds`, `tax-acquisition`, `tax-gain` (cases 212, 215, 216, 220) | **Oui** — la loi impose la méthode aux deux   |
+| Classe             | Grandeurs                                                                                                               | Un écart « à examiner » peut-il y naître ?    |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `invariant`        | `qty-held`, `proceeds-total`, `acquisitions-total`, `operation-count`                                                   | **Oui** — elles ne dépendent d'aucune méthode |
+| `method-sensitive` | `pru`, `cost-basis`, `realized`, `unrealized`                                                                           | **Non** dès que la méthode déclarée diffère   |
+| `statutory`        | `tax-global-value`, `tax-proceeds`, `tax-acquisition`, `tax-gain` (lignes 212, 218, 223 et la plus-value de la cession) | **Oui** — la loi impose la méthode aux deux   |
 
 Sur une grandeur `method-sensitive` dont la méthode d'en face n'est pas la nôtre, l'écart est classé
 `method` **par construction** : les deux nombres sont énoncés côte à côte, mais
@@ -109,17 +109,60 @@ absentes, **jamais une méthode**. L'écran l'écrit dans ces termes.
 
 ## Détection : tolérante, et qui renonce honnêtement
 
-Les en-têtes acceptés viennent de **sources secondaires** — Koinly et CoinTracker refusent la
-récupération automatisée de leur documentation (vérifié le 29/08/2026), et la relecture du cerfa
-2086 officiel n'a pas pu être automatisée non plus. La détection est donc :
+Les en-têtes des outils tiers viennent de **sources secondaires** — Koinly et CoinTracker refusent
+la récupération automatisée de leur documentation (vérifié le 29/08/2026). Ceux de l'annexe 2086,
+eux, sont relus **sur le formulaire** depuis le 17/09/2026 (voir plus bas). La détection est donc :
 
 - **tolérante** : casse, accents, apostrophes typographiques, espaces insécables et espaces
-  multiples sont normalisés ; les **numéros de case** (`211`, `212`, `215`, `216`, `220`) sont
-  acceptés au même titre que les libellés français, avec plusieurs orthographes chacun ;
+  multiples sont normalisés ; les **numéros de ligne** du formulaire (`211` à `218`, `220` à `224`)
+  sont acceptés au même titre que ses libellés, avec plusieurs orthographes chacun ;
 - **minimale** : une date de cession et au moins un prix de cession ou une plus-value suffisent —
   une case absente devient une réclamation absente, jamais un zéro ;
 - **honnête en échec** : `unrecognised` **nomme les colonnes cherchées**. Un analyseur qui devine
   est pire qu'un analyseur qui renonce.
+
+### Les lignes de l'annexe 2086, et celles qui sont comparées
+
+**Relues sur les sept millésimes du formulaire** (cerfa n° 16043*01 à *07, revenus 2019 à 2025,
+décision n° 161), qui numérotent tous de la même façon. La première version de la détection, écrite
+sans ce texte, lisait 216 comme le prix d'acquisition et 220 comme la plus-value : aucun millésime
+ne l'a jamais fait.
+
+| Ligne | Libellé du formulaire                                               | Comparée à                           |
+| ----: | ------------------------------------------------------------------- | ------------------------------------ |
+|   211 | Date de la cession                                                  | rapprochement au jour                |
+|   212 | Valeur globale du portefeuille                                      | `globalValueEur`                     |
+|   213 | Prix de cession                                                     | à défaut seulement (voir ci-dessous) |
+|   214 | Frais de cession                                                    | —                                    |
+|   215 | Prix de cession net des frais                                       | `proceedsEur`, à défaut de la 218    |
+|   216 | Soulte reçue ou versée lors de la cession                           | —                                    |
+|   217 | Prix de cession net des soultes                                     | —                                    |
+|   218 | Prix de cession net des frais et soultes                            | `proceedsEur`                        |
+|   220 | Prix total d'acquisition                                            | à défaut seulement (voir ci-dessous) |
+|   221 | Fractions de capital initial                                        | —                                    |
+|   222 | Soultes reçues en cas d'échanges antérieurs                         | —                                    |
+|   223 | Prix total d'acquisition net                                        | `ptaBefore`                          |
+|     — | Plus-values et moins-values : l. 218 − [l. 223 × (l. 217 / l. 212)] | `gainEur`                            |
+|   224 | Plus-value ou moins-value globale du déclarant 1                    | lue comme la plus-value de la ligne  |
+
+Trois règles en sortent :
+
+- **Chaque grandeur désigne le même montant des deux côtés.** Notre prix d'acquisition est **net**
+  des fractions déjà imputées : c'est la 223, pas la 220, qui ne lui est égale que jusqu'à la
+  première cession. Renuméroter en continuant de comparer la 220 aurait seulement déplacé le faux
+  écart de la première cession à la deuxième.
+- **Une ligne brute (213, 220) ne se lit qu'à défaut**, dans un fichier qui ne porte aucune colonne
+  qui la distingue du net. Une colonne « frais » ou « fractions de capital initial » dit que le prix
+  à côté est brut : il n'est alors jamais comparé à notre net. Le repli sert les fichiers qui ne
+  font pas la distinction, dont notre propre export, qui écrit des montants nets sous « Prix de
+  cession » et « Prix total d'acquisition ».
+- **La plus-value d'une cession n'a pas de numéro.** Sur le formulaire, elle occupe la ligne de
+  formule ; la 224, juste en dessous, est leur somme pour le déclarant, et la ligne 52 additionne
+  224, 264 et 324. Dans un fichier à une ligne par cession, une colonne « 224 » ne peut porter que
+  la plus-value de la ligne, et c'est ainsi qu'elle est lue. Les blocs du déclarant 2 (251 à 264)
+  et de la personne à charge (311 à 324) ne sont pas reconnus.
+
+### Les montants
 
 Les montants sont lus à la française comme à l'anglaise (`1 234,56`, `1.234,56`, `1,234.56`), avec
 une règle décidable : quand les deux séparateurs sont présents, **le dernier est le décimal**. Une
@@ -192,8 +235,9 @@ annoncée** avant vérification sur un vrai export :
 2. **Le séparateur, l'encodage et le format des nombres réellement produits** (virgule décimale,
    espace insécable étroit, symbole €). `parseAmount` couvre les cas usuels ; un cas non couvert
    devient `value-unreadable`, visible à l'écran.
-3. **Ce que la case 215 contient vraiment** dans l'export (prix de cession net des frais) et si elle
-   correspond bien à `TaxCession.proceedsEur` — c'est-à-dire au produit **net** perçu.
+3. **Ce que les colonnes 215, 218 et 223 contiennent vraiment** dans un export réel, et si un outil
+   numérote « 224 » la plus-value de chaque cession, comme cette lecture le suppose, ou y répète la
+   somme du déclarant.
 4. **La présence éventuelle d'une ligne de totaux** en fin de fichier : elle est aujourd'hui écartée
    parce qu'elle n'a pas de date lisible, et comptée dans `unreadableDates`.
 5. **Les en-têtes de CoinTracking et CoinTracker**, avant de passer leur détection de

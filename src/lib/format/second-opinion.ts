@@ -147,11 +147,12 @@ export function metricLabel(metric: ComparableMetric): string {
     case 'tax-global-value':
       return 'Valeur globale du portefeuille (case 212)';
     case 'tax-proceeds':
-      return 'Prix de cession net des frais (case 215)';
+      return 'Prix de cession net des frais et soultes (case 218)';
     case 'tax-acquisition':
-      return 'Prix total d’acquisition (case 216)';
+      return 'Prix total d’acquisition net (case 223)';
     case 'tax-gain':
-      return 'Plus ou moins-value de la cession (case 220)';
+      // Sans numéro, comme sur le formulaire : la case 224 est la somme des cessions du déclarant.
+      return 'Plus ou moins-value de la cession';
     default: {
       const missing: never = metric;
       throw new Error(`Grandeur sans libellé : ${String(missing)}`);

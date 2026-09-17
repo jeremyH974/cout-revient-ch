@@ -1,2 +1,2 @@
-Date de la cession;Valeur globale du portefeuille;Prix de cession net des frais;Prix total d'acquisition;Plus-value ou moins-value;Devise
-2026-03-15;12000,00;2990,00;8000,00;996,67;EUR
+Date de la cession;Valeur globale du portefeuille au moment de la cession;Prix de cession;Frais de cession;Prix de cession net des frais;Soulte reçue ou versée lors de la cession;Prix de cession net des soultes;Prix de cession net des frais et soultes;Prix total d'acquisition;Fractions de capital initial contenues dans le prix total d'acquisition;Soultes reçues en cas d'échanges antérieurs à la cession;Prix total d'acquisition net;Plus-value ou moins-value;Devise
+2026-03-15;12000,00;3000,00;10,00;2990,00;0,00;3000,00;2990,00;8000,00;0,00;0,00;8000,00;990,00;EUR

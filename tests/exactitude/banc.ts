@@ -104,6 +104,9 @@ export function rendreSection(jeu: Jeu): string {
       `Sources : ${cas.sources.map((id) => `[${id}](${sources.get(id)?.url ?? '#'})`).join(', ')}.`,
       '',
     );
+    // « l. 224 » désigne ici la plus-value de la cession, que le formulaire écrit sur une ligne sans
+    // numéro — la 224 en est la somme (erratum du 17/09/2026 dans la page, décision n° 161). Les
+    // tableaux de la v1 restent tels que publiés ; une version suivante renommera la colonne.
     lignes.push(
       '| Cession | l. 212 | l. 213 | l. 214 | l. 217 | l. 218 | l. 220 | l. 221 | l. 223 | Fraction | l. 224 | PTA après |',
       '| ------- | -----: | -----: | -----: | -----: | -----: | -----: | -----: | -----: | -------: | -----: | --------: |',

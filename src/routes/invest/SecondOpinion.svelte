@@ -226,7 +226,7 @@
     />
     <span class="big">{busy ? 'Lecture en cours…' : 'Choisir le fichier à comparer'}</span>
     <span class="muted small"
-      >Annexe 2086 exportée en CSV (cases 211 à 220, ou leurs libellés). Glissez-déposez ou touchez
+      >Annexe 2086 exportée en CSV (cases 211 à 224, ou leurs libellés). Glissez-déposez ou touchez
       pour choisir.</span
     >
   </label>
