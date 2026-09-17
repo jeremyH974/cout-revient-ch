@@ -2222,6 +2222,15 @@ export class AppState {
     this.state.ui = { ...this.state.ui, ...patch };
   }
 
+  /**
+   * Tailles tapées dans l'onglet « Seuil » pour un actif (décision n° 158). Un champ vidé est gardé
+   * vide, pas effacé : sinon le pré-remplissage reviendrait sous les doigts de qui s'apprête à
+   * saisir d'autres tailles.
+   */
+  setBreakevenSizes(symbol: string, text: string): void {
+    this.setUi({ breakevenSizes: { ...this.state.ui.breakevenSizes, [symbol]: text } });
+  }
+
   // --- Prix « live » Hyperliquid (P26, opt-in) ---------------------------------------------------
 
   /** Active/coupe le flux de prix WebSocket (persisté ; jamais actif sans ce choix explicite). */

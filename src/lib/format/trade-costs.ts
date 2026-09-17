@@ -5,10 +5,10 @@
  * une. Isolé ici pour être testé : une phrase qui inverse « monter » et « baisser » sur un short
  * ferait lire l'inverse de ce que les chiffres disent.
  */
-import { ZERO, type Big } from '../domain/money';
+import { ZERO, parseDecimal, type Big } from '../domain/money';
 import type { CostsUnavailable, TradeCosts } from '../domain/trading/costs';
 import type { RoundTrip } from '../domain/trading/round-trips';
-import { fmtPrice, fmtSmallPct } from './fr';
+import { fmtPrice, fmtSmallPct, roundHalfUp } from './fr';
 
 type TripFacts = Pick<RoundTrip, 'direction' | 'status' | 'symbol'>;
 
@@ -82,3 +82,57 @@ export function unavailableSentence(reason: CostsUnavailable): string {
     ? "Historique partiel : l'entrée de ce trade est inconnue, son seuil de rentabilité ne peut pas être calculé."
     : "Une partie des frais a été payée dans un autre jeton, que l'application ne valorise pas : la part des frais et le seuil seraient sous-estimés, ils ne sont donc pas affichés.";
 }
+
+// --- Onglet « Seuil » : champs saisis à la française, et leur pré-remplissage -------------------
+
+/**
+ * Nombre saisi à la française — « 0,035 », « 65 000 », « 65000.5 », « -0,003 » : espaces (même
+ * insécables) retirés, une virgule décimale acceptée. `null` pour tout le reste, jamais un zéro.
+ */
+export function parseFrDecimal(text: string): Big | null {
+  return parseDecimal(text.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
+}
+
+/** Un taux saisi en pourcent (« 0,035 ») → fraction (0,00035) ; `null` si illisible. */
+export function parseRateInput(text: string): Big | null {
+  return parseFrDecimal(text)?.div('100') ?? null;
+}
+
+/** Au-delà, le tableau ne tient plus sur un écran de téléphone, même en défilant. */
+export const MAX_SIZES = 6;
+
+/**
+ * Liste de tailles : séparées par des espaces ou des points-virgules (« 10 20 30 », « 0,5 ; 1,5 »).
+ * La virgule étant décimale en français, une **seule** virgule dans un morceau reste une décimale
+ * (« 0,5 ») ; plusieurs en font une liste (« 10,20,30 »), et une virgule finale (« 10, 20 ») est
+ * un séparateur. Tailles strictement positives, sans doublon, dans l'ordre saisi.
+ */
+export function parseSizeList(text: string): Big[] {
+  const sizes: Big[] = [];
+  for (const token of text.split(/[\s;]+/)) {
+    const commas = token.split(',').length - 1;
+    const parts = commas > 1 ? token.split(',') : [token.replace(/,$/, '')];
+    for (const part of parts) {
+      const value = parseFrDecimal(part);
+      if (value === null || !value.gt(ZERO) || sizes.some((s) => s.eq(value))) continue;
+      sizes.push(value);
+      if (sizes.length === MAX_SIZES) return sizes;
+    }
+  }
+  return sizes;
+}
+
+/** Nombre → texte de champ, virgule décimale, sans séparateur de milliers (qui le rendrait illisible). */
+const inputText = (value: Big, dp: number): string =>
+  roundHalfUp(value, dp).toString().replace('.', ',');
+
+/** Taux (fraction) → pourcent à saisir : 0,00035 → « 0,035 ». Vide s'il est inconnu. */
+export const rateInputText = (rate: Big | null): string =>
+  rate === null ? '' : inputText(rate.times('100'), 4);
+
+/** Prix → texte de champ : deux décimales au-dessus de 1, huit en dessous (jetons à petit prix). */
+export const priceInputText = (price: Big | null): string =>
+  price === null ? '' : inputText(price, price.abs().gte('1') ? 2 : 8);
+
+/** Quantité → texte de champ, sans perte : les quantités de la plateforme ont au plus 8 décimales. */
+export const qtyInputText = (qty: Big): string => inputText(qty, 8);

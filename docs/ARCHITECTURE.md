@@ -57,8 +57,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (`executionLines` : les exécutions d'un aller-retour, tranches d'un même instant regroupées, part
   d'un retournement au prorata exact de la reconstruction, rôle maker/taker ; `tradeCosts` : part du
   brut en frais, taux moyen, seuil de rentabilité et point mort — tirés du brut du moteur, jamais
-  recalculés depuis les prix, pour que le seuil ne puisse pas contredire le net affiché,
-  docs/DECISIONS.md n° 158).
+  recalculés depuis les prix, pour que le seuil ne puisse pas contredire le net affiché ;
+  `observedFeeRates` et `sizeBreakeven` : médiane des taux réellement payés par rôle, et gain brut
+  minimum d'un aller-retour hypothétique pour l'onglet « Seuil », docs/DECISIONS.md n° 158).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
@@ -210,7 +211,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
     chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
     pour ne pas se lire comme un investissement.
-  - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`, `fills`.
+  - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`,
+    `tradeBreakeven`, `fills`.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
@@ -223,7 +225,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
   `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
-  `tradeStats`, `fills`, `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
+  `tradeStats`, `tradeBreakeven`, `fills`, `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
   `settings`, `help`, `news`, `privacy`.
 
   L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu

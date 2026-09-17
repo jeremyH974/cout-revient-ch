@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { D, type Big } from '../domain/money';
 import type { TradeCosts } from '../domain/trading/costs';
 import type { RoundTrip } from '../domain/trading/round-trips';
-import { breakevenSentence, rolesSentence, unavailableSentence } from './trade-costs';
+import {
+  MAX_SIZES,
+  breakevenSentence,
+  parseFrDecimal,
+  parseRateInput,
+  parseSizeList,
+  priceInputText,
+  qtyInputText,
+  rateInputText,
+  rolesSentence,
+  unavailableSentence,
+} from './trade-costs';
 
 /** Espaces insécables d'Intl → espace simple, sans caractère invisible dans la source. */
 const SPACES = new RegExp('[' + String.fromCharCode(0xa0, 0x202f) + ']', 'g');
@@ -140,5 +151,46 @@ describe('unavailableSentence', () => {
   it('dit pourquoi le seuil manque, dans les deux cas', () => {
     expect(unavailableSentence('incomplete')).toMatch(/Historique partiel/);
     expect(unavailableSentence('native-fees')).toMatch(/autre jeton/);
+  });
+});
+
+describe('onglet « Seuil » : champs saisis à la française', () => {
+  it('parseFrDecimal lit la virgule décimale et les espaces, rien d’autre', () => {
+    expect(parseFrDecimal('0,035')?.toString()).toBe('0.035');
+    expect(parseFrDecimal(' 65 000 ')?.toString()).toBe('65000');
+    expect(parseFrDecimal(`65${String.fromCharCode(0x202f)}000,5`)?.toString()).toBe('65000.5');
+    expect(parseFrDecimal('-0,003')?.toString()).toBe('-0.003');
+    expect(parseFrDecimal('')).toBeNull();
+    expect(parseFrDecimal('abc')).toBeNull();
+    expect(parseFrDecimal('1,2,3')).toBeNull();
+  });
+
+  it('parseRateInput : un pourcentage saisi devient une fraction', () => {
+    expect(parseRateInput('0,035')?.toString()).toBe('0.00035');
+    expect(parseRateInput('x')).toBeNull();
+  });
+
+  it('parseSizeList : espaces et points-virgules séparent, une virgule seule reste décimale', () => {
+    const list = (text: string) => parseSizeList(text).map((s) => s.toString());
+    expect(list('10 20 30')).toEqual(['10', '20', '30']);
+    expect(list('10, 20, 30')).toEqual(['10', '20', '30']);
+    expect(list('10,20,30')).toEqual(['10', '20', '30']);
+    expect(list('0,5 ; 1,5')).toEqual(['0.5', '1.5']);
+    // Doublons, zéros, négatifs et mots sont ignorés, l'ordre saisi est gardé.
+    expect(list('30 10 30 0 -5 dix 20')).toEqual(['30', '10', '20']);
+    expect(list('')).toEqual([]);
+    expect(parseSizeList('1 2 3 4 5 6 7 8')).toHaveLength(MAX_SIZES);
+  });
+
+  it('pré-remplissage : taux en pourcent, prix et quantités sans séparateur de milliers', () => {
+    expect(rateInputText(D('0.00035'))).toBe('0,035');
+    expect(rateInputText(D('0.000349999'))).toBe('0,035');
+    expect(rateInputText(D('-0.00003'))).toBe('-0,003');
+    expect(rateInputText(null)).toBe('');
+    expect(priceInputText(D('64321.456'))).toBe('64321,46');
+    expect(priceInputText(D('0.123456789'))).toBe('0,12345679');
+    expect(priceInputText(null)).toBe('');
+    expect(qtyInputText(D('30'))).toBe('30');
+    expect(qtyInputText(D('0.15'))).toBe('0,15');
   });
 });

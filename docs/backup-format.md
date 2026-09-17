@@ -251,8 +251,10 @@ opt-in, cadence, notifications système). Détail complet : `docs/alerts.md`, d�
 d'affichage, métriques par défaut des deux graphiques (courbe « Évolution » et fiche actif),
 dates de dernière sauvegarde / d'acceptation de l'avertissement, mode démo, `lastSeenVersion`
 (semver de l'app, voir § L'enveloppe), clé CoinGecko Demo, clé et fournisseur d'explorateur de
-blocs, trois interrupteurs réseau opt-in (`liveMids`, `marketContext`, `liveFills`), et l'opt-in du
-récit par IA (`aiEnabled`, `aiModelId` — P65) — tous booléens ou chaînes, aucun montant.
+blocs, trois interrupteurs réseau opt-in (`liveMids`, `marketContext`, `liveFills`), l'opt-in du
+récit par IA (`aiEnabled`, `aiModelId` — P65), et les tailles tapées dans l'onglet « Seuil » de
+l'espace Trading, par actif (`breakevenSizes`, décision n° 158 — des quantités hypothétiques, jamais
+une position) — tous booléens, chaînes ou tables de chaînes, aucun montant.
 
 #### Les clés, et laquelle n'y est pas
 

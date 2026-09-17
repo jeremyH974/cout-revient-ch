@@ -17,6 +17,7 @@ export type Route =
   | { name: 'trade'; id: string }
   | { name: 'tradeAdd' }
   | { name: 'tradeStats' }
+  | { name: 'tradeBreakeven' }
   | { name: 'fills' }
   | { name: 'more' }
   | { name: 'market' }
@@ -47,6 +48,8 @@ function parseTrading(sub: string | undefined, arg: string | undefined): Route {
       return { name: 'tradeAdd' };
     case 'stats':
       return { name: 'tradeStats' };
+    case 'seuil':
+      return { name: 'tradeBreakeven' };
     case 'fills':
       return { name: 'fills' };
     default:
@@ -183,6 +186,8 @@ export function toHash(route: Route): string {
       return '#/trading/add';
     case 'tradeStats':
       return '#/trading/stats';
+    case 'tradeBreakeven':
+      return '#/trading/seuil';
     case 'fills':
       return '#/trading/fills';
     default:

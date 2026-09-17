@@ -101,6 +101,13 @@ export interface UiSettings {
    * reprendre la forme de l'état au premier ajout.
    */
   customRange: CustomRange | null;
+  /**
+   * Tailles saisies dans l'onglet « Seuil » de l'espace Trading, **par actif** (`BTC` → « 10 20 30 »),
+   * telles que tapées (décision n° 158). Des quantités hypothétiques, jamais une position : le texte
+   * brut est gardé pour être rendu à l'identique, et relu à chaque affichage. Par actif, parce que
+   * « 10 » n'a pas le même poids en BTC et en SOL.
+   */
+  breakevenSizes: Record<string, string>;
   /** Métrique tracée par défaut sur les cartes « Évolution ». */
   chartMetric: Metric;
   /** Métrique par défaut sur la page d'un actif (PRU vs prix). */
@@ -264,6 +271,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   displayCurrency: 'EUR',
   period: DEFAULT_PERIOD,
   customRange: null,
+  breakevenSizes: {},
   chartMetric: 'value',
   assetChartMetric: 'pru',
   lastBackupAt: null,
@@ -1045,6 +1053,22 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     if (!sane && range !== null) state = { ...state, ui: { ...state.ui, customRange: null } };
     if (state.ui.period === 'custom' && !sane)
       state = { ...state, ui: { ...state.ui, period: DEFAULT_PERIOD } };
+  }
+  // Tailles de l'onglet « Seuil » : une chaîne courte par symbole court, le reste est écarté —
+  // un fichier altéré ne doit pas pouvoir glisser un objet ou un roman dans un champ de saisie.
+  {
+    const raw: unknown = state.ui.breakevenSizes;
+    const sizes: Record<string, string> = {};
+    if (isRecord(raw))
+      for (const [symbol, text] of Object.entries(raw))
+        if (
+          symbol.length > 0 &&
+          symbol.length <= 32 &&
+          typeof text === 'string' &&
+          text.length <= 200
+        )
+          sizes[symbol] = text;
+    state = { ...state, ui: { ...state.ui, breakevenSizes: sizes } };
   }
   if (!METRICS.includes(state.ui.chartMetric))
     state = { ...state, ui: { ...state.ui, chartMetric: 'value' } };

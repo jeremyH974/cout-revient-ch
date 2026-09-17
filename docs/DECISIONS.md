@@ -4654,6 +4654,34 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      sous-estimé, et **un seuil trop bas est pire que pas de seuil**. Aucun non plus sur un historique
      partiel, dont l'entrée est inconnue.
 
+     **Et avant d'entrer : un onglet « Seuil ».** La fiche répond après coup ; la question suivante
+     est venue aussitôt — « pour 10, 20 ou 30 BTC, combien faut-il gagner au minimum ? ». Proposé
+     d'abord en carte du tableau de bord, il est devenu un **onglet** de l'espace Trading à la demande
+     de son utilisateur : un outil qu'on ouvre pour préparer un trade n'a pas à allonger l'écran qu'on
+     ouvre pour lire ses résultats. Le gain brut minimum y vaut les deux taux de frais additionnés,
+     multipliés par `taille × prix` — frais d'entrée et de sortie **au prix saisi**. Le point mort
+     exact paierait des frais de sortie un peu plus élevés, un quart de centime pour 10 000 $ au tarif
+     taker de 0,035 % ; la formule simple, elle, se vérifie de tête. Trois lignes — taker/taker,
+     maker/taker, maker/maker —, parce que le type d'ordre pèse davantage que tout le reste : selon le
+     palier de la grille d'Hyperliquid, un aller-retour taker/taker coûte trois à quatre fois un
+     aller-retour maker/maker.
+
+     **Les taux viennent de l'historique, pas d'une grille.** La grille d'Hyperliquid dépend du volume
+     sur 14 jours et des remises (staking, parrainage) : la recopier, c'était la voir vieillir en
+     silence. Le taux proposé est la **médiane** des cinquante dernières exécutions perps de chaque
+     rôle — pas la dernière, qu'un builder fee ou un fill minuscule aux frais arrondis suffirait à
+     déplacer —, et faute d'exécution d'un rôle, le champ reste vide plutôt que rempli d'un taux
+     supposé. Le prix proposé est le cours actuel, à défaut le dernier prix exécuté, et l'écran dit
+     lequel. Tout reste modifiable.
+
+     **Les tailles sont mémorisées par actif** (`ui.breakevenSizes`, champ additif, sans montée de
+     schéma) : « 10 » ne pèse pas la même chose en BTC et en SOL. Le texte est gardé tel que tapé et
+     relu à chaque affichage ; un champ vidé reste vide, sans quoi le pré-remplissage reviendrait sous
+     les doigts de qui s'apprête à saisir d'autres tailles. La virgule étant décimale en français,
+     une seule virgule reste une décimale (« 0,5 ») et plusieurs font une liste (« 10,20,30 »). Le
+     funding et le glissement d'un ordre au marché ne sont pas comptés, et l'écran le dit : ils
+     s'ajoutent au seuil.
+
      **Trois décimales de pourcentage.** `fmtPct` arrondit au dixième : un taux de 0,035 % et un seuil
      de 0,07 % y deviennent tous deux « 0,0 % ». `fmtSmallPct` garde les trois décimales où se joue la
      rentabilité d'un trade.

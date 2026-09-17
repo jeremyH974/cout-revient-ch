@@ -1,7 +1,14 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { D, ONE, ZERO, sum, type Big } from '../money';
-import { executionLines, roleOf, tradeCosts, type TradeCosts } from './costs';
+import {
+  executionLines,
+  observedFeeRates,
+  roleOf,
+  sizeBreakeven,
+  tradeCosts,
+  type TradeCosts,
+} from './costs';
 import { manualTradeToRoundTrip } from './journal';
 import { buildRoundTrips, type RoundTrip } from './round-trips';
 import type { Execution, FundingPayment } from './types';
@@ -577,6 +584,80 @@ describe('propriétés', () => {
           expect(net.abs().lt('1e-18')).toBe(true);
         }
       }),
+    );
+  });
+});
+
+describe('observedFeeRates — les taux réellement payés', () => {
+  const fill = (over: Partial<Execution>): Execution => exec({ qty: '1', price: '1000', ...over });
+
+  it('médiane par rôle : impaire, paire, et un builder fee isolé ne déplace rien', () => {
+    const executions = [
+      fill({ id: 't1', fee: '0.45' }),
+      fill({ id: 't2', fee: '0.45' }),
+      // Builder fee : un fill plus cher que les autres, qui ne doit pas devenir « le » taux.
+      fill({ id: 't3', fee: '0.65' }),
+      fill({ id: 'm1', fee: '0.15', crossed: false }),
+      fill({ id: 'm2', fee: '-0.03', crossed: false }),
+    ];
+    const rates = observedFeeRates(executions);
+    expect(rates.taker?.toString()).toBe('0.00045');
+    // Deux valeurs : la moyenne des deux du milieu, rebate compris.
+    expect(rates.maker?.toString()).toBe('0.00006');
+  });
+
+  it('ne retient que les plus récentes, et écarte le spot et les frais payés dans un autre jeton', () => {
+    const executions = [
+      fill({ id: 'old', time: T0 + 1, fee: '0.9' }),
+      fill({ id: 'new1', time: T0 + 3, fee: '0.35' }),
+      fill({ id: 'new2', time: T0 + 2, fee: '0.35' }),
+      fill({ id: 'spot', time: T0 + 9, fee: '5', market: 'spot' }),
+      fill({ id: 'hype', time: T0 + 9, fee: '0', feeNative: { asset: 'HYPE', qty: '0.1' } }),
+    ];
+    expect(observedFeeRates(executions, 2).taker?.toString()).toBe('0.00035');
+    expect(observedFeeRates(executions, 3).taker?.toString()).toBe('0.00035');
+  });
+
+  it('aucun taux inventé : null faute d’exécution du rôle', () => {
+    const one = observedFeeRates([fill({ id: 't', fee: '0.45' })]);
+    expect(one.taker?.toString()).toBe('0.00045');
+    expect(one.maker).toBeNull();
+    expect(observedFeeRates([])).toEqual({ taker: null, maker: null });
+  });
+});
+
+describe('sizeBreakeven — gain brut minimum d’un aller-retour hypothétique', () => {
+  it('frais d’entrée et de sortie au prix saisi ; le pourcentage ne dépend pas de la taille', () => {
+    const taker = D('0.00035');
+    const ten = sizeBreakeven(D('50000'), D('10'), taker, taker);
+    expect(ten.notional.toString()).toBe('500000');
+    expect(ten.move.toString()).toBe('0.0007');
+    expect(ten.grossMin.toString()).toBe('350');
+    expect(ten.perUnit.toString()).toBe('35');
+    const thirty = sizeBreakeven(D('50000'), D('30'), taker, taker);
+    expect(thirty.grossMin.toString()).toBe('1050');
+    expect(thirty.move.eq(ten.move)).toBe(true);
+    // Maker à l'entrée, taker à la sortie.
+    expect(sizeBreakeven(D('50000'), D('10'), D('0.00008'), taker).grossMin.toString()).toBe('215');
+  });
+
+  it('propriété : la valeur est proportionnelle à la taille, et égale au mouvement par unité × taille', () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 1, max: 10_000_000 }),
+        fc.integer({ min: 1, max: 100_000 }),
+        fc.integer({ min: -3, max: 100 }),
+        fc.integer({ min: -3, max: 100 }),
+        (price, qty, entry, exit) => {
+          const p = D(String(price)).div('100');
+          const q = D(String(qty)).div('1000');
+          const a = D(String(entry)).div('100000');
+          const b = D(String(exit)).div('100000');
+          const row = sizeBreakeven(p, q, a, b);
+          expect(row.grossMin.eq(row.perUnit.times(q))).toBe(true);
+          expect(row.grossMin.eq(sizeBreakeven(p, ONE, a, b).grossMin.times(q))).toBe(true);
+        },
+      ),
     );
   });
 });

@@ -19,6 +19,9 @@
  * les prix moyens aurait donné un autre chiffre : la plateforme compte son `closedPnl` sur un prix
  * d'entrée arrondi à son pas de cotation.
  *
+ * Et **avant** d'entrer, pour l'onglet « Seuil » : les taux réellement payés (`observedFeeRates`)
+ * et le gain brut minimum d'un aller-retour hypothétique (`sizeBreakeven`).
+ *
  * Pur, big.js seulement.
  */
 import { D, ONE, ZERO, divOrNull, type Big } from '../money';
@@ -270,4 +273,64 @@ export function tradeCosts(trip: RoundTrip, lines: readonly ExecutionLine[]): Tr
     breakevenPrice: price,
     assumedExitRate: averageFeeRate,
   };
+}
+
+// --- Avant d'entrer : l'onglet « Seuil » -------------------------------------------------------
+
+/**
+ * Taux de frais réellement payés, par rôle : la **médiane** des `sample` exécutions perps les plus
+ * récentes de chaque rôle, frais réglés dans la devise de cotation. Une médiane et non la dernière
+ * exécution : un builder fee, un fill minuscule aux frais arrondis ou un rebate ponctuel feraient
+ * sinon varier « le » taux d'un fill à l'autre. `null` faute d'exécution de ce rôle — jamais un
+ * taux emprunté à une grille que l'application ne sait pas tenir à jour.
+ */
+export function observedFeeRates(
+  executions: readonly Execution[],
+  sample = 50,
+): Record<LiquidityRole, Big | null> {
+  const recent = executions
+    .filter((x) => x.market === 'perp' && x.feeNative === null)
+    .sort((a, b) => b.time - a.time);
+  const median = (role: LiquidityRole): Big | null => {
+    const rates: Big[] = [];
+    for (const x of recent) {
+      if (rates.length === sample) break;
+      if (roleOf(x) !== role) continue;
+      const notional = D(x.qty).times(x.price);
+      if (notional.gt(ZERO)) rates.push(D(x.fee).div(notional));
+    }
+    if (rates.length === 0) return null;
+    rates.sort((a, b) => a.cmp(b));
+    const mid = Math.floor(rates.length / 2);
+    return rates.length % 2 === 1 ? rates[mid]! : rates[mid - 1]!.plus(rates[mid]!).div('2');
+  };
+  return { taker: median('taker'), maker: median('maker') };
+}
+
+/** Seuil d'un aller-retour hypothétique : ce que l'onglet « Seuil » affiche par taille. */
+export interface SizeBreakeven {
+  qty: Big;
+  /** Taille × prix. */
+  notional: Big;
+  /** Taux d'entrée + taux de sortie : le mouvement minimal en fraction du prix, quelle que soit la taille. */
+  move: Big;
+  /** Frais d'entrée et de sortie : le gain brut en dessous duquel l'aller-retour perd. */
+  grossMin: Big;
+  /** Le même mouvement par unité d'actif, dans la devise de cotation. */
+  perUnit: Big;
+}
+
+/**
+ * Gain brut minimum pour couvrir les frais d'un aller-retour de `qty` au prix `price`, entrée au
+ * taux `entryRate` et sortie au taux `exitRate`, **les deux appliqués au prix saisi**.
+ *
+ * Le point mort exact sortirait un peu plus loin, et paierait donc des frais de sortie un peu plus
+ * élevés : l'écart vaut environ `move × exitRate` du notionnel — un quart de centime pour 10 000 $
+ * au tarif taker de 0,035 % —, sans commune mesure avec l'incertitude d'un prix saisi à la main.
+ * La formule simple a l'avantage de se vérifier de tête.
+ */
+export function sizeBreakeven(price: Big, qty: Big, entryRate: Big, exitRate: Big): SizeBreakeven {
+  const move = entryRate.plus(exitRate);
+  const notional = price.times(qty);
+  return { qty, notional, move, grossMin: notional.times(move), perUnit: price.times(move) };
 }

@@ -49,6 +49,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   tranches d'un même ordre tiennent en une ligne, comme dans l'historique d'Hyperliquid, pour que
   les deux écrans se recoupent.
 
+- **Un onglet « Seuil » dans l'espace Trading : combien gagner, au minimum, avant même d'entrer.**
+  Tapez vos tailles habituelles — « 10 20 30 » — et vous lisez, pour chacune, le gain brut en dessous
+  duquel l'aller-retour perd de l'argent, en pourcentage et en valeur, selon que vous entrez et
+  sortez en taker ou en maker. Le prix est pré-rempli avec le cours actuel (à défaut, votre dernier
+  prix exécuté) et les taux avec ceux que vous payez **réellement**, relevés sur vos dernières
+  exécutions. Tout reste modifiable, et vos tailles sont retenues pour chaque actif. Le pourcentage
+  ne dépend pas de la taille : seule la valeur grandit avec elle. Le funding et le glissement de
+  prix d'un ordre au marché ne sont pas comptés, et l'écran le rappelle.
+
 - **Le chiffrement de cet appareil existait déjà — vous ne pouviez simplement pas le trouver.**
   Il est proposé, désormais, juste après un import de vos vraies données : le moment où vos chiffres
   viennent de s'afficher, et le seul où la question a un sens. Pas à l'installation sur une
