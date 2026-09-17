@@ -4917,3 +4917,41 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuve** (décision n° 75) : prendre le dernier point de P&L au lieu de la différence,
      ou inverser le signe des mouvements, fait rougir le test qui les nomme ; à l'écran, afficher la
      variation d'équité à la place du résultat fait échouer le parcours Trading.
+
+163. **Zoomer une courbe comme sur TradingView — et ce que le zoom ne peut pas inventer**
+     (17/09/2026).
+
+     **La demande.** « J'aimerais pouvoir zoomer sur le graphique un peu comme on peut faire sur
+     TradingView, et avoir un axe de temps plus court pour voir les détails. » La courbe « Évolution »
+     de l'espace Trading accepte désormais la molette et le pincement autour du curseur, le glisser
+     pour se déplacer, le double-clic pour tout afficher.
+
+     **Une fenêtre de temps, pas un agrandissement.** `components/charts/zoom.ts` tient une fenêtre
+     visible `[début, fin]`, resserrée autour d'un instant d'ancrage qui garde sa place à l'écran, et
+     toujours bornée à la série. Le graphique ne trace que les points de cette fenêtre : l'échelle
+     verticale, les graduations et les extrêmes se recalent d'eux-mêmes sur ce qu'on regarde. Un
+     simple agrandissement SVG aurait gardé l'échelle de la série entière, et la moindre variation
+     serait restée écrasée. L'option est portée par `EvolutionChart` (`zoomable`), mais seule la
+     courbe Trading l'active : les autres écrans ne changent pas sans qu'on l'ait décidé.
+
+     **Le zoom s'arrête à la finesse des points.** La durée la plus courte est celle des quatre points
+     consécutifs les plus serrés, et une fenêtre posée entre deux points reprend ses voisins plutôt
+     que de rendre un graphique vide. Zoomer au-delà n'aurait rien montré : la courbe
+     d'Hyperliquid compte un point toutes les ~2 h 20 sur 24 h, ~10 h sur 30 jours, une semaine sur
+     tout l'historique — mesuré le 17/09/2026 sur un compte réel. Voir le détail d'une demi-heure
+     demande une autre source : c'est la courbe reconstruite depuis les fills et les bougies, livrée
+     à part.
+
+     **La molette ne vole pas le défilement pour rien.** Elle n'est interceptée que si elle change
+     quelque chose : à la vue entière, éloigner laisse la page défiler. Le glissement horizontal d'un
+     pavé tactile déplace la fenêtre. Sur écran tactile, `touch-action: pan-y` garde le défilement
+     vertical de la page, et le pincement arrive au graphique.
+
+     **Des boutons, parce que glisser ne doit jamais être la seule voie** (WCAG 2.5.7) : zoom avant,
+     zoom arrière, plus tôt, plus tard, tout afficher — chacun désactivé quand il ne ferait rien —, et
+     la plage tracée annoncée dans une zone `aria-live`.
+
+     **Contre-épreuve** (décision n° 75) : zoomer au centre plutôt qu'au curseur, ne plus borner la
+     fenêtre, ignorer la finesse des points, ou rendre une fenêtre creuse sans ses voisins fait
+     rougir le test qui les nomme ; à l'écran, inverser le sens de la molette fait échouer le
+     parcours (« Tout afficher » reste désactivé).

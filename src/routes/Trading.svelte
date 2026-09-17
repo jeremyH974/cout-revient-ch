@@ -386,6 +386,7 @@
           secondary: curveMetric === 'pnl' ? null : 'départ',
         }}
         discreet={app.state.ui.discreet}
+        zoomable
       />
       <p class="muted small">
         Courbe fournie par la plateforme ({label(curveAccount)}), convertie au taux BCE de chaque
