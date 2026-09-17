@@ -1,3 +1,10 @@
+<script module lang="ts">
+  import { CandleCache } from '$lib/import/hyperliquid/candles';
+
+  /** Bougies de la courbe détaillée : cache de session partagé entre visites, jamais persisté. */
+  const candleCache = new CandleCache();
+</script>
+
 <script lang="ts">
   /**
    * Espace Trading — tableau de bord (P20, présentation alignée sur la synthèse Investissement) :
@@ -6,6 +13,7 @@
    * (chacune renvoie vers son aller-retour), avoirs spot, auto-vérification. Les fills vivent
    * dans leur propre onglet. Jamais de PRU ici ; montants USDC convertis au taux BCE du jour.
    */
+  import { untrack } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { D, ZERO, type Big } from '$lib/domain/money';
   import {
@@ -15,13 +23,34 @@
     type TradingTotals,
   } from '$lib/domain/trading/compute';
   import { curveWindow } from '$lib/domain/trading/curve';
+  import {
+    detailedCurve,
+    marketsHeld,
+    type DetailOutcome,
+    type PriceBook,
+  } from '$lib/domain/trading/equity-path';
   import { rateLookup } from '$lib/fx';
   import { dayToMs, resolveWindow, todayOf, type Period } from '$lib/history';
+  import { candleWords, marketList, platformPoints } from '$lib/format/curve-detail';
   import { fmtRelative, roundsToZero } from '$lib/format/fr';
+  import { pointMs } from '$lib/history/days';
+  import { formatInstant } from '$lib/history/intraday-series';
+  import {
+    DETAIL_MIN_SPAN_MS,
+    candleFetcher,
+    liveCandleFloor,
+    loadPriceBook,
+    needsReplan,
+    planDetail,
+    type DetailPlan,
+  } from '$lib/import/hyperliquid/candles';
+  import { equityAnchors, equityMoves, spotCandleCoin } from '$lib/import/hyperliquid/equity-moves';
+  import { demoFixtureClient } from '$lib/import/hyperliquid/fixture-client';
   import { msToParisNaive } from '$lib/import/time';
   import { router } from '$lib/router.svelte';
   import { DISCUSSIONS_URL } from '$lib/support/links';
   import EvolutionChart, { type ChartPoint } from '../components/charts/EvolutionChart.svelte';
+  import type { TimeWindow } from '../components/charts/zoom';
   import AppBar from '../components/layout/AppBar.svelte';
   import Info from '../components/shared/Info.svelte';
   import Money from '../components/shared/Money.svelte';
@@ -135,32 +164,199 @@
     const series = app.state.hyperliquid.accounts[curveAccount]?.portfolio?.[curvePeriod];
     return series ? curveWindow(series.accountValueHistory, series.pnlHistory) : null;
   });
-  const curvePoints = $derived.by((): ChartPoint[] => {
-    if (curveAccount === null) return [];
-    const series = app.state.hyperliquid.accounts[curveAccount]?.portfolio?.[curvePeriod];
+  const curveSeries = $derived(
+    curveAccount === null
+      ? null
+      : (app.state.hyperliquid.accounts[curveAccount]?.portfolio?.[curvePeriod] ?? null),
+  );
+  const usdRates = $derived(rateLookup(app.state.fx.rates.USD ?? {}));
+  /** Montant en dollars → valeur tracée, au taux BCE du jour de l'instant ; `null` sans taux. */
+  const plotValue = (ms: number, value: Big): { day: string; primary: number } | null => {
+    const naive = msToParisNaive(ms);
+    const rate = app.currency === 'USD' ? '1' : usdRates.rate(naive.slice(0, 10));
+    if (rate === null || !D(rate).gt(ZERO)) return null;
+    return { day: naive, primary: Number(value.div(rate).toFixed(6)) };
+  };
+  /** Points de la plateforme, avec leur instant réel : la courbe détaillée s'y insère. */
+  const curveEntries = $derived.by((): { ms: number; point: ChartPoint }[] => {
+    const series = curveSeries;
     if (!series) return [];
     const raw = curveMetric === 'equity' ? series.accountValueHistory : series.pnlHistory;
-    const usd = rateLookup(app.state.fx.rates.USD ?? {});
-    const points: ChartPoint[] = [];
+    const entries: { ms: number; point: ChartPoint }[] = [];
     // Tous les points de la plateforme, sans amincissement : la courbe doit être exactement celle
     // du Portfolio Hyperliquid (l'écraser à un point par jour déforme les épisodes violents).
     for (const [ms, value] of raw) {
-      const naive = msToParisNaive(ms);
-      const rate = app.currency === 'USD' ? '1' : usd.rate(naive.slice(0, 10));
-      if (rate === null || !D(rate).gt(ZERO)) continue;
-      points.push({
-        day: naive.slice(0, 16),
-        primary: Number(D(value).div(rate).toFixed(6)),
-        secondary: null,
+      const plotted = plotValue(ms, D(value));
+      if (plotted === null) continue;
+      entries.push({
+        ms,
+        point: { day: plotted.day.slice(0, 16), primary: plotted.primary, secondary: null },
       });
     }
     // Équité : référence = valeur au départ de la période → vert au-dessus, rouge en dessous.
-    if (curveMetric === 'equity' && points.length > 0) {
-      const start = points[0]!.primary;
-      for (const point of points) point.secondary = start;
+    if (curveMetric === 'equity' && entries.length > 0) {
+      const start = entries[0]!.point.primary;
+      for (const entry of entries) entry.point.secondary = start;
     }
-    return points;
+    return entries;
   });
+  const curvePoints = $derived(curveEntries.map((e) => e.point));
+
+  // --- Courbe détaillée (décision n° 164) -----------------------------------------------------
+  /**
+   * Zoomée, la courbe se reconstitue entre les points de la plateforme : les bruts du compte,
+   * valorisés aux bougies d'Hyperliquid, calés et recoupés sur ces points. La vue entière reste
+   * exactement celle de la plateforme ; un détail qui ne recoupe pas est écarté, jamais lissé.
+   */
+  let curveView = $state<TimeWindow | null>(null);
+  const zoomed = $derived(curveView !== null);
+  /** Le compte a une courbe de la plateforme : le détail est possible, sans rien calculer encore. */
+  const detailable = $derived(
+    curveAccount !== null && Boolean(app.state.hyperliquid.accounts[curveAccount]?.portfolio),
+  );
+  /** Les bruts rejoués ne se préparent qu'au premier zoom : lus plus tôt, ils coûteraient à chaque visite. */
+  const detailInputs = $derived.by(() => {
+    if (curveAccount === null) return null;
+    const data = app.state.hyperliquid.accounts[curveAccount];
+    if (!data?.portfolio) return null;
+    return {
+      ...equityMoves(data, app.state.hyperliquid.spotPairs),
+      anchors: equityAnchors(data),
+    };
+  });
+  /** Instant réel → abscisse du graphique, qui lit des heures de Paris. */
+  const chartMs = (ms: number): number => pointMs(msToParisNaive(ms));
+  /** L'inverse, exact hors de l'heure d'un changement d'heure dans un autre fuseau que Paris. */
+  const realMs = (value: number): number => value - (chartMs(value) - value);
+
+  let detailLoaded = $state.raw<{ key: string; plan: DetailPlan; prices: PriceBook } | null>(null);
+  let detailPending = $state.raw<DetailPlan | null>(null);
+  let detailError = $state<string | null>(null);
+  /** La vue n'a pas de pas de bougies servi (fenêtre trop large ou trop ancienne). */
+  let detailUnplanned = $state(false);
+  let detailAbort: AbortController | null = null;
+  const detailKey = $derived(`${curveAccount}|${curvePeriod}`);
+
+  function resetDetail(): void {
+    detailAbort?.abort();
+    detailAbort = null;
+    detailLoaded = null;
+    detailPending = null;
+    detailError = null;
+    detailUnplanned = false;
+  }
+
+  async function loadDetail(
+    key: string,
+    plan: DetailPlan,
+    held: { perps: string[]; tokens: string[] },
+  ): Promise<void> {
+    detailAbort?.abort();
+    const controller = new AbortController();
+    detailAbort = controller;
+    detailPending = plan;
+    detailError = null;
+    try {
+      const prices = await loadPriceBook(
+        candleCache,
+        candleFetcher(app.state.ui.demoMode ? await demoFixtureClient() : app.hlInfoClient()),
+        held,
+        plan,
+        (token) => spotCandleCoin(token, app.state.hyperliquid.spotPairs),
+        nowMs(),
+        controller.signal,
+      );
+      if (!controller.signal.aborted) detailLoaded = { key, plan, prices };
+    } catch (error) {
+      if (!controller.signal.aborted)
+        detailError = error instanceof Error ? error.message : String(error);
+    } finally {
+      if (detailAbort === controller) {
+        detailAbort = null;
+        detailPending = null;
+      }
+    }
+  }
+
+  // Le détail suit la vue quand elle se pose : un glissement ne lance pas une requête par image.
+  $effect(() => {
+    const view = curveView;
+    if (view === null) {
+      untrack(resetDetail);
+      return;
+    }
+    const inputs = detailInputs;
+    const history = curveSeries?.accountValueHistory ?? [];
+    const key = detailKey;
+    if (inputs === null || history.length < 2) {
+      untrack(resetDetail);
+      return;
+    }
+    const extent = { from: history[0]![0], to: history[history.length - 1]![0] };
+    const timer = setTimeout(() => {
+      const plan = planDetail(
+        { from: realMs(view.from), to: realMs(view.to) },
+        extent,
+        inputs.anchors.map(([t]) => t),
+        // La vraie API ne sert que les bougies récentes ; la démonstration, hors ligne, tout.
+        app.state.ui.demoMode ? () => Number.NEGATIVE_INFINITY : liveCandleFloor(nowMs()),
+      );
+      detailUnplanned = plan === null;
+      if (plan === null) return;
+      const loaded = detailLoaded?.key === key ? detailLoaded.plan : null;
+      if (!needsReplan(detailPending ?? loaded, plan)) return;
+      void loadDetail(key, plan, marketsHeld(inputs.moves, inputs.spot, plan.from, plan.to));
+    }, 250);
+    return () => clearTimeout(timer);
+  });
+
+  const detail = $derived.by((): DetailOutcome | null => {
+    const loaded = detailLoaded;
+    const inputs = detailInputs;
+    const series = curveSeries;
+    if (!zoomed || loaded === null || loaded.key !== detailKey || !inputs || !series) return null;
+    return detailedCurve({
+      moves: inputs.moves,
+      spot: inputs.spot,
+      prices: loaded.prices,
+      from: loaded.plan.from,
+      to: loaded.plan.to,
+      intervalMs: loaded.plan.interval.ms,
+      equity: inputs.anchors,
+      pnl:
+        curveMetric === 'pnl'
+          ? { equity: series.accountValueHistory, points: series.pnlHistory }
+          : null,
+    });
+  });
+
+  /**
+   * Points tracés : ceux de la plateforme hors de la fenêtre reconstituée, le détail dedans. Le
+   * premier et le dernier point de la plateforme restent toujours : ils bornent le zoom, et les
+   * déplacer remettrait la vue à zéro.
+   */
+  const chartPoints = $derived.by((): ChartPoint[] => {
+    const outcome = detail;
+    const entries = curveEntries;
+    if (outcome?.kind !== 'ok' || detailLoaded === null || entries.length < 2) return curvePoints;
+    const { from, to } = detailLoaded.plan;
+    const lo = pointMs(entries[0]!.point.day);
+    const hi = pointMs(entries[entries.length - 1]!.point.day);
+    const reference = entries[0]!.point.secondary;
+    const merged = entries.filter(
+      (e, i) => i === 0 || i === entries.length - 1 || e.ms < from || e.ms > to,
+    );
+    for (const p of outcome.points) {
+      const plotted = plotValue(p.time, p.value);
+      if (plotted === null) continue;
+      const x = pointMs(plotted.day);
+      if (x <= lo || x >= hi) continue;
+      merged.push({ ms: p.time, point: { ...plotted, secondary: reference } });
+    }
+    return merged.sort((a, b) => a.ms - b.ms).map((e) => e.point);
+  });
+  const instantLabel = (ms: number): string =>
+    formatInstant(msToParisNaive(ms), { withDate: true });
 
   async function refresh(): Promise<void> {
     await app.syncHyperliquid(selected === 'all' ? undefined : selected);
@@ -375,7 +571,7 @@
         </div>
       {/if}
       <EvolutionChart
-        points={curvePoints}
+        points={chartPoints}
         currency={app.currency}
         zeroLine={curveMetric === 'pnl'}
         colorMode={curveMetric === 'pnl' ? 'sign' : 'vsSecondary'}
@@ -387,10 +583,49 @@
         }}
         discreet={app.state.ui.discreet}
         zoomable
+        bind:view={curveView}
+        minSpanMs={detailable ? DETAIL_MIN_SPAN_MS : Number.POSITIVE_INFINITY}
       />
+      {#if zoomed && detailable}
+        <p class="small detail-note" aria-live="polite">
+          {#if detail?.kind === 'ok' && detailLoaded}
+            <strong>Détail reconstitué</strong> ({candleWords(detailLoaded.plan.interval.id)})
+            depuis vos exécutions, le funding et les mouvements du compte, au dernier cours échangé
+            plutôt qu'au prix de marque. Il recoupe {platformPoints(detail.checked)}
+            {#if detail.flatDeviation !== null}à <Money value={money(detail.flatDeviation)} /> près{detail.flatChecked <
+              detail.checked
+                ? ' aux instants sans position, et dans la marge du cours ailleurs'
+                : ''}.{:else}dans la marge du cours de chaque bougie.{/if}
+          {:else if detailError}
+            Détail indisponible : {detailError}. La courbe reste celle de la plateforme.
+          {:else if detailPending}
+            Chargement du détail ({candleWords(detailPending.interval.id)})…
+          {:else if detailUnplanned}
+            Détail indisponible pour cette fenêtre : Hyperliquid n'en sert plus les cours assez
+            finement.
+          {:else if detail?.kind === 'mismatch'}
+            <strong>Détail écarté</strong> : au point d'Hyperliquid du {instantLabel(
+              detail.worst.time,
+            )}, la reconstitution s'écarte de <Money value={money(detail.worst.deviation.abs())} />,
+            au-delà des
+            <Money value={money(detail.worst.allowed)} /> que le cours explique. Un mouvement du compte
+            n'est sans doute pas reconstitué (vault, staking, jeton sans cours) : la courbe reste celle
+            de la plateforme.
+          {:else if detail?.kind === 'no-price'}
+            Détail indisponible : pas de cours pour {marketList(detail.markets)}. La courbe reste
+            celle de la plateforme.
+          {:else if detail?.kind === 'no-anchor'}
+            Détail indisponible : aucun point d'Hyperliquid dans la fenêtre pour caler la
+            reconstitution.
+          {:else}
+            Chargement du détail…
+          {/if}
+        </p>
+      {/if}
       <p class="muted small">
         Courbe fournie par la plateforme ({label(curveAccount)}), convertie au taux BCE de chaque
-        jour ; le P&L de la courbe est celui de la plateforme (période glissante).
+        jour ; le P&L de la courbe est celui de la plateforme (période glissante). Zoomée, elle se
+        reconstitue entre ses points depuis vos exécutions et les cours, jusqu'à la minute.
         <strong>Ses fenêtres sont celles d'Hyperliquid</strong> — jour, semaine, mois, tout — et ne suivent
         donc pas la plage choisie plus haut : afficher ici une période qu'on ne reçoit pas reviendrait
         à l'inventer.

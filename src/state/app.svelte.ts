@@ -1075,7 +1075,8 @@ export class AppState {
     this.state.accounts = { ...this.state.accounts, [id]: { ...existing, country } };
   }
 
-  private client(): HlClient {
+  /** Client `info` Hyperliquid partagé : une seule file de requêtes pour la synchro et les cours. */
+  hlInfoClient(): HlClient {
     this.hlClient ??= createHlClient();
     return this.hlClient;
   }
@@ -1106,7 +1107,7 @@ export class AppState {
     status({ syncing: true, progress: null, error: null });
     const previous = this.state.hyperliquid.accounts[id];
     const result = await syncAccount(
-      this.client(),
+      this.hlInfoClient(),
       previous ? $state.snapshot(previous) : null,
       account.address ?? '',
       { now: nowMs, onProgress: (progress) => status({ progress }) },

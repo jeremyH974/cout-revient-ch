@@ -5,7 +5,7 @@
  * Déterministe : mulberry32 à graine fixe, aucune horloge, aucune adresse réelle — tout est
  * inventé (adresse démo, contrepartie du transfert spot, montants, dates, prix). Le scénario
  * (mars → 20 août 2026) couvre :
- *   - le grand livre (2 dépôts, 2 transferts spot ↔ perps, un transfert spot entrant d'un autre
+ *   - le grand livre (3 dépôts, 2 transferts spot ↔ perps, un transfert spot entrant d'un autre
  *     compte, un retrait) ;
  *   - 14 fills spot sur deux paires (`PURR/USDC` canonique, `@107` = HYPE/USDC) ;
  *   - ~60 fills perps sur BTC (long ouvert en 3 tranches puis clôturé en gain), ETH (short ouvert
@@ -15,13 +15,18 @@
  *   - le funding toutes les 8h (00:00/08:00/16:00 UTC) pour chaque position perp ouverte ;
  *   - un instantané (`clearinghouseState` / `spotClearinghouseState`) dont l'équité est la somme
  *     exacte de tout ce qui précède, vérifiée par `tests/integration/hl-fixture.test.ts`
- *     (réconciliation du moteur Trading, `src/lib/domain/trading/compute.ts`).
+ *     (réconciliation du moteur Trading, `src/lib/domain/trading/compute.ts`) ;
+ *   - des courbes `portfolio` **tirées du compte lui-même** (décision n° 164) : trésorerie, positions
+ *     et soldes rejoués ici, valorisés au tracé de cours du jeu (`fixture-prices.ts`) — celui dont le
+ *     client hors ligne tire ses bougies. La courbe détaillée de la démo se recoupe donc comme sur
+ *     un vrai compte.
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import Big from 'big.js';
 import type { HlFixture } from '../src/lib/import/hyperliquid/fixture-client';
+import { pathPrice, priceKnots, priceText } from '../src/lib/import/hyperliquid/fixture-prices.ts';
 
 // Même configuration que `src/lib/domain/money.ts` (script autonome, exécuté hors Vite).
 Big.DP = 30;
@@ -552,6 +557,14 @@ export function generateHlFixture(): HlFixture {
   spotBuy('hype', ms(2026, 8, 5, 16, 0, 0), '2.2', false);
   spotBuy('purr', ms(2026, 8, 10, 9, 30, 0), '400', true);
 
+  /*
+   * Un dépôt dans la fenêtre de 30 jours : l'équité y saute, le P&L non (décision n° 162). Il
+   * remplace l'ancien « dépôt » que seules les courbes inventaient, sans trace au grand livre — ce
+   * qu'une courbe tirée du compte ne peut plus faire. Posé en dernier pour ne déplacer aucun tirage.
+   */
+  pushLedger(ms(2026, 8, 12, 10, 0, 0), 'deposit', { usdc: '2000.0' });
+  netFlows = netFlows.plus('2000.0');
+
   // --- Assemblage des fills : tri par instant, tid croissants, oid (partagé pour l'ouverture BTC) --
   const combined = [...perpFills, ...spotFills].sort((a, b) => a.time - b.time);
   for (let i = 0; i < combined.length; i++) {
@@ -736,55 +749,177 @@ export function generateHlFixture(): HlFixture {
     '@107': '33',
   };
 
-  // `portfolio` : courbes de valeur de compte et de P&L par période, terminant exactement sur
-  // l'équité de l'instantané (mêmes formes que la vraie API : tuples [label, data], chaînes).
-  const finalValue = accountValue;
-  const portfolioPeriod = (
-    label: string,
-    from: number,
-    points: number,
-    wobble: string,
-    /**
-     * Part de l'équité finale **déposée** à mi-fenêtre : l'équité saute, le P&L non. Sans elle,
-     * variation d'équité et résultat coïncidaient sur toutes les fenêtres, et rien ne pouvait
-     * vérifier qu'un écran affiche le second plutôt que la première (décision n° 162).
-     */
-    depositShare = '0',
-  ): [
-    string,
-    { accountValueHistory: [number, string][]; pnlHistory: [number, string][]; vlm: string },
-  ] => {
-    const accountValueHistory: [number, string][] = [];
-    const pnlHistory: [number, string][] = [];
-    const step = (SNAPSHOT_TIME - from) / points;
-    const deposit = finalValue.times(depositShare);
-    const traded = finalValue.minus(deposit);
-    for (let i = 0; i <= points; i++) {
-      const t = Math.round(from + i * step);
-      const progress = i / points;
-      // Trajet déterministe : départ à 92 % de l'équité finale, oscillation amortie, arrivée exacte.
-      const osc = Math.sin(i * 2.399963) * (1 - progress);
-      const result = traded
-        .times(new Big('0.92').plus(new Big(String(progress)).times('0.08')))
-        .plus(traded.times(wobble).times(String(osc)));
-      const value = i * 2 >= points ? result.plus(deposit) : result;
-      accountValueHistory.push([t, value.round(6, HALF_UP).toString()]);
-      pnlHistory.push([t, result.minus(traded.times('0.92')).round(6, HALF_UP).toString()]);
-    }
-    accountValueHistory[points] = [SNAPSHOT_TIME, finalValue.toString()];
-    return [label, { accountValueHistory, pnlHistory, vlm: '123456.7' }];
+  /*
+   * `portfolio` : valeur du compte et P&L par période, **rejoués depuis le compte** (décision
+   * n° 164). Une implémentation à part de celle de l'application (`equity-path.ts`) : c'est ce qui
+   * permet à `hl-fixture.test.ts` de s'en servir d'oracle. Total = perps + spot, comme la plateforme ;
+   * les séries `perp*` ne comptent que les perps, et les virements spot ↔ perps y sont des flux.
+   */
+  const knots = priceKnots({
+    userFillsByTime,
+    userNonFundingLedgerUpdates,
+    clearinghouseState,
+    spotMeta,
+    allMids,
+  });
+  const priceAt = (market: string, t: number): Big =>
+    new Big(priceText(pathPrice(knots[market]!, t)));
+  type Event = { time: number; order: number; apply: () => void };
+  let perpCash = ZERO;
+  let spotUsdc = ZERO;
+  const tokens = { purr: ZERO, hype: ZERO };
+  let totalFlows = ZERO;
+  let perpFlows = ZERO;
+  const book = new Map<string, { size: Big; entry: Big }>();
+  const events: Event[] = [];
+  for (const entry of userNonFundingLedgerUpdates) {
+    const delta = entry.delta;
+    events.push({
+      time: entry.time,
+      order: 0,
+      apply: () => {
+        const usdc = new Big(String(delta['usdc'] ?? '0'));
+        if (delta['type'] === 'deposit') {
+          perpCash = perpCash.plus(usdc);
+          totalFlows = totalFlows.plus(usdc);
+          perpFlows = perpFlows.plus(usdc);
+        } else if (delta['type'] === 'withdraw') {
+          perpCash = perpCash.minus(usdc);
+          totalFlows = totalFlows.minus(usdc);
+          perpFlows = perpFlows.minus(usdc);
+        } else if (delta['type'] === 'accountClassTransfer') {
+          const signed = delta['toPerp'] === true ? usdc : usdc.neg();
+          perpCash = perpCash.plus(signed);
+          spotUsdc = spotUsdc.minus(signed);
+          perpFlows = perpFlows.plus(signed);
+        } else if (delta['type'] === 'spotTransfer') {
+          tokens.hype = tokens.hype.plus(String(delta['amount']));
+          totalFlows = totalFlows.plus(String(delta['usdcValue']));
+        } else throw new Error(`Mouvement non rejoué : ${String(delta['type'])}`);
+      },
+    });
+  }
+  for (const r of fundingRecords) {
+    events.push({
+      time: r.time,
+      order: 1,
+      apply: () => {
+        perpCash = perpCash.plus(r.usdc);
+      },
+    });
+  }
+  combined.forEach((f, rank) => {
+    events.push({
+      time: f.time,
+      order: 2 + rank,
+      apply: () => {
+        if (f.coin === 'PURR/USDC' || f.coin === '@107') {
+          const token = f.coin === '@107' ? 'hype' : 'purr';
+          const notional = f.px.times(f.sz);
+          if (f.side === 'B') {
+            tokens[token] = tokens[token].plus(f.sz).minus(f.fee);
+            spotUsdc = spotUsdc.minus(notional);
+          } else {
+            tokens[token] = tokens[token].minus(f.sz);
+            spotUsdc = spotUsdc.plus(notional).minus(f.fee);
+          }
+          return;
+        }
+        const held = book.get(f.coin) ?? { size: ZERO, entry: ZERO };
+        const next = f.startPosition.plus(f.side === 'B' ? f.sz : f.sz.neg());
+        let entry = held.entry;
+        if (f.startPosition.eq(ZERO) || sign(f.startPosition) !== sign(next)) entry = f.px;
+        else if (next.abs().gt(f.startPosition.abs()))
+          entry = held.entry.times(f.startPosition.abs()).plus(f.px.times(f.sz)).div(next.abs());
+        book.set(f.coin, { size: next, entry: next.eq(ZERO) ? ZERO : entry });
+        perpCash = perpCash.plus(f.closedPnl).minus(f.fee);
+      },
+    });
+  });
+  // Même milliseconde : grand livre, puis funding, puis fills dans leur ordre d'exécution.
+  events.sort((a, b) => a.time - b.time || a.order - b.order);
+
+  interface Reading {
+    total: Big;
+    perp: Big;
+    totalFlows: Big;
+    perpFlows: Big;
+  }
+  const readingsAt = (times: readonly number[]): Reading[] => {
+    perpCash = ZERO;
+    spotUsdc = ZERO;
+    tokens.purr = ZERO;
+    tokens.hype = ZERO;
+    totalFlows = ZERO;
+    perpFlows = ZERO;
+    book.clear();
+    let next = 0;
+    return times.map((t) => {
+      for (; next < events.length && events[next]!.time <= t; next++) events[next]!.apply();
+      let perp = perpCash;
+      for (const [coin, held] of book)
+        if (!held.size.eq(ZERO))
+          perp = perp.plus(held.size.times(priceAt(coin, t).minus(held.entry)));
+      const total = perp
+        .plus(spotUsdc)
+        .plus(tokens.purr.times(priceAt('PURR/USDC', t)))
+        .plus(tokens.hype.times(priceAt('@107', t)));
+      return { total, perp, totalFlows, perpFlows };
+    });
   };
+
+  const [atSnapshot] = readingsAt([SNAPSHOT_TIME]);
+  if (atSnapshot!.perp.minus(accountValue).abs().gt('0.01'))
+    throw new Error(
+      `Courbe rejouée (${atSnapshot!.perp.toString()}) ≠ équité perps de l'instantané (${accountValue.toString()})`,
+    );
+
+  /** Instants d'une fenêtre à la cadence de la plateforme, légèrement irréguliers ; bornes exactes. */
+  const cadence = (from: number, stepMinutes: number, jitterMinutes: number): number[] => {
+    const step = stepMinutes * 60_000;
+    const times: number[] = [from];
+    for (let t = from + step; t < SNAPSHOT_TIME - step / 2; t += step) {
+      times.push(Math.round(t + (rnd() - 0.5) * 2 * jitterMinutes * 60_000));
+    }
+    times.push(SNAPSHOT_TIME);
+    return times;
+  };
+  const series = (
+    times: readonly number[],
+    pick: (r: Reading) => { value: Big; flows: Big },
+  ): { accountValueHistory: [number, string][]; pnlHistory: [number, string][]; vlm: string } => {
+    const readings = readingsAt(times).map(pick);
+    const first = readings[0]!;
+    return {
+      accountValueHistory: times.map((t, i) => [t, round(readings[i]!.value, 6).toString()]),
+      pnlHistory: times.map((t, i) => {
+        const r = readings[i]!;
+        return [
+          t,
+          round(r.value.minus(first.value).minus(r.flows.minus(first.flows)), 6).toString(),
+        ];
+      }),
+      vlm: '123456.7',
+    };
+  };
+  // Cadences de la vraie API relevées le 17/09/2026 : ~2 h 20 sur un jour et une semaine pour un
+  // compte réel, ~22 min pour un vault actif, ~9 h 40 sur un mois. La démo prend la plus fine sur
+  // un jour, pour que le détail s'y recoupe souvent, et resserre « Tout » à quatre jours.
+  const windows: [string, number[]][] = [
+    ['day', cadence(SNAPSHOT_TIME - 24 * 3_600_000, 20, 4)],
+    ['week', cadence(SNAPSHOT_TIME - 7 * 86_400_000, 165, 10)],
+    ['month', cadence(SNAPSHOT_TIME - 30 * 86_400_000, 570, 30)],
+    ['allTime', cadence(CURVE_START, 4 * 24 * 60, 6 * 60)],
+  ];
   const portfolio = [
-    portfolioPeriod('day', SNAPSHOT_TIME - 24 * 3_600_000, 24, '0.004'),
-    portfolioPeriod('week', SNAPSHOT_TIME - 7 * 86_400_000, 28, '0.01'),
-    // Un dépôt à mi-fenêtre sur 30 jours seulement : « Tout » alimente aussi la courbe de patrimoine
-    // de la vue d'ensemble, que ce scénario n'a pas à déplacer.
-    portfolioPeriod('month', SNAPSHOT_TIME - 30 * 86_400_000, 30, '0.02', '0.15'),
-    portfolioPeriod('allTime', CURVE_START, 40, '0.03'),
-    portfolioPeriod('perpDay', SNAPSHOT_TIME - 24 * 3_600_000, 24, '0.004'),
-    portfolioPeriod('perpWeek', SNAPSHOT_TIME - 7 * 86_400_000, 28, '0.01'),
-    portfolioPeriod('perpMonth', SNAPSHOT_TIME - 30 * 86_400_000, 30, '0.02'),
-    portfolioPeriod('perpAllTime', CURVE_START, 40, '0.03'),
+    ...windows.map(([label, times]) => [
+      label,
+      series(times, (r) => ({ value: r.total, flows: r.totalFlows })),
+    ]),
+    ...windows.map(([label, times]) => [
+      `perp${label[0]!.toUpperCase()}${label.slice(1)}`,
+      series(times, (r) => ({ value: r.perp, flows: r.perpFlows })),
+    ]),
   ];
 
   return {

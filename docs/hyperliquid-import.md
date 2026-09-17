@@ -27,12 +27,32 @@ montant réel n'apparaît ici (docs/DECISIONS.md n° 17).
 | `userNonFundingLedgerUpdates` | Dépôts, retraits, transferts, mouvements hors funding        | 20                |
 | `clearinghouseState`          | Instantané du compte perps (équité, positions ouvertes)      | 2                 |
 | `spotClearinghouseState`      | Instantané des soldes spot                                   | 2                 |
+| `portfolio`                   | Courbes d'équité et de P&L par période (8 séries)            | 20                |
+| `candleSnapshot`              | Bougies d'un marché, pour la courbe détaillée (n° 164)       | 20 + 1 / 60       |
 
 Sondés le 23/08/2026 (deux adresses publiques du classement, 16 requêtes) mais **non utilisés par
 l'app** : `userFills` (même forme que `userFillsByTime`, tri **descendant** — inutilisable pour une
-pagination par curseur croissant) ; `portfolio` (8 périodes ; `vlm` est un **nombre**, seul champ qui
-ne soit pas une chaîne observé sur toute l'API) ; `subAccounts` (renvoie `null` en l'absence de
-sous-compte).
+pagination par curseur croissant) ; `subAccounts` (renvoie `null` en l'absence de sous-compte).
+`portfolio`, sondé ce jour-là, est lu depuis (8 périodes ; `vlm` est un **nombre**, seul champ qui ne
+soit pas une chaîne observé sur toute l'API).
+
+## Courbe `portfolio` et courbe détaillée
+
+Relevés du 17/09/2026 (docs/DECISIONS.md n° 164) :
+
+- **Finesse, selon le compte** : un point toutes les ~2 h 20 sur 24 h comme sur 7 jours, ~9 h 40 sur
+  30 jours, une semaine sur tout l'historique pour un compte réel ; un vault actif en reçoit toutes
+  les ~22 min sur 24 h.
+- **« Depuis l'ouverture » commence par un point nul**, posé avant la première mesure : ce n'est pas
+  une valeur du compte.
+- **Le P&L de cette fenêtre compte les dépôts antérieurs à son premier point.** Ce qui vaut sur
+  toutes les séries : `P&L − équité + apports = constante`.
+- **À plat, la valeur de la plateforme s'écarte de quelques dollars** de la trésorerie rejouée d'une
+  période à l'autre : un bruit, ni dérive ni marche.
+- **`candleSnapshot`** (`{ type, req: { coin, interval, startTime, endTime } }`, bornes incluses,
+  `coin` = `BTC` pour un perp, `@107` ou `PURR/USDC` pour une paire spot) ne sert que **les 5 000
+  bougies les plus récentes** de chaque pas : 3,5 jours en 1 min, 17 jours en 5 min, 52 jours en
+  15 min, 208 jours en 1 h. La requête ne porte **aucune adresse**.
 
 ## Sémantique des champs
 
@@ -184,7 +204,8 @@ trancher empiriquement que `closedPnl` est brut de frais.
 
 L'adresse publique est envoyée **uniquement** à `api.hyperliquid.xyz` (jamais à un autre service) et
 n'est stockée que localement, dans le navigateur — jamais de clé privée ni de signature, l'API `info`
-est intégralement en lecture seule (docs/DECISIONS.md n° 1, n° 22).
+est intégralement en lecture seule (docs/DECISIONS.md n° 1, n° 22). Les bougies de la courbe
+détaillée ne portent qu'un marché et deux instants, pas l'adresse (n° 164).
 
 ## Sources (consultées le 23/08/2026)
 

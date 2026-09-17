@@ -63,7 +63,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   pour l'onglet « Seuil », docs/DECISIONS.md n° 158), `curve.ts` (`curveWindow` : gain ou perte
   d'une fenêtre de la courbe de la plateforme, lu sur sa série de P&L, équité de départ et
   d'arrivée, et dépôts, retraits et transferts **déduits** de la différence, pour que l'addition
-  tombe juste, docs/DECISIONS.md n° 162).
+  tombe juste, docs/DECISIONS.md n° 162), `equity-path.ts` (`detailedCurve` : la valeur du compte
+  reconstituée entre les points de la plateforme — fills, funding et apports rejoués, positions
+  suivies par `startPosition`, valorisées aux bougies —, calée sur les points à plat les plus proches
+  puis recoupée sur chaque point de la fenêtre, et **écartée** au-delà de ce que le cours explique,
+  docs/DECISIONS.md n° 164).
 - `src/lib/import` — parseur tolérant, détection de format par alias d'en-têtes, construction des
   opérations à deux jambes (`trade.ts`), normalisation, dédoublonnage idempotent (`index.ts`).
 - `src/lib/import/hyperliquid` — client `info` minimal sans clé (`client.ts` : une requête à la fois,
@@ -71,8 +75,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   respecté), synchronisation incrémentale par curseur (`sync.ts` : fills par pages de 2 000, funding
   et grand livre par pages de 100, borne inclusive et dédoublonnage par clé — idempotente), gardes
   runtime champ par champ sur chaque réponse (`api-types.ts`), normalisation vers `domain/trading` et,
-  en option (`spotAsInvestment`), vers des `TradeEvent` de l'Investissement (`normalize.ts`). Détail
-  complet : docs/hyperliquid-import.md, docs/DECISIONS.md n° 22.
+  en option (`spotAsInvestment`), vers des `TradeEvent` de l'Investissement (`normalize.ts`). La
+  courbe détaillée y prend ses bougies (`candles.ts` : pas choisi selon la fenêtre et son ancienneté,
+  cache de session) et ses mouvements rejoués (`equity-moves.ts`) ; la démonstration tire bougies et
+  courbes `portfolio` d'un même tracé de cours (`fixture-prices.ts`). Détail complet :
+  docs/hyperliquid-import.md, docs/DECISIONS.md n° 22 et n° 164.
 - `src/lib/import/pivot` — import CSV « pivot » (CSV Universal Koinly, ou export interne Koinly lu
   par Waltio) dans des comptes `kind: 'csv'` de l'espace Investissement : détection de format
   (`detect.ts`), lignes brutes dédoublonnées par hachage de contenu (`rows.ts`), normalisation vers

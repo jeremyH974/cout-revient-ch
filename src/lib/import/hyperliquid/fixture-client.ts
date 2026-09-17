@@ -3,10 +3,14 @@
  * demo.json`, généré par `npm run fixture:hl`) avec la sémantique de l'API réelle : pagination par
  * `startTime` inclusif, tailles de page, adresse inconnue → réponse vide. Utilisé par le mode
  * démonstration (`app.loadDemo`) et par le stub réseau des tests E2E (`tests/e2e/helpers/network.ts`),
- * pour que l'écran, la démo et les tests passent par le même code de synchronisation.
+ * pour que l'écran, la démo et les tests passent par le même code de synchronisation. Les bougies
+ * (`candleSnapshot`) viennent du tracé de cours du jeu (`fixture-prices.ts`), le même dont le
+ * générateur tire les points `portfolio` : la courbe détaillée de la démo se recoupe.
  */
 import type { HlClient } from './client';
 import { parseSpotMeta } from './api-types';
+import { CANDLE_INTERVALS } from './candles';
+import { pathCandles, priceKnots, type PriceKnot } from './fixture-prices';
 import { FILLS_PAGE, LEDGER_PAGE } from './sync';
 
 /** Réponses de l'API telles quelles (formes brutes), pour une adresse. */
@@ -38,12 +42,30 @@ function page(items: unknown[], body: Record<string, unknown>, size: number): un
     .slice(0, size);
 }
 
+const knotsByFixture = new WeakMap<HlFixture, Record<string, PriceKnot[]>>();
+
+/** Bougies du tracé de cours du jeu, sous la forme de `candleSnapshot` (vide si inconnu). */
+function candles(fixture: HlFixture, body: Record<string, unknown>): unknown[] {
+  const req = typeof body['req'] === 'object' && body['req'] !== null ? body['req'] : {};
+  const { coin, interval, startTime, endTime } = req as Record<string, unknown>;
+  const step = CANDLE_INTERVALS.find((i) => i.id === interval);
+  if (typeof coin !== 'string' || !step || typeof startTime !== 'number') return [];
+  let knots = knotsByFixture.get(fixture);
+  if (!knots) {
+    knots = priceKnots(fixture);
+    knotsByFixture.set(fixture, knots);
+  }
+  const to = typeof endTime === 'number' ? endTime : Number.POSITIVE_INFINITY;
+  return pathCandles(knots[coin] ?? [], coin, step, startTime, to);
+}
+
 /** Réponse de l'API fixture à un corps `info` ; `null` si le type n'est pas servi. */
 export function answerInfo(fixture: HlFixture, body: Record<string, unknown>): unknown {
   const type = body['type'];
   if (type === 'spotMeta') return fixture.spotMeta;
   if (type === 'allMids') return fixture.allMids;
   if (type === 'portfolio') return fixture.portfolio;
+  if (type === 'candleSnapshot') return candles(fixture, body);
   const user = typeof body['user'] === 'string' ? body['user'].toLowerCase() : '';
   const known = user === fixture.address.toLowerCase();
   switch (type) {
@@ -63,6 +85,20 @@ export function answerInfo(fixture: HlFixture, body: Record<string, unknown>): u
     default:
       return null;
   }
+}
+
+let demoClient: Promise<HlClient> | null = null;
+
+/**
+ * Client hors ligne du jeu de démonstration, chargé à la demande et une seule fois. La courbe
+ * détaillée s'en sert en démonstration même après un rechargement de page, quand le client de la
+ * synchronisation n'existe plus : sans lui, un compte fictif recevrait de vrais cours.
+ */
+export function demoFixtureClient(): Promise<HlClient> {
+  demoClient ??= import('../../../../tests/fixtures/hyperliquid/demo.json?raw').then(
+    ({ default: text }) => fixtureClient(JSON.parse(text) as HlFixture),
+  );
+  return demoClient;
 }
 
 export function fixtureClient(fixture: HlFixture): HlClient {

@@ -100,7 +100,7 @@ export const KNOWN_ORIGINS: readonly KnownOrigin[] = [
   {
     origin: 'https://api.hyperliquid.xyz',
     use: 'connect',
-    why: 'Import et suivi des positions et des exécutions de trading.',
+    why: 'Import et suivi des positions et des exécutions de trading, cours de la courbe détaillée.',
   },
   {
     origin: 'wss://api.hyperliquid.xyz',
