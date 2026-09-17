@@ -78,6 +78,8 @@
     labels = { primary: 'Valeur', secondary: null },
     discreet = false,
     zoomable = false,
+    view = $bindable(null),
+    minSpanMs,
   }: {
     points: ChartPoint[];
     /** Nature de la courbe : montant (masquable), pourcentage ou prix unitaire. */
@@ -108,6 +110,16 @@
      * pour qui ne peut pas glisser (WCAG 2.5.7). Seuls les points de la fenêtre sont tracés.
      */
     zoomable?: boolean;
+    /**
+     * Fenêtre visible (ms, mêmes instants que `pointMs`), `null` = série entière. Liée par qui veut
+     * charger plus fin ce que l'on regarde : la courbe détaillée du Trading (décision n° 164).
+     */
+    view?: TimeWindow | null;
+    /**
+     * Zoom le plus serré permis quand l'appelant sait fournir des points plus fins que ceux reçus ;
+     * à défaut, quatre points de la série (`MIN_VISIBLE_POINTS`).
+     */
+    minSpanMs?: number;
   } = $props();
 
   const uid = `chart-${Math.random().toString(36).slice(2, 8)}`;
@@ -118,8 +130,9 @@
   // --- Zoom : une fenêtre de temps visible, bornée à la série entière -------------------------
   const allTimes = $derived(allPoints.map((p) => pointMs(p.day)));
   const full = $derived(zoomable ? fullWindow(allTimes) : null);
-  const minSpan = $derived(full ? minimumSpan(allTimes, full) : 0);
-  let view = $state<TimeWindow | null>(null);
+  const minSpan = $derived(
+    full ? Math.min(minimumSpan(allTimes, full), minSpanMs ?? Number.POSITIVE_INFINITY) : 0,
+  );
   // Une autre série (autre période, autre métrique) repart de la vue entière. Bornes lues en
   // nombres : un objet recalculé à l'identique ne doit pas effacer le zoom.
   const fullFrom = $derived(full?.from ?? 0);
@@ -267,12 +280,19 @@
   const label = (day: string): string =>
     day.length > 10 ? formatInstant(day, { withDate }) : fmtDate(day);
 
+  /**
+   * Zoomée, l'échelle suit la seule courbe. Garder la référence (départ, zéro, niveaux) écrasait
+   * le détail qu'on venait chercher : dix euros de variation sur une équité de 6 600 € partie de
+   * 6 490 € tenaient en quelques pixels. La référence sort alors du cadre, comme sur TradingView ;
+   * la couleur de gain ou de perte, elle, reste juste.
+   */
+  const zoomedIn = $derived(zoomable && view !== null);
   const stats = $derived.by(() => {
     const values = points.flatMap((p) =>
-      p.secondary !== null ? [p.primary, p.secondary] : [p.primary],
+      p.secondary !== null && !zoomedIn ? [p.primary, p.secondary] : [p.primary],
     );
-    if (zeroLine) values.push(0);
-    for (const level of levels) values.push(level.value);
+    if (zeroLine && !zoomedIn) values.push(0);
+    if (!zoomedIn) for (const level of levels) values.push(level.value);
     if (values.length === 0) return null;
     let min = Math.min(...values);
     let max = Math.max(...values);

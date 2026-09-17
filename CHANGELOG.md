@@ -61,9 +61,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - **La courbe « Évolution » du Trading se zoome comme sur TradingView.** Molette ou pincement pour
   rapprocher autour du curseur, glisser pour se déplacer dans le temps, double-clic pour tout
   réafficher — et des boutons + / − / ← / → / « Tout afficher » pour qui préfère cliquer. L'échelle
-  verticale se recale sur la période zoomée, pour que les variations se voient vraiment. Le zoom
-  s'arrête à la finesse de la courbe d'Hyperliquid, qui ne compte qu'un point toutes les deux heures
-  environ : le détail minute par minute arrivera avec une courbe reconstruite depuis vos exécutions.
+  verticale se recale sur la période zoomée, pour que les variations se voient vraiment.
+
+- **Zoomée, la courbe du Trading montre le détail minute par minute.** La courbe d'Hyperliquid ne
+  compte qu'un point toutes les deux heures environ : un aller-retour de cinq minutes, ou un plus
+  haut rendu une demi-heure plus tard, y restaient invisibles. Dès que vous zoomez, l'application
+  reconstitue la valeur de votre compte entre ces points, depuis vos exécutions, le funding et vos
+  mouvements, valorisés aux cours d'Hyperliquid : à la minute sur les derniers jours, puis toutes
+  les 5 minutes, 15 minutes ou une heure pour les périodes plus anciennes (la plateforme ne garde pas
+  les cours à la minute au-delà de trois jours et demi). Le détail est **recoupé** avec chaque point
+  d'Hyperliquid de la fenêtre, et la phrase sous le graphique dit à combien près. S'il ne recoupe
+  pas — un vault, un staking ou un jeton sans cours que l'application ne sait pas suivre —, il est
+  écarté plutôt que maquillé, et la courbe reste celle de la plateforme. Ces requêtes de cours ne
+  portent pas votre adresse. En mode démonstration, la courbe du compte fictif est désormais tirée de
+  ses propres opérations, ce qui la rend cohérente avec ses fills.
 
 - **« Suis-je en gain ou en perte ? » — la réponse est écrite au-dessus de la courbe.** La courbe
   d'équité du tableau de bord Trading monte aussi quand vous déposez de l'argent, et son plus haut

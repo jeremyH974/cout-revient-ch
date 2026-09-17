@@ -4955,3 +4955,84 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      fenêtre, ignorer la finesse des points, ou rendre une fenêtre creuse sans ses voisins fait
      rougir le test qui les nomme ; à l'écran, inverser le sens de la molette fait échouer le
      parcours (« Tout afficher » reste désactivé).
+
+164. **La courbe détaillée : reconstituer entre les points de la plateforme, et l'écarter plutôt que
+     la lisser** (17/09/2026).
+
+     **Ce qui manquait.** Le zoom (n° 163) s'arrête à la finesse de la courbe d'Hyperliquid : un
+     point toutes les ~2 h 20 sur 24 h pour un compte réel. Un aller-retour de cinq minutes, ou un
+     plus haut de latent rendu une demi-heure plus tard (n° 162), y restent invisibles. Zoomer
+     n'invente rien : il fallait une autre source.
+
+     **Reconstituer depuis ce qu'on a déjà.** Tout ce qui fait bouger la valeur du compte est
+     synchronisé, sauf le cours. `domain/trading/equity-path.ts` rejoue les fills (`closedPnl` moins
+     les frais), le funding, les dépôts, retraits et transferts, suit la position par le
+     `startPosition` de la plateforme, et valorise à chaque clôture de bougie :
+     `trésorerie + Σ taille × (cours − entrée) + Σ jetons × cours`, plus un point à chaque exécution,
+     au cours exécuté. Les bruts viennent du stockage (`import/hyperliquid/equity-moves.ts`), jamais
+     du rapport Trading, dont l'option « traiter le spot comme de l'investissement » retire les fills
+     spot ; les apports reprennent l'interprétation du moteur (`ledgerToCashFlow`). Les bougies
+     viennent de `candleSnapshot` (`import/hyperliquid/candles.ts`). La plateforme n'en sert que les
+     5 000 plus récentes par pas : 3,5 jours en 1 min, 17 jours en 5 min, 52 jours en 15 min, 208
+     jours en 1 h. Le pas se choisit donc selon la fenêtre **et** son ancienneté, au plus fin qui
+     tienne en 1 500 points. La requête ne porte aucune adresse, et les bougies restent en cache de
+     session, jamais persistées.
+
+     **Trois pièges de la plateforme**, relevés le 17/09/2026 sur un compte réel :
+
+     1. Le `closedPnl` est calculé sur un prix d'entrée **arrondi** : recalculer l'entrée depuis les
+        moyennes dériverait d'environ un dollar par aller-retour. Elle se relit donc sur le
+        `closedPnl` à chaque réduction.
+     2. La fenêtre « depuis l'ouverture » commence par un point **nul**, posé avant la première
+        mesure alors que les dépôts y étaient déjà. Il est écarté (`withoutZeroSeed`).
+     3. Le P&L de cette même fenêtre compte les dépôts **antérieurs** à son premier point : ce n'est
+        pas « équité − équité de départ − apports de la fenêtre ». Ce que la plateforme respecte
+        partout, c'est `P&L − équité + apports = constante` sur une même série, vérifié au centime
+        sur les quatre fenêtres. Le P&L détaillé se cale sur cette constante, lue sur la série
+        elle-même.
+
+     **Le calage.** La trésorerie rejouée n'est jamais supposée complète : une constante l'ajuste sur
+     les points de la plateforme. D'abord sur les trois points **à plat** (sans position ni jeton) les
+     plus proches de la fenêtre, même en dehors : la valeur y est la trésorerie, exacte sans aucun
+     cours. À défaut, sur les points de la fenêtre les moins exposés au cours. Cet ordre n'est pas
+     esthétique : sur le compte réel, un point en position calait toute la fenêtre à plusieurs
+     dizaines de dollars près (bougie contre prix de marque), un point à plat à deux dollars.
+
+     **Recouper, et écarter plutôt que lisser.** Chaque point de la plateforme compris dans la
+     fenêtre est recoupé. L'écart admis est ce que le cours peut expliquer : l'amplitude de la bougie
+     qui contient le point (le vrai cours était entre son plus bas et son plus haut), 0,05 % de
+     l'exposition pour l'écart entre dernier échange et prix de marque, et 0,02 % de la valeur, 10 $
+     au moins. Ce plancher est le bruit mesuré de la plateforme : quelques dollars d'une période à
+     plat à l'autre, qui ne suivent pas la taille du compte. Au-delà, le détail est **écarté** et
+     l'écran nomme le point en cause ; la courbe reste celle de la plateforme. Répartir l'écart entre
+     deux points aurait donné une courbe toujours juste aux points et fausse partout ailleurs : un
+     vault, un staking ou un jeton sans cours y auraient disparu en silence.
+
+     **Ce qui s'affiche.** Zoomée, la courbe insère le détail entre les points de la plateforme, dont
+     le premier et le dernier restent toujours (ils bornent le zoom). Le zoom descend alors jusqu'à
+     vingt minutes, et l'échelle verticale ne garde plus la référence (départ, zéro), qui écrasait le
+     détail en bas du cadre. À la vue entière, la courbe reste exactement celle de la plateforme. Sous
+     le graphique : le pas des bougies, la source, et l'écart **aux instants sans position**, le seul
+     qui ne doive rien au cours. Sinon « dans la marge du cours », jamais un écart de milliers de
+     dollars tiré d'une bougie de 12 h, qui ne dirait rien de la reconstitution. Hors ligne (variante
+     personnelle), le détail se dit indisponible et la courbe ne change pas.
+
+     **La démo se recoupe comme un vrai compte.** Ses courbes `portfolio` étaient une oscillation
+     inventée, sans lien avec ses fills : aucune reconstitution n'aurait pu les recouper. Le générateur
+     les **rejoue** maintenant depuis le compte, par une implémentation à part — c'est l'oracle de
+     `tests/integration/hl-detail-curve.test.ts`. Il les valorise à un tracé de cours déterministe
+     (`import/hyperliquid/fixture-prices.ts`) qui passe par chaque fill, et le client hors ligne tire
+     ses bougies du même tracé. Le dépôt que la fenêtre de 30 jours inventait (n° 162) est devenu un
+     vrai dépôt du grand livre.
+
+     **Contre-épreuve** (décision n° 75) : chacune de ces fautes fait rougir le test qui la nomme —
+     - ne plus relire l'entrée sur le `closedPnl` ;
+     - garder le départ à zéro ;
+     - ignorer les points à plat ;
+     - ne jamais écarter ;
+     - perdre le `closedPnl` des bruts ;
+     - caler le P&L sur zéro.
+
+     À l'écran, deux fautes font échouer le parcours : tracer la courbe de la plateforme malgré le
+     détail (93 segments au lieu de plus de 308), ou garder la référence dans l'échelle zoomée (la
+     ligne « départ » reste dans le cadre).
