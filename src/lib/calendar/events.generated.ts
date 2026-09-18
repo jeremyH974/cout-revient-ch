@@ -6,35 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-14T12:45:42Z',
-  coversFrom: '2026-06-17',
+  generatedAt: '2026-09-18T11:13:32Z',
+  coversFrom: '2026-06-25',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-14', count: 13, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-14', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-18', count: 12, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-18', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
     { source: 'bls', checkedOn: '2026-09-01', count: 24, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-14', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'ecb', checkedOn: '2026-09-18', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-14',
-      count: 9,
+      checkedOn: '2026-09-18',
+      count: 8,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'fomc-decision-2026-06-17',
-      kind: 'fomc-decision',
-      at: '2026-06-17T18:00:00Z',
-      precision: 'exact',
-      title: 'Décision de la Fed (FOMC)',
-      detail: 'Communiqué, conférence de presse et projections économiques',
-      tier: 'major',
-      source: 'fomc',
-      url: 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
-    },
     {
       id: 'bea-gdp-2026-06-25',
       kind: 'gdp',
@@ -251,17 +240,6 @@ export const CALENDAR: Calendar = {
       tier: 'major',
       source: 'fomc',
       url: 'https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm',
-    },
-    {
-      id: 'eurostat-hicp-final-2026-09-17',
-      kind: 'hicp',
-      at: '2026-09-17T10:00:00Z',
-      precision: 'exact',
-      title: 'Inflation zone euro (définitif)',
-      detail: 'IPCH, chiffre révisé',
-      tier: 'secondary',
-      source: 'eurostat',
-      url: 'https://www.ecb.europa.eu/press/calendars/statscal/ges/html/sthicp.en.html',
     },
     {
       id: 'bls-jolts-2026-09-29',
