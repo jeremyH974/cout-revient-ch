@@ -392,6 +392,38 @@ sont ressortis, qu'aucune des trois propositions n'annonçait :
   falsifiait rien une fois sur soixante-quatre, et faisait rougir la CI sans qu'aucun code n'ait
   bougé.
 
+### 3 sexies. Propositions issues de la demande du 20/09/2026 (un rapport par espace, et un global)
+
+Détail, sources datées et limites :
+[`proposals/2026-09-20-rapports-par-espace.md`](proposals/2026-09-20-rapports-par-espace.md).
+
+Constat central : **la demande portait un doute, et le doute était le défaut.** « Pouvoir aussi voir
+l'année en cours (donc ici 2027 si c'est par année de déclaration ?) » — l'année en cours était déjà
+sélectionnée à l'écran ; « Année déclarée » se lisait dans les deux sens. Le mot est corrigé le jour
+même (décision n° 171) et ne figure donc pas au tableau. Restent les quatre lots qui construisent
+réellement quelque chose.
+
+| #    | Proposition                                                                        | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | ---------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
+| P117 | Le rapport global, assis sur `reconcileNetWorth`, avec l'invariant Σ parts = total |   5    |     3     |    4    |    1     | **12**  |
+| P115 | Le modèle de rapport devient une liste ordonnée de sections                        |   2    |     4     |    0    |    1     |  **6**  |
+| P116 | Registre `REPORTS` : un rapport par espace, une route par périmètre                |   4    |     2     |    5    |    2     | **5,5** |
+| P118 | Le rapport honore la plage d'analyse, année en cours comprise                      |   5    |     2     |    5    |   2,5    | **4,8** |
+
+**Ordre retenu** : P115 → P117 → P116 → P118. Il n'est pas celui du ROI brut : **P115 conditionne
+les trois autres** — tant que `ReportModel` impose quatre tableaux d'investissement, ni le global ni
+les prêts ne s'y expriment. P117 passe ensuite parce que son calcul existe déjà (`reconcileNetWorth`)
+et qu'il met le modèle refondu à l'épreuve avant que trois rapports n'en dépendent.
+
+**Deux propositions ont rétréci avant d'être écrites**, et c'est la raison d'être de la relecture :
+le rapport global est **déjà calculé** sous le nom de « réconciliation », et la plage d'analyse est
+**déjà unique et libre** pour toute l'application depuis les décisions n° 156 et 157 — le Rapport
+est seulement le dernier écran à ne pas la lire.
+
+**Un arbitrage est pris** : l'espace « Patrimoine » sera renommé **« Prêts »** (en P116). Le mot
+désigne aujourd'hui à la fois le total consolidé de la Vue d'ensemble et l'espace des prêts ; un
+rapport global qui contiendrait une part homonyme serait faux dès son titre.
+
 ## 4. Ordre d'exécution recommandé
 
 ### Phase 0 — Socle de confiance (≈ 3 sessions, à faire en premier)
