@@ -7,6 +7,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **« Combien vais-je payer, et quand ? »** L'écran Impôts comparait deux voies d'imposition, option
+  par option, sans jamais faire la somme — et sans dire ce qui, de cette somme, avait **déjà** été
+  prélevé. Il ouvre maintenant sur **une addition** : un montant, une date, et le détail ligne à
+  ligne pour que vous puissiez le refaire vous-même.
+
+  **Ce qui a déjà été prélevé en sort.** L'acompte de 12,8 % que votre plateforme retient à chaque
+  versement, les prélèvements sociaux qu'elle a déjà pris, le crédit d'impôt sur vos dividendes
+  étrangers : tout cela se déduit, chacun selon sa règle. L'acompte peut même vous valoir un
+  **remboursement** — la loi le prévoit —, et l'écran le dit alors plutôt que d'afficher zéro.
+
+  **Et surtout : ces gains n'ont rien payé d'avance.** Ils échappent au prélèvement à la source,
+  arrivent entiers sur l'avis de l'été suivant, et le solde est prélevé à partir du 25 septembre —
+  **en quatre fois au-delà de 300 €**. C'est écrit à côté du montant, parce que c'est la moitié de
+  la réponse.
+
+  La voie retenue de chaque côté part sur **la moins chère** — un constat sur les seuls revenus que
+  l'application connaît, jamais une recommandation — et se change d'une liste déroulante. Votre
+  plus-value **latente** est rappelée juste en dessous, hors du total : elle ne doit rien tant que
+  vous ne vendez pas.
+
 - **« Et si je vendais d'ici le 31 décembre ? »** L'écran Impôts répond maintenant à la seule
   question fiscale que vous puissiez encore décider. Indiquez un montant de vente : l'écran montre
   l'année **telle qu'elle est** et **telle qu'elle serait**, côte à côte — total des cessions,
