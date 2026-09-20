@@ -173,6 +173,11 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         // Champ ajouté après la fixture (décision n° 150) : `withDefaults` le pose, et cette
         // ligne prouve qu'une sauvegarde d'avant se relit sans montée de schéma.
         marginalRate: null,
+        // Le foyer de l'écran « Impôts » (n° 170) : trois champs additifs de plus, et la même
+        // preuve — une sauvegarde qui ne les connaît pas se relit sans montée de schéma.
+        taxBasis: 'bracket',
+        householdIncomeEur: null,
+        householdParts: null,
         // Même famille (décision n° 156) : la plage d'analyse est devenue un réglage partagé, et
         // une sauvegarde d'avant repart donc sur le défaut plutôt que sur rien. Puis sa plage libre
         // (n° 157), absente d'une sauvegarde qui ne la connaissait pas.

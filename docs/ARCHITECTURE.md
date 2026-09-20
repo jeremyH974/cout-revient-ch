@@ -227,17 +227,20 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
-  - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
-    `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
+  - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
+    `reconciliation`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
     déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM
     suivie en lecture seule, et porte le bouton « Synchroniser ». `routes/Declaration.svelte`
     (`#/declaration`) réunit les cinq moteurs fiscaux pour **une** année, case par case et dans
-    l'ordre du parcours en ligne (décision n° 149).
+    l'ordre du parcours en ligne (décision n° 149). `routes/Taxes.svelte` (`#/impots` — le seul
+    hash de cet espace qui ne porte pas le nom de sa route, parce qu'un favori se lit) met les deux
+    voies d'imposition **côte à côte** : impôt et prélèvements sociaux séparés, échelle des tranches
+    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170).
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
   `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
-  `tradeStats`, `tradeBreakeven`, `fills`, `more`, `market`, `watch`, `declaration`, `accounts`, `reconciliation`,
-  `settings`, `help`, `news`, `privacy`.
+  `tradeStats`, `tradeBreakeven`, `fills`, `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
+  `reconciliation`, `settings`, `help`, `news`, `privacy`.
 
   L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu
   « Plus » — ce document affirmait le contraire jusqu'au 01/09/2026 (décision n° 90).
@@ -264,12 +267,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   d'achats/ventes/récompenses → `total = valeur + Σ produits − Σ achats`, PRU invariant à la vente,
   lots réconciliés, survente bloquée ; et, sur le barème de l'impôt, qu'un supplément de revenu
   coûte au moins sa tranche de départ et au plus celle d'arrivée — la propriété qui justifie de
-  saisir un revenu plutôt que de choisir une tranche. Dix fichiers `*.property.test.ts`, croisés
+  saisir un revenu plutôt que de choisir une tranche ; et, sur l'écran Impôts, que les prélèvements
+  sociaux sont le même montant des deux côtés et que la bascule est un préfixe de l'échelle des
+  tranches. Onze fichiers `*.property.test.ts`, croisés
   avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
   `anchor.property.test.ts`, `engine.property.test.ts`, `sort-order.property.test.ts`,
   `trace.property.test.ts`, `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
   `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`,
-  `household-tax.property.test.ts`.
+  `household-tax.property.test.ts`, `tax-choice.property.test.ts`.
 - **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
   rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
   clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits

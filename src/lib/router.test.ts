@@ -116,6 +116,7 @@ describe('toHash / parseHash — aller-retour', () => {
     { name: 'trading' },
     { name: 'tradeBreakeven' },
     { name: 'more' },
+    { name: 'taxes' },
     { name: 'settings' },
     { name: 'privacy' },
     { name: 'help' },
@@ -124,6 +125,17 @@ describe('toHash / parseHash — aller-retour', () => {
 
   it.each(routes)('parseHash(toHash(%o)) redonne la route de départ', (route) => {
     expect(parseHash(toHash(route))).toEqual(route);
+  });
+});
+
+describe('l’écran Impôts', () => {
+  it('porte un hash qui se reconnaît dans un favori', () => {
+    expect(toHash({ name: 'taxes' })).toBe('#/impots');
+    expect(parseHash('#/impots')).toEqual({ name: 'taxes' });
+  });
+
+  it('un hash inconnu ne mène jamais là : il retombe sur la vue d’ensemble', () => {
+    expect(parseHash('#/taxes')).toEqual({ name: 'overview' });
   });
 });
 

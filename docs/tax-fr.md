@@ -93,9 +93,21 @@ des récompenses ni du minage — ce qu'il en reste du périmètre de P13 dans l
 Deux manques annoncés ici n'en sont plus. La **réconciliation DAC8** existe (`dac8Summary`,
 récapitulatif par année dans le Rapport, décision n° 50). L'**option pour le barème** est chiffrée :
 l'écran Déclaration compare, pour la case 3CN comme pour la 2OP, ce que le barème coûterait à la
-tranche que vous indiquez (décision n° 150). Il **ne dit pas de cocher** — et il ne le dira pas :
-l'option se juge sur le revenu global du foyer, que l'application ne connaît pas. Un test de bout en
-bout interdit d'ailleurs à cet écran tout vocabulaire de recommandation.
+tranche que vous indiquez (décision n° 150), et l'écran **Impôts** (`#/impots`, décision n° 170) met
+les deux voies côte à côte — impôt sur le revenu et prélèvements sociaux séparés, échelle des
+tranches, et ce qui reste ouvert d'une année en cours.
+
+Ce dernier sait aussi appliquer le barème à votre **revenu imposable et vos parts** (décision
+n° 169) : depuis ce jour-là, l'application peut connaître le revenu global du foyer — si vous le lui
+donnez, et il ne quitte jamais l'appareil. Le franchissement de tranche, que le mode rapide ne peut
+pas voir, est alors calculé pour de bon.
+
+Aucun des deux écrans **ne dit de cocher**, et aucun ne le dira : l'option se juge aussi sur le
+revenu fiscal de référence, sur les autres revenus de capitaux mobiliers du foyer, et — pour la case
+3CN, qui est irrévocable — sur des années à venir que personne ne connaît. Ni la décote ni le
+plafonnement du quotient familial ne sont modélisés ; le second s'annule dans une différence, le
+premier non. Un test de bout en bout interdit d'ailleurs aux deux écrans tout vocabulaire de
+recommandation.
 
 **Faites vérifier votre situation par un professionnel avant toute déclaration.**
 

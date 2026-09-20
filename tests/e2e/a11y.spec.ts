@@ -25,6 +25,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/market',
     '#/watch',
     '#/declaration',
+    '#/impots',
     '#/news',
     '#/invest/alerts',
     '#/wealth/loans',
@@ -56,6 +57,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/invest/asset/btc',
     '#/invest/alerts',
     '#/declaration',
+    '#/impots',
     '#/wealth',
   ]) {
     test(`avec la démo : ${route}`, async ({ page }) => {

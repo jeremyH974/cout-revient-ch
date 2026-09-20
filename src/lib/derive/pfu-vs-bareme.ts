@@ -50,6 +50,14 @@ export interface ArbitrageBase {
   csgBaseEur: DecimalString;
   /** Part impôt sur le revenu du prélèvement forfaitaire applicable à cette assiette. */
   flatRate: DecimalString;
+  /**
+   * Part **prélèvements sociaux** de cette assiette, due à l'identique sous forfait et sous
+   * barème. Elle ne déplace donc aucun arbitrage — et c'est exactement pour cela qu'elle est ici :
+   * un écran qui annonce « 31,4 % » sans montrer que **12,8 points seulement** s'arbitrent laisse
+   * croire que tout est en jeu. Elle s'applique à `csgBaseEur`, l'assiette sociale, qui diffère de
+   * `taxableEur` pour les prêts participatifs.
+   */
+  socialRate: DecimalString;
 }
 
 /** Ce que coûterait le barème à un taux marginal donné, et l'écart avec le forfait. */
@@ -68,6 +76,11 @@ export interface Arbitrage {
   totalTaxableEur: DecimalString;
   /** Impôt sur le revenu au forfait, hors prélèvements sociaux. */
   flatEur: DecimalString;
+  /**
+   * Prélèvements sociaux dus sur ces assiettes — **le même montant dans les deux branches**.
+   * Il ne participe pas à l'écart ; il dit ce que l'option ne peut pas changer.
+   */
+  socialEur: DecimalString;
   /** CSG que le barème rendrait déductible — le gain qu'elle procure dépend de la tranche. */
   csgDeductibleEur: DecimalString;
   /**
@@ -107,7 +120,9 @@ const OPTION_TERMS: Record<TaxOption, { revocable: boolean; sourceId: string }> 
 function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
   const { year } = input;
   const rcm = rcmRateFor(year).incomeTax;
+  const rcmSocial = rcmRateFor(year).social;
   const cession = rateFor(year).incomeTax;
+  const cessionSocial = rateFor(year).social;
   const bases: ArbitrageBase[] = [];
 
   const dividend = input.dividends.years.find((y) => y.year === year);
@@ -119,6 +134,7 @@ function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
       abatement: DIVIDEND_ABATEMENT,
       csgBaseEur: dividend.declaredEur,
       flatRate: rcm,
+      socialRate: rcmSocial,
     });
 
   const interest = input.interest.years.find((y) => y.year === year);
@@ -130,6 +146,7 @@ function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
       abatement: '0',
       csgBaseEur: interest.grossEur,
       flatRate: rcm,
+      socialRate: rcmSocial,
     });
 
   const lending = input.lending.years.find((y) => y.year === year);
@@ -142,6 +159,7 @@ function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
       // La CSG a frappé les intérêts BRUTS, que la perte imputée ne réduit pas.
       csgBaseEur: lending.socialisedInterest,
       flatRate: rcm,
+      socialRate: rcmSocial,
     });
 
   const equity = input.equity.years.find((y) => y.year === year);
@@ -155,6 +173,7 @@ function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
       abatement: '0',
       csgBaseEur: equity.taxableEur,
       flatRate: cession,
+      socialRate: cessionSocial,
     });
 
   return bases;
@@ -176,6 +195,7 @@ function basesFor3CN(input: TaxReturnInput): ArbitrageBase[] {
       abatement: '0',
       csgBaseEur: crypto.netEur,
       flatRate: rateFor(year).incomeTax,
+      socialRate: rateFor(year).social,
     },
   ];
 }
@@ -196,6 +216,7 @@ export function arbitrate(input: TaxReturnInput, option: TaxOption): Arbitrage {
   const totalTaxable = sum(bases.map((b) => D(b.taxableEur)));
   const flat = sum(bases.map((b) => D(b.taxableEur).times(D(b.flatRate))));
   const csgDeductible = sum(bases.map((b) => D(b.csgBaseEur).times(D(CSG_DEDUCTIBLE_RATE))));
+  const social = sum(bases.map((b) => D(b.csgBaseEur).times(D(b.socialRate))));
 
   // L'assiette effectivement soumise au barème, abattements déduits. Elle ne dépend pas du taux.
   const taxed = sum(bases.map((b) => D(b.taxableEur).times(D('1').minus(D(b.abatement)))));
@@ -224,6 +245,7 @@ export function arbitrate(input: TaxReturnInput, option: TaxOption): Arbitrage {
     bases,
     totalTaxableEur: toDecimalString(totalTaxable),
     flatEur: toDecimalString(flat),
+    socialEur: toDecimalString(social),
     csgDeductibleEur: toDecimalString(csgDeductible),
     taxedEur: toDecimalString(taxed),
     scenarios,

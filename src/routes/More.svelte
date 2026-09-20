@@ -28,6 +28,12 @@
       needsData: true,
     },
     {
+      route: { name: 'taxes' },
+      label: 'Impôts',
+      detail: 'Forfait ou barème : ce que chacun coûte, et où ça bascule',
+      needsData: true,
+    },
+    {
       route: { name: 'loans' },
       label: 'Prêts',
       detail: 'Financement participatif : apports, encours, rendement',

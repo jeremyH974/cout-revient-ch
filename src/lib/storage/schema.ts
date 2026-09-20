@@ -189,6 +189,24 @@ export interface UiSettings {
    * chaînes. Champ **additif** — aucune montée de `SCHEMA_VERSION`, `withDefaults` s'en charge.
    */
   marginalRate: string | null;
+  /**
+   * Comment l'écran « Impôts » décrit le foyer (décision n° 170) : une tranche choisie à la main,
+   * ou le revenu et les parts. Deux modes plutôt qu'un, parce qu'ils ne servent pas au même
+   * moment — la tranche répond en un geste, le revenu répond juste quand les gains font franchir
+   * une borne, et c'est le seul cas où la réponse rapide se trompe.
+   */
+  taxBasis: 'bracket' | 'household';
+  /**
+   * Revenu imposable du foyer **avant** les revenus que l'application connaît, en euros, ou `null`
+   * tant qu'il n'a pas été saisi. Chaîne décimale, comme tout montant ici.
+   *
+   * C'est la donnée la plus personnelle de cette application, et elle ne la quitte jamais : elle
+   * vit dans le même stockage local que le reste, part dans la sauvegarde chiffrée comme le reste,
+   * et le mode discret la masque comme un montant. Champs **additifs**.
+   */
+  householdIncomeEur: string | null;
+  /** Parts du quotient familial (`'1'`, `'1.5'`, `'2'`…), ou `null`. */
+  householdParts: string | null;
 }
 
 /** Réglages des alertes de prix (P29, décision n° 36). */
@@ -289,6 +307,9 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   aiEnabled: false,
   aiModelId: null,
   marginalRate: null,
+  taxBasis: 'bracket',
+  householdIncomeEur: null,
+  householdParts: null,
 };
 
 export function emptyState(): StoredStateV1 {

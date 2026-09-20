@@ -47,11 +47,31 @@ export interface YearOutlook {
   pocketExpiresOn: string;
 }
 
-/** L'état d'une année, `today` au format `AAAA-MM-JJ`. */
-export function yearOutlook(ledger: TaxLedger, year: number, today: string): YearOutlook {
+/** Où en est une année, et quand elle se déclare. */
+export interface YearStatus {
+  state: TaxYearState;
+  /** Le printemps où cette année se déclare : l'année suivante. */
+  declaredIn: number;
+}
+
+/**
+ * L'état d'une année **sans rien savoir de ses opérations** : il ne se lit que sur le calendrier.
+ *
+ * Séparé de `yearOutlook` parce qu'un écran doit pouvoir annoncer « année en cours, provisoire »
+ * alors même que le grand livre n'est pas chargé — hors ligne, par exemple. Taire l'état parce
+ * qu'un cours manque serait taire la seule chose qui, elle, est certaine.
+ */
+export function yearStatus(year: number, today: string): YearStatus {
   const currentYear = Number(today.slice(0, 4));
-  const state: TaxYearState =
-    year < currentYear ? 'closed' : year > currentYear ? 'future' : 'in-progress';
+  return {
+    state: year < currentYear ? 'closed' : year > currentYear ? 'future' : 'in-progress',
+    declaredIn: year + 1,
+  };
+}
+
+/** L'état d'une année et ce qui y reste ouvert, `today` au format `AAAA-MM-JJ`. */
+export function yearOutlook(ledger: TaxLedger, year: number, today: string): YearOutlook {
+  const { state, declaredIn } = yearStatus(year, today);
   const taxYear = ledger.years.find((y) => y.year === year) ?? null;
   const proceeds = taxYear === null ? ZERO : D(taxYear.proceedsEur);
   const remaining = D(EXEMPTION_THRESHOLD).minus(proceeds);
@@ -59,7 +79,7 @@ export function yearOutlook(ledger: TaxLedger, year: number, today: string): Yea
   return {
     year,
     state,
-    declaredIn: year + 1,
+    declaredIn,
     taxYear,
     thresholdEur: EXEMPTION_THRESHOLD,
     toThresholdEur: toDecimalString(remaining.gt(ZERO) ? remaining : ZERO),
