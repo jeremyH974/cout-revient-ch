@@ -7,6 +7,9 @@ import { buildInsights } from '../domain/insights';
 import { D } from '../domain/money';
 import { riskMetrics } from '../domain/risk';
 import { DEFAULT_ENGINE_SETTINGS, type Account, type TradeEvent } from '../domain/types';
+import { latestNetWorth, netWorthSeries, reconcileNetWorth } from '../history/net-worth';
+import type { DayString } from '../history/types';
+import { buildGlobalReportModel } from './global-report-model';
 import { buildReportPdf, reportFileName, toPdfText } from './pdf';
 import { buildReportModel, type ReportModel } from './report-model';
 
@@ -268,5 +271,58 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     // Le modèle la porte — c'est le RENDU qui l'oubliait.
     expect(sectionTitles(withAccounts)).toContain(title);
     expect(pdfTexts(await buildReportPdf(withAccounts))).toContain(title);
+  });
+
+  /**
+   * **Le rendu pose un SECOND périmètre sans rien apprendre de lui.**
+   *
+   * C'est la mise à l'épreuve de la décision n° 174, et la raison d'être du remaniement. `pdf.ts`
+   * n'a pas une ligne qui mentionne le patrimoine, la réconciliation ou la contribution : il itère
+   * `model.sections` et sait dessiner six formes de bloc. Un rapport entièrement différent, bâti par
+   * un autre constructeur, en sort donc imprimé — titres, tableau, puces, paragraphes.
+   *
+   * Le seul ajout qu'a demandé ce périmètre est un gabarit de largeurs de colonnes, et c'est le
+   * COMPILATEUR qui l'a réclamé : `COLUMN_WIDTHS` est un `Record<TableKind, …>`, donc une entrée
+   * manquante est une erreur de type, pas une liste à tenir à jour.
+   */
+  it('pose aussi le rapport de patrimoine, sans une ligne de rendu en plus', async () => {
+    const part = (id: string, label: string, value: string, contributed: string) => ({
+      id,
+      label,
+      firstDay: null,
+      valueAt: () => ({ value: D(value), contributed: D(contributed), estimated: false }),
+    });
+    const points = netWorthSeries({
+      contributions: [
+        part('invest', 'Investissement', '12000', '10000'),
+        part('lending', 'Prêts', '2700', '2250'),
+      ],
+      days: ['2026-09-20' as DayString],
+    });
+    const global = buildGlobalReportModel(reconcileNetWorth(latestNetWorth(points))!, {
+      discreet: false,
+      generatedAt: '2026-09-20T18:00:00.000Z',
+      version: '0.1.0',
+      timeZone: 'Europe/Paris',
+      emptyScopes: ['Trading'],
+    });
+    const texts = pdfTexts(await buildReportPdf(global));
+    const expected = sectionTitles(global);
+    expect(expected).toEqual([
+      'Synthèse',
+      'Contribution par espace',
+      'Ce que ce document ne dit pas',
+      'Méthodologie',
+    ]);
+    assertSectionOrder(texts, expected);
+    // La garde et le tableau, c'est-à-dire les deux choses que le rendu dessine différemment.
+    expect(texts).toContain('Rapport de patrimoine');
+    expect(texts).toContain('Apports nets');
+    // Et le périmètre vide arrive jusqu’au papier, au lieu de disparaître en route.
+    //
+    // Sans la puce : le flux est écrit en WinAnsi, où « • » vaut 0x95 et « ’ » 0x92 — décodés en
+    // latin1, ce ne sont PAS leurs points de code Unicode. Une assertion qui contient l’un ou
+    // l’autre échoue donc sans rien prouver.
+    expect(texts.some((t) => t.includes('Trading : aucune donnée'))).toBe(true);
   });
 });

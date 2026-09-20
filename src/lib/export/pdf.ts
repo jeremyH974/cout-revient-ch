@@ -51,6 +51,7 @@ const COLUMN_WIDTHS: Record<TableKind, (number | 'auto')[]> = {
   stablecoins: [22, 20, 19.5, 19.5, 20, 20, 17.5, 19.5, 20],
   allocation: ['auto', 45, 35],
   closed: ['auto', 26, 26, 26, 22, 30],
+  contribution: ['auto', 30, 32, 30, 20],
 };
 
 /** Caractères hors Latin-1 que WinAnsi encode quand même (jsPDF les mappe sur 0x80–0x9F). */
