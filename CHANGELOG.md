@@ -31,6 +31,29 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   **moins-value encore imputable** avec sa date d'extinction : elle ne se reporte pas sur l'année
   suivante, et ce qui n'a pas servi est perdu.
 
+### Changed
+
+- **« Année déclarée » disparaît : le sélecteur d'année dit maintenant ce qu'il fait.** L'étiquette
+  se lisait dans les deux sens — _l'année qu'on déclare_ ou _l'année où l'on déclare_ — si bien
+  qu'« Année déclarée 2026 » pouvait tout aussi bien désigner vos revenus 2026 que vos revenus 2025.
+  Elle devient **« Année »**, suivie d'une phrase qui ne laisse rien à deviner : dans quel état est
+  cette année, ce que cet état implique, et **le printemps où elle se déclare**. Pour 2026 :
+  « Année en cours — provisoire. Tout peut encore bouger d'ici le 31 décembre. Elle se déclare au
+  printemps 2027. »
+
+  C'est désormais **le même sélecteur, au mot près, sur les trois écrans** qui en portent un — le
+  Rapport, « Ce qu'il faut reporter » et « Impôts ». Seul le dernier disait l'état de l'année ; les
+  deux autres se taisaient.
+
+  Au **Rapport**, il quitte la barre de boutons pour son propre bloc, et annonce ce qu'il gouverne :
+  les cessions 2086, les comptes 3916-bis et le récapitulatif DAC8, **et rien d'autre**. Rangé entre
+  deux boutons, il passait pour un réglage du rapport entier — alors que le rapport, lui, couvre
+  l'intégralité de vos opérations depuis le début.
+
+  La **page de garde du PDF** porte du coup les deux périodes côte à côte, « Période couverte » et
+  « Année fiscale », avec ce que chacune recouvre : un rapport transmis à quelqu'un d'autre ne
+  disait pas de quelle année parlaient ses sections fiscales.
+
 ### Fixed
 
 - **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez

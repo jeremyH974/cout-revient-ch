@@ -118,7 +118,7 @@ test('un libellé de compte en forme de formule ressort désarmé du CSV', async
 test('l’annexe 2086 ne porte que l’année choisie', async ({ page }) => {
   await openDemo(page);
   await page.goto('#/report');
-  const picker = page.getByLabel('Année déclarée');
+  const picker = page.getByLabel('Année');
   await expect(picker).toBeVisible();
 
   const years = await picker
@@ -130,6 +130,16 @@ test('l’annexe 2086 ne porte que l’année choisie', async ({ page }) => {
 
   for (const year of years) {
     await picker.selectOption(year);
+    // Le SÉLECTEUR nomme le printemps où l'année choisie se déclare. « Année déclarée 2026 »
+    // laissait croire à une déclaration déposée EN 2026, donc aux revenus 2025 : la phrase ferme
+    // la double lecture, et ce parcours la tient sur chaque millésime proposé.
+    //
+    // Restreint au sélecteur, et pas à la page : la page de garde porte la MÊME phrase, et une
+    // recherche globale passait au vert alors que le sélecteur avait perdu la sienne — la
+    // contre-épreuve (décision n° 75) l'a montré avant que ce garde-fou ne serve.
+    await expect(
+      page.locator('.tax-year').getByText(`Elle se déclare au printemps ${Number(year) + 1}`),
+    ).toBeVisible();
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Cessions au format 2086 (CSV)' }).click();
     const file = await download;

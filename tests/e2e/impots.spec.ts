@@ -147,7 +147,7 @@ test('l’année en cours s’annonce comme provisoire', async ({ page }) => {
   const current = new Date().getFullYear();
   await page.getByLabel('Année').selectOption(String(current));
   await expect(page.getByText('Année en cours — provisoire')).toBeVisible();
-  await expect(page.getByText(`À déclarer au printemps ${current + 1}`)).toBeVisible();
+  await expect(page.getByText(`Elle se déclare au printemps ${current + 1}`)).toBeVisible();
 });
 
 test('la Déclaration et les Impôts annoncent le même forfait, au centime', async ({ page }) => {
@@ -159,7 +159,7 @@ test('la Déclaration et les Impôts annoncent le même forfait, au centime', as
   const [forfait] = await amounts(page.locator('.side').first().locator('.split'));
 
   await page.goto('#/declaration');
-  await page.getByLabel('Année déclarée').selectOption(year);
+  await page.getByLabel('Année').selectOption(year);
   const summary = page.locator('.arbitrage .summary').first();
   await expect(summary).toBeVisible();
   const [flatShown] = await amounts(summary);

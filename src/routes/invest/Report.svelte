@@ -21,6 +21,7 @@
   import NarrativeCard from '../../components/ai/NarrativeCard.svelte';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
+  import TaxYearPicker from '../../components/tax/TaxYearPicker.svelte';
   import InsightList from '../../components/shared/InsightList.svelte';
   import { aiKey } from '../../state/ai-key.svelte';
   import { app } from '../../state/app.svelte';
@@ -278,17 +279,20 @@
 
 <AppBar title="Rapport de portefeuille" back />
 
+<!-- L'année DÉCRITE, jamais celle de la génération (décision n° 141). Le 2086, le 3916-bis et le
+     récapitulatif DAC8 ne portent que sur une année, et au printemps on remplit celle d'avant.
+     Elle est sortie de la barre d'actions : rangée entre les boutons, elle passait pour un réglage
+     du rapport entier, alors que le rapport décrit le grand livre depuis le début. -->
+<div class="scope">
+  <TaxYearPicker
+    bind:value={taxYear}
+    years={yearChoices}
+    today={generatedAt.slice(0, 10)}
+    hint="Ne s’applique qu’aux sections fiscales et à leurs exports : cessions 2086, comptes 3916-bis, récapitulatif DAC8. Le reste du rapport couvre l’intégralité de vos opérations."
+  />
+</div>
+
 <div class="actions">
-  <!-- L'année DÉCRITE, jamais celle de la génération (décision n° 141). Le 2086, le 3916-bis et le
-       récapitulatif DAC8 ne portent que sur une année, et au printemps on remplit celle d'avant. -->
-  <label class="year"
-    >Année déclarée
-    <select bind:value={taxYear}>
-      {#each yearChoices as year (year)}
-        <option value={year}>{year}</option>
-      {/each}
-    </select>
-  </label>
   <button class="primary" type="button" onclick={() => void download()} disabled={busy}>
     {busy ? 'Génération…' : 'Télécharger le PDF'}
   </button>
@@ -590,12 +594,10 @@
     margin: 0 auto;
     padding: var(--space-3);
   }
-  .year {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    font-size: 0.9rem;
-    color: var(--muted);
+  .scope {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: var(--space-3) var(--space-3) 0;
   }
   .primary,
   .secondary {
@@ -802,6 +804,7 @@
     :global(.nav),
     :global(.bar),
     :global(.update),
+    .scope,
     .actions {
       display: none !important;
     }

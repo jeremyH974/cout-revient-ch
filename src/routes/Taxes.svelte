@@ -19,7 +19,7 @@
   import { arbitrages, type Arbitrage } from '$lib/derive/pfu-vs-bareme';
   import { marginalRateFor, scaleForYearOrLatest } from '$lib/derive/household-tax';
   import { taxChoice, type TaxBasis, type TaxChoice, type TaxSide } from '$lib/derive/tax-choice';
-  import { yearOutlook, yearStatus } from '$lib/derive/tax-outlook';
+  import { yearOutlook } from '$lib/derive/tax-outlook';
   import { computeDeclarations } from '$lib/domain/declarations-fr';
   import { MARGINAL_RATES } from '$lib/domain/income-tax-fr';
   import { D, ZERO, parseDecimal, toDecimalString, type DecimalString } from '$lib/domain/money';
@@ -29,6 +29,7 @@
   import AppBar from '../components/layout/AppBar.svelte';
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
   import CostBar from '../components/tax/CostBar.svelte';
+  import TaxYearPicker from '../components/tax/TaxYearPicker.svelte';
   import { app } from '../state/app.svelte';
   import { history } from '../state/history.svelte';
 
@@ -63,7 +64,6 @@
   });
 
   const options = $derived(arbitrages(returnInput));
-  const status = $derived(yearStatus(taxYear, today));
   const outlook = $derived(cryptoReady ? yearOutlook(history.frenchTax(), taxYear, today) : null);
   const scaleChoice = $derived(scaleForYearOrLatest(taxYear));
 
@@ -181,24 +181,7 @@
     ni un conseil fiscal.
   </p>
   <div class="controls">
-    <label class="year">
-      Année
-      <select bind:value={taxYear}>
-        {#each yearChoices as year (year)}
-          <option value={year}>{year}</option>
-        {/each}
-      </select>
-    </label>
-    <p class="state small" role="status">
-      {#if status.state === 'in-progress'}
-        <strong>Année en cours — provisoire.</strong> Tout peut encore bouger d’ici le 31 décembre.
-      {:else if status.state === 'future'}
-        <strong>Année à venir.</strong> Rien ne s’y est encore passé.
-      {:else}
-        <strong>Année close.</strong> Son résultat ne bougera plus.
-      {/if}
-      À déclarer au printemps {status.declaredIn}.
-    </p>
+    <TaxYearPicker bind:value={taxYear} years={yearChoices} {today} />
   </div>
   <p class="muted small">
     Tous les montants sont en <strong>euros</strong>, quelle que soit la devise d’affichage.
@@ -509,15 +492,6 @@
   .controls {
     display: grid;
     gap: var(--space-2);
-  }
-  .year {
-    display: grid;
-    gap: var(--space-1);
-    max-width: 12rem;
-    font-size: var(--fs-sm);
-  }
-  .state {
-    margin: 0;
   }
   .modes,
   .chips {
