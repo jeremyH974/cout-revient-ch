@@ -5137,3 +5137,26 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Au passage.** La note de méthode du rapport PDF énonçait la formule avec « prix de cession »
      aux deux endroits — l'ambiguïté même dont le moteur était sorti. Elle dit désormais « net des
      frais » d'un côté, « avant frais » de l'autre, en citant le formulaire et le BOFiP.
+
+167. **La sauvegarde de l'app n'était protégée par rien** (20/09/2026).
+
+     **Le constat.** La règle du dépôt dit « jamais de relevé réel dans git », et deux garde-fous la
+     tiennent : `.gitignore` sur `*.csv` et les classeurs, et un contrôle de `lint` qui refuse un
+     export personnel suivi hors de `tests/fixtures/`. Or la **sauvegarde JSON** de l'application
+     n'est ni un CSV ni un classeur. Elle porte pourtant davantage qu'un relevé : lignes brutes,
+     saisies, qualifications, comptes, réglages, cache de prix — l'état entier. Déposée à la racine
+     du dépôt, rien ne l'arrêtait, et `*.json` est un format que le dépôt suit par ailleurs. Le trou
+     est apparu en préparant un recalcul sur les données réelles du propriétaire : le geste naturel,
+     « exporte ta sauvegarde et dépose-la là », allait déposer un fichier non protégé dans un dépôt
+     public.
+
+     **La correction.** `.gitignore` exclut `*cout-revient-ch-sauvegarde*.json` — le préfixe `demo-`
+     et le suffixe `-chiffree` compris — et le contrôle de `lint` ajoute le même motif. **Chiffrée
+     comprise** : un fichier chiffré aujourd'hui est un fichier déchiffrable le jour où la phrase
+     secrète fuite, et l'historique de git, lui, ne s'oublie pas. La fixture gelée
+     (`tests/fixtures/storage/backup-v1.json`) porte un autre nom et reste suivie, comme il faut.
+
+     **Contre-épreuve** (décision n° 75) : une fausse sauvegarde ajoutée de force (`git add -f`) à la
+     racine fait échouer le contrôle en la nommant — « ERREUR : export(s) personnel(s) suivi(s) par
+     git : cout-revient-ch-sauvegarde-2026-09-20.json ». Et `git check-ignore` confirme les trois
+     formes du nom, sans toucher à la fixture.

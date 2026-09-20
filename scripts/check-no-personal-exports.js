@@ -1,10 +1,16 @@
 // Échoue si un export personnel suivi par git se trouve hors de tests/fixtures/.
 // Protège contre le commit accidentel d'un relevé de courtier : export CSV Coinhouse, mais aussi
 // classeur Excel — c'est le format du relevé eToro, et lui seul portait un trou jusqu'au 06/09/2026.
+// Et la SAUVEGARDE de l'app, qui n'est pas un relevé mais contient tout ce qu'un relevé contient,
+// et davantage : elle n'était couverte ni ici ni par `.gitignore` jusqu'au 20/09/2026.
 import { execSync } from 'node:child_process';
 
-/** Extensions dans lesquelles arrive un relevé de courtier. Le tableur compte autant que le CSV. */
-const PATTERNS = ['*.csv', '*.xlsx', '*.xls', '*.xlsm'];
+/**
+ * Motifs d'un export personnel. Le tableur compte autant que le CSV, et la sauvegarde JSON de
+ * l'app autant que les deux : `cout-revient-ch-sauvegarde-<date>.json`, éventuellement préfixée
+ * `demo-` ou suffixée `-chiffree`. La fixture gelée porte un autre nom (`backup-v1.json`).
+ */
+const PATTERNS = ['*.csv', '*.xlsx', '*.xls', '*.xlsm', '*cout-revient-ch-sauvegarde*.json'];
 
 const tracked = execSync(`git ls-files -- ${PATTERNS.map((p) => `"${p}"`).join(' ')}`, {
   encoding: 'utf8',

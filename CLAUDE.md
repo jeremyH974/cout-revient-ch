@@ -143,7 +143,8 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
 ## Données sensibles
 
 - **Jamais de relevé réel dans git.** `.gitignore` exclut `*.csv` et les classeurs
-  (`*.xlsx`, `*.xls`, `*.xlsm`) sauf `tests/fixtures/**`, et
+  (`*.xlsx`, `*.xls`, `*.xlsm`) sauf `tests/fixtures/**`, **ainsi que la sauvegarde JSON de l'app**
+  (`*cout-revient-ch-sauvegarde*.json`, chiffrée comprise — décision n° 167), et
   `scripts/check-no-personal-exports.js` fait échouer `lint` sinon. L'export personnel de l'utilisateur
   reste à la racine (ignoré) et sert aux tests locaux optionnels (`it.skipIf`).
 - **Les fixtures sont 100 % synthétiques** (`scripts/generate-fixture.ts`) : jamais dérivées d'un export
