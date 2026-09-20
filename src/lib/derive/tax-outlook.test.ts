@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { rateFor, type TaxLedger, type TaxYear } from '../domain/tax-fr';
-import { yearOutlook } from './tax-outlook';
+import { yearOutlook, yearStatus } from './tax-outlook';
 
 const year = (over: Partial<TaxYear> = {}): TaxYear => ({
   year: 2026,
@@ -32,6 +32,21 @@ const ledger = (...years: TaxYear[]): TaxLedger => ({
   externalInflows: 0,
   externalOutflows: 0,
   rewards: 0,
+});
+
+describe('yearStatus — l’état se lit sur le calendrier, sans le grand livre', () => {
+  it('nomme les trois états et le printemps de la déclaration', () => {
+    expect(yearStatus(2025, '2026-09-20')).toEqual({ state: 'closed', declaredIn: 2026 });
+    expect(yearStatus(2026, '2026-09-20')).toEqual({ state: 'in-progress', declaredIn: 2027 });
+    expect(yearStatus(2027, '2026-09-20')).toEqual({ state: 'future', declaredIn: 2028 });
+  });
+
+  it('le 31 décembre, l’année est encore en cours ; le 1er janvier, elle est close', () => {
+    // La bascule est la seule chose que cet écran ne peut pas se permettre de rater : c'est le
+    // jour où la poche d'imputation s'éteint.
+    expect(yearStatus(2026, '2026-12-31').state).toBe('in-progress');
+    expect(yearStatus(2026, '2027-01-01').state).toBe('closed');
+  });
 });
 
 describe('yearOutlook — où en est l’année', () => {

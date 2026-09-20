@@ -264,7 +264,21 @@ dates de dernière sauvegarde / d'acceptation de l'avertissement, mode démo, `l
 blocs, trois interrupteurs réseau opt-in (`liveMids`, `marketContext`, `liveFills`), l'opt-in du
 récit par IA (`aiEnabled`, `aiModelId` — P65), et les tailles tapées dans l'onglet « Seuil » de
 l'espace Trading, par actif (`breakevenSizes`, décision n° 158 — des quantités hypothétiques, jamais
-une position) — tous booléens, chaînes ou tables de chaînes, aucun montant.
+une position), et le foyer de l'écran « Impôts » (`taxBasis`, `householdIncomeEur`,
+`householdParts`, décision n° 170).
+
+#### Le seul montant de `ui`, et c'est le plus personnel
+
+`householdIncomeEur` est le **revenu imposable du foyer**. Cette rubrique n'en contenait aucun
+jusqu'au 20/09/2026, et la phrase « aucun montant » figurait ici : elle est désormais fausse, et
+la corriger vaut mieux que de la laisser rassurer.
+
+Ce revenu suit le même chemin que le reste de `ui` : il vit dans le stockage local, **il figure
+dans le fichier de sauvegarde** — chiffré si vous chiffrez votre sauvegarde (décision n° 167) —,
+et une restauration « en fusionnant » conserve celui de l'appareil courant (§ Fusion). Il ne part
+sur aucun réseau : l'application n'en a pas. Le **mode discret** le masque, comme les autres
+montants, et l'écran ne le réaffiche que sur demande explicite. `.gitignore` et
+`scripts/check-no-personal-exports.js` refusent de laisser entrer une sauvegarde dans le dépôt.
 
 #### Les clés, et laquelle n'y est pas
 

@@ -8,6 +8,7 @@ export type Route =
   | { name: 'add' }
   | { name: 'report' }
   | { name: 'declaration' }
+  | { name: 'taxes' }
   | { name: 'secondOpinion' }
   | { name: 'alerts' }
   | { name: 'loans' }
@@ -126,6 +127,8 @@ export function parseHash(hash: string): Route {
       return { name: 'watch' };
     case 'declaration':
       return { name: 'declaration' };
+    case 'impots':
+      return { name: 'taxes' };
     case 'accounts':
       return { name: 'accounts' };
     case 'reconciliation':
@@ -190,6 +193,10 @@ export function toHash(route: Route): string {
       return '#/trading/seuil';
     case 'fills':
       return '#/trading/fills';
+    // Le seul hash de cet espace qui ne porte pas le nom de sa route : « impots » se reconnaît
+    // dans un favori, « taxes » non — même raison que `#/trading/seuil`.
+    case 'taxes':
+      return '#/impots';
     default:
       return `#/${route.name}`;
   }

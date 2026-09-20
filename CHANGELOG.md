@@ -5,6 +5,32 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Added
+
+- **Un écran « Impôts » : forfait ou barème, côte à côte.** Jusqu'ici, l'écart entre les deux voies
+  d'imposition se lisait au milieu de la Déclaration, en une phrase, à une tranche que vous
+  indiquiez. Il a maintenant son écran (menu **Plus → Impôts**), et il montre plutôt qu'il ne
+  raconte : **deux cartes face à face**, chacune séparant l'**impôt sur le revenu** — la seule part
+  que l'option déplace — des **prélèvements sociaux**, que l'on voit rester identiques d'une carte à
+  l'autre.
+
+  Vous pouvez décrire votre foyer de deux façons. **Votre tranche en un tap**, comme avant. Ou
+  **votre revenu imposable et vos parts** : le barème s'applique alors pour de bon, et il voit ce
+  que le premier mode ne peut pas voir — le moment où vos gains vous font _changer_ de tranche.
+  Pour 2 000 € de plus-value qui poussent un foyer de la tranche à 11 % dans celle à 30 %, la
+  réponse n'est ni 220 € ni 600 € : elle est 489,99 €.
+
+  L'écran montre aussi **où ça bascule** — ce que coûterait chaque tranche, la vôtre marquée, et
+  la dernière où le barème reste avantageux —, répond à « une tranche à 30 %, est-ce le taux de
+  tout ? », et dit ce que chaque voie prend **pour 100 € d'assiette**.
+
+- **L'année en cours se prépare, elle aussi.** Choisissez 2026 : l'écran l'annonce comme
+  **provisoire**, rappelle qu'elle se déclarera au printemps 2027, et nomme les deux choses qui ne
+  survivront pas au 31 décembre. Ce qu'il reste avant le **seuil de 305 €** — en deçà, l'année
+  entière est exonérée ; au-delà, l'exonération tombe d'un coup. Et, si l'année est en perte, la
+  **moins-value encore imputable** avec sa date d'extinction : elle ne se reporte pas sur l'année
+  suivante, et ce qui n'a pas servi est perdu.
+
 ### Fixed
 
 - **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez

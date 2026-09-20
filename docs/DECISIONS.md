@@ -5249,3 +5249,75 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      tranche invisible fait rougir l'encadrement. Reporter la moins-value à l'année suivante fait
      rougir la date d'extinction : « expected '2027-12-31' to be '2026-12-31' ». Et laisser le seuil
      devenir négatif : « expected '-49695' to be '0' ».
+
+170. **Le chiffrage fiscal se lisait ; il fallait qu'il se voie** (20/09/2026).
+
+     **Le constat.** La décision n° 150 avait posé l'arbitrage, la n° 169 lui avait donné un vrai
+     barème. Mais tout cela vivait dans un pavé de texte au milieu de la Déclaration : une phrase
+     annonçait un écart, une autre nommait le seuil de bascule, et l'utilisateur devait tenir les
+     deux dans sa tête. Pire, le forfait s'y annonçait à **31,4 %** alors que **12,8 points
+     seulement** s'arbitrent — le reste, les prélèvements sociaux, est dû à l'identique dans les
+     deux cas. Une phrase le disait. Personne ne le voyait.
+
+     **Ce qui est ajouté : un écran, `#/impots`.** Deux cartes **face à face**, jamais un bascule
+     qui cacherait l'option qu'on ne regarde pas. Chacune sépare l'impôt sur le revenu des
+     prélèvements sociaux, avec une barre à deux segments dont **l'échelle est commune aux deux
+     cartes** — deux barres qui rempliraient chacune la sienne diraient le contraire de ce qu'elles
+     montrent. La part sociale est hachurée, jamais distinguée par la seule couleur (WCAG 1.4.1), et
+     la barre est `aria-hidden` : elle n'ajoute rien qu'un lecteur d'écran n'ait déjà, les deux
+     montants étant écrits juste à côté.
+
+     **Les prélèvements sociaux entrent dans le modèle, sans entrer dans l'arbitrage.**
+     `ArbitrageBase.socialRate` et `Arbitrage.socialEur` ne déplacent aucun écart — par
+     construction, ils ajoutent le même nombre des deux côtés. Ils existent pour être **vus** : la
+     seule façon de faire comprendre ce qui se joue est de montrer ce qui ne se joue pas.
+
+     **Le verdict se prononce sur les montants AFFICHÉS.** `tax-choice.ts` compare les deux voies
+     après arrondi au centime, et non sur les valeurs exactes. Un écart réel de quatre dixièmes de
+     centime, annoncé sous deux cartes portant le même montant en euros, ruinerait le seul intérêt
+     de l'écran : que les chiffres se recoupent sous les yeux du lecteur. Même famille que
+     `displayGap` (n° 150), appliquée cette fois au **verdict** et non à son affichage.
+
+     **Deux défauts d'un centime trouvés en regardant l'écran, pas le code.** Le total d'une carte
+     était l'arrondi de la somme exacte, là où les deux lignes affichées en dessous étaient
+     arrondies chacune : 106,96 € et 155,43 € s'annonçaient sous un total de 262,38 €. Et la ligne
+     « la vôtre » du tableau des tranches portait +5,12 € quand le verdict, trois lignes plus haut,
+     disait 5,13 €. Deux montants qui se contredisent d'un centime à trois lignes d'écart font
+     douter de tout le reste. Les deux sont corrigés et tenus par un test de bout en bout.
+
+     **L'état d'une année ne dépend plus du chargement des cours.** `yearStatus(year, today)` se lit
+     sur le seul calendrier. Hors ligne, l'historique des cours ne charge pas ; taire « année en
+     cours, provisoire » parce qu'un cours manque reviendrait à taire la seule chose qui, elle, est
+     certaine. `yearOutlook` s'appuie dessus pour le reste, qui demande le grand livre.
+
+     **Les réserves sont écrites une fois.** `ArbitrageCaveats.svelte` les porte pour les deux
+     écrans. Ce sont des phrases qui disent ce que le chiffre **ne** prouve **pas** : deux copies
+     divergeraient au premier amendement, et une version périmée de ce texte-là trompe plus qu'elle
+     n'informe. La réserve sur la tranche supposée immobile disparaît d'elle-même en mode foyer,
+     où elle serait un faux aveu d'ignorance.
+
+     **Le revenu du foyer est le premier montant personnel des réglages.** `householdIncomeEur`
+     rejoint `ui` — donc le stockage local, donc la sauvegarde, chiffrée si elle l'est (n° 167). Le
+     mode discret le masque comme les autres montants, et l'écran ne le réaffiche que sur demande.
+     `docs/backup-format.md` affirmait que `ui` ne contenait « aucun montant » : la phrase est
+     devenue fausse ce jour-là, et elle est corrigée plutôt que laissée rassurer.
+
+     **Ce que l'écran continue de refuser.** Il ne recommande rien, et un test de bout en bout
+     interdit six tournures de conseil. `cheaper` nomme la moins chère **sur ce que l'application
+     connaît** — un constat, pas un conseil : l'option se juge aussi sur le revenu fiscal de
+     référence, sur les autres revenus du foyer, et, pour la case 3CN qui est irrévocable, sur des
+     années que personne ne connaît encore.
+
+     **Contre-épreuves** (décision n° 75), une par garde. Imputer la CSG déductible sur les
+     prélèvements sociaux fait rougir la propriété qui les dit identiques : « expected '0.00186' to
+     be '0.00118' ». Supprimer l'arrondi du verdict fait rougir le cas des quatre dixièmes de
+     centime : « expected 'flat' to be 'equal' ». Démarquer la bascule fait rougir la propriété du
+     préfixe : « expected -1 to be greater than or equal to 0 ». Clore l'année au 31 décembre au
+     lieu du 1er janvier fait rougir `yearStatus`. Renommer le hash `#/impots` fait rougir le
+     routeur : « expected { name: 'overview' } to deeply equal { name: 'taxes' } ». Rendre au total
+     l'arrondi de la somme fait rougir l'écran : « total de « Barème progressif » — Expected 1572,
+     Received 1571 ». Et rendre au tableau l'écart exact fait rougir la ligne « la vôtre » :
+     « Expected 513, Received 512 ». La méta-vérification du document d'architecture, elle, a rougi
+     d'elle-même sur la route neuve et sur le fichier de propriétés neuf. Enfin, faire annoncer un
+     autre montant à la Déclaration fait rougir le test de cohérence entre les deux écrans :
+     « année 2025 — Expected 432, Received 230 ».

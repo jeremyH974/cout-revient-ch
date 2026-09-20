@@ -31,6 +31,7 @@
   import Titles from './routes/invest/Titles.svelte';
   import Report from './routes/invest/Report.svelte';
   import Declaration from './routes/Declaration.svelte';
+  import Taxes from './routes/Taxes.svelte';
   import SecondOpinion from './routes/invest/SecondOpinion.svelte';
   import { recordError } from '$lib/support/errors';
   import SupportSection from './components/settings/SupportSection.svelte';
@@ -174,6 +175,8 @@
           <Report />
         {:else if route.name === 'declaration'}
           <Declaration />
+        {:else if route.name === 'taxes'}
+          <Taxes />
         {:else if route.name === 'secondOpinion'}
           <SecondOpinion />
         {:else if route.name === 'news'}

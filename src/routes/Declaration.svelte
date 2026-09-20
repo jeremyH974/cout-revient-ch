@@ -23,6 +23,7 @@
   import type { TaxEntryMode } from '$lib/domain/tax-boxes';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
+  import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
   import { app } from '../state/app.svelte';
   import { history } from '../state/history.svelte';
   import { toasts } from '../state/ui.svelte';
@@ -283,49 +284,14 @@
               > ; à partir de la suivante, le forfait l’emporte.
             </p>
 
+            <p class="small">
+              <a href={router.href({ name: 'taxes' })}
+                >Comparer les deux, avec votre revenu et vos parts</a
+              > — l’écran Impôts applique le barème pour de bon, franchissement de tranche compris.
+            </p>
+
             <ul class="caveats small">
-              {#if arb.option === '2OP'}
-                <li>
-                  <strong>Cette option est globale.</strong> Elle bascule d’un coup toutes les lignes
-                  ci-dessus, pour tout le foyer et pour l’année entière — on ne peut pas la réserver aux
-                  dividendes, dont l’abattement la rend attrayante, en laissant les intérêts au forfait.
-                </li>
-              {/if}
-              <li>
-                Ce total ne compte que les revenus que cette application connaît. Un autre revenu de
-                capitaux mobiliers, ailleurs, déplacerait l’écart.
-              </li>
-              <li>
-                L’écart suppose que votre tranche <em>reste</em> celle indiquée. Ajouter ces revenus à
-                votre revenu global peut vous en faire changer, et l’application ne connaît ni ce revenu
-                global ni votre quotient familial.
-              </li>
-              <li>
-                La CSG déductible retenue ici ({fmtEur(arb.csgDeductibleEur)}) réduit le revenu
-                <em>de l’année où elle est payée</em> : pour un revenu recouvré par avis, le gain arrive
-                sur la déclaration suivante.
-              </li>
-              {#if arb.bases.some((b) => b.family === 'equity')}
-                <li>
-                  Aucun abattement pour durée de détention n’est appliqué. Si vous détenez des
-                  titres acquis <strong>avant 2018</strong>, le barème peut rester avantageux bien
-                  au-delà de cette tranche — ce cas sort de ce que l’application sait calculer.
-                </li>
-              {/if}
-              <li>
-                L’option modifie aussi votre revenu fiscal de référence, dont dépendent d’autres
-                droits. Ce chiffrage ne le regarde pas.
-              </li>
-              <li>
-                {#if arb.revocable}
-                  Depuis la loi de finances pour 2026, cette option n’est plus irrévocable : se
-                  tromper coûte moins cher qu’avant.
-                {:else}
-                  <strong>Celle-ci reste irrévocable.</strong> La loi de finances pour 2026 n’a levé ce
-                  caractère que pour la case 2OP ; l’article qui régit celle-ci dit toujours « option
-                  expresse et irrévocable ». Une fois exercée pour l’année, on ne revient pas dessus.
-                {/if}
-              </li>
+              <ArbitrageCaveats arbitrage={arb} mode="bracket" discreet={app.state.ui.discreet} />
             </ul>
           </div>
         {/each}

@@ -56,6 +56,7 @@ export const SPACES: readonly Space[] = [
       'market',
       'watch',
       'declaration',
+      'taxes',
       'accounts',
       'reconciliation',
       'settings',
