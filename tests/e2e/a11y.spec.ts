@@ -69,6 +69,26 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
   }
 
   /**
+   * Le prévisionnel de l'écran Impôts ne s'affiche que sur l'année en cours ET une fois
+   * l'historique des cours chargé : il ne peut donc pas figurer dans la liste ci-dessus, et il
+   * porte pourtant un tableau, trois champs de saisie et une région `role="status"`.
+   */
+  test('avec la démo : #/impots, prévisionnel rempli', async ({ page }) => {
+    await openDemo(page);
+    await page.goto('#/invest/report');
+    await expect(page.getByText('Fiscalité française (estimation)')).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.goto('#/impots');
+    await page.getByLabel('Année').selectOption(String(new Date().getFullYear()));
+    const block = page.locator('.forecast');
+    await expect(block).toBeVisible();
+    await block.getByLabel('Montant de la vente, net de frais').fill('1000');
+    await expect(block.locator('table')).toBeVisible();
+    await expectNoViolations(page, '#/impots (prévisionnel)');
+  });
+
+  /**
    * Le détail d'un trade est l'écran le plus interactif de l'app (formulaire de journal, plan,
    * étiquettes, graphique) — donc celui où une violation est la plus probable. Son hash porte un
    * identifiant : il ne peut pas figurer dans la liste ci-dessus, et il était le seul écran à

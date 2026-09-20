@@ -7,6 +7,23 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **« Et si je vendais d'ici le 31 décembre ? »** L'écran Impôts répond maintenant à la seule
+  question fiscale que vous puissiez encore décider. Indiquez un montant de vente : l'écran montre
+  l'année **telle qu'elle est** et **telle qu'elle serait**, côte à côte — total des cessions,
+  résultat de l'année, et ce que chaque voie d'imposition coûterait. Il ne propose jamais de
+  montant, et le champ part vide : un défaut se lirait comme un conseil.
+
+  Il dit aussi les deux choses qui se jouent avant le 31 décembre. Si c'est **cette vente** qui
+  ferait franchir le seuil de 305 €, il le dit — et rappelle que l'année entière bascule alors, les
+  cessions déjà faites comprises. Et si vous êtes en moins-value, il dit ce que la vente en
+  consommerait et ce qu'il en resterait.
+
+  **La valeur de votre portefeuille se corrige.** C'est le dénominateur du calcul, et la loi le
+  prend au niveau du **foyer fiscal**, tous supports confondus — plateformes étrangères et stockage
+  hors ligne compris. Cette application ne connaît que ce que vous lui avez importé : si vous
+  détenez des crypto-actifs ailleurs, corrigez la valeur. Une valeur trop basse **sous-estime
+  l'impôt**, et c'est écrit à l'écran.
+
 - **Un écran « Impôts » : forfait ou barème, côte à côte.** Jusqu'ici, l'écart entre les deux voies
   d'imposition se lisait au milieu de la Déclaration, en une phrase, à une tranche que vous
   indiquiez. Il a maintenant son écran (menu **Plus → Impôts**), et il montre plutôt qu'il ne
