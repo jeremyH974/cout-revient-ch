@@ -5202,3 +5202,50 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      « expected 'bareme-progressif' to be 'bareme-actifs-numeriques' ». Le registre des cases, lui,
      porte déjà son propre garde-fou : il décrit la 3CN en entier dans un test, qui a rougi dès que
      la référence a changé.
+
+169. **Le mode « je choisis ma tranche » ne pouvait pas voir le franchissement de tranche, et
+     l'année en cours n'existait pas** (20/09/2026).
+
+     **Le constat.** L'arbitrage forfait / barème (décision n° 150) chiffre l'écart à un taux
+     marginal **donné**. C'est exact tant que les revenus arbitrés ne font franchir aucune borne du
+     barème — et l'écran le disait lui-même, dans une mise en garde : « l'écart suppose que votre
+     tranche reste celle indiquée ». Pour une plus-value de 2 000 € qui pousse un foyer de la
+     tranche à 11 % dans celle à 30 %, l'écran pouvait donc annoncer 220 € ou 600 € là où la réponse
+     est 489,99 €. Rien, dans le dépôt, ne savait transformer un revenu et des parts en impôt.
+
+     **Ce qui est ajouté : le barème appliqué à un foyer, bornes comprises.** `household-tax.ts`
+     applique le barème au revenu **avant et après** les revenus arbitrés, quotient familial
+     compris, et rend la différence. Le mode rapide — choisir sa tranche — reste : il ne demande
+     rien et suffit dans le cas courant. Le mode précis existe pour le cas où il se trompe, et une
+     propriété (fast-check) dit exactement de combien : un supplément coûte **au moins** sa tranche
+     de départ et **au plus** celle d'arrivée. C'est ce qui rend le mode rapide honnête plutôt
+     qu'approximatif — on sait dans quel sens et de combien au pire.
+
+     **Trois choses que ce module ne fait pas, et qu'il nomme.** La **décote** n'est pas modélisée,
+     et elle ne s'annule pas dans une différence : pour un foyer modeste, l'écart rendu est trop
+     élevé. Le **plafonnement du quotient familial** n'est pas modélisé non plus, mais lui se
+     retranche des deux termes et disparaît du résultat. Les **réductions et crédits d'impôt** sont
+     hors sujet : ils se déduisent dans les deux branches, comme les prélèvements sociaux.
+
+     **Le repli de barème ne va que vers l'avant.** `income-tax-fr.ts` refuse tout repli, et il a
+     raison : montrer les bornes de 2025 à quelqu'un qui déclare 2024 lui ferait reconnaître la
+     mauvaise tranche. Mais l'année en cours n'a pas encore de barème — aucune loi de finances ne l'a
+     fixé —, et le mode précis serait inutilisable pour la seule année que l'on peut encore changer.
+     Le repli existe donc **dans la couche dérivée**, il ne va que du passé vers l'avenir, et il se
+     signale (`isFallback`) pour que l'écran le dise. Une année antérieure au plus ancien barème
+     connu, elle, rend `null` : on renonce plutôt que de projeter en arrière.
+
+     **L'année en cours devient un état, pas un cas particulier.** `tax-outlook.ts` décrit une année
+     par son état — close, en cours, à venir —, l'année où elle se déclare, ce qui reste avant le
+     seuil de 305 €, et la **poche d'imputation** d'une moins-value avec sa date d'extinction. Les
+     deux choses qui ne survivent pas au 31 décembre ont enfin un nom : le seuil, qui est une falaise
+     et non un abattement, et la moins-value nette, qui ne se reporte pas (CGI art. 150 VH bis, IV).
+     Le module décrit ; il ne suggère aucune opération.
+
+     **Contre-épreuves** (décision n° 75), une par garde. Appliquer le taux marginal à tout le revenu
+     — l'erreur même que l'écran existe pour désamorcer — fait rougir sept tests : « expected '9000'
+     to be '2103.99' ». Diviser par les parts sans remultiplier fait rougir la propriété du quotient.
+     Autoriser le repli vers l'arrière fait rougir les deux refus. Rendre le franchissement de
+     tranche invisible fait rougir l'encadrement. Reporter la moins-value à l'année suivante fait
+     rougir la date d'extinction : « expected '2027-12-31' to be '2026-12-31' ». Et laisser le seuil
+     devenir négatif : « expected '-49695' to be '0' ».

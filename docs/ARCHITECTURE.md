@@ -262,11 +262,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - **Unitaires** (Vitest, `*.test.ts` colocalisés) : moteur, import, stockage, prix, change,
   historique, exports, diagnostic. **Propriétés** (fast-check) : séquences aléatoires
   d'achats/ventes/récompenses → `total = valeur + Σ produits − Σ achats`, PRU invariant à la vente,
-  lots réconciliés, survente bloquée. Neuf fichiers `*.property.test.ts`, croisés avec le dépôt par
-  `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** : `anchor.property.test.ts`,
-  `engine.property.test.ts`, `sort-order.property.test.ts`, `trace.property.test.ts`,
-  `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
-  `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`.
+  lots réconciliés, survente bloquée ; et, sur le barème de l'impôt, qu'un supplément de revenu
+  coûte au moins sa tranche de départ et au plus celle d'arrivée — la propriété qui justifie de
+  saisir un revenu plutôt que de choisir une tranche. Dix fichiers `*.property.test.ts`, croisés
+  avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
+  `anchor.property.test.ts`, `engine.property.test.ts`, `sort-order.property.test.ts`,
+  `trace.property.test.ts`, `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
+  `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`,
+  `household-tax.property.test.ts`.
 - **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
   rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
   clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits
