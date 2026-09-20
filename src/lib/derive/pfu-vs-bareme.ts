@@ -28,6 +28,7 @@ import { CSG_DEDUCTIBLE_RATE, DIVIDEND_ABATEMENT, MARGINAL_RATES } from '../doma
 import { rcmRateFor } from '../domain/lending/tax-fr';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from '../domain/money';
 import { rateFor } from '../domain/tax-fr';
+import { scaleForYearOrLatest, taxOnExtraIncome, type Household } from './household-tax';
 import type { TaxReturnFamily, TaxReturnInput } from './tax-return';
 
 /** Les deux options, désignées par leur case. Elles ne se décident pas ensemble. */
@@ -69,6 +70,11 @@ export interface Arbitrage {
   flatEur: DecimalString;
   /** CSG que le barème rendrait déductible — le gain qu'elle procure dépend de la tranche. */
   csgDeductibleEur: DecimalString;
+  /**
+   * Assiette effectivement soumise au barème, abattements déduits. Elle ne dépend pas du taux :
+   * c'est elle qu'on ajoute au revenu d'un foyer pour savoir ce que le barème lui coûte vraiment.
+   */
+  taxedEur: DecimalString;
   scenarios: ArbitrageScenario[];
   /**
    * Le taux marginal le plus élevé auquel le barème reste au moins aussi avantageux que le
@@ -219,10 +225,60 @@ export function arbitrate(input: TaxReturnInput, option: TaxOption): Arbitrage {
     totalTaxableEur: toDecimalString(totalTaxable),
     flatEur: toDecimalString(flat),
     csgDeductibleEur: toDecimalString(csgDeductible),
+    taxedEur: toDecimalString(taxed),
     scenarios,
     breakEvenRate: favourable[favourable.length - 1]?.rate ?? null,
     revocable: OPTION_TERMS[option].revocable,
     optionSourceId: OPTION_TERMS[option].sourceId,
+  };
+}
+
+/** Ce que le barème coûte à un foyer donné, et la tranche avant/après. */
+export interface ArbitrageForHousehold {
+  /** Impôt sur le revenu supplémentaire sous le barème, quotient familial compris. */
+  baremeEur: DecimalString;
+  /** `barème − forfait` : **négatif** quand le barème coûte moins. */
+  deltaEur: DecimalString;
+  /** Tranche du foyer avant ces revenus. */
+  marginalRateBefore: DecimalString;
+  /** Tranche après : différente quand les revenus font franchir une borne. */
+  marginalRateAfter: DecimalString;
+  /** `true` quand les deux diffèrent — le cas exact où une tranche choisie à la main se trompe. */
+  crossesBracket: boolean;
+  /** Année du barème employé. */
+  scaleYear: number;
+  /** `true` quand l'année demandée n'a pas encore de barème publié, et qu'on a pris le dernier. */
+  scaleIsFallback: boolean;
+}
+/**
+ * Ce que le barème coûte à **ce foyer-là**, bornes du barème comprises.
+ *
+ * `arbitrate` chiffre l'écart à un taux marginal donné : exact tant que les revenus arbitrés ne
+ * font franchir aucune borne, et c'est précisément ce que l'écran avertissait ne pas savoir. Ici,
+ * le barème est appliqué au revenu du foyer **avant et après** ces revenus : un gain qui pousse
+ * dans la tranche suivante est facturé au bon taux, tranche par tranche.
+ *
+ * Rend `null` quand aucun barème ne peut servir pour l'année — auquel cas l'écran reste au mode
+ * « je choisis ma tranche », qui ne dépend que des taux, stables d'une année sur l'autre.
+ */
+export function arbitrateForHousehold(
+  arbitrage: Arbitrage,
+  household: Household,
+): ArbitrageForHousehold | null {
+  const choice = scaleForYearOrLatest(arbitrage.year);
+  if (choice === null) return null;
+  // La CSG déductible se retranche de l'assiette, comme dans `arbitrate` : le décalage d'un an de
+  // son imputation est une mise en garde de l'écran, pas une correction du chiffre.
+  const extra = D(arbitrage.taxedEur).minus(D(arbitrage.csgDeductibleEur));
+  const bareme = taxOnExtraIncome(choice.scale, household, extra);
+  return {
+    baremeEur: bareme.taxEur,
+    deltaEur: toDecimalString(D(bareme.taxEur).minus(D(arbitrage.flatEur))),
+    marginalRateBefore: bareme.marginalRateBefore,
+    marginalRateAfter: bareme.marginalRateAfter,
+    crossesBracket: bareme.crossesBracket,
+    scaleYear: choice.scale.year,
+    scaleIsFallback: choice.isFallback,
   };
 }
 

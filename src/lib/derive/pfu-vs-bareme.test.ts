@@ -13,7 +13,7 @@ import type { InterestTaxLedger, InterestTaxYear } from '../domain/interest-inco
 import { rcmRateFor, type LendingTaxLedger, type LendingTaxYear } from '../domain/lending/tax-fr';
 import { D } from '../domain/money';
 import { rateFor, type TaxLedger, type TaxYear } from '../domain/tax-fr';
-import { arbitrages, arbitrate } from './pfu-vs-bareme';
+import { arbitrages, arbitrate, arbitrateForHousehold } from './pfu-vs-bareme';
 import type { TaxReturnInput } from './tax-return';
 
 const YEAR = 2025;
@@ -426,5 +426,52 @@ describe('ce que l’option engage, et qui n’est pas le même des deux côtés
     expect(arbitrate(input({ dividends: dividends() }), '2OP').optionSourceId).toBe(
       'bareme-progressif',
     );
+  });
+});
+
+/**
+ * Le barème appliqué à un foyer réel (décision n° 169). Les chiffres attendus sont posés à la main
+ * sur le barème des revenus 2025 : `tax(80 000) = 17 103,99` et `tax(89 320) = 20 421,72`, donc
+ * 3 317,73 € d'impôt supplémentaire — entre les 2 796 € qu'annoncerait la tranche à 30 % et les
+ * 3 821,20 € de celle à 41 %.
+ */
+describe('arbitrateForHousehold — le barème avec les bornes, pas seulement le taux', () => {
+  const household = (taxableIncomeEur: string, parts = '1') => ({ taxableIncomeEur, parts });
+
+  it('sans franchissement de borne, retombe exactement sur le scénario de la tranche', () => {
+    const arb = arbitrate(input({ crypto: crypto() }), '3CN');
+    const result = arbitrateForHousehold(arb, household('50000'))!;
+    expect(result.crossesBracket).toBe(false);
+    expect(result.marginalRateBefore).toBe('0.30');
+    expect(result.baremeEur).toBe('2796');
+    expect(result.deltaEur).toBe('1516');
+    const scenario = arb.scenarios.find((s) => s.rate === '0.30')!;
+    expect(result.baremeEur).toBe(scenario.baremeEur);
+    expect(result.deltaEur).toBe(scenario.deltaEur);
+  });
+
+  it('quand le gain fait changer de tranche, se place strictement entre les deux scénarios', () => {
+    const arb = arbitrate(input({ crypto: crypto() }), '3CN');
+    const result = arbitrateForHousehold(arb, household('80000'))!;
+    expect(result.crossesBracket).toBe(true);
+    expect(result.marginalRateBefore).toBe('0.30');
+    expect(result.marginalRateAfter).toBe('0.41');
+    expect(result.baremeEur).toBe('3317.73');
+    const at30 = D(arb.scenarios.find((s) => s.rate === '0.30')!.baremeEur);
+    const at41 = D(arb.scenarios.find((s) => s.rate === '0.41')!.baremeEur);
+    expect(D(result.baremeEur).gt(at30)).toBe(true);
+    expect(D(result.baremeEur).lt(at41)).toBe(true);
+  });
+
+  it('une année sans barème publié emprunte le dernier, et le dit', () => {
+    const arb = arbitrate(input({ year: 2026, crypto: crypto({ year: 2026 }) }), '3CN');
+    const result = arbitrateForHousehold(arb, household('50000'))!;
+    expect(result.scaleIsFallback).toBe(true);
+    expect(result.scaleYear).toBe(2025);
+  });
+
+  it('une année trop ancienne ne se projette pas : le mode précis renonce', () => {
+    const arb = arbitrate(input({ year: 2019, crypto: crypto({ year: 2019 }) }), '3CN');
+    expect(arbitrateForHousehold(arb, household('50000'))).toBeNull();
   });
 });
