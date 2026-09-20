@@ -317,8 +317,14 @@
                 droits. Ce chiffrage ne le regarde pas.
               </li>
               <li>
-                Depuis la loi de finances pour 2026, cette option n’est plus irrévocable : se
-                tromper coûte moins cher qu’avant.
+                {#if arb.revocable}
+                  Depuis la loi de finances pour 2026, cette option n’est plus irrévocable : se
+                  tromper coûte moins cher qu’avant.
+                {:else}
+                  <strong>Celle-ci reste irrévocable.</strong> La loi de finances pour 2026 n’a levé ce
+                  caractère que pour la case 2OP ; l’article qui régit celle-ci dit toujours « option
+                  expresse et irrévocable ». Une fois exercée pour l’année, on ne revient pas dessus.
+                {/if}
               </li>
             </ul>
           </div>

@@ -86,9 +86,16 @@ concerne vos données.
 
 ## Ce que ça ne fait pas
 
-Pas de formulaire 2086 pré-rempli, pas de réconciliation DAC8, pas d'option pour le barème
-progressif, pas de traitement du régime propre des récompenses ni du minage. Ces éléments restent
-le périmètre de P13 dans la feuille de route.
+Pas de formulaire 2086 pré-rempli : l'application donne les lignes à recopier, case par case
+(`cessionsToCsv`, décision n° 166), jamais un document rempli. Pas de traitement du régime propre
+des récompenses ni du minage — ce qu'il en reste du périmètre de P13 dans la feuille de route.
+
+Deux manques annoncés ici n'en sont plus. La **réconciliation DAC8** existe (`dac8Summary`,
+récapitulatif par année dans le Rapport, décision n° 50). L'**option pour le barème** est chiffrée :
+l'écran Déclaration compare, pour la case 3CN comme pour la 2OP, ce que le barème coûterait à la
+tranche que vous indiquez (décision n° 150). Il **ne dit pas de cocher** — et il ne le dira pas :
+l'option se juge sur le revenu global du foyer, que l'application ne connaît pas. Un test de bout en
+bout interdit d'ailleurs à cet écran tout vocabulaire de recommandation.
 
 **Faites vérifier votre situation par un professionnel avant toute déclaration.**
 

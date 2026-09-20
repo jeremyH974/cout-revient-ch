@@ -81,6 +81,16 @@ du test, qui constate que le fichier de 2026 gagne deux préférences à leur va
 qu'aucune donnée de l'utilisateur ne change et sans montée de `SCHEMA_VERSION`. Un échec de ce test
 pose donc toujours la même question, la bonne : « l'ajout est-il vraiment additif ? »
 
+## Ce fichier ne va jamais dans git
+
+La sauvegarde porte **tout** : lignes brutes, saisies, qualifications, comptes, réglages, cache de
+prix. Elle n'est pas un relevé de courtier, mais elle contient ce qu'un relevé contient et le reste
+avec. `.gitignore` l'exclut par son nom (`*cout-revient-ch-sauvegarde*.json`, `demo-` et `-chiffree`
+compris) et `scripts/check-no-personal-exports.js` fait échouer `lint` si une sauvegarde est suivie
+hors de `tests/fixtures/` — chiffrée ou non, car un fichier chiffré aujourd'hui est un fichier
+déchiffrable le jour où la phrase secrète fuite. La fixture gelée (`backup-v1.json`) porte un autre
+nom, et reste suivie. Décision n° 167.
+
 ## Le chiffrement optionnel du fichier exporté
 
 Deux versions d'enveloppe coexistent, et **les deux s'ouvrent**. Chaque fichier porte le KDF avec

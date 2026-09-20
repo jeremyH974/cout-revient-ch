@@ -5137,3 +5137,68 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Au passage.** La note de méthode du rapport PDF énonçait la formule avec « prix de cession »
      aux deux endroits — l'ambiguïté même dont le moteur était sorti. Elle dit désormais « net des
      frais » d'un côté, « avant frais » de l'autre, en citant le formulaire et le BOFiP.
+
+167. **La sauvegarde de l'app n'était protégée par rien** (20/09/2026).
+
+     **Le constat.** La règle du dépôt dit « jamais de relevé réel dans git », et deux garde-fous la
+     tiennent : `.gitignore` sur `*.csv` et les classeurs, et un contrôle de `lint` qui refuse un
+     export personnel suivi hors de `tests/fixtures/`. Or la **sauvegarde JSON** de l'application
+     n'est ni un CSV ni un classeur. Elle porte pourtant davantage qu'un relevé : lignes brutes,
+     saisies, qualifications, comptes, réglages, cache de prix — l'état entier. Déposée à la racine
+     du dépôt, rien ne l'arrêtait, et `*.json` est un format que le dépôt suit par ailleurs. Le trou
+     est apparu en préparant un recalcul sur les données réelles du propriétaire : le geste naturel,
+     « exporte ta sauvegarde et dépose-la là », allait déposer un fichier non protégé dans un dépôt
+     public.
+
+     **La correction.** `.gitignore` exclut `*cout-revient-ch-sauvegarde*.json` — le préfixe `demo-`
+     et le suffixe `-chiffree` compris — et le contrôle de `lint` ajoute le même motif. **Chiffrée
+     comprise** : un fichier chiffré aujourd'hui est un fichier déchiffrable le jour où la phrase
+     secrète fuite, et l'historique de git, lui, ne s'oublie pas. La fixture gelée
+     (`tests/fixtures/storage/backup-v1.json`) porte un autre nom et reste suivie, comme il faut.
+
+     **Contre-épreuve** (décision n° 75) : une fausse sauvegarde ajoutée de force (`git add -f`) à la
+     racine fait échouer le contrôle en la nommant — « ERREUR : export(s) personnel(s) suivi(s) par
+     git : cout-revient-ch-sauvegarde-2026-09-20.json ». Et `git check-ignore` confirme les trois
+     formes du nom, sans toucher à la fixture.
+
+168. **L'écran disait des deux options ce qui n'était vrai que d'une, et la crypto était du mauvais
+     côté** (20/09/2026).
+
+     **Le constat.** L'arbitrage forfait / barème (décision n° 150) énumère, sous chaque option, ce
+     qu'elle engage. Une de ces mises en garde disait : « Depuis la loi de finances pour 2026, cette
+     option n'est plus irrévocable : se tromper coûte moins cher qu'avant. » Elle était écrite dans
+     le gabarit, donc rendue pour **les deux** options. Or elle ne vaut que pour la case **2OP** : la
+     loi de finances pour 2026 a supprimé le mot « irrévocable » au 2 de l'article 200 A. La case
+     **3CN**, celle des crypto-actifs, relève de l'article **200 C**, qui dit toujours « sur option
+     expresse **et irrévocable** du contribuable » — version en vigueur depuis le 01/01/2023,
+     inchangée, relue sur Légifrance le 20/09/2026.
+
+     **Ce que ça coûtait.** L'écran annonçait qu'une erreur sur la seule des deux options qu'on ne
+     peut pas reprendre était rattrapable. C'est le contraire d'un chiffre faux : un chiffre faux se
+     recalcule, une case cochée par erreur pour l'année ne se décoche pas.
+
+     **Deux autres traces de la même racine.** Le registre des cases décrivait la 3CN par
+     « CGI art. 200 A » et la rattachait à l'entrée de veille de la 2OP : la source affichée à côté
+     de la case crypto menait donc à l'article des valeurs mobilières. La 3CN a désormais son entrée
+     (`bareme-actifs-numeriques`, article 200 C, version datée) et sa référence.
+
+     **La correction de fond : un fait de droit n'est pas une phrase de gabarit.** Ce que l'option
+     engage devient une **donnée de l'option** — `revocable`, `optionSourceId` — au même titre que
+     son assiette, donc testable, mutable par Stryker, et impossible à rendre pour l'option voisine.
+
+     **Ce que la relecture a confirmé au passage.** Le taux de 31,4 % (12,8 % + 18,6 %) vaut bien
+     **dès les cessions de 2025**. Un agent de recherche avait conclu « à compter des revenus 2026 »
+     en lisant la clause d'entrée en vigueur d'une modification postérieure de l'article L. 136-8 du
+     code de la sécurité sociale. Le texte tranche : l'article 12, II, 1° de la LFSS 2026 applique la
+     hausse de CSG « à compter de l'imposition des revenus de l'année 2025 » pour la contribution de
+     l'article L. 136-6 — celle des revenus du patrimoine, dont relèvent les plus-values de
+     crypto-actifs —, et au 1er janvier 2026 seulement pour celle de l'article L. 136-7, prélevée à
+     la source sur les produits de placement. Le dépôt avait raison ; sa date de relecture est
+     reportée à aujourd'hui.
+
+     **Contre-épreuves** (décision n° 75), une par garde. Rendre la 3CN révocable fait rougir
+     « 3CN reste irrévocable, 2OP ne l'est plus » — « expected true to be false ». Lui faire citer
+     l'entrée de la 2OP fait rougir « chaque option cite SON article, jamais celui de l'autre » —
+     « expected 'bareme-progressif' to be 'bareme-actifs-numeriques' ». Le registre des cases, lui,
+     porte déjà son propre garde-fou : il décrit la 3CN en entier dans un test, qui a rougi dès que
+     la référence a changé.

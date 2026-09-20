@@ -30,6 +30,13 @@ Thumbs.db
 !tests/fixtures/**/*.xlsx
 /data/
 
+# La sauvegarde JSON de l'application : elle porte TOUT l'état — lignes brutes, saisies,
+# qualifications, comptes, réglages, cache de prix. Ni `*.csv` ni le classeur ne la couvraient, et
+# le dépôt suit ses `*.json` : déposée à la racine, elle n'était arrêtée par rien. Chiffrée, elle
+# n'a pas davantage sa place ici. La fixture gelée (`tests/fixtures/storage/backup-v1.json`) porte
+# un autre nom, et reste donc suivie.
+*cout-revient-ch-sauvegarde*.json
+
 # Grille tarifaire Coinhouse (PDF tiers, non redistribuable) : ses taux sont repris, sourcés et
 # datés dans src/lib/domain/fees.ts — le document lui-même reste hors du dépôt public.
 docs/CH_-GrilleTarifaire*.pdf

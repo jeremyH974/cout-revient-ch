@@ -158,8 +158,10 @@ describe('registre canonique des cases', () => {
       kind: 'checkbox',
       form: '2042 C',
       label: 'Option pour le barème progressif, propre aux crypto-actifs',
-      ref: 'CGI art. 200 A',
-      sourceId: 'bareme-progressif',
+      // Le 200 C, pas le 200 A : c'est l'article de la case 3CN, et le seul des deux qui dise
+      // encore « irrévocable » (décision n° 168).
+      ref: 'CGI art. 200 C',
+      sourceId: 'bareme-actifs-numeriques',
       entry: 'typed',
       entryNote:
         'Une case à cocher, sans montant : « n’oubliez pas de cocher la case 3CN de la 2042 C » (notice 2086). Distincte de la case 2OP, qui porte sur les revenus de capitaux mobiliers et les cessions de valeurs mobilières.',

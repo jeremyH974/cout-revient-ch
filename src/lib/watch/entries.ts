@@ -100,10 +100,10 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
       label: 'LOI n° 2025-1403 du 30/12/2025 (LFSS 2026), art. 12, JORF 31/12/2025',
       url: 'https://www.legifrance.gouv.fr/jorf/article_jo/JORFARTI000053226452',
       official: true,
-      checkedOn: '2026-09-13',
+      checkedOn: '2026-09-20',
     },
     certainty: 'confirmed',
-    reviewedOn: '2026-09-13',
+    reviewedOn: '2026-09-20',
     topics: ['cession'],
   },
   {
@@ -444,6 +444,26 @@ export const WATCH_ENTRIES: readonly WatchEntry[] = [
     certainty: 'confirmed',
     reviewedOn: '2026-09-13',
     topics: ['cession', 'revenus'],
+  },
+  {
+    id: 'bareme-actifs-numeriques',
+    title: 'Option pour le barème, propre aux crypto-actifs (case 3CN)',
+    status: 'in-force',
+    statusDate: '2023-01-01',
+    effect:
+      'Les plus-values de l’article 150 VH bis sont imposées à 12,8 % ; par dérogation, « sur option expresse ET IRRÉVOCABLE du contribuable », elles entrent dans le revenu net global soumis au barème. ' +
+      'L’option est globale, exercée au dépôt de la déclaration et au plus tard avant la date limite, pour les cessions réalisées depuis le 01/01/2023. ' +
+      'À ne pas confondre avec l’option du 2 de l’article 200 A (case 2OP), dont la loi de finances pour 2026 a supprimé le caractère irrévocable : l’article 200 C, lui, n’a pas bougé — se tromper sur la case 3CN reste sans retour',
+    source: {
+      label:
+        'CGI art. 200 C, version en vigueur au 01/01/2023 (Légifrance), modifié par la LOI n° 2021-1900 du 30/12/2021, art. 79',
+      url: 'https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000044983192',
+      official: true,
+      checkedOn: '2026-09-20',
+    },
+    certainty: 'confirmed',
+    reviewedOn: '2026-09-20',
+    topics: ['cession'],
   },
   {
     id: 'delai-reprise-10-ans',
