@@ -207,6 +207,17 @@ export interface UiSettings {
   householdIncomeEur: string | null;
   /** Parts du quotient familial (`'1'`, `'1.5'`, `'2'`…), ou `null`. */
   householdParts: string | null;
+  /**
+   * Voie d'imposition retenue sur chaque option pour l'addition de l'écran « Impôts »
+   * (décision n° 173), ou `null` pour **suivre la moins chère**.
+   *
+   * `null` plutôt qu'une valeur figée : les deux voies se croisent quand les montants bougent, et
+   * un défaut recopié une fois resterait ensuite le mauvais sans que personne ne le voie. Les deux
+   * options se cochent séparément sur la déclaration — elles se retiennent donc séparément ici.
+   * Champs **additifs**.
+   */
+  taxSide3CN: 'flat' | 'scale' | null;
+  taxSide2OP: 'flat' | 'scale' | null;
 }
 
 /** Réglages des alertes de prix (P29, décision n° 36). */
@@ -310,6 +321,8 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   taxBasis: 'bracket',
   householdIncomeEur: null,
   householdParts: null,
+  taxSide3CN: null,
+  taxSide2OP: null,
 };
 
 export function emptyState(): StoredStateV1 {

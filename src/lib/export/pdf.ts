@@ -397,7 +397,7 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
    * **Une boucle, six formes.** Le rendu ne connaît plus aucune section par son nom : ni son rang,
    * ni son saut de page, ni la figure qui l'accompagne. C'est ce qui a fait apparaître le défaut
    * que cette séquence, écrite à la main, portait — la liste des comptes à déclarer au 3916-bis
-   * n'y figurait tout simplement pas, alors que l'écran l'affiche (décision n° 173).
+   * n'y figurait tout simplement pas, alors que l'écran l'affiche (décision n° 174).
    */
   const block = (s: ReportSection): void => {
     switch (s.block.kind) {

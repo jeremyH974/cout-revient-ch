@@ -61,7 +61,7 @@ function pdfTexts(doc: jsPDF): string[] {
  *
  * C'était une énumération de treize champs nommés — une TROISIÈME copie de la séquence, après
  * celle de `pdf.ts` et celle du markup de `Report.svelte`. Depuis que le modèle porte une liste
- * ordonnée (décision n° 173), l'ordre est une donnée, et cette fonction n'a plus rien à recopier.
+ * ordonnée (décision n° 174), l'ordre est une donnée, et cette fonction n'a plus rien à recopier.
  */
 export function sectionTitles(m: ReportModel): string[] {
   return m.sections.map((s) => s.title);
@@ -214,7 +214,7 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
    * `pdf.ts` ouvrait une page avant « Positions ouvertes », avant « Méthodologie », et avant
    * « Positions clôturées » quand elle avait des lignes — trois décisions de mise en page écrites
    * au milieu du rendu, qui l'obligeaient à connaître ces sections par leur nom. Elles vivent
-   * maintenant sur `ReportSection.breakBefore` (décision n° 173), et ce test les y tient : une
+   * maintenant sur `ReportSection.breakBefore` (décision n° 174), et ce test les y tient : une
    * section qui l'annonce doit être la PREMIÈRE de sa page.
    */
   it('ouvre une page devant chaque section qui l’annonce', async () => {

@@ -381,7 +381,7 @@
     UNE BOUCLE, six formes. L'écran ne connaît plus aucune section par son nom : ni son rang, ni la
     figure qui l'accompagne, ni sa présence. C'est ce qui le tient au même récit que le PDF — les
     deux séquences étaient écrites à la main, chacune de son côté, et celle du PDF avait perdu la
-    liste des comptes à déclarer au 3916-bis sans que rien ne le dise (décision n° 173).
+    liste des comptes à déclarer au 3916-bis sans que rien ne le dise (décision n° 174).
   -->
   {#each model.sections as s (s.id)}
     <section class="card" class:methodology={s.block.kind === 'paragraphs'}>

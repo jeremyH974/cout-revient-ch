@@ -221,7 +221,7 @@ export interface ReportModel {
    * Les sections, **dans l'ordre où les rendus doivent les poser**.
    *
    * Avant, le modèle portait un champ nommé par section et les deux rendus écrivaient la séquence
-   * à la main, chacun de son côté (décision n° 173). L'ordre n'existait donc nulle part comme
+   * à la main, chacun de son côté (décision n° 174). L'ordre n'existait donc nulle part comme
    * donnée : aucun test ne pouvait le vérifier, et une section de plus coûtait une branche dans
    * chaque rendu. Ici, un rendu n'apprend que les six formes de `ReportBlock` ; une section de
    * plus qui réemploie une forme existante ne lui coûte rien.
@@ -494,7 +494,7 @@ function closedSection(items: PositionReport[], f: Formatter): ReportSection {
   };
   // Le saut de page avant les clôturées vivait dans `pdf.ts`, sous la forme d'un test sur CE
   // tableau-là. C'est une décision de mise en page, mais elle appartient au constructeur : le
-  // rendu n'a pas à connaître les sections par leur nom (décision n° 173).
+  // rendu n'a pas à connaître les sections par leur nom (décision n° 174).
   return tableSection('closed', 'Positions clôturées', notes.join(' '), table, {
     breakBefore: rows.length > 0,
   });
@@ -1336,7 +1336,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     },
     // L'ORDRE DU RAPPORT, écrit une fois et une seule. Les deux rendus itèrent cette liste : ni
     // `pdf.ts` ni `Report.svelte` ne connaissent plus la séquence, et `pdf.test.ts` peut enfin la
-    // vérifier — elle n'existait auparavant nulle part comme donnée (décision n° 173).
+    // vérifier — elle n'existait auparavant nulle part comme donnée (décision n° 174).
     sections: [
       {
         id: 'summary',

@@ -406,7 +406,7 @@ réellement quelque chose.
 | #    | Proposition                                                                                 | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
 | ---- | ------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
 | P117 | Le rapport global, assis sur `reconcileNetWorth`, avec l'invariant Σ parts = total          |   5    |     3     |    4    |    1     | **12**  |
-| P115 | **Livré (20/09/2026, décision n° 173).** Le modèle de rapport devient une liste de sections |   2    |     4     |    0    |   1,5    |  **4**  |
+| P115 | **Livré (20/09/2026, décision n° 174).** Le modèle de rapport devient une liste de sections |   2    |     4     |    0    |   1,5    |  **4**  |
 | P116 | Registre `REPORTS` : un rapport par espace, une route par périmètre                         |   4    |     2     |    5    |    2     | **5,5** |
 | P118 | Le rapport honore la plage d'analyse, année en cours comprise                               |   5    |     2     |    5    |   2,5    | **4,8** |
 

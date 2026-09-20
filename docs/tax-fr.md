@@ -67,8 +67,43 @@ ne classe aucun actif « à vendre » et ne calcule aucun montant « optimal ».
   restant, plus les avertissements qui s'appliquent à vos données.
 - **Constats** : « Fiscalité de l'année » rejoint les règles de [`docs/insights.md`](insights.md).
 
+- **Impôts → « Ce qu'il restera à payer »** (décision n° 173) : l'addition des deux options,
+  moins ce qui a déjà été prélevé, et la date à laquelle le solde se règle.
+
 Les montants restent **en euros** même quand l'app affiche en dollars : c'est une obligation
 française.
+
+## Quand ça se paie, et ce qui a déjà été prélevé
+
+Un point que l'application taisait jusqu'à la décision n° 173, et qui surprend : **ces gains
+échappent au prélèvement à la source.** Rien n'en est retenu au fil de l'année, et ils arrivent
+entiers sur l'avis, un an plus tard.
+
+Les prélèvements sociaux qui frappent une plus-value sont ceux des **revenus du patrimoine** : la
+contribution est « assise, contrôlée et recouvrée selon les mêmes règles et sous les mêmes sûretés,
+privilèges et sanctions que l'impôt sur le revenu » (CSS art. L. 136-6, III). Ils suivent donc
+l'impôt, à la même date — contrairement aux prélèvements sur les **produits de placement**
+(dividendes, intérêts), que l'établissement payeur retient au versement.
+
+Le solde est prélevé **à partir du 25 septembre** de l'année suivante ; **au-delà de 300 €**, il est
+étalé d'office en quatre prélèvements d'égal montant, de septembre à décembre (impots.gouv.fr). Les
+trois échéances qui suivent la première changent chaque année : l'application porte la règle, jamais
+les jours.
+
+**Ce qui a déjà été prélevé vient en déduction, et pas de la même façon selon sa nature.**
+
+| Ce qui a été retenu                         | Ce qu'il devient                                                      |
+| ------------------------------------------- | --------------------------------------------------------------------- |
+| Acompte de 12,8 % (case **2CK**)            | S'impute, et « s'il excède l'impôt dû, l'excédent est restitué »      |
+| Crédit d'impôt conventionnel (case **8VL**) | S'impute sur l'impôt dû, **jamais restituable** : plafonné à celui-ci |
+| Prélèvements sociaux retenus au versement   | Définitifs : ils effacent ceux de même nature, et rien de plus        |
+
+**Et une démarche que l'application ne peut pas faire à votre place.** Un intermédiaire établi
+**hors de France** ne retient pas l'acompte de 12,8 % sur les dividendes : c'est au contribuable de
+le déclarer et de le payer, « dans les quinze premiers jours du mois qui suit celui du paiement des
+revenus » (CGI art. 117 quater, III renvoyant à l'art. 1671 C), par le formulaire **2778-DIV-SD** —
+sauf dispense en dessous de 50 000 € de revenu fiscal de référence pour une personne seule, 75 000 €
+pour une imposition commune. L'écran Impôts le rappelle dès qu'il voit des dividendes.
 
 ## Les hypothèses, et où elles peuvent casser
 

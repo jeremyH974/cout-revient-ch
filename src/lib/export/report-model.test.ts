@@ -95,7 +95,7 @@ const fact = (m: ReportModel, label: string): string | undefined =>
   m.cover.facts.find((f) => f.label === label)?.value;
 
 /*
- * Le modèle porte une LISTE ORDONNÉE de sections (décision n° 173) : ces raccourcis y pointent.
+ * Le modèle porte une LISTE ORDONNÉE de sections (décision n° 174) : ces raccourcis y pointent.
  * `maybe` sert aux tests de présence ; les autres exigent la section et échouent en la nommant,
  * pour qu'un test ne passe jamais au vert sur une section disparue.
  */

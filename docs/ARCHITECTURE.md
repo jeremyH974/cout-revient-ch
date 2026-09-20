@@ -187,7 +187,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
 - `src/lib/export/report-model.ts` — le rapport, **mise en page exclue** : `ReportModel.sections`
-  est une LISTE ORDONNÉE (décision n° 173). Chaque section porte son enveloppe (titre, `lead` avant
+  est une LISTE ORDONNÉE (décision n° 174). Chaque section porte son enveloppe (titre, `lead` avant
   le bloc, `note` après, avertissements, `breakBefore`) et l'un de six `ReportBlock`. Les deux
   rendus — `export/pdf.ts` et `routes/invest/Report.svelte` — **itèrent** cette liste : aucun ne
   connaît une section par son nom, et une section de plus qui réemploie une forme existante ne leur
@@ -246,7 +246,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'ordre du parcours en ligne (décision n° 149). `routes/Taxes.svelte` (`#/impots` — le seul
     hash de cet espace qui ne porte pas le nom de sa route, parce qu'un favori se lit) met les deux
     voies d'imposition **côte à côte** : impôt et prélèvements sociaux séparés, échelle des tranches
-    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170). Sur
+    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170). L'écran
+    **ouvre** sur `components/tax/TaxBill.svelte` : l'addition des deux options, moins ce qui a déjà
+    été prélevé, et la date à laquelle le solde se règle (`derive/tax-bill.ts` et
+    `derive/tax-calendar.ts`, décision n° 173) — c'est le seul endroit où les crédits d'impôt, que
+    l'arbitrage écarte parce qu'ils se déduisent des deux côtés, reviennent dans le calcul. Sur
     l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
     l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
     (`derive/tax-forecast.ts`, décision n° 171).
@@ -285,12 +289,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   sociaux sont le même montant des deux côtés et que la bascule est un préfixe de l'échelle des
   tranches ; et, sur le prévisionnel, que vendre davantage fait varier le résultat de l'année
   toujours dans le même sens — c'est elle qui a montré que le domaine est borné par la valeur du
-  portefeuille. Douze fichiers `*.property.test.ts`, croisés
+  portefeuille ; et, sur l'addition, que la somme des lignes vaut toujours le solde et que le
+  défaut ne coûte jamais plus cher qu'un choix imposé. Treize fichiers `*.property.test.ts`, croisés
   avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
   `anchor.property.test.ts`, `engine.property.test.ts`, `sort-order.property.test.ts`,
   `trace.property.test.ts`, `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
   `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`,
-  `household-tax.property.test.ts`, `tax-choice.property.test.ts`, `tax-forecast.property.test.ts`.
+  `household-tax.property.test.ts`, `tax-choice.property.test.ts`, `tax-forecast.property.test.ts`,
+  `tax-bill.property.test.ts`.
 - **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
   rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
   clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits
