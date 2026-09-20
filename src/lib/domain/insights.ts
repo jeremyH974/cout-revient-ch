@@ -316,7 +316,7 @@ const YEAR_END_FROM_MONTH = 10;
  *
  * Et une mise en garde qui vaut plus que les deux : **l'actif cédé n'a aucun effet sur l'impôt**.
  * L'article 150 VH bis calcule le gain sur la valeur GLOBALE du portefeuille
- * (`prix de cession − PTA × prix de cession / valeur globale`) ; vendre un actif en perte ne crée
+ * (`prix net des frais − PTA × prix avant frais / valeur globale`) ; vendre un actif en perte ne crée
  * donc aucune moins-value déductible. La « compensation de moins-values » des outils étrangers
  * suppose une comptabilité par lot, qui n'est pas le droit français. Ce constat existe autant pour
  * désamorcer cette croyance que pour énoncer les deux faits ci-dessus.

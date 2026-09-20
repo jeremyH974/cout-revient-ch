@@ -142,8 +142,9 @@ type AmountField = Exclude<SecondOpinionField, 'cessionDate' | 'method'>;
  * aucune des lignes qui la distinguent du net. Un fichier qui a une colonne « frais » ou « fractions
  * de capital initial » dit par là que son prix de cession ou son prix d'acquisition est brut : le
  * comparer à notre net fabriquerait un écart. Le repli sert les fichiers qui ne font pas cette
- * distinction — dont notre propre export, qui écrit un prix net sous « Prix de cession » et un
- * prix d'acquisition net sous « Prix total d'acquisition ».
+ * distinction — dont nos propres exports antérieurs au 20/09/2026, qui écrivaient un prix net sous
+ * « Prix de cession » et un prix d'acquisition net sous « Prix total d'acquisition ». L'export porte
+ * depuis les deux, chacun à sa ligne, et ne passe donc plus par ce repli.
  */
 const TAX_2086_FIELDS: readonly {
   metric: ComparableMetric;

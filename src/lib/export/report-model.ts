@@ -830,8 +830,11 @@ function taxSection(
     details,
     note:
       'Estimation calculée selon la méthode globale de l’article 150 VH bis du CGI : plus-value = ' +
-      'prix de cession − prix total d’acquisition × (prix de cession ÷ valeur globale du portefeuille ' +
-      'au jour de la cession). Seules les sorties vers l’euro sont imposables ; les échanges entre ' +
+      'prix de cession net des frais − prix total d’acquisition × (prix de cession avant frais ÷ ' +
+      'valeur globale du portefeuille au jour de la cession). Les frais ne se retirent que du ' +
+      'premier terme : le rapport, lui, part du prix avant frais — c’est la formule imprimée sur le ' +
+      'formulaire 2086, et ce que dit la doctrine (BOI-RPPM-PVBMC-30-20, § 50). ' +
+      'Seules les sorties vers l’euro sont imposables ; les échanges entre ' +
       'actifs numériques, stablecoins compris, bénéficient du sursis. **Vos actions et ETF n’entrent ' +
       'pas dans ce calcul** : ils relèvent de l’article 150-0 D, dont l’assiette est le prix moyen ' +
       'pondéré PAR LIGNE et non le portefeuille entier — les deux méthodes n’ont pas de dénominateur ' +

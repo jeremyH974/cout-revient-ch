@@ -241,6 +241,18 @@ describe('aller-retour : notre propre export 2086, relu par le second avis', () 
     expect(detection.unknownColumns).toEqual([]);
   });
 
+  it('porte les lignes qui distinguent le brut du net, et ne passe donc par aucun repli', () => {
+    expect(detection.ok).toBe(true);
+    if (!detection.ok) return;
+    // Sans colonne de frais, la 213 serait relue comme notre prix NET — ce que l'export écrivait
+    // vraiment, et ce qu'il faisait recopier dans le formulaire (décision n° 166). La concordance
+    // ci-dessous resterait verte : c'est cette assertion-ci qui rougit.
+    expect(detection.columns.fees).toBeDefined();
+    expect(detection.columns.netProceeds).toBeDefined();
+    expect(detection.columns.capitalFraction).toBeDefined();
+    expect(detection.columns.netAcquisition).toBeDefined();
+  });
+
   it('concorde en tout point avec les chiffres dont il est issu', () => {
     const read = readSecondOpinionClaims(table, detection);
     const report = compareSecondOpinion({

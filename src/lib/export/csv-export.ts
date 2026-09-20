@@ -239,33 +239,61 @@ export function seriesToCsv(points: readonly MetricPoint[], currency: Currency =
 }
 
 /**
- * Cessions imposables au format du formulaire **2086** (décision n° 50) : une ligne par cession,
- * dans l'ordre des colonnes du millésime 2026 (date, valeur globale du portefeuille, prix de
- * cession, prix total d'acquisition, plus-value). **Aide au report, pas une déclaration** : les
- * chiffres restent des estimations, à vérifier avec un professionnel.
+ * Cessions imposables **aux lignes de l'annexe 2086** (décision n° 50) : une ligne par cession, une
+ * colonne par ligne du formulaire, **numéro compris** — une aide au report se recopie case par case.
+ *
+ * Le fichier écrivait le prix de cession NET des frais sous l'intitulé de la ligne 213, qui est le
+ * prix BRUT, et ne portait aucune colonne de frais. Recopié dans le formulaire, il refaisait donc
+ * l'erreur que le moteur venait de corriger (décision n° 159) : le rapport `l. 217 / l. 212` partait
+ * d'un prix amputé des frais, imputait trop peu de prix d'acquisition et surestimait la plus-value.
+ * Même chose du côté de l'acquisition, où la 220 est le prix BRUT et notre `ptaBefore` le net de la
+ * 223 — le brut se reconstitue ici, puisque 220 = 223 + 221.
+ *
+ * Les soultes (216, 222) n'ont pas de colonne : l'app n'en connaît aucune, et une case vide vaut
+ * zéro. Sans elles, le formulaire recalcule seul la 217 depuis la 213 et la 218 depuis la 215. La
+ * plus-value, elle, n'a pas de numéro : c'est la ligne de formule, juste au-dessus de la 224 qui en
+ * est la somme pour le déclarant (décision n° 161).
+ *
+ * **Aide au report, pas une déclaration** : les chiffres restent des estimations, à vérifier avec
+ * un professionnel.
  */
 export function cessionsToCsv(ledger: TaxLedger, year?: number): string {
-  const cessions =
-    year === undefined ? ledger.cessions : ledger.cessions.filter((c) => c.year === year);
   const header = [
-    'Date de la cession',
-    'Prix de cession (€)',
-    'Valeur globale du portefeuille (€)',
-    "Prix total d'acquisition (€)",
-    "Fraction du prix d'acquisition imputée (€)",
-    'Plus ou moins-value (€)',
+    'Date de la cession (211)',
+    'Valeur globale du portefeuille (212)',
+    'Prix de cession (213)',
+    'Frais de cession (214)',
+    'Prix de cession net des frais (215)',
+    "Prix total d'acquisition (220)",
+    'Fractions de capital initial (221)',
+    "Prix total d'acquisition net (223)",
+    'Plus ou moins-value de la cession',
     'Estimation complète',
   ];
-  const rows = cessions.map((c) => [
-    text(day(c.at)),
-    num(D(c.proceedsEur)),
-    c.globalValueEur === null ? text('inconnue') : num(D(c.globalValueEur)),
-    num(D(c.ptaBefore)),
-    c.acquisitionShareEur === null ? text('—') : num(D(c.acquisitionShareEur)),
-    c.gainEur === null ? text('—') : num(D(c.gainEur)),
-    // Une cession sans valeur globale ne peut pas être chiffrée : la colonne le dit, ligne par ligne.
-    text(c.gainEur === null ? 'non — valeur du portefeuille inconnue ce jour-là' : 'oui'),
-  ]);
+  // Ligne 221 : les fractions de prix d'acquisition DÉJÀ imputées, depuis la toute première
+  // cession — elle se cumule donc sur le grand livre entier, et non sur la seule année exportée,
+  // sinon la 220 d'un millésime postérieur repartirait du prix d'acquisition d'origine.
+  let imputed = D('0');
+  const rows: string[][] = [];
+  for (const c of ledger.cessions) {
+    if (year === undefined || c.year === year) {
+      const ptaNet = D(c.ptaBefore);
+      rows.push([
+        text(day(c.at)),
+        c.globalValueEur === null ? text('inconnue') : num(D(c.globalValueEur)),
+        num(D(c.proceedsEur).plus(D(c.feesEur))),
+        num(D(c.feesEur)),
+        num(D(c.proceedsEur)),
+        num(ptaNet.plus(imputed)),
+        num(imputed),
+        num(ptaNet),
+        c.gainEur === null ? text('—') : num(D(c.gainEur)),
+        // Une cession sans valeur globale ne peut pas être chiffrée : la colonne le dit, ligne par ligne.
+        text(c.gainEur === null ? 'non — valeur du portefeuille inconnue ce jour-là' : 'oui'),
+      ]);
+    }
+    if (c.acquisitionShareEur !== null) imputed = imputed.plus(D(c.acquisitionShareEur));
+  }
   return file(header, rows);
 }
 

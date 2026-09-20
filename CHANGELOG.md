@@ -54,7 +54,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   même façon. Et chaque montant est désormais comparé à la ligne qui désigne le même chiffre, y
   compris dans un fichier en libellés : votre prix d'acquisition **net** des fractions déjà imputées
   (ligne 223), pas le brut (ligne 220), qui ne lui est égal que jusqu'à votre première vente.
-  L'export de l'application, relu par le second avis, n'était pas concerné.
+  L'export de l'application, **relu** par le second avis, n'était pas concerné — **recopié** dans le
+  formulaire, il l'était : c'est l'entrée suivante.
+
+- **L'export « Cessions au format 2086 » vous faisait recopier un prix de vente amputé de vos
+  frais.** Le fichier écrivait votre prix de vente **déjà diminué des frais** sous l'intitulé
+  « Prix de cession » — qui, sur le formulaire, est le prix **avant** frais — et n'indiquait vos
+  frais nulle part. Recopié case par case, il refaisait donc l'erreur que l'application venait de
+  corriger : sur l'exemple ci-dessus, le formulaire aboutissait à **495 € de plus-value au lieu de
+  470 €**. L'écran affichait le bon chiffre, et le fichier en faisait écrire un faux.
+  Désormais **chaque colonne porte le numéro de la case où elle se recopie** : 211 la date, 212 la
+  valeur de votre portefeuille, 213 le prix de vente, 214 les frais, 215 le prix net des frais, 220
+  votre prix total d'acquisition, 221 les fractions déjà imputées lors de vos ventes précédentes,
+  223 le prix d'acquisition net. Les cases de soulte (216 et 222) n'ont pas de colonne :
+  l'application n'en connaît aucune, et une case vide vaut zéro. Une colonne disparaît, « Fraction
+  du prix d'acquisition imputée » : elle ne correspond à aucune case du formulaire et voisinait
+  dangereusement avec la 221 — c'est le prix net (215) moins la plus-value.
+  Au passage, la note de méthode du **rapport PDF** énonçait la formule avec « prix de cession » aux
+  deux endroits, la même ambiguïté : elle distingue maintenant le prix avant frais du prix après.
+  **Si vous avez déjà rempli une 2086 à partir de ce fichier, refaites le calcul** avec les
+  nouvelles colonnes.
 
 ### Added
 
