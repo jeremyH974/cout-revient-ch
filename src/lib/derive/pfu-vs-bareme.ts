@@ -76,7 +76,26 @@ export interface Arbitrage {
    * une assiette, la tranche à 0 % est favorable au barème, qui n'y taxe rien.
    */
   breakEvenRate: DecimalString | null;
+  /**
+   * L'option se révoque-t-elle après coup ? C'est là que les deux cessent d'être jumelles, et
+   * c'est la seule de leurs différences qui soit irréparable.
+   */
+  revocable: boolean;
+  /** Entrée de veille qui porte le texte de CETTE option (`src/lib/watch/entries.ts`). */
+  optionSourceId: string;
 }
+
+/**
+ * Ce que chaque option engage. La loi de finances pour 2026 a supprimé le caractère irrévocable de
+ * l'option du **2 de l'article 200 A** (case 2OP). Elle n'a pas touché à l'**article 200 C**, qui
+ * régit la case 3CN : celle-là reste « sur option expresse **et irrévocable** », dans sa version en
+ * vigueur depuis le 01/01/2023. L'écran affirmait le contraire des deux, parce que la phrase était
+ * écrite une fois pour toutes dans le gabarit (décision n° 168).
+ */
+const OPTION_TERMS: Record<TaxOption, { revocable: boolean; sourceId: string }> = {
+  '2OP': { revocable: true, sourceId: 'bareme-progressif' },
+  '3CN': { revocable: false, sourceId: 'bareme-actifs-numeriques' },
+};
 
 /** Assiettes de l'option 2OP : revenus de capitaux mobiliers et plus-values de valeurs mobilières. */
 function basesFor2OP(input: TaxReturnInput): ArbitrageBase[] {
@@ -202,6 +221,8 @@ export function arbitrate(input: TaxReturnInput, option: TaxOption): Arbitrage {
     csgDeductibleEur: toDecimalString(csgDeductible),
     scenarios,
     breakEvenRate: favourable[favourable.length - 1]?.rate ?? null,
+    revocable: OPTION_TERMS[option].revocable,
+    optionSourceId: OPTION_TERMS[option].sourceId,
   };
 }
 

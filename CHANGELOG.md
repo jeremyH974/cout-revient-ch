@@ -75,6 +75,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   **Si vous avez déjà rempli une 2086 à partir de ce fichier, refaites le calcul** avec les
   nouvelles colonnes.
 
+- **L'écran de déclaration vous disait que l'option pour le barème était réversible. Pour vos
+  cryptos, elle ne l'est pas.** La loi de finances pour 2026 a rendu réversible l'option de la case
+  **2OP**, celle des dividendes, des intérêts et des plus-values sur titres. La case **3CN**, celle
+  des crypto-actifs, dépend d'un autre article du code, qui dit toujours « option expresse **et
+  irrévocable** » — l'écran affichait pourtant la même phrase sous les deux. Autrement dit, il vous
+  annonçait qu'une erreur était rattrapable sur la seule des deux options qui ne se reprend pas.
+  Chaque option énonce désormais sa propre règle, et la case 3CN renvoie enfin à **son** article.
+
 ### Added
 
 - **Le calendrier de P&L se lit aussi à la semaine.** À côté de « Jour », « Mois » et « Année », le

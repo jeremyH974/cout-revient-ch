@@ -406,3 +406,25 @@ describe('chaque moteur rend l’année demandée, pas la première venue', () =
     expect(result.totalTaxableEur).toBe('5000');
   });
 });
+
+/**
+ * Les deux options se ressemblent partout, sauf sur le point qui ne se rattrape pas. L'écran
+ * affirmait des deux que la loi de finances pour 2026 les avait rendues révocables : c'est vrai du
+ * 2 de l'article 200 A (case 2OP), faux de l'article 200 C (case 3CN), qui dit toujours « option
+ * expresse et irrévocable » (décision n° 168).
+ */
+describe('ce que l’option engage, et qui n’est pas le même des deux côtés', () => {
+  it('3CN reste irrévocable, 2OP ne l’est plus', () => {
+    expect(arbitrate(input({ crypto: crypto() }), '3CN').revocable).toBe(false);
+    expect(arbitrate(input({ dividends: dividends() }), '2OP').revocable).toBe(true);
+  });
+
+  it('chaque option cite SON article, jamais celui de l’autre', () => {
+    expect(arbitrate(input({ crypto: crypto() }), '3CN').optionSourceId).toBe(
+      'bareme-actifs-numeriques',
+    );
+    expect(arbitrate(input({ dividends: dividends() }), '2OP').optionSourceId).toBe(
+      'bareme-progressif',
+    );
+  });
+});

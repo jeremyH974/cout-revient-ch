@@ -222,8 +222,10 @@ export const TAX_BOXES: readonly TaxBox[] = [
     kind: 'checkbox',
     form: '2042 C',
     label: 'Option pour le barème progressif, propre aux crypto-actifs',
-    ref: 'CGI art. 200 A',
-    sourceId: 'bareme-progressif',
+    // L'article 200 C, et non le 200 A : celui-ci régit la case 2OP, et c'est lui seul dont la loi
+    // de finances pour 2026 a levé le caractère irrévocable (décision n° 168).
+    ref: 'CGI art. 200 C',
+    sourceId: 'bareme-actifs-numeriques',
     entry: 'typed',
     entryNote:
       'Une case à cocher, sans montant : « n’oubliez pas de cocher la case 3CN de la 2042 C » (notice 2086). Distincte de la case 2OP, qui porte sur les revenus de capitaux mobiliers et les cessions de valeurs mobilières.',
