@@ -5318,4 +5318,6 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      l'arrondi de la somme fait rougir l'écran : « total de « Barème progressif » — Expected 1572,
      Received 1571 ». Et rendre au tableau l'écart exact fait rougir la ligne « la vôtre » :
      « Expected 513, Received 512 ». La méta-vérification du document d'architecture, elle, a rougi
-     d'elle-même sur la route neuve et sur le fichier de propriétés neuf.
+     d'elle-même sur la route neuve et sur le fichier de propriétés neuf. Enfin, faire annoncer un
+     autre montant à la Déclaration fait rougir le test de cohérence entre les deux écrans :
+     « année 2025 — Expected 432, Received 230 ».

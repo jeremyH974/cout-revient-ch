@@ -150,6 +150,25 @@ test('l’année en cours s’annonce comme provisoire', async ({ page }) => {
   await expect(page.getByText(`À déclarer au printemps ${current + 1}`)).toBeVisible();
 });
 
+test('la Déclaration et les Impôts annoncent le même forfait, au centime', async ({ page }) => {
+  // Les deux écrans lisent le même moteur ; ce qui peut diverger, c'est leur AFFICHAGE. Deux
+  // montants différents pour la même chose, à un clic d'écart, feraient douter des deux.
+  await importTitles(page);
+  const year = await openYearWithAmounts(page);
+  await page.getByRole('radio', { name: '30 %' }).check();
+  const [forfait] = await amounts(page.locator('.side').first().locator('.split'));
+
+  await page.goto('#/declaration');
+  await page.getByLabel('Année déclarée').selectOption(year);
+  const summary = page.locator('.arbitrage .summary').first();
+  await expect(summary).toBeVisible();
+  const [flatShown] = await amounts(summary);
+
+  expect(Math.round((flatShown ?? 0) * 100), `année ${year}`).toBe(
+    Math.round((forfait ?? 0) * 100),
+  );
+});
+
 test('l’écran ne recommande jamais de cocher', async ({ page }) => {
   // La frontière que ce projet tient : chiffrer un écart à une hypothèse donnée n'est pas conseiller.
   await importTitles(page);
