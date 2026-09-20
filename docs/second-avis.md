@@ -154,8 +154,10 @@ Trois règles en sortent :
 - **Une ligne brute (213, 220) ne se lit qu'à défaut**, dans un fichier qui ne porte aucune colonne
   qui la distingue du net. Une colonne « frais » ou « fractions de capital initial » dit que le prix
   à côté est brut : il n'est alors jamais comparé à notre net. Le repli sert les fichiers qui ne
-  font pas la distinction, dont notre propre export, qui écrit des montants nets sous « Prix de
-  cession » et « Prix total d'acquisition ».
+  font pas la distinction — dont les exports « Cessions au format 2086 » produits par l'app **avant
+  le 20/09/2026**, qui écrivaient des montants nets sous « Prix de cession » et « Prix total
+  d'acquisition ». L'export porte depuis une colonne par ligne du formulaire, numéro compris, et se
+  relit donc ici sans aucun repli (décision n° 166).
 - **La plus-value d'une cession n'a pas de numéro.** Sur le formulaire, elle occupe la ligne de
   formule ; la 224, juste en dessous, est leur somme pour le déclarant, et la ligne 52 additionne
   224, 264 et 324. Dans un fichier à une ligne par cession, une colonne « 224 » ne peut porter que

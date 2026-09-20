@@ -99,6 +99,8 @@ const HEADERS: Record<SecondOpinionField, readonly string[]> = {
     'plus-values et moins-values',
     'plus-value ou moins-value',
     'plus ou moins-value',
+    'plus-value ou moins-value de la cession',
+    'plus ou moins-value de la cession',
     'plus-value / moins-value',
     'plus ou moins value',
     'plus-value',
@@ -121,9 +123,11 @@ const KNOWN_EXTRAS = new Set([
   'commentaire',
   'note',
   'total',
-  // Colonnes de NOTRE propre export « Cessions au format 2086 » (`cessionsToCsv`) : lues, non
-  // comparées — la fraction imputée se déduit des autres cases, et « Estimation complète » est un
-  // drapeau, pas un montant. Notre export doit se relire ici sans qu'aucune colonne soit inconnue.
+  // Colonnes de NOTRE propre export « Cessions au format 2086 » (`cessionsToCsv`), qui doit se
+  // relire ici sans qu'aucune colonne soit inconnue. « Estimation complète » est un drapeau, pas un
+  // montant. « Fraction du prix d'acquisition imputée » ne sort plus depuis que l'export porte les
+  // numéros du formulaire — elle ne s'y trouve sur aucune ligne, et voisinait dangereusement avec la
+  // 221 ; l'entrée reste pour les fichiers exportés avant ce changement, qui circulent encore.
   "fraction du prix d'acquisition imputee",
   'estimation complete',
 ]);

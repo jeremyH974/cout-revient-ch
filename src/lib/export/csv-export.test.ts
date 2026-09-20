@@ -3,7 +3,7 @@ import { accountDeclarationsToCsv, cessionsToCsv } from './csv-export';
 import { computeDeclarations } from '../domain/declarations-fr';
 import { computeFrenchTax } from '../domain/tax-fr';
 import { computePortfolio } from '../domain/engine';
-import { D } from '../domain/money';
+import { D, type Big } from '../domain/money';
 import {
   DEFAULT_ENGINE_SETTINGS,
   type Account,
@@ -168,73 +168,90 @@ describe('exports CSV', () => {
   });
 });
 
-describe('cessionsToCsv — colonnes du formulaire 2086', () => {
+describe('cessionsToCsv — une colonne par ligne du formulaire 2086', () => {
+  /**
+   * L'exemple du banc d'essai public (`docs/exactitude.md`) : 10 000 € investis, un portefeuille de
+   * 12 000 €, une vente de 3 000 € dont 30 € de frais. La plus-value est de **470 €** — et de 495 €
+   * si le rapport de la formule part du prix NET des frais, ce que le fichier exporté faisait faire
+   * à qui le recopiait dans le formulaire, faute de dire lequel de ses deux prix il écrivait.
+   */
+  const withFee = (event: TradeEvent, grossEur: string): TradeEvent => ({
+    ...event,
+    fee: { asset: 'eur', gross: grossEur, rebate: '0', grossEur, rebateEur: '0' },
+  });
   const events: LedgerEvent[] = [
-    {
-      id: 'e1',
-      at: '2026-01-01T10:00:00',
-      source: 'manual',
-      scope: 'coinhouse',
-      accountId: 'ch:main',
-      rowKeys: [],
-      warnings: [],
-      kind: 'trade',
-      out: { asset: 'eur', qty: '10000' },
-      in: { asset: 'btc', qty: '1' },
-      valueEur: '10000',
-      valueEurSource: 'manual',
-      fee: null,
-      quotePrice: null,
-    },
-    {
-      id: 'e2',
-      at: '2026-06-01T10:00:00',
-      source: 'manual',
-      scope: 'coinhouse',
-      accountId: 'ch:main',
-      rowKeys: [],
-      warnings: [],
-      kind: 'trade',
-      out: { asset: 'btc', qty: '0.5' },
-      in: { asset: 'eur', qty: '5000' },
-      valueEur: '5000',
-      valueEurSource: 'manual',
-      fee: null,
-      quotePrice: null,
-    },
+    buy('e1', '2025-01-01T10:00:00', 'btc', '1', '10000'),
+    withFee(sell('e2', '2025-06-01T10:00:00', 'btc', '0.25', '2970'), '30'),
+    sell('e3', '2026-06-01T10:00:00', 'btc', '0.25', '2000'),
   ];
+  // Valeur globale = clôture du jour + ce qui est sorti du portefeuille : 12 000 puis 8 000.
+  const closingValueAt = (day: string): Big | null =>
+    day === '2025-06-01' ? D('9000') : day === '2026-06-01' ? D('6000') : null;
+  const ledger = computeFrenchTax({ events, closingValueAt });
+  const lines = (year?: number): string[] => cessionsToCsv(ledger, year).trimEnd().split('\r\n');
 
-  it('rend une ligne par cession, dans l’ordre des colonnes du formulaire', () => {
-    const ledger = computeFrenchTax({
-      events,
-      closingValueAt: (day) => (day === '2026-06-01' ? D('15000') : null),
+  it('nomme chaque colonne par la ligne du formulaire où elle se recopie', () => {
+    const header = lines()[0]!.replace('\ufeff', '').split(';');
+    expect(header).toEqual([
+      'Date de la cession (211)',
+      'Valeur globale du portefeuille (212)',
+      'Prix de cession (213)',
+      'Frais de cession (214)',
+      'Prix de cession net des frais (215)',
+      "Prix total d'acquisition (220)",
+      'Fractions de capital initial (221)',
+      "Prix total d'acquisition net (223)",
+      'Plus ou moins-value de la cession',
+      'Estimation complète',
+    ]);
+    // Le prix BRUT en 213, les frais en 214, le net en 215 : l'ancien fichier écrivait 2 970 sous
+    // l'intitulé du prix de cession, et rien nulle part sur les 30 € de frais.
+    expect(lines()[1]!.split(';')).toEqual([
+      '"01/06/2025"',
+      '12000',
+      '3000',
+      '30',
+      '2970',
+      '10000',
+      '0',
+      '10000',
+      '470',
+      '"oui"',
+    ]);
+  });
+
+  it('se recopie dans le formulaire et y redonne la plus-value du moteur', () => {
+    // La formule imprimée sur le formulaire, appliquée aux CASES DU FICHIER :
+    // l. 218 − [l. 223 × (l. 217 / l. 212)], avec 217 = 213 et 218 = 215 faute de soulte.
+    const rows = lines().slice(1);
+    expect(rows).toHaveLength(2);
+    rows.forEach((row, i) => {
+      const cells = row.split(';');
+      const box = (index: number): Big => D(cells[index]!.replace(',', '.'));
+      expect(box(2).minus(box(3)).toString()).toBe(box(4).toString());
+      expect(box(5).minus(box(6)).toString()).toBe(box(7).toString());
+      const gain = box(4).minus(box(7).times(box(2)).div(box(1)));
+      expect(gain.toFixed(2)).toBe(D(ledger.cessions[i]!.gainEur!).toFixed(2));
     });
-    const lines = cessionsToCsv(ledger).trimEnd().split('\r\n');
-    expect(lines).toHaveLength(2);
-    expect(lines[0]).toContain('Valeur globale du portefeuille');
-    expect(lines[0]).toContain("Prix total d'acquisition");
-    const cells = lines[1]!.split(';');
+  });
+
+  it('compte les fractions déjà imputées depuis la première cession, pas depuis le 1ᵉʳ janvier', () => {
+    expect(lines(2025)).toHaveLength(2);
+    const cells = lines(2026)[1]!.split(';');
     expect(cells[0]).toBe('"01/06/2026"');
-    expect(cells[1]).toBe('5000');
-    // Valeur globale reconstituée : clôture 15 000 + 5 000 encaissés.
-    expect(cells[2]).toBe('20000');
-    expect(cells[3]).toBe('10000');
-    expect(cells[5]).toBe('2500');
-    expect(cells[6]).toBe('"oui"');
+    // 221 : les 2 500 € imputés en 2025, que le millésime 2026 ne montre pas — sans eux, la 220
+    // repartirait du prix d'acquisition d'origine et le formulaire imputerait deux fois.
+    expect(cells[6]).toBe('2500');
+    expect(cells[5]).toBe('10000');
+    expect(cells[7]).toBe('7500');
   });
 
   it('dit ligne par ligne ce qui n’a pas pu être chiffré, au lieu d’inventer', () => {
     const blind = computeFrenchTax({ events });
     const cells = cessionsToCsv(blind).trimEnd().split('\r\n')[1]!.split(';');
-    expect(cells[2]).toBe('"inconnue"');
-    expect(cells[5]).toBe('"—"');
-    expect(cells[6]).toContain('non');
-  });
-
-  it('peut se limiter à un millésime', () => {
-    const ledger = computeFrenchTax({ events, closingValueAt: () => D('15000') });
-    expect(cessionsToCsv(ledger, 2025).trimEnd().split('\r\n')).toHaveLength(1);
-    expect(cessionsToCsv(ledger, 2026).trimEnd().split('\r\n')).toHaveLength(2);
+    expect(cells[1]).toBe('"inconnue"');
+    expect(cells[8]).toBe('"—"');
+    expect(cells[9]).toContain('non');
   });
 });
 

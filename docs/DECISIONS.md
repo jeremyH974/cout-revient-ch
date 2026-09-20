@@ -5078,3 +5078,62 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      - ne regrouper qu'une semaine sur deux (la somme à l'écran s'écarte de 160,62) ;
      - retirer le passage à la ligne (325 px pour 320) ;
      - neutraliser la sélection d'une semaine.
+
+166. **L'export 2086 écrivait le prix net sous l'intitulé du prix brut, et son aller-retour ne
+     pouvait pas le voir** (20/09/2026).
+
+     **Le constat.** L'écran Rapport exporte « Cessions au format 2086 » : une aide au report, à
+     recopier case par case. Le fichier écrivait `proceedsEur` — le prix de cession **net des
+     frais**, la ligne 218 — sous l'intitulé « Prix de cession », qui est la ligne **213**, le prix
+     brut ; il ne portait **aucune colonne de frais** ; et il écrivait `ptaBefore` — le prix
+     d'acquisition net des fractions déjà imputées, la 223 — sous « Prix total d'acquisition », qui
+     est la **220**, le brut. Recopié dans le formulaire, ce fichier refaisait donc exactement
+     l'erreur que le moteur venait de corriger (décision n° 159) : le rapport `l. 217 / l. 212`
+     partait d'un prix amputé des frais. Sur l'exemple du banc d'essai public — 10 000 € investis,
+     un portefeuille de 12 000 €, une vente de 3 000 € dont 30 € de frais — le formulaire rendait
+     **495 € au lieu de 470 €**. L'app affichait le bon chiffre et faisait écrire le faux.
+
+     **Une colonne, une ligne du formulaire, numéro compris.** 211 date, 212 valeur globale, 213
+     prix de cession, 214 frais, 215 prix net des frais, 220 prix total d'acquisition, 221 fractions
+     de capital initial déjà imputées, 223 prix total d'acquisition net, puis la plus-value et le
+     drapeau « estimation complète ». Les soultes (216, 222) n'ont pas de colonne : l'app n'en
+     connaît aucune, une case vide vaut zéro, et le formulaire recalcule alors seul la 217 depuis la
+     213 et la 218 depuis la 215. La plus-value garde une colonne **sans numéro** : c'est la ligne
+     de formule, la 224 étant leur somme pour le déclarant (décision n° 161).
+
+     **Le prix d'acquisition brut se reconstitue.** Le moteur ne suit que le PTA **net**, qui n'est
+     la 220 que jusqu'à la première cession. La 221 est le cumul des fractions imputées sur les
+     cessions **antérieures**, et 220 = 223 + 221 — c'est-à-dire la somme des acquisitions, puisque
+     le PTA ne bouge que par un achat ou une imputation. Ce cumul se compte sur le **grand livre
+     entier** : l'export ne porte qu'une année (décision n° 141), et repartir de zéro à chaque
+     millésime ferait imputer deux fois le même capital.
+
+     **Une colonne en moins.** « Fraction du prix d'acquisition imputée » ne correspond à aucune
+     ligne du formulaire — c'est le second terme de la formule — et elle aurait voisiné avec la 221
+     sous un nom presque identique : deux « fractions » côte à côte, une à recopier, l'autre pas.
+     Elle se retrouve par soustraction (215 − plus-value). Le second avis continue de la reconnaître
+     comme colonne connue : les fichiers déjà exportés circulent, et son repli sur les lignes brutes
+     (décision n° 161) reste écrit pour eux. Notre export, lui, n'y passe plus.
+
+     **Pourquoi l'aller-retour n'a rien vu.** Le second avis relit notre propre export et exige une
+     concordance totale ; ce test d'intégration est resté vert pendant toute la durée du défaut, et
+     le resterait encore. Il compare ce que nous écrivons à ce que nous calculons, or les deux
+     disaient le même net : le défaut n'était pas dans les chiffres, il était dans l'**intitulé**,
+     c'est-à-dire dans ce qu'un humain en ferait. Un aller-retour ne prouve rien sur la destination
+     d'un fichier. Le garde-fou qui manquait applique l'**arithmétique du formulaire aux cases du
+     fichier** : 215 = 213 − 214, 223 = 220 − 221, et `l. 215 − [l. 223 × (l. 213 / l. 212)]` doit
+     redonner la plus-value du moteur, ligne par ligne. Un second garde nomme, du côté du lecteur,
+     les colonnes qui distinguent le brut du net.
+
+     **Contre-épreuves** (décision n° 75), une par garde. Remettre le prix net sous la 213 laisse
+     l'aller-retour vert et fait rougir les deux gardes de l'export : « expected '2940' to be
+     '2970' », soit 213 − 214 qui ne retombe plus sur la 215. Retirer la colonne de frais fait
+     rougir cinq tests, dont celui du lecteur — « expected undefined to be defined » sur
+     `columns.fees` —, parce que la 213 y redeviendrait lisible comme un net. Faire repartir la 221
+     de zéro à chaque année exportée rougit en nommant le chiffre : « expected '0' to be '2500' ».
+     Confondre la 220 avec la 223 passe la première cession (221 y est nulle) et rougit sur la
+     seconde : « expected '5000' to be '7500' ».
+
+     **Au passage.** La note de méthode du rapport PDF énonçait la formule avec « prix de cession »
+     aux deux endroits — l'ambiguïté même dont le moteur était sorti. Elle dit désormais « net des
+     frais » d'un côté, « avant frais » de l'autre, en citant le formulaire et le BOFiP.

@@ -153,7 +153,10 @@
       cessionsToCsv(tax, taxYear),
       'text/csv;charset=utf-8',
     );
-    toasts.push(`Cessions ${taxYear} exportées : à vérifier avant tout report.`, 'success');
+    toasts.push(
+      `Cessions ${taxYear} exportées : une colonne par case du formulaire, à vérifier avant tout report.`,
+      'success',
+    );
   }
 
   /**
