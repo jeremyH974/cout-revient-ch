@@ -5322,7 +5322,94 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      autre montant à la Déclaration fait rougir le test de cohérence entre les deux écrans :
      « année 2025 — Expected 432, Received 230 ».
 
-171. **« Année déclarée 2026 » se lisait dans les deux sens, et les trois écrans n'en disaient pas
+171. **La seule question fiscale encore actionnable n'était posée nulle part** (20/09/2026).
+
+     **Le constat.** Les décisions n° 169 et 170 avaient donné à l'application un vrai barème et un
+     écran pour le montrer. Mais tout cela **décrivait un passé** : une année close ne se change
+     pas, elle se déclare. La seule chose qu'un utilisateur puisse encore décider — vendre, ou non,
+     d'ici le 31 décembre — n'était chiffrée nulle part, sinon au forfait dans un coin du
+     simulateur d'alerte, sans le barème et sans le foyer.
+
+     **Trois points de droit relus sur sources primaires avant d'écrire une ligne**, et cités dans
+     l'en-tête du module. La **valeur globale du portefeuille** est celle des actifs « détenus par
+     le cédant **avant de procéder à la cession** », évaluée au moment de celle-ci (CGI art. 150 VH
+     bis, III-C ; BOI-RPPM-PVBMC-30-20 § 140) : c'est bien l'entrée que `previewCession` attendait.
+     Les **frais** n'entrent pas au dénominateur mais se déduisent du premier terme (§ 50), ce qui
+     confirme la décision n° 159 à la lettre. Et franchir les **305 €** rend imposables toutes les
+     cessions de l'année, « y compris celles dont le prix n'excédait pas le seuil »
+     (BOI-RPPM-PVBMC-30-10 § 100) — une falaise, pas un abattement.
+
+     **Ce que la relecture a trouvé, et que l'application ne disait nulle part : le foyer fiscal.**
+     Le portefeuille, le seuil de 305 € et l'imputation des moins-values s'apprécient tous au
+     niveau du **foyer**, « quel que soit [le] support de conservation (plateformes d'échanges, y
+     compris étrangères, serveurs personnels, dispositifs de stockage hors-ligne) », et « un même
+     cédant ne peut avoir qu'un seul portefeuille ». L'application affirmait bien que le
+     portefeuille était supposé entier ; elle ne disait pas qu'il était celui du foyer. Pour un
+     écran qui annonce « il vous reste 200 € avant le seuil », c'est un piège : si le conjoint a
+     vendu 200 € aussi, le seuil est déjà franchi. D'où **la valeur globale devenue modifiable** —
+     l'application ne connaît que ce qu'on lui a importé, et une valeur trop basse **sous-estime
+     l'impôt**, ce que l'écran écrit.
+
+     **Elle n'est pas mémorisée, à dessein.** Elle bouge tous les jours ; un report périmé serait
+     pire qu'une ressaisie.
+
+     **Un champ, pas un curseur — et la raison n'est pas que l'ergonomie.** Le GOV.UK Design System
+     déconseille les curseurs de plage (« difficult for some users to interact with ») et WCAG 2.5.1
+     impose une alternative au glisser-déposer ; NN/g les donne pour imprécis par construction
+     (_Input Controls for Parameters_, 2017). Mais le motif décisif est propre à cet écran : la
+     position de départ d'un curseur **est** une suggestion de montant, et un défaut se lit comme
+     une recommandation (NN/g, _The Anchoring Principle_, 2018). Le champ part donc **vide**, et
+     l'application ne propose jamais de montant. Un test de bout en bout le tient.
+
+     **Le registre de la mise en garde est emprunté, pas inventé.** Le simulateur d'impôt de la
+     DGFiP écrit : « Le calcul […] ne dépend que des données que vous allez indiquer. Il ne
+     constitue en aucune façon une déclaration de revenus. » L'écran dit la même chose, au même
+     endroit — près du résultat, pas en mentions légales. Et la ligne que la FCA trace entre les
+     deux (« advice requires an element of opinion […] information […] involves statements of fact
+     or figures », PERG 8.28) est exactement celle que ce projet tient depuis la décision n° 150.
+
+     **Sur les effets de seuil, la revue de littérature n'a rien trouvé** de validé par une autorité
+     de conception pour rendre visible une discontinuité. Le choix est donc le nôtre et il est dit
+     comme tel : une phrase binaire, déclenchée seulement quand c'est **cette vente** qui fait
+     basculer, et qui nomme la conséquence entière — l'année tout entière devient imposable.
+
+     **Une propriété a trouvé la borne du domaine.** « Vendre plus fait varier le résultat de
+     l'année toujours dans le même sens » est fausse au-delà de la valeur du portefeuille : le
+     moteur borne alors la part de capital initial au PTA, et la courbe repart à la hausse même sur
+     un portefeuille en moins-value. Ce n'est pas un défaut — la valeur globale étant par définition
+     celle de **tout** le portefeuille, on ne peut pas en vendre davantage. L'écran refuse donc d'y
+     aller, plutôt que d'afficher un chiffre qui ne veut rien dire.
+
+     **Un centime, encore.** Le titre annonçait « 330,18 € de moins-value » sous une colonne
+     « Écart » qui affichait −330,17 € : l'un arrondissait la plus-value exacte, l'autre soustrayait
+     deux montants déjà arrondis. Le titre se lit désormais sur le tableau. Le test de bout en bout
+     essaie **trois montants** plutôt qu'un — avec un seul, il était passé au vert par chance.
+
+     **Le résultat suit la frappe ; l'annonce parlée, non.** Une région `role="status"` mise à jour
+     à chaque caractère serait inutilisable (MDN, _ARIA live regions_ : éviter les mises à jour trop
+     fréquentes). Le résumé parlé est donc différé de 600 ms, et le résultat visible, lui, n'attend
+     pas.
+
+     **Le test de mutation a fait supprimer du code plutôt qu'ajouter des tests.** Quatre mutants
+     survivaient dans le module neuf. Deux portaient sur une « année vide » qui posait un taux, une
+     exonération et un impôt aussitôt écrasés par l'aperçu : du code que rien ne pouvait vérifier,
+     remplacé par un point de départ (`YearStart`) réduit aux six champs qui survivent réellement.
+     Le troisième portait sur un grand livre synthétique qui recopiait tous les millésimes ; il n'en
+     garde plus qu'un, et la raison est de droit — une moins-value d'actifs numériques ne se
+     reportant pas d'une année sur l'autre (art. 150 VH bis, IV), l'arbitrage d'une année ne regarde
+     jamais les précédentes. Le module est passé de 92 % à **100 %** de mutants tués.
+
+     **Contre-épreuves** (décision n° 75), une par garde-fou. Annoncer le franchissement du seuil
+     sans regarder d'où l'on vient fait rougir la falaise. Laisser la poche d'imputation se
+     consommer à l'envers : « expected '-1000' to be '0' ». Oublier les frais au numérateur du
+     quotient : « expected '250' to be '275' ». Recalculer l'année d'avant ailleurs que dans le
+     moteur : « expected '0' to be '-3508.82' » — ce garde-fou-là **manquait**, et c'est la
+     contre-épreuve qui l'a révélé en restant verte. Rendre au titre la plus-value exacte fait
+     rougir l'écran en nommant le montant coupable : « titre, 2000 € ». Accepter une vente plus
+     grande que le portefeuille, et pré-remplir le champ, font rougir les deux tests qui les
+     interdisent.
+
+172. **« Année déclarée 2026 » se lisait dans les deux sens, et les trois écrans n'en disaient pas
      autant** (20/09/2026).
 
      **La demande d'origine portait un doute, et le doute était le défaut.** « Pouvoir aussi voir

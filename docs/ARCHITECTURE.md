@@ -187,7 +187,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
 - `src/lib/format/tax-year.ts` — le vocabulaire de l'année fiscale, **un seul pour les trois écrans
-  qui en portent un et pour le PDF** (décision n° 171) : le libellé nu « Année », l'état de l'année
+  qui en portent un et pour le PDF** (décision n° 172) : le libellé nu « Année », l'état de l'année
   et le printemps où elle se déclare. Le rendu partagé est `src/components/tax/TaxYearPicker.svelte`,
   qui n'ajoute que le rattachement accessible entre le champ et sa phrase. L'état lui-même vient de
   `yearStatus` (`src/lib/derive/tax-outlook.ts`) et se lit sur le seul calendrier.
@@ -240,7 +240,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'ordre du parcours en ligne (décision n° 149). `routes/Taxes.svelte` (`#/impots` — le seul
     hash de cet espace qui ne porte pas le nom de sa route, parce qu'un favori se lit) met les deux
     voies d'imposition **côte à côte** : impôt et prélèvements sociaux séparés, échelle des tranches
-    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170).
+    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170). Sur
+    l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
+    l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
+    (`derive/tax-forecast.ts`, décision n° 171).
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
   `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
@@ -274,12 +277,14 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   coûte au moins sa tranche de départ et au plus celle d'arrivée — la propriété qui justifie de
   saisir un revenu plutôt que de choisir une tranche ; et, sur l'écran Impôts, que les prélèvements
   sociaux sont le même montant des deux côtés et que la bascule est un préfixe de l'échelle des
-  tranches. Onze fichiers `*.property.test.ts`, croisés
+  tranches ; et, sur le prévisionnel, que vendre davantage fait varier le résultat de l'année
+  toujours dans le même sens — c'est elle qui a montré que le domaine est borné par la valeur du
+  portefeuille. Douze fichiers `*.property.test.ts`, croisés
   avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
   `anchor.property.test.ts`, `engine.property.test.ts`, `sort-order.property.test.ts`,
   `trace.property.test.ts`, `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
   `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`,
-  `household-tax.property.test.ts`, `tax-choice.property.test.ts`.
+  `household-tax.property.test.ts`, `tax-choice.property.test.ts`, `tax-forecast.property.test.ts`.
 - **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
   rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
   clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits

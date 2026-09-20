@@ -8,7 +8,7 @@ _Établi le 20/09/2026 contre `main` à `eda1736` (**2.17.0**, 170 décisions). 
 **vérifié** (relu par moi dans le dépôt ce jour, référence de fichier donnée) ou **sourcé** (URL et
 date en fin de document). Propositions numérotées **P115-P118** : P114 était le dernier numéro pris (étude du
 13/09/2026). Statut : **proposition** — le seul lot livré ce jour est le vocabulaire de l'année
-(décision n° 171), qui ne figure pas ici._
+(décision n° 172), qui ne figure pas ici._
 
 ---
 
@@ -20,7 +20,7 @@ annexe : c'était le défaut. **Vérifié** — le 20/09/2026, `declarationYear`
 Rapport affichait bien 2026, c'est-à-dire **l'année en cours**. Rien ne manquait au calcul. Ce qui
 manquait, c'était un mot : « Année déclarée » se lit dans les deux sens.
 
-C'est livré (décision n° 171) et hors périmètre de cette proposition. On le note ici parce que la
+C'est livré (décision n° 172) et hors périmètre de cette proposition. On le note ici parce que la
 leçon vaut pour la suite : **avant de construire un rapport par espace, vérifier que le besoin n'est
 pas déjà servi sous un nom illisible.** Deux des quatre propositions ci-dessous ont rétréci pour
 cette raison.
@@ -92,7 +92,7 @@ rendement simulé, qui ne reflète pas la performance d'actifs réels. C'est exa
 rapport « année en cours » ouvert en septembre. Ensuite : **l'année fiscale n'est pas une plage
 d'analyse.** La décision n° 156 avait déjà écarté « l'ancrage sur une année fiscale décalée » ; les
 deux sélecteurs doivent coexister, et chacun dire ce qu'il gouverne — c'est ce que la décision
-n° 171 vient de faire pour le second.
+n° 172 vient de faire pour le second.
 
 ## 4. Ce que l'état de l'art impose, et ce qu'il n'impose pas
 
@@ -167,7 +167,7 @@ qui rend la collision visible.
 Le rapport lit `ui.period` et `ui.customRange`, comme les trois autres écrans. Stocks à la date de
 fin, flux sur la fenêtre, performance sur la fenêtre, **jamais annualisée** sur une période
 partielle (§ 3.3). Le sélecteur d'année fiscale **reste** : il gouverne les sections fiscales, et
-depuis la décision n° 171 il le dit.
+depuis la décision n° 172 il le dit.
 
 ### Ce qui n'est pas recommandé
 

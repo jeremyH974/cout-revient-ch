@@ -400,7 +400,7 @@ Détail, sources datées et limites :
 Constat central : **la demande portait un doute, et le doute était le défaut.** « Pouvoir aussi voir
 l'année en cours (donc ici 2027 si c'est par année de déclaration ?) » — l'année en cours était déjà
 sélectionnée à l'écran ; « Année déclarée » se lisait dans les deux sens. Le mot est corrigé le jour
-même (décision n° 171) et ne figure donc pas au tableau. Restent les quatre lots qui construisent
+même (décision n° 172) et ne figure donc pas au tableau. Restent les quatre lots qui construisent
 réellement quelque chose.
 
 | #    | Proposition                                                                        | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |

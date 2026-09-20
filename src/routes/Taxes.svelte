@@ -19,7 +19,7 @@
   import { arbitrages, type Arbitrage } from '$lib/derive/pfu-vs-bareme';
   import { marginalRateFor, scaleForYearOrLatest } from '$lib/derive/household-tax';
   import { taxChoice, type TaxBasis, type TaxChoice, type TaxSide } from '$lib/derive/tax-choice';
-  import { yearOutlook } from '$lib/derive/tax-outlook';
+  import { yearOutlook, yearStatus } from '$lib/derive/tax-outlook';
   import { computeDeclarations } from '$lib/domain/declarations-fr';
   import { MARGINAL_RATES } from '$lib/domain/income-tax-fr';
   import { D, ZERO, parseDecimal, toDecimalString, type DecimalString } from '$lib/domain/money';
@@ -28,6 +28,7 @@
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
+  import SaleForecast from '../components/tax/SaleForecast.svelte';
   import CostBar from '../components/tax/CostBar.svelte';
   import TaxYearPicker from '../components/tax/TaxYearPicker.svelte';
   import { app } from '../state/app.svelte';
@@ -64,6 +65,22 @@
   });
 
   const options = $derived(arbitrages(returnInput));
+  /**
+   * L'état de l'année sert encore, mais plus à la PHRASE du sélecteur — `TaxYearPicker` la rend
+   * désormais lui-même (décision n° 172). Il ne reste ici que ce qu'aucun vocabulaire partagé ne
+   * peut porter : le prévisionnel de vente ne s'affiche que sur une année en cours.
+   */
+  const status = $derived(yearStatus(taxYear, today));
+
+  /**
+   * La valeur du portefeuille que l'application connaît, en euros — le dénominateur de la formule
+   * de l'article 150 VH bis. Le rapport est dans la devise d'affichage ; la fiscalité française ne
+   * connaît que l'euro, d'où la conversion.
+   */
+  const knownGlobalValueEur = $derived.by((): DecimalString | null => {
+    const value = app.eurFromDisplay(app.report.totals.value);
+    return value === null ? null : toDecimalString(value);
+  });
   const outlook = $derived(cryptoReady ? yearOutlook(history.frenchTax(), taxYear, today) : null);
   const scaleChoice = $derived(scaleForYearOrLatest(taxYear));
 
@@ -449,6 +466,11 @@
         </li>
       {/if}
     </ul>
+
+    <!-- Le prévisionnel n'a de sens que sur l'année en cours : une année close ne se simule pas. -->
+    {#if status.state === 'in-progress'}
+      <SaleForecast input={returnInput} {basis} {knownGlobalValueEur} {discreet} />
+    {/if}
   </section>
 {/if}
 
