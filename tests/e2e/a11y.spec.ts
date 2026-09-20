@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { expectNoViolations } from './helpers/axe';
 import { openDemo } from './helpers/demo';
+import { ETORO_FIXTURE } from './helpers/expected';
 import { stubNetwork } from './helpers/network';
 
 test.beforeEach(async ({ context }) => {
@@ -86,6 +87,35 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     await block.getByLabel('Montant de la vente, net de frais').fill('1000');
     await expect(block.locator('table')).toBeVisible();
     await expectNoViolations(page, '#/impots (prévisionnel)');
+  });
+
+  /**
+   * L'addition, elle, demande **une hypothèse de foyer et une année imposable** : elle ne peut
+   * pas davantage figurer dans la liste ci-dessus, et elle porte un tableau avec un `<tfoot>`,
+   * deux listes déroulantes et une région `role="status"`.
+   *
+   * **Le relevé de titres, et non la démo crypto** : hors ligne, l'historique des cours ne se
+   * charge pas et l'article 150 VH bis reste sans assiette — la carte ne s'afficherait pas, et
+   * axe passerait au vert sur une page qui ne la porte pas.
+   */
+  test('avec le relevé de titres : #/impots, addition remplie', async ({ page }) => {
+    await page.goto('#/import');
+    await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
+    await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
+    await page.goto('#/impots');
+    await page.getByRole('radio', { name: '30 %' }).check();
+    // Le millésime imposable de la démo bouge avec la date du jour : le figer ferait passer ce
+    // test au vert sur une page sans carte.
+    const select = page.getByLabel('Année');
+    const years = await select.locator('option').allTextContents();
+    for (const year of years) {
+      await select.selectOption(year);
+      if ((await page.locator('.bill table').count()) > 0) {
+        await expectNoViolations(page, '#/impots (addition)');
+        return;
+      }
+    }
+    throw new Error(`aucune année n’a d’addition (essayées : ${years.join(', ')})`);
   });
 
   /**

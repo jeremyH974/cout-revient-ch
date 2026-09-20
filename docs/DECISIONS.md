@@ -5464,3 +5464,94 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      d'abord en `page.getByText(…)`, elle passait au vert **sans** la phrase : la page de garde du
      rapport porte désormais la même, et la recherche globale l'attrapait. Un garde-fou qui
      surveillait le mauvais élément, trouvé par la règle qui existe pour cela.
+
+173. **Deux additions séparées ne font pas une facture** (20/09/2026).
+
+     **Le constat.** Les décisions n° 150, 170 et 171 avaient donné à l'application un arbitrage,
+     un écran pour le montrer et un prévisionnel. Il manquait pourtant la question la plus simple
+     qu'un utilisateur pose : _combien vais-je payer, et quand ?_ L'écran posait **deux** additions
+     — `2OP` et `3CN` se cochent indépendamment — sans jamais en faire la somme, et personne ne
+     disait ce qui, de cette somme, avait **déjà** été prélevé.
+
+     **Quatre points de droit relus sur sources primaires avant d'écrire une ligne**, et cités dans
+     l'en-tête des deux modules.
+
+     1. Les prélèvements sociaux qui frappent les plus-values sont ceux des **revenus du
+        patrimoine** : la contribution est « assise, contrôlée et recouvrée selon les mêmes règles
+        et sous les mêmes sûretés, privilèges et sanctions que l'impôt sur le revenu » (CSS art.
+        L. 136-6, III). Rien n'en est retenu au fil de l'année : ils arrivent entiers sur l'avis,
+        un an plus tard. C'est la moitié de la réponse à « quand ».
+     2. Le solde est prélevé **à partir du 25 septembre** de l'année suivante et, « si votre solde
+        d'impôt est supérieur à 300 €, son paiement est automatiquement étalé par l'administration
+        fiscale en quatre prélèvements d'égal montant de septembre à décembre » (impots.gouv.fr).
+     3. L'acompte de 12,8 % déjà retenu « s'impute sur l'impôt sur le revenu dû au titre de l'année
+        au cours de laquelle il a été opéré. **S'il excède l'impôt dû, l'excédent est restitué** »
+        (CGI art. 117 quater, I). Un solde négatif n'est donc pas une anomalie à masquer.
+     4. Un intermédiaire **établi hors de France** ne retient pas cet acompte : le contribuable le
+        déclare et le paie lui-même, dans les délais de l'article 1671 C — « les quinze premiers
+        jours du mois qui suit celui du paiement des revenus » —, par le formulaire 2778-DIV-SD,
+        sauf dispense en dessous de 50 000 € de revenu fiscal de référence pour une personne seule
+        et 75 000 € pour une imposition commune (art. 117 quater, I-1). L'application n'en disait
+        pas un mot alors que ses dividendes viennent tous d'un tel intermédiaire.
+
+     **Ce que la relecture a trouvé dans le moteur, et qu'aucun test ne voyait.** `pfu-vs-bareme.ts`
+     calcule les prélèvements sociaux sur **toutes** les assiettes de `2OP`, intérêts de prêts
+     participatifs compris. C'est **juste** pour un arbitrage — le même montant des deux côtés ne
+     déplace rien, et c'est même la raison d'être de `socialEur` (n° 170). Ce serait **faux** pour
+     une facture : la plateforme les a déjà retenus au versement. Additionner les deux cartes
+     telles qu'elles s'affichent surestimait donc ce qui reste dû, et rien ne l'aurait dit tant que
+     personne ne faisait l'addition. **Ce que l'arbitrage écarte à bon droit, la facture reprend.**
+
+     **L'ordre d'imputation est celui du droit, et il n'est pas symétrique.** Le crédit
+     conventionnel (8VL) se plafonne à l'impôt dû — il n'est pas restituable. L'acompte (2CK), lui,
+     peut creuser un remboursement. Et les prélèvements sociaux retenus au versement sont
+     **définitifs**, pas des acomptes : ils effacent ceux de même nature et rien de plus ; ce qui
+     excède n'est pas imputé, et le module le dit plutôt que d'inventer un trop-perçu. Trois
+     natures, trois sorts : les confondre donnait un total faux dans les trois cas.
+
+     **Le seuil de 300 € se juge sur le montant AFFICHÉ.** Un solde exact de 300,004 € s'affiche
+     « 300,00 € » : l'étaler démentirait l'écran d'un centime. Le total de la carte est donc la
+     somme des lignes **arrondies** (n° 150), et c'est lui — jamais le montant exact — qui décide
+     de l'étalement. La règle d'affichage gouverne ici un **verdict**, comme en n° 170.
+
+     **Aucune date secondaire n'est écrite.** Les trois échéances qui suivent la première changent
+     chaque année (26/10 et 28/12 en 2026, d'autres jours en 2027) : les inscrire serait programmer
+     une erreur. Le module porte la règle, l'écran en rend les mois.
+
+     **Le défaut suit la voie la moins chère, et ne s'y fige pas.** Le réglage retenu vaut `null`
+     tant que l'utilisateur n'a pas tranché : les deux voies se croisent quand les montants bougent,
+     et un défaut recopié une fois resterait ensuite le mauvais sans que personne ne le voie. Une
+     propriété tient l'affirmation que l'écran fait — « la moins chère » — pour les quatre
+     combinaisons possibles.
+
+     **Un passage axe a rattrapé une faute qui dormait depuis la n° 170.** La pastille « Le moins
+     cher ici » s'écrivait en `var(--accent)` : en thème clair, 4,45 contre le fond creusé, sous
+     les 4,5 qu'exige WCAG 1.4.3 pour un petit texte. Personne ne l'avait vue parce qu'**aucun test
+     ne rendait cette pastille** — la route nue de la boucle axe n'a pas d'hypothèse de foyer, donc
+     pas de duel, donc pas de pastille. C'est le passage axe de l'addition, qui en exige une, qui
+     l'a attrapée.
+
+     **Le test de mutation a montré que la moitié du module n'était pas vérifiée.** Premier relevé :
+     **71,65 %** sur `tax-bill.ts`, 36 mutants survivants. Presque tous disaient la même chose —
+     aucun test n'exigeait l'**absence** d'une ligne ou d'une réserve, alors que c'est la moitié de
+     ce que ce module promet : une ligne à zéro ne s'écrit pas, une réserve qui ne s'applique pas
+     ne s'affiche pas. Un seul test bien placé — l'instantané exact des lignes d'une facture sans
+     rien de prélevé — en a tué une vingtaine. Il a aussi trouvé du code **mort** : `BALANCE_FIRST_DAY`,
+     une constante `MM-JJ` que personne ne lisait, l'écran écrivant « 25 septembre » en toutes
+     lettres. Supprimée, comme en n° 171. **71,65 % → 100 %** sur les deux modules neufs, et
+     l'ensemble passe de 96,51 % à **97,03 %** : le cliquet se resserre de 94 à **96**.
+
+     **Et le cache incrémental a menti, une fois de plus.** Le relevé d'après correction annonçait
+     encore quatre survivants — dont deux que le nouvel instantané tue à coup sûr. Relevé propre,
+     cache effacé : zéro. Le piège est documenté depuis la n° 153 ; il se reconnaît à cela qu'un
+     survivant « impossible » y résiste. **Un relevé qui surprend se refait sans cache avant d'être
+     cru.**
+
+     **Contre-épreuves** (décision n° 75), une par garde-fou neuf, chacune vue rouge en nommant son
+     sujet. Rendre le crédit conventionnel restituable : « expected '500' to be '64' ». Imputer un
+     prélèvement dont la ventilation est inconnue : « expected false to be true ». Oublier de
+     retrancher les prélèvements sociaux déjà retenus : « expected '0' to be '93' ». Étaler **à**
+     300 € au lieu d'**au-delà** : « expected 4 to be 1 ». Arrondir la somme au lieu de sommer les
+     arrondis : « expected '20.01' to be '20' ». Faire lire à la facture l'autre voie que celle
+     demandée fait rougir le parcours, qui nomme la contradiction : « lignes dues contre cartes ».
+     Et retirer la carte fait rougir le passage axe : « aucune année n'a d'addition ».

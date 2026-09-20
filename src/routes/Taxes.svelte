@@ -18,6 +18,7 @@
   import { nowIso } from '$lib/clock';
   import { arbitrages, type Arbitrage } from '$lib/derive/pfu-vs-bareme';
   import { marginalRateFor, scaleForYearOrLatest } from '$lib/derive/household-tax';
+  import { taxBill, withheldFor, type BillOption } from '$lib/derive/tax-bill';
   import { taxChoice, type TaxBasis, type TaxChoice, type TaxSide } from '$lib/derive/tax-choice';
   import { yearOutlook, yearStatus } from '$lib/derive/tax-outlook';
   import { computeDeclarations } from '$lib/domain/declarations-fr';
@@ -29,6 +30,7 @@
   import AppBar from '../components/layout/AppBar.svelte';
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
   import SaleForecast from '../components/tax/SaleForecast.svelte';
+  import TaxBill from '../components/tax/TaxBill.svelte';
   import CostBar from '../components/tax/CostBar.svelte';
   import TaxYearPicker from '../components/tax/TaxYearPicker.svelte';
   import { app } from '../state/app.svelte';
@@ -115,6 +117,38 @@
   const choices = $derived(
     options.map((arb) => ({ arb, choice: basis === null ? null : taxChoice(arb, basis) })),
   );
+
+  /**
+   * L'addition (décision n° 173). Elle part des **mêmes** `TaxChoice` que les cartes ci-dessous :
+   * recalculer de son côté ferait un jour dire deux chiffres différents au même écran.
+   */
+  const billOptions = $derived(
+    choices
+      .filter((c): c is { arb: Arbitrage; choice: TaxChoice } => c.choice !== null)
+      .map(({ arb, choice }): BillOption => ({ option: arb.option, choice })),
+  );
+  const bill = $derived(
+    taxBill({
+      year: taxYear,
+      options: billOptions,
+      sides: { '3CN': ui.taxSide3CN, '2OP': ui.taxSide2OP },
+      withheld: withheldFor(returnInput),
+      cryptoMissing: !cryptoReady,
+    }),
+  );
+
+  /**
+   * La plus-value latente du portefeuille, en euros. Elle n'entre dans aucun total — c'est
+   * précisément ce que la carte dit : une plus-value ne s'impose qu'à la cession.
+   */
+  const latentEur = $derived.by((): DecimalString | null => {
+    const value = app.eurFromDisplay(app.report.totals.unrealized);
+    return value === null ? null : toDecimalString(value);
+  });
+
+  const setSide = (option: Arbitrage['option'], key: TaxSide['key'] | null): void => {
+    app.setUi(option === '3CN' ? { taxSide3CN: key } : { taxSide2OP: key });
+  };
 
   const OPTION_TITLES: Record<Arbitrage['option'], string> = {
     '3CN': 'Vos plus-values de crypto-actifs',
@@ -317,6 +351,10 @@
       valeur globale de portefeuille. <strong>La partie crypto manque donc à cet écran.</strong>
     {/if}
   </p>
+{/if}
+
+{#if bill !== null}
+  <TaxBill {bill} options={billOptions} {latentEur} {discreet} onSide={setSide} />
 {/if}
 
 {#each choices as { arb, choice } (arb.option)}
@@ -618,11 +656,16 @@
     font-variant-numeric: tabular-nums;
     text-align: right;
   }
+  /* Pas `var(--accent)` : en thème clair, #2563eb sur le fond creusé donne 4,45 — sous les 4,5
+     qu'exige WCAG 1.4.3 pour un petit texte. Personne ne l'avait vu parce qu'aucun test ne
+     rendait cette pastille : la route nue de la boucle axe n'a pas d'hypothèse de foyer, donc
+     pas de duel, donc pas de pastille. C'est le passage axe de l'addition qui l'a attrapée. La
+     voie la moins chère reste signalée par la bordure de sa carte, jamais par la seule couleur. */
   .badge {
     margin: 0;
     font-size: var(--fs-xs);
     font-weight: 600;
-    color: var(--accent);
+    color: var(--fg);
   }
   .gap {
     margin: 0;

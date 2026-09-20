@@ -178,6 +178,9 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         taxBasis: 'bracket',
         householdIncomeEur: null,
         householdParts: null,
+        // Et la voie retenue de chaque côté (n° 173), `null` tant qu'on suit la moins chère.
+        taxSide3CN: null,
+        taxSide2OP: null,
         // Même famille (décision n° 156) : la plage d'analyse est devenue un réglage partagé, et
         // une sauvegarde d'avant repart donc sur le défaut plutôt que sur rien. Puis sa plage libre
         // (n° 157), absente d'une sauvegarde qui ne la connaissait pas.
