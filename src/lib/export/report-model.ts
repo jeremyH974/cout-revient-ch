@@ -71,8 +71,6 @@ export interface ReportColumn {
 
 export interface ReportTable {
   kind: TableKind;
-  title: string;
-  note: string | null;
   columns: ReportColumn[];
   rows: ReportCell[][];
   /** Ligne de total (autant de cellules que `columns`), null si le tableau est vide. */
@@ -97,6 +95,107 @@ export interface ReportParagraph {
   text: string;
 }
 
+/**
+ * L'identifiant d'une section. **Une chaîne, délibérément, et non une union fermée** : le registre
+ * de rapports à venir déclarera les sections de chaque espace, et une union obligerait ce module à
+ * connaître le trading et les prêts. La sûreté de typage est ailleurs — sur `ReportBlock`, la seule
+ * chose sur laquelle un rendu raisonne.
+ */
+export type SectionId = string;
+
+/**
+ * Ce qu'un rendu doit savoir dessiner. **Six formes, et pas une de plus** : c'est le contrat entre
+ * le modèle et ses deux rendus. Une section qui réemploie une forme existante n'en ajoute aucune.
+ */
+export type ReportBlock =
+  /** Bandeau d'indicateurs, puis leur détail en tableau clé/valeur. */
+  | { kind: 'kpis'; kpis: ReportKpi[]; details: ReportKpi[] }
+  /** Tableau clé/valeur seul. */
+  | { kind: 'details'; details: ReportKpi[] }
+  /** Constats déjà rendus en français (décision n° 40) : le même texte à l'écran et au PDF. */
+  | { kind: 'insights'; items: RenderedInsight[] }
+  /** Liste à puces de phrases déjà rendues. */
+  | { kind: 'bullets'; items: string[] }
+  /**
+   * Tableau de positions. `chart` nomme la figure qui l'accompagne à l'écran — le rendu n'a donc
+   * plus à reconnaître un tableau à son `kind` pour décider d'y dessiner un anneau.
+   */
+  | { kind: 'table'; table: ReportTable; chart: 'allocation' | null }
+  /** Paragraphes titrés. */
+  | { kind: 'paragraphs'; items: ReportParagraph[] };
+
+/**
+ * Une section : son enveloppe, et son contenu.
+ *
+ * L'enveloppe — titre, note, avertissements, saut de page — est traitée **une fois** par chaque
+ * rendu, quel que soit le bloc. C'est ce partage qui fait que six formes suffisent.
+ */
+export interface ReportSection {
+  id: SectionId;
+  title: string;
+  block: ReportBlock;
+  /**
+   * Phrase d'introduction, **avant** le bloc : elle dit ce que la section montre. C'est la place
+   * qu'occupe la note d'un tableau (« Part de chaque actif… ») dans les deux rendus actuels, et la
+   * distinguer de la note de bas de section évite un drapeau de position dans le modèle.
+   */
+  lead: string | null;
+  /** Phrase de bas de section, `null` s'il n'y en a pas. */
+  note: string | null;
+  /** Avertissements, affichés avant la note. */
+  warnings: readonly string[];
+  /**
+   * Le PDF ouvre une page avant cette section. **Décidé par le constructeur**, jamais par le rendu :
+   * c'était auparavant un `if` sur le tableau des positions clôturées, au milieu de `pdf.ts`.
+   */
+  breakBefore: boolean;
+}
+
+/** Une section de détails : la forme la plus courante, d'où ce raccourci. */
+const detailsSection = (
+  id: SectionId,
+  title: string,
+  details: ReportKpi[],
+  note: string | null,
+  warnings: readonly string[] = [],
+): ReportSection => ({
+  id,
+  title,
+  block: { kind: 'details', details },
+  lead: null,
+  note,
+  warnings,
+  breakBefore: false,
+});
+
+/** Une section de tableau : titre et note appartiennent à l'enveloppe, plus au tableau. */
+const tableSection = (
+  id: SectionId,
+  title: string,
+  lead: string | null,
+  table: ReportTable,
+  options: { chart?: 'allocation' | null; breakBefore?: boolean } = {},
+): ReportSection => ({
+  id,
+  title,
+  block: { kind: 'table', table, chart: options.chart ?? null },
+  lead,
+  note: null,
+  warnings: [],
+  breakBefore: options.breakBefore ?? false,
+});
+
+/** La section d'identifiant donné, ou `null` : les rendus itèrent, les appelants pointent. */
+export function section(model: ReportModel, id: SectionId): ReportSection | null {
+  return model.sections.find((s) => s.id === id) ?? null;
+}
+
+/** Le tableau d'une section de tableau, ou `null` si la section n'existe pas ou n'en porte pas. */
+export function tableOf(model: ReportModel, id: SectionId): ReportTable | null {
+  const block = section(model, id)?.block;
+  return block?.kind === 'table' ? block.table : null;
+}
+
 export interface ReportModel {
   meta: {
     appName: string;
@@ -118,36 +217,16 @@ export interface ReportModel {
     notes: string[];
     disclaimer: string;
   };
-  summary: { title: string; kpis: ReportKpi[]; details: ReportKpi[] };
   /**
-   * Constats (décision n° 40), déjà rendus en français : l'écran et le PDF affichent EXACTEMENT
-   * les mêmes phrases, calculées une seule fois.
+   * Les sections, **dans l'ordre où les rendus doivent les poser**.
+   *
+   * Avant, le modèle portait un champ nommé par section et les deux rendus écrivaient la séquence
+   * à la main, chacun de son côté (décision n° 173). L'ordre n'existait donc nulle part comme
+   * donnée : aucun test ne pouvait le vérifier, et une section de plus coûtait une branche dans
+   * chaque rendu. Ici, un rendu n'apprend que les six formes de `ReportBlock` ; une section de
+   * plus qui réemploie une forme existante ne lui coûte rien.
    */
-  insights: { title: string; note: string; items: RenderedInsight[] } | null;
-  /** Risque : repli maximal, volatilité, régularité — mesurés sur l'indice de performance. */
-  risk: { title: string; details: ReportKpi[]; note: string } | null;
-  /** Fiscalité française : estimation par millésime, méthode globale de l'article 150 VH bis. */
-  tax: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
-  /**
-   * Comptes à déclarer au formulaire 3916-bis (P66), déduits des comptes déjà saisis. `null` si
-   * aucun compte n'est concerné (tout est hors périmètre France) — jamais une liste vide affichée.
-   */
-  declarations: { title: string; details: ReportKpi[]; note: string; warnings: string[] } | null;
-  /**
-   * Veille réglementaire (P67) : ce qui a changé, ou pourrait changer, dans le droit ou la
-   * doctrine — jamais un calcul. Table manuelle (`../watch/entries.ts`), indépendante du
-   * portefeuille : présente dès qu'au moins une ligne n'est pas `in-force`.
-   */
-  watch: { title: string; note: string; items: string[] } | null;
-  /** Coût réel des opérations : commissions payées et spread implicite estimé. */
-  spread: { title: string; details: ReportKpi[]; note: string } | null;
-  /** Abonnement Coinhouse : offre déduite de l'export, gains réels, contrefactuel Classique. */
-  subscription: { title: string; details: ReportKpi[]; note: string } | null;
-  allocation: ReportTable;
-  positions: ReportTable;
-  stablecoins: ReportTable;
-  closed: ReportTable;
-  methodology: { title: string; items: ReportParagraph[] };
+  sections: readonly ReportSection[];
   footer: { left: string; right: string };
 }
 
@@ -294,14 +373,15 @@ const POSITION_COLUMNS: ReportColumn[] = [
   { label: 'Total', align: 'right' },
 ];
 
-function positionsTable(
+function positionsSection(
   kind: TableKind,
   title: string,
   note: string | null,
   items: PositionReport[],
   f: Formatter,
   emptyText: string,
-): ReportTable {
+  options: { chart?: 'allocation' | null; breakBefore?: boolean } = {},
+): ReportSection {
   const rows = items.map((p) => [
     assetCell(p.asset),
     cell(f.qty(p.qty)),
@@ -329,31 +409,35 @@ function positionsTable(
       ? `Sans cours (valeur et latent non calculés) : ${tickers(unpriced)}.`
       : null,
   ].filter((n): n is string => n !== null);
-  return {
+  return tableSection(
     kind,
     title,
-    note: notes.length > 0 ? notes.join(' ') : null,
-    columns: POSITION_COLUMNS,
-    rows,
-    total:
-      rows.length > 0
-        ? [
-            cell('Total'),
-            cell(''),
-            cell(''),
-            cell(''),
-            cell(f.money(value)),
-            cell(f.money(unrealized, true), toneOf(unrealized)),
-            cell(f.pct(pct), toneOf(pct, 3)),
-            cell(f.money(realized, true), toneOf(realized)),
-            cell(f.money(total, true), toneOf(total)),
-          ]
-        : null,
-    emptyText,
-  };
+    notes.length > 0 ? notes.join(' ') : null,
+    {
+      kind,
+      columns: POSITION_COLUMNS,
+      rows,
+      total:
+        rows.length > 0
+          ? [
+              cell('Total'),
+              cell(''),
+              cell(''),
+              cell(''),
+              cell(f.money(value)),
+              cell(f.money(unrealized, true), toneOf(unrealized)),
+              cell(f.pct(pct), toneOf(pct, 3)),
+              cell(f.money(realized, true), toneOf(realized)),
+              cell(f.money(total, true), toneOf(total)),
+            ]
+          : null,
+      emptyText,
+    },
+    options,
+  );
 }
 
-function closedTable(items: PositionReport[], f: Formatter): ReportTable {
+function closedSection(items: PositionReport[], f: Formatter): ReportSection {
   // Une position « poussière » (résidu < 0,01 €) reste valorisée par le moteur : son latent
   // résiduel compte dans le P&L total, il est donc montré ici pour que la somme des tableaux
   // égale la synthèse.
@@ -381,10 +465,8 @@ function closedTable(items: PositionReport[], f: Formatter): ReportTable {
       ? `Dont résidus : ${plural(dust.length, 'position', 'positions')}, latent résiduel ${f.money(residuals, true)}.`
       : null,
   ].filter((n): n is string => n !== null);
-  return {
+  const table: ReportTable = {
     kind: 'closed',
-    title: 'Positions clôturées',
-    note: notes.join(' '),
     columns: [
       { label: 'Actif', align: 'left' },
       { label: 'Réalisé', align: 'right' },
@@ -410,22 +492,23 @@ function closedTable(items: PositionReport[], f: Formatter): ReportTable {
         : null,
     emptyText: 'Aucune position clôturée.',
   };
+  // Le saut de page avant les clôturées vivait dans `pdf.ts`, sous la forme d'un test sur CE
+  // tableau-là. C'est une décision de mise en page, mais elle appartient au constructeur : le
+  // rendu n'a pas à connaître les sections par leur nom (décision n° 173).
+  return tableSection('closed', 'Positions clôturées', notes.join(' '), table, {
+    breakBefore: rows.length > 0,
+  });
 }
 
-function allocationTable(report: PortfolioReport, f: Formatter): ReportTable {
+function allocationSection(report: PortfolioReport, f: Formatter): ReportSection {
   // Seules les positions valorisées comptent (le moteur peut lister des clôturées à 0).
   const rows = [...report.allocation]
     .sort((a, b) => b.share.cmp(a.share))
     .filter((a) => a.value.gt(ZERO))
     .map((a) => [assetCell(a.asset), cell(f.money(a.value)), cell(f.pct(a.share, false))]);
   const unpriced = report.totals.unpricedAssets;
-  return {
+  const table: ReportTable = {
     kind: 'allocation',
-    title: 'Répartition',
-    note:
-      unpriced.length > 0
-        ? `Part de chaque actif dans la valeur actuelle (stablecoins compris), hors ${plural(unpriced.length, 'actif', 'actifs')} sans cours : ${tickers(unpriced)}.`
-        : 'Part de chaque actif dans la valeur actuelle du portefeuille (stablecoins compris).',
     columns: [
       { label: 'Actif', align: 'left' },
       { label: 'Valeur', align: 'right' },
@@ -438,6 +521,16 @@ function allocationTable(report: PortfolioReport, f: Formatter): ReportTable {
         : null,
     emptyText: 'Aucune position valorisée.',
   };
+  return tableSection(
+    'allocation',
+    'Répartition',
+    unpriced.length > 0
+      ? `Part de chaque actif dans la valeur actuelle (stablecoins compris), hors ${plural(unpriced.length, 'actif', 'actifs')} sans cours : ${tickers(unpriced)}.`
+      : 'Part de chaque actif dans la valeur actuelle du portefeuille (stablecoins compris).',
+    table,
+    // L'anneau accompagne CE tableau : le rendu n'a plus à le déduire de `kind === 'allocation'`.
+    { chart: 'allocation' },
+  );
 }
 
 /** Ligne « Rendement hors apports » : annualisé au-delà de 30 jours, cumulé en dessous. */
@@ -614,7 +707,7 @@ const METHODOLOGY: ReportParagraph[] = [
  * retraits neutralisés : un virement ne doit jamais ressembler à une perte. La note le dit, parce
  * qu'un repli affiché sans cette précision se compare à tort au relevé de compte.
  */
-function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): ReportModel['risk'] {
+function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): ReportSection | null {
   if (!risk) return null;
   const drawdown = risk.maxDrawdown;
   const details: ReportKpi[] = [
@@ -667,14 +760,14 @@ function riskSection(risk: RiskMetrics | null | undefined, f: Formatter): Report
     risk.bestDay && risk.worstDay
       ? ` Meilleur jour ${f.pct(risk.bestDay.ret)} (${fmtDate(risk.bestDay.day)}), pire jour ${f.pct(risk.worstDay.ret)} (${fmtDate(risk.worstDay.day)}).`
       : '';
-  return {
-    title: 'Risque',
+  return detailsSection(
+    'risk',
+    'Risque',
     details,
-    note:
-      'Mesuré sur l’indice de performance (apports et retraits neutralisés) : un virement ne compte ' +
+    'Mesuré sur l’indice de performance (apports et retraits neutralisés) : un virement ne compte ' +
       'pas comme une baisse, à la différence de ce que montre un solde de compte.' +
       extremes,
-  };
+  );
 }
 
 /**
@@ -686,7 +779,7 @@ function spreadSection(
   spread: SpreadEstimate | null | undefined,
   report: PortfolioReport,
   f: Formatter,
-): ReportModel['spread'] {
+): ReportSection | null {
   if (!spread) return null;
   const commissions = report.totals.feesEur;
   const estimated = D(spread.estimatedCostEur);
@@ -735,11 +828,11 @@ function spreadSection(
 
   const skipped =
     spread.skipped.noQuotePrice + spread.skipped.notEurQuoted + spread.skipped.noReference;
-  return {
-    title: 'Coût réel des opérations (estimation)',
+  return detailsSection(
+    'spread',
+    'Coût réel des opérations (estimation)',
     details,
-    note:
-      'Le spread est l’écart entre le prix affiché par la plateforme et le cours de référence du ' +
+    'Le spread est l’écart entre le prix affiché par la plateforme et le cours de référence du ' +
       'marché : un coût réel, absent de la grille tarifaire comme du relevé. Il est estimé ici en ' +
       'comparant chaque opération au cours de CLÔTURE de sa journée, ce qui mêle au spread le ' +
       'mouvement du marché pendant la journée — souvent plus grand que lui. C’est pourquoi aucun ' +
@@ -751,7 +844,7 @@ function spreadSection(
       (skipped > 0
         ? `${plural(skipped, 'opération n’a pas pu être comparée', 'opérations n’ont pas pu être comparées')} (cotation absente, cotation dans une autre devise, ou cours du jour manquant).`
         : ''),
-  };
+  );
 }
 
 /**
@@ -763,7 +856,7 @@ function taxSection(
   tax: TaxLedger | null | undefined,
   discreet: boolean,
   dac8: Dac8Year | null | undefined,
-): ReportModel['tax'] {
+): ReportSection | null {
   if (!tax || tax.years.length === 0) return null;
   // Le taux du millésime le plus récent du rapport : c'est celui que le lecteur voit en premier.
   const sourcesNote = taxSourcesNote(rateFor(tax.years[0]!.year));
@@ -830,11 +923,11 @@ function taxSection(
       `${plural(tax.rewards, 'récompense reçue', 'récompenses reçues')} : leur régime propre n’est pas traité ici.`,
     );
 
-  return {
-    title: 'Fiscalité française (estimation)',
+  return detailsSection(
+    'tax',
+    'Fiscalité française (estimation)',
     details,
-    note:
-      'Estimation calculée selon la méthode globale de l’article 150 VH bis du CGI : plus-value = ' +
+    'Estimation calculée selon la méthode globale de l’article 150 VH bis du CGI : plus-value = ' +
       'prix de cession net des frais − prix total d’acquisition × (prix de cession avant frais ÷ ' +
       'valeur globale du portefeuille au jour de la cession). Les frais ne se retirent que du ' +
       'premier terme : le rapport, lui, part du prix avant frais — c’est la formule imprimée sur le ' +
@@ -856,7 +949,7 @@ function taxSection(
           'affiche encore l’ancien taux : l’écart entre la loi et la doctrine est réel.'
         : ''),
     warnings,
-  };
+  );
 }
 
 /**
@@ -867,7 +960,7 @@ function taxSection(
 function declarationsSection(
   declarations: DeclarationReport | null | undefined,
   taxYear: number | undefined,
-): ReportModel['declarations'] {
+): ReportSection | null {
   if (!declarations) return null;
   const concerned = concernedDeclarations(declarations);
   if (concerned.length === 0) return null;
@@ -899,14 +992,13 @@ function declarationsSection(
       'suit pas : cette liste n’est donc pas exhaustive si vous détenez des NFT.',
   );
 
-  return {
-    title:
-      taxYear === undefined
-        ? 'Comptes à déclarer (formulaire 3916-bis)'
-        : `Comptes à déclarer au titre de ${taxYear} (formulaire 3916-bis)`,
+  return detailsSection(
+    'declarations',
+    taxYear === undefined
+      ? 'Comptes à déclarer (formulaire 3916-bis)'
+      : `Comptes à déclarer au titre de ${taxYear} (formulaire 3916-bis)`,
     details,
-    note:
-      'Aide au report, déduite de vos comptes saisis : ni déclaration, ni conseil fiscal. Les ' +
+    'Aide au report, déduite de vos comptes saisis : ni déclaration, ni conseil fiscal. Les ' +
       'comptes de crypto-actifs ouverts, détenus, utilisés ou clos auprès d’une entreprise, ' +
       'personne morale, institution ou organisme établi à l’étranger se déclarent avec la ' +
       'déclaration de revenus (article 1649 bis C du CGI) ; les organismes établis en France en ' +
@@ -921,7 +1013,7 @@ function declarationsSection(
       'conseil fiscal** : faites vérifier votre situation par un professionnel avant toute ' +
       'déclaration.',
     warnings,
-  };
+  );
 }
 
 /**
@@ -931,20 +1023,24 @@ function declarationsSection(
  * l'est. Fonction pure sur `entries` (jamais un import caché) pour rester testable sans dépendre de
  * la table réelle ; `watchSection` l'applique à `WATCH_ENTRIES`, seul appelant en production.
  */
-export function watchReportBlock(entries: readonly WatchEntry[]): ReportModel['watch'] {
+export function watchReportBlock(entries: readonly WatchEntry[]): ReportSection | null {
   const items = entries.filter((e) => e.status !== 'in-force').map(watchSummaryLine);
   if (items.length === 0) return null;
   return {
+    id: 'watch',
     title: 'Veille réglementaire',
+    block: { kind: 'bullets', items },
+    lead: null,
     note:
       'Ce que le droit et la doctrine fiscale française disent, ou ne disent pas encore, à la ' +
       'date de ce rapport : un fait, jamais un conseil. Faites vérifier votre situation par un ' +
       'professionnel avant toute décision.',
-    items,
+    warnings: [],
+    breakBefore: false,
   };
 }
 
-function watchSection(): ReportModel['watch'] {
+function watchSection(): ReportSection | null {
   return watchReportBlock(WATCH_ENTRIES);
 }
 
@@ -956,15 +1052,19 @@ function insightsSection(
   list: readonly Insight[] | undefined,
   discreet: boolean,
   currency: Currency,
-): ReportModel['insights'] {
+): ReportSection | null {
   if (list === undefined || list.length === 0) return null;
   return {
+    id: 'insights',
     title: 'Constats',
+    block: { kind: 'insights', items: renderInsights(list, { discreet, currency }) },
+    lead: null,
     note:
       'Observations calculées à partir de vos seules données, à la date de ce rapport. Elles ' +
       'décrivent votre portefeuille : ce ne sont ni des recommandations d’achat ou de vente, ni ' +
       'un conseil en investissement.',
-    items: renderInsights(list, { discreet, currency }),
+    warnings: [],
+    breakBefore: false,
   };
 }
 
@@ -976,7 +1076,7 @@ function insightsSection(
 function subscriptionSection(
   s: SubscriptionAnalysis | undefined,
   f: Formatter,
-): ReportModel['subscription'] {
+): ReportSection | null {
   if (!s || (s.tradeCount === 0 && s.subscriptionCount === 0)) return null;
   const details: ReportKpi[] = [
     {
@@ -1034,14 +1134,14 @@ function subscriptionSection(
       },
     );
   }
-  return {
-    title: 'Abonnement Coinhouse',
+  return detailsSection(
+    'subscription',
+    'Abonnement Coinhouse',
     details,
-    note:
-      'Déduit de votre export : lignes d’abonnement facturées et remises de frais. Les montants ' +
+    'Déduit de votre export : lignes d’abonnement facturées et remises de frais. Les montants ' +
       'suivent la devise d’affichage ; la fenêtre « 12 derniers mois » se termine à votre ' +
       'dernière opération Coinhouse. Les grilles et offres évoluent — vérifiez la vôtre.',
-  };
+  );
 }
 
 export function buildReportModel(report: PortfolioReport, opts: ReportModelOptions): ReportModel {
@@ -1234,33 +1334,55 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       notes,
       disclaimer: DISCLAIMER,
     },
-    summary: { title: 'Synthèse', kpis, details },
-    insights: insightsSection(opts.insights, opts.discreet, currency),
-    risk: riskSection(opts.risk, f),
-    tax: taxSection(opts.tax, opts.discreet, opts.dac8),
-    declarations: declarationsSection(opts.declarations, opts.taxYear),
-    watch: watchSection(),
-    spread: spreadSection(opts.spread, report, f),
-    subscription: subscriptionSection(opts.subscription, f),
-    allocation: allocationTable(report, f),
-    positions: positionsTable(
-      'positions',
-      'Positions ouvertes',
-      null,
-      report.positions,
-      f,
-      'Aucune position ouverte.',
-    ),
-    stablecoins: positionsTable(
-      'stablecoins',
-      'Stablecoins',
-      'Cash en attente, valorisé au cours de l’euro : le gain ou la perte d’un stablecoin est l’effet de change.',
-      report.stablecoins,
-      f,
-      'Aucun stablecoin détenu.',
-    ),
-    closed: closedTable(report.closed, f),
-    methodology: { title: 'Méthodologie', items: METHODOLOGY },
+    // L'ORDRE DU RAPPORT, écrit une fois et une seule. Les deux rendus itèrent cette liste : ni
+    // `pdf.ts` ni `Report.svelte` ne connaissent plus la séquence, et `pdf.test.ts` peut enfin la
+    // vérifier — elle n'existait auparavant nulle part comme donnée (décision n° 173).
+    sections: [
+      {
+        id: 'summary',
+        title: 'Synthèse',
+        block: { kind: 'kpis' as const, kpis, details },
+        lead: null,
+        note: null,
+        warnings: [],
+        breakBefore: false,
+      },
+      insightsSection(opts.insights, opts.discreet, currency),
+      riskSection(opts.risk, f),
+      taxSection(opts.tax, opts.discreet, opts.dac8),
+      declarationsSection(opts.declarations, opts.taxYear),
+      watchSection(),
+      spreadSection(opts.spread, report, f),
+      subscriptionSection(opts.subscription, f),
+      allocationSection(report, f),
+      positionsSection(
+        'positions',
+        'Positions ouvertes',
+        null,
+        report.positions,
+        f,
+        'Aucune position ouverte.',
+        { breakBefore: true },
+      ),
+      positionsSection(
+        'stablecoins',
+        'Stablecoins',
+        'Cash en attente, valorisé au cours de l’euro : le gain ou la perte d’un stablecoin est l’effet de change.',
+        report.stablecoins,
+        f,
+        'Aucun stablecoin détenu.',
+      ),
+      closedSection(report.closed, f),
+      {
+        id: 'methodology',
+        title: 'Méthodologie',
+        block: { kind: 'paragraphs' as const, items: METHODOLOGY },
+        lead: null,
+        note: null,
+        warnings: [],
+        breakBefore: true,
+      },
+    ].filter((s): s is ReportSection => s !== null),
     footer: {
       left: `${APP_NAME} · version ${opts.version} · outil indépendant, non affilié à Coinhouse`,
       right: `Généré le ${generated.label}`,

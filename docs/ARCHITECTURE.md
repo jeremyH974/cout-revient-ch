@@ -186,6 +186,12 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+- `src/lib/export/report-model.ts` — le rapport, **mise en page exclue** : `ReportModel.sections`
+  est une LISTE ORDONNÉE (décision n° 173). Chaque section porte son enveloppe (titre, `lead` avant
+  le bloc, `note` après, avertissements, `breakBefore`) et l'un de six `ReportBlock`. Les deux
+  rendus — `export/pdf.ts` et `routes/invest/Report.svelte` — **itèrent** cette liste : aucun ne
+  connaît une section par son nom, et une section de plus qui réemploie une forme existante ne leur
+  coûte rien. Avant, chacun écrivait la séquence à la main, et celle du PDF avait perdu le 3916-bis.
 - `src/lib/format/tax-year.ts` — le vocabulaire de l'année fiscale, **un seul pour les trois écrans
   qui en portent un et pour le PDF** (décision n° 172) : le libellé nu « Année », l'état de l'année
   et le printemps où elle se déclare. Le rendu partagé est `src/components/tax/TaxYearPicker.svelte`,

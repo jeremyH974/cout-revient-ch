@@ -13,13 +13,16 @@ import {
   type TradeEvent,
 } from '../domain/types';
 import { MASK, fmtMoney, fmtPct } from '../format/fr';
-import { renderInsights } from '../format/insights';
+import { renderInsights, type RenderedInsight } from '../format/insights';
 import type { WatchEntry } from '../watch/entries';
 import {
   buildReportModel,
+  section,
+  tableOf,
   watchReportBlock,
   type ReportKpi,
   type ReportModel,
+  type ReportSection,
   type ReportTable,
 } from './report-model';
 
@@ -90,6 +93,41 @@ const model = buildReportModel(report, opts);
 
 const fact = (m: ReportModel, label: string): string | undefined =>
   m.cover.facts.find((f) => f.label === label)?.value;
+
+/*
+ * Le modèle porte une LISTE ORDONNÉE de sections (décision n° 173) : ces raccourcis y pointent.
+ * `maybe` sert aux tests de présence ; les autres exigent la section et échouent en la nommant,
+ * pour qu'un test ne passe jamais au vert sur une section disparue.
+ */
+const maybe = (m: ReportModel, id: string): ReportSection | null => section(m, id);
+const sec = (m: ReportModel, id: string): ReportSection => {
+  const found = section(m, id);
+  if (found === null) throw new Error(`section « ${id} » absente du modèle`);
+  return found;
+};
+const kpisOf = (m: ReportModel, id: string): ReportKpi[] => {
+  const block = sec(m, id).block;
+  return block.kind === 'kpis' ? block.kpis : [];
+};
+const detailsOf = (m: ReportModel, id: string): ReportKpi[] => {
+  const block = sec(m, id).block;
+  return block.kind === 'kpis' || block.kind === 'details' ? block.details : [];
+};
+const bullets = (s: ReportSection): string[] =>
+  s.block.kind === 'bullets' ? [...s.block.items] : [];
+const insightItems = (m: ReportModel): RenderedInsight[] => {
+  const block = sec(m, 'insights').block;
+  return block.kind === 'insights' ? [...block.items] : [];
+};
+const noteOf = (m: ReportModel, id: string): string => sec(m, id).note ?? '';
+/** La phrase d'INTRODUCTION d'un tableau — l'ancienne `ReportTable.note`. */
+const leadOf = (m: ReportModel, id: string): string => sec(m, id).lead ?? '';
+const warningsOf = (m: ReportModel, id: string): string[] => [...sec(m, id).warnings];
+const tableOf_ = (m: ReportModel, id: string): ReportTable => {
+  const found = tableOf(m, id);
+  if (found === null) throw new Error(`tableau « ${id} » absent du modèle`);
+  return found;
+};
 const kpi = (list: ReportKpi[], label: string): ReportKpi | undefined =>
   list.find((k) => k.label === label);
 const texts = (table: ReportTable, row: number): string[] =>
@@ -147,7 +185,7 @@ describe('modèle de rapport — page de garde et synthèse', () => {
   });
 
   it('indicateurs de synthèse formatés, colorés, avec leur base', () => {
-    const k = model.summary.kpis;
+    const k = kpisOf(model, 'summary');
     expect(nbsp(kpi(k, 'Investi')?.value ?? '')).toBe('1 200,00 €');
     expect(kpi(k, 'Investi')?.hint).toBe('quantité détenue × PRU');
     expect(nbsp(kpi(k, 'Valeur')?.value ?? '')).toBe('1 380,00 €');
@@ -162,13 +200,15 @@ describe('modèle de rapport — page de garde et synthèse', () => {
     expect(t.roiBase.gt(ZERO)).toBe(true);
     expect(nbsp(kpi(k, 'ROI')?.value ?? '')).toBe(nbsp(fmtPct(t.roi)));
     expect(nbsp(kpi(k, 'ROI')?.hint ?? '')).toBe(`sur ${money(t.roiBase)} engagés`);
-    const d = model.summary.details;
+    const d = detailsOf(model, 'summary');
     expect(nbsp(kpi(d, 'Apports nets (espèces)')?.value ?? '')).toBe('1 030,00 €');
     expect(nbsp(kpi(d, 'Net investi')?.value ?? '')).toBe('1 030,00 €');
     expect(kpi(d, 'Abonnements Coinhouse')?.hint).toBe('hors P&L');
     const inPnl = buildReportModel(report, { ...opts, subscriptionsInPnl: true });
-    expect(kpi(inPnl.summary.details, 'Abonnements Coinhouse')?.hint).toBe('déduits du P&L total');
-    expect(kpi(inPnl.summary.kpis, 'P&L total')?.hint).toBe('réalisé + latent − abonnements');
+    expect(kpi(detailsOf(inPnl, 'summary'), 'Abonnements Coinhouse')?.hint).toBe(
+      'déduits du P&L total',
+    );
+    expect(kpi(kpisOf(inPnl, 'summary'), 'P&L total')?.hint).toBe('réalisé + latent − abonnements');
     // La trésorerie du compte entre dans le total sans figurer dans aucune de ses lignes : le
     // rapport affichait un total que son propre détail n'expliquait pas. Invisible tant que ce
     // poste valait zéro (décision n° 140).
@@ -180,7 +220,7 @@ describe('modèle de rapport — page de garde et synthèse', () => {
 
 describe('modèle de rapport — tableaux', () => {
   it('positions ouvertes : une ligne par actif, % avec sa base, total cohérent', () => {
-    const p = model.positions;
+    const p = tableOf_(model, 'positions');
     expect(p.columns[6]?.label).toBe('Latent % vs PRU');
     expect(p.rows).toHaveLength(1);
     expect(texts(p, 0)).toEqual([
@@ -220,7 +260,7 @@ describe('modèle de rapport — tableaux', () => {
   });
 
   it('stablecoins : effet de change, zéro sans signe ni couleur', () => {
-    const s = model.stablecoins;
+    const s = tableOf_(model, 'stablecoins');
     expect(texts(s, 0)).toEqual([
       'USDC',
       '1 000',
@@ -234,11 +274,11 @@ describe('modèle de rapport — tableaux', () => {
     ]);
     expect(s.rows[0]?.[5]?.tone).toBe('loss');
     expect(s.rows[0]?.[7]?.tone).toBe('neutral');
-    expect(s.note).toContain('effet de change');
+    expect(leadOf(model, 'stablecoins')).toContain('effet de change');
   });
 
   it('positions clôturées : réalisé, résidu, total, nombre et date de la dernière opération', () => {
-    const c = model.closed;
+    const c = tableOf_(model, 'closed');
     expect(c.columns.map((col) => col.label)).toEqual([
       'Actif',
       'Réalisé',
@@ -250,18 +290,23 @@ describe('modèle de rapport — tableaux', () => {
     expect(texts(c, 0)).toEqual(['ADA', '+20,00 €', '—', '+20,00 €', '2', '05/03/2026']);
     expect(c.rows[0]?.[0]?.sub).toBe('Cardano');
     expect(totalTexts(c)).toEqual(['Total', '+20,00 €', '—', '+20,00 €', '2', '']);
-    expect(c.note).not.toContain('Dont résidus');
+    expect(leadOf(model, 'closed')).not.toContain('Dont résidus');
   });
 
   it('répartition : parts sans signe, total 100 %', () => {
-    const a = model.allocation;
+    const a = tableOf_(model, 'allocation');
     expect(texts(a, 0)).toEqual(['USDC', '880,00 €', '63,8 %']);
     expect(texts(a, 1)).toEqual(['BTC', '500,00 €', '36,2 %']);
     expect(totalTexts(a)).toEqual(['Total', '1 380,00 €', '100,0 %']);
   });
 
   it('chaque ligne a autant de cellules que de colonnes', () => {
-    for (const table of [model.allocation, model.positions, model.stablecoins, model.closed]) {
+    for (const table of [
+      tableOf_(model, 'allocation'),
+      tableOf_(model, 'positions'),
+      tableOf_(model, 'stablecoins'),
+      tableOf_(model, 'closed'),
+    ]) {
       for (const row of table.rows) expect(row, table.kind).toHaveLength(table.columns.length);
       if (table.total) expect(table.total, table.kind).toHaveLength(table.columns.length);
     }
@@ -273,11 +318,14 @@ describe('modèle de rapport — cas limites', () => {
     const pepe = compute([buy('2026-01-01T10:00:00', 'pepe', '40909000', '158.97')], {
       pepe: price('pepe', '0.000005'),
     });
-    const row = texts(buildReportModel(pepe, opts).positions, 0);
+    const row = texts(tableOf_(buildReportModel(pepe, opts), 'positions'), 0);
     expect(row[2]).toBe('0,000003886 €');
     expect(row[3]).toBe('0,000005 €');
     // Le PRU est un prix : il reste visible en mode discret, comme le cours.
-    const discreet = texts(buildReportModel(pepe, { ...opts, discreet: true }).positions, 0);
+    const discreet = texts(
+      tableOf_(buildReportModel(pepe, { ...opts, discreet: true }), 'positions'),
+      0,
+    );
     expect(discreet.slice(1, 5)).toEqual(['••••', '0,000003886 €', '0,000005 €', '••••']);
   });
 
@@ -291,7 +339,7 @@ describe('modèle de rapport — cas limites', () => {
     );
     expect(dust.closed.map((p) => p.asset)).toEqual(['xyz']);
     const m = buildReportModel(dust, opts);
-    expect(texts(m.closed, 0)).toEqual([
+    expect(texts(tableOf_(m, 'closed'), 0)).toEqual([
       'XYZ',
       '0,00 €',
       '−50,00 €',
@@ -299,14 +347,21 @@ describe('modèle de rapport — cas limites', () => {
       '1',
       '02/01/2026',
     ]);
-    expect(nbsp(m.closed.rows[0]?.[0]?.sub ?? '')).toBe('résidu 1 000 XYZ');
-    expect(m.closed.rows[0]?.[2]?.tone).toBe('loss');
-    expect(totalTexts(m.closed)).toEqual(['Total', '0,00 €', '−50,00 €', '−50,00 €', '1', '']);
-    expect(nbsp(m.closed.note ?? '')).toContain(
+    expect(nbsp(tableOf_(m, 'closed').rows[0]?.[0]?.sub ?? '')).toBe('résidu 1 000 XYZ');
+    expect(tableOf_(m, 'closed').rows[0]?.[2]?.tone).toBe('loss');
+    expect(totalTexts(tableOf_(m, 'closed'))).toEqual([
+      'Total',
+      '0,00 €',
+      '−50,00 €',
+      '−50,00 €',
+      '1',
+      '',
+    ]);
+    expect(nbsp(leadOf(m, 'closed') ?? '')).toContain(
       'Dont résidus : 1 position, latent résiduel −50,00 €.',
     );
-    expect(nbsp(kpi(m.summary.kpis, 'P&L total')?.value ?? '')).toBe('−30,00 €');
-    expect(totalTexts(m.positions)?.[8]).toBe('+20,00 €');
+    expect(nbsp(kpi(kpisOf(m, 'summary'), 'P&L total')?.value ?? '')).toBe('−30,00 €');
+    expect(totalTexts(tableOf_(m, 'positions'))?.[8]).toBe('+20,00 €');
     // Invariant : Σ totaux des positions (ouvertes, stablecoins, clôturées) = P&L total.
     const sum = [...dust.positions, ...dust.stablecoins, ...dust.closed].reduce(
       (acc, p) => acc.plus(p.total ?? ZERO),
@@ -326,7 +381,7 @@ describe('modèle de rapport — cas limites', () => {
       ),
       opts,
     );
-    const k = m.summary.kpis;
+    const k = kpisOf(m, 'summary');
     expect(nbsp(kpi(k, 'Investi')?.value ?? '')).toBe('100,00 €');
     expect(nbsp(kpi(k, 'Investi')?.hint ?? '')).toBe('quantité × PRU · hors 30,00 € sans cours');
     expect(nbsp(kpi(k, 'Valeur')?.value ?? '')).toBe('120,00 €');
@@ -334,9 +389,9 @@ describe('modèle de rapport — cas limites', () => {
     expect(kpi(k, 'P&L total')?.hint).toBe('réalisé + latent · hors actifs sans cours');
     expect(kpi(k, 'ROI')?.hint).toContain('engagés · hors actifs sans cours');
     expect(m.cover.notes).toEqual(['1 actif sans cours, exclu de la valeur et du latent : XYZ.']);
-    expect(m.positions.note).toContain('XYZ');
-    expect(texts(m.positions, 1).slice(3, 6)).toEqual(['—', '—', '—']);
-    expect(m.positions.rows[1]?.[0]?.sub).toBeNull();
+    expect(leadOf(m, 'positions')).toContain('XYZ');
+    expect(texts(tableOf_(m, 'positions'), 1).slice(3, 6)).toEqual(['—', '—', '—']);
+    expect(tableOf_(m, 'positions').rows[1]?.[0]?.sub).toBeNull();
   });
 });
 
@@ -345,11 +400,13 @@ describe('modèle de rapport — mode discret et rapport vide', () => {
     const d = buildReportModel(report, { ...opts, discreet: true });
     expect(d.meta.discreet).toBe(true);
     expect(d.cover.notes[0]).toContain('Mode discret');
-    expect(kpi(d.summary.kpis, 'Investi')?.value).toBe('••••');
-    expect(kpi(d.summary.kpis, 'P&L total')?.value).toBe('••••');
-    expect(nbsp(kpi(d.summary.kpis, 'ROI')?.value ?? '')).toBe(nbsp(fmtPct(report.totals.roi)));
-    expect(kpi(d.summary.kpis, 'ROI')?.hint).toBe('sur •••• engagés');
-    expect(texts(d.positions, 0)).toEqual([
+    expect(kpi(kpisOf(d, 'summary'), 'Investi')?.value).toBe('••••');
+    expect(kpi(kpisOf(d, 'summary'), 'P&L total')?.value).toBe('••••');
+    expect(nbsp(kpi(kpisOf(d, 'summary'), 'ROI')?.value ?? '')).toBe(
+      nbsp(fmtPct(report.totals.roi)),
+    );
+    expect(kpi(kpisOf(d, 'summary'), 'ROI')?.hint).toBe('sur •••• engagés');
+    expect(texts(tableOf_(d, 'positions'), 0)).toEqual([
       'BTC',
       '••••',
       '150,00 €',
@@ -360,9 +417,16 @@ describe('modèle de rapport — mode discret et rapport vide', () => {
       '••••',
       '••••',
     ]);
-    expect(d.positions.total?.[4]?.text).toBe('••••');
-    expect(texts(d.allocation, 0)).toEqual(['USDC', '••••', '63,8 %']);
-    expect(texts(d.closed, 0)).toEqual(['ADA', '••••', '—', '••••', '2', '05/03/2026']);
+    expect(tableOf_(d, 'positions').total?.[4]?.text).toBe('••••');
+    expect(texts(tableOf_(d, 'allocation'), 0)).toEqual(['USDC', '••••', '63,8 %']);
+    expect(texts(tableOf_(d, 'closed'), 0)).toEqual([
+      'ADA',
+      '••••',
+      '—',
+      '••••',
+      '2',
+      '05/03/2026',
+    ]);
   });
 
   it('rapport sans opération : tableaux vides, totaux absents', () => {
@@ -370,18 +434,23 @@ describe('modèle de rapport — mode discret et rapport vide', () => {
     expect(fact(empty, 'Période couverte')).toBe('aucune opération');
     expect(fact(empty, 'Opérations')).toBe('0');
     expect(fact(empty, 'Cours')).toBe('aucun cours chargé');
-    for (const table of [empty.allocation, empty.positions, empty.stablecoins, empty.closed]) {
+    for (const table of [
+      tableOf_(empty, 'allocation'),
+      tableOf_(empty, 'positions'),
+      tableOf_(empty, 'stablecoins'),
+      tableOf_(empty, 'closed'),
+    ]) {
       expect(table.rows).toEqual([]);
       expect(table.total).toBeNull();
       expect(table.emptyText.length).toBeGreaterThan(0);
     }
-    expect(kpi(empty.summary.kpis, 'ROI')?.value).toBe('—');
+    expect(kpi(kpisOf(empty, 'summary'), 'ROI')?.value).toBe('—');
   });
 });
 
 describe('rendement annualisé (XIRR) dans la synthèse', () => {
   it('affiche le taux des flux du moteur, avec la date du premier flux', () => {
-    const row = model.summary.details.find((d) => d.label === 'Rendement annualisé (XIRR)');
+    const row = detailsOf(model, 'summary').find((d) => d.label === 'Rendement annualisé (XIRR)');
     expect(row).toBeDefined();
     expect(row!.value).not.toBe('—');
     expect(row!.hint).toContain('depuis le 01/01/2026');
@@ -399,7 +468,9 @@ describe('rendement annualisé (XIRR) dans la synthèse', () => {
       btc: price('btc', '250'),
     });
     const shortModel = buildReportModel(shortReport, opts);
-    const row = shortModel.summary.details.find((d) => d.label === 'Rendement annualisé (XIRR)');
+    const row = detailsOf(shortModel, 'summary').find(
+      (d) => d.label === 'Rendement annualisé (XIRR)',
+    );
     expect(row!.value).toBe('—');
     expect(row!.hint).toContain('30 jours');
   });
@@ -407,24 +478,26 @@ describe('rendement annualisé (XIRR) dans la synthèse', () => {
 
 describe('section « Constats »', () => {
   it('absente sans constat fourni, sinon reprend mot pour mot les phrases du moteur', () => {
-    expect(model.insights).toBeNull();
+    expect(maybe(model, 'insights')).toBeNull();
 
     const insights = buildInsights({ report });
     expect(insights.length).toBeGreaterThan(0);
     const withInsights = buildReportModel(report, { ...opts, insights });
-    expect(withInsights.insights?.title).toBe('Constats');
+    expect(maybe(withInsights, 'insights')?.title).toBe('Constats');
     // Le rapport ne reformule pas : il rend les mêmes constats, avec ses propres réglages.
-    expect(withInsights.insights?.items).toEqual(
+    expect(insightItems(withInsights)).toEqual(
       renderInsights(insights, { discreet: false, currency: 'EUR' }),
     );
     // La note dit ce que ces observations ne sont pas (frontière information / conseil).
-    expect(withInsights.insights?.note).toContain('ni un conseil en investissement');
+    expect(noteOf(withInsights, 'insights')).toContain('ni un conseil en investissement');
   });
 
   it('masque les montants des constats en mode discret', () => {
     const insights = buildInsights({ report });
     const discreet = buildReportModel(report, { ...opts, discreet: true, insights });
-    const text = (discreet.insights?.items ?? []).map((i) => i.detail).join(' ');
+    const text = insightItems(discreet)
+      .map((i) => i.detail)
+      .join(' ');
     expect(text).toContain(MASK);
   });
 });
@@ -437,29 +510,29 @@ describe('section « Risque »', () => {
   }));
 
   it('absente sans mesure fournie', () => {
-    expect(model.risk).toBeNull();
+    expect(maybe(model, 'risk')).toBeNull();
   });
 
   it('affiche le repli comme une baisse, avec ses dates et la mention « pas encore retrouvé »', () => {
     const risk = riskMetrics(index);
     const m = buildReportModel(report, { ...opts, risk });
-    expect(m.risk?.title).toBe('Risque');
-    const line = m.risk!.details.find((d) => d.label === 'Repli maximal')!;
+    expect(maybe(m, 'risk')?.title).toBe('Risque');
+    const line = detailsOf(m, 'risk').find((d) => d.label === 'Repli maximal')!;
     // Un repli s'affiche négatif : c'est une perte, pas une performance.
     expect(nbsp(line.value)).toBe(nbsp(fmtPct(D('-0.4'))));
     expect(line.tone).toBe('loss');
     expect(line.hint).toContain('du 02/01/2026 au 03/01/2026');
     expect(line.hint).toContain('pas encore retrouvé');
     // La note dit pourquoi ce chiffre ne colle pas au relevé de compte.
-    expect(m.risk!.note).toContain('apports et retraits neutralisés');
+    expect(noteOf(m, 'risk')).toContain('apports et retraits neutralisés');
   });
 
   it('avoue ce qu’elle ne peut pas calculer sur une série courte', () => {
     const m = buildReportModel(report, { ...opts, risk: riskMetrics(index) });
-    const volatility = m.risk!.details.find((d) => d.label === 'Volatilité annualisée')!;
+    const volatility = detailsOf(m, 'risk').find((d) => d.label === 'Volatilité annualisée')!;
     expect(volatility.value).toBe('—');
     expect(volatility.hint).toContain('30 jours');
-    expect(m.risk!.details.find((d) => d.label === 'Ratio de Sortino')!.value).toBe('—');
+    expect(detailsOf(m, 'risk').find((d) => d.label === 'Ratio de Sortino')!.value).toBe('—');
   });
 });
 
@@ -474,13 +547,13 @@ describe('section « Fiscalité française (estimation) »', () => {
   });
 
   it('absente sans estimation fournie', () => {
-    expect(model.tax).toBeNull();
+    expect(maybe(model, 'tax')).toBeNull();
   });
 
   it('donne le millésime, le net, l’impôt estimé et le PTA restant', () => {
     const m = buildReportModel(report, { ...opts, tax: taxLedger });
-    expect(m.tax?.title).toBe('Fiscalité française (estimation)');
-    const label = (name: string) => m.tax!.details.find((d) => d.label === name)!;
+    expect(maybe(m, 'tax')?.title).toBe('Fiscalité française (estimation)');
+    const label = (name: string) => detailsOf(m, 'tax').find((d) => d.label === name)!;
     // Global 20 000 (clôture 15 000 + 5 000 encaissés) → imputé 2 500, plus-value 2 500.
     expect(nbsp(label('2026 · résultat net').value)).toBe(
       nbsp(fmtMoney(D('2500'), 'EUR', { sign: true })),
@@ -492,19 +565,21 @@ describe('section « Fiscalité française (estimation) »', () => {
       nbsp(fmtMoney(D('7500'), 'EUR')),
     );
     // La note porte les deux hypothèses et le refus de tenir lieu de conseil.
-    expect(m.tax!.note).toContain('PORTEFEUILLE ENTIER');
-    expect(m.tax!.note).toContain('ni un conseil fiscal');
+    expect(noteOf(m, 'tax')).toContain('PORTEFEUILLE ENTIER');
+    expect(noteOf(m, 'tax')).toContain('ni un conseil fiscal');
   });
 
   it('reste en euros même quand l’app affiche en dollars', () => {
     const usd = buildReportModel(report, { ...opts, currency: 'USD', tax: taxLedger });
-    expect(usd.tax!.details.every((d) => !d.value.includes('$'))).toBe(true);
+    expect(detailsOf(usd, 'tax').every((d) => !d.value.includes('$'))).toBe(true);
   });
 
   it('avertit quand des cessions n’ont pas pu être chiffrées', () => {
     const blind = computeFrenchTax({ events: taxEvents });
     const m = buildReportModel(report, { ...opts, tax: blind });
-    expect(m.tax!.warnings.join(' ')).toContain('valeur du portefeuille au jour de l’opération');
+    expect(warningsOf(m, 'tax').join(' ')).toContain(
+      'valeur du portefeuille au jour de l’opération',
+    );
   });
 });
 
@@ -519,7 +594,7 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
   });
 
   it('absente sans déclarations fournies', () => {
-    expect(model.declarations).toBeNull();
+    expect(maybe(model, 'declarations')).toBeNull();
   });
 
   it('absente quand aucun compte n’est concerné (tout est hors périmètre France)', () => {
@@ -529,7 +604,7 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
       year: 2026,
     });
     const m = buildReportModel(report, { ...opts, declarations });
-    expect(m.declarations).toBeNull();
+    expect(maybe(m, 'declarations')).toBeNull();
   });
 
   it('liste les comptes concernés et avertit du risque de sanction', () => {
@@ -539,30 +614,30 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
       year: 2026,
     });
     const m = buildReportModel(report, { ...opts, declarations });
-    expect(m.declarations?.title).toBe('Comptes à déclarer (formulaire 3916-bis)');
-    expect(m.declarations?.details).toHaveLength(1);
-    expect(m.declarations?.details[0]?.label).toBe('csv:nl');
-    expect(m.declarations?.details[0]?.hint).toContain('Pays-Bas');
-    const warnings = m.declarations?.warnings.join(' ') ?? '';
+    expect(maybe(m, 'declarations')?.title).toBe('Comptes à déclarer (formulaire 3916-bis)');
+    expect(detailsOf(m, 'declarations')).toHaveLength(1);
+    expect(detailsOf(m, 'declarations')[0]?.label).toBe('csv:nl');
+    expect(detailsOf(m, 'declarations')[0]?.hint).toContain('Pays-Bas');
+    const warnings = warningsOf(m, 'declarations').join(' ') ?? '';
     expect(warnings).toContain('750 € par compte omis');
     expect(warnings).toContain('50 000 €');
     expect(warnings).toContain('NFT');
     // Aucun compte incertain ici : pas d'avertissement « clé détenue seul ».
     expect(warnings).not.toContain('détenez seul la clé');
-    expect(m.declarations?.note).toContain('ni déclaration, ni conseil fiscal');
-    expect(m.declarations?.note).toContain('1649 bis C');
+    expect(noteOf(m, 'declarations')).toContain('ni déclaration, ni conseil fiscal');
+    expect(noteOf(m, 'declarations')).toContain('1649 bis C');
     // Le régime de sanction sans seuil ne doit jamais s'afficher comme « 1 500 € sans condition ».
-    expect(m.declarations?.note).toContain('1 500 €');
-    expect(m.declarations?.note).toContain('50 000 €');
+    expect(noteOf(m, 'declarations')).toContain('1 500 €');
+    expect(noteOf(m, 'declarations')).toContain('50 000 €');
     // Le délai de reprise allongé, que l'étude P66 avait refusé d'écrire faute de source primaire
     // (décision n° 142) : l'article L. 169 du LPF a depuis été lu littéralement sur Légifrance.
-    expect(m.declarations?.note).toContain('trois à dix ans');
-    expect(m.declarations?.note).toContain('L. 169');
+    expect(noteOf(m, 'declarations')).toContain('trois à dix ans');
+    expect(noteOf(m, 'declarations')).toContain('L. 169');
     // Il ne vaut que pour les revenus liés à l'obligation manquée, jamais pour toute l'année.
-    expect(m.declarations?.note).toContain('les seuls revenus');
+    expect(noteOf(m, 'declarations')).toContain('les seuls revenus');
     // Et la dispense des 50 000 € du délai de reprise ne couvre PAS les comptes de crypto-actifs :
     // la confondre avec le seuil de l'amende (1736 X), qui les couvre, serait rassurer à tort.
-    expect(m.declarations?.note).toContain('1649 A');
+    expect(noteOf(m, 'declarations')).toContain('1649 A');
   });
 
   it('titre la liste avec l’année décrite, pour un PDF détaché de son écran', () => {
@@ -574,7 +649,9 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
       year: 2026,
     });
     const m = buildReportModel(report, { ...opts, declarations, taxYear: 2026 });
-    expect(m.declarations?.title).toBe('Comptes à déclarer au titre de 2026 (formulaire 3916-bis)');
+    expect(maybe(m, 'declarations')?.title).toBe(
+      'Comptes à déclarer au titre de 2026 (formulaire 3916-bis)',
+    );
   });
 
   it('avertit spécifiquement pour un compte auto-hébergé incertain, jamais promu', () => {
@@ -584,8 +661,8 @@ describe('section « Comptes à déclarer (formulaire 3916-bis) » (P66)', () =>
       year: 2026,
     });
     const m = buildReportModel(report, { ...opts, declarations });
-    expect(m.declarations?.details[0]?.value).toBe('Incertain (clé détenue seul)');
-    expect(m.declarations?.warnings.join(' ')).toContain('détenez seul la clé');
+    expect(detailsOf(m, 'declarations')[0]?.value).toBe('Incertain (clé détenue seul)');
+    expect(warningsOf(m, 'declarations').join(' ')).toContain('détenez seul la clé');
   });
 });
 
@@ -619,9 +696,9 @@ describe('section « Veille réglementaire »', () => {
     ]);
     expect(block).not.toBeNull();
     expect(block!.title).toBe('Veille réglementaire');
-    expect(block!.items).toHaveLength(2);
-    expect(block!.items.join(' ')).toContain('Retirée');
-    expect(block!.items.join(' ')).toContain('En discussion');
+    expect(bullets(block!)).toHaveLength(2);
+    expect(bullets(block!).join(' ')).toContain('Retirée');
+    expect(bullets(block!).join(' ')).toContain('En discussion');
     expect(block!.note).toContain('jamais un conseil');
   });
 
@@ -629,14 +706,14 @@ describe('section « Veille réglementaire »', () => {
     const block = watchReportBlock([
       watchEntry({ status: 'dropped', certainty: 'secondary-only' }),
     ]);
-    expect(block!.items[0]).toContain('(source non officielle)');
+    expect(bullets(block!)[0]).toContain('(source non officielle)');
   });
 
   it('reflète la vraie table dans un rapport construit normalement', () => {
     // La table de veille réelle porte au moins une entrée qui n'est pas in-force (P67) : le bloc
     // doit donc apparaître dans un rapport ordinaire, sans configuration particulière.
-    expect(model.watch).not.toBeNull();
-    expect(model.watch!.items.length).toBeGreaterThan(0);
+    expect(maybe(model, 'watch')).not.toBeNull();
+    expect(bullets(sec(model, 'watch')).length).toBeGreaterThan(0);
   });
 });
 
@@ -672,23 +749,23 @@ describe('section « Coût réel des opérations »', () => {
   });
 
   it('absente sans estimation fournie', () => {
-    expect(model.spread).toBeNull();
+    expect(maybe(model, 'spread')).toBeNull();
   });
 
   it('additionne commissions et spread quand le spread est défavorable', () => {
     const m = buildReportModel(report, { ...opts, spread: estimate('0.01') });
-    const line = (name: string) => m.spread!.details.find((d) => d.label === name)!;
+    const line = (name: string) => detailsOf(m, 'spread').find((d) => d.label === name)!;
     expect(nbsp(line('Spread implicite estimé').value)).toBe(nbsp(fmtMoney(D('100'), 'EUR')));
     const commissions = report.totals.feesEur;
     expect(nbsp(line('Coût total estimé').value)).toBe(
       nbsp(fmtMoney(commissions.plus(D('100')), 'EUR')),
     );
-    expect(m.spread!.details.some((d) => d.label === 'Actif le plus coûteux')).toBe(true);
+    expect(detailsOf(m, 'spread').some((d) => d.label === 'Actif le plus coûteux')).toBe(true);
   });
 
   it('ne retranche JAMAIS un spread favorable des commissions payées', () => {
     const m = buildReportModel(report, { ...opts, spread: estimate('-0.01') });
-    const line = (name: string) => m.spread!.details.find((d) => d.label === name)!;
+    const line = (name: string) => detailsOf(m, 'spread').find((d) => d.label === name)!;
     expect(line('Spread implicite estimé').value).toBe('—');
     expect(line('Spread implicite estimé').hint).toContain('aucun spread défavorable');
     // Les commissions ont bien été payées : le total ne descend pas en dessous.
@@ -696,13 +773,13 @@ describe('section « Coût réel des opérations »', () => {
       nbsp(fmtMoney(report.totals.feesEur, 'EUR')),
     );
     // Et aucun actif ne se dit « le plus coûteux » sans coûter.
-    expect(m.spread!.details.some((d) => d.label === 'Actif le plus coûteux')).toBe(false);
+    expect(detailsOf(m, 'spread').some((d) => d.label === 'Actif le plus coûteux')).toBe(false);
   });
 
   it('avertit quand l’échantillon est trop petit pour conclure', () => {
     const m = buildReportModel(report, { ...opts, spread: estimate('0.01', 3) });
-    expect(m.spread!.note).toContain('reste fragile');
+    expect(noteOf(m, 'spread')).toContain('reste fragile');
     // La méthode est expliquée dans tous les cas.
-    expect(m.spread!.note).toContain('MÉDIANE');
+    expect(noteOf(m, 'spread')).toContain('MÉDIANE');
   });
 });

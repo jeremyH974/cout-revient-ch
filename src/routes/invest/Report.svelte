@@ -15,7 +15,12 @@
   import { dac8Summary, declarableYears, declarationYear } from '$lib/domain/tax-fr';
   import { riskMetrics } from '$lib/domain/risk';
   import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
-  import { buildReportModel, type ReportModel, type ReportTable } from '$lib/export/report-model';
+  import {
+    buildReportModel,
+    section,
+    type ReportKpi,
+    type ReportModel,
+  } from '$lib/export/report-model';
   import { router } from '$lib/router.svelte';
   import ConsentSheet from '../../components/ai/ConsentSheet.svelte';
   import NarrativeCard from '../../components/ai/NarrativeCard.svelte';
@@ -119,12 +124,17 @@
       performance,
     }),
   );
-  const tables = $derived<ReportTable[]>([
-    model.allocation,
-    model.positions,
-    model.stablecoins,
-    model.closed,
-  ]);
+  /** Les comptes à déclarer existent-ils ? Deux boutons d'export en dépendent. */
+  const hasDeclarations = $derived(section(model, 'declarations') !== null);
+
+  /**
+   * Les constats **déjà rendus**, lus dans la section qui les porte : le repli du récit affiche
+   * ainsi exactement les phrases de l'écran, sans les recalculer (décision n° 40).
+   */
+  const renderedInsights = $derived.by(() => {
+    const block = section(model, 'insights')?.block;
+    return block?.kind === 'insights' ? block.items : [];
+  });
 
   async function download(): Promise<void> {
     if (busy) return;
@@ -232,7 +242,7 @@
    * utilise déjà — dont on retire seulement la puce, l'élément de liste la portant lui-même.
    */
   const fallbackLines = $derived(
-    insightsToText(model.insights?.items ?? [])
+    insightsToText(renderedInsights)
       .split('\n')
       .filter((line) => line !== '')
       .map((line) => line.replace(/^- /, '')),
@@ -307,7 +317,7 @@
       Comparer à une annexe 2086 d’un autre outil
     </a>
   {/if}
-  {#if model.declarations}
+  {#if hasDeclarations}
     <button class="secondary" type="button" onclick={downloadDeclarations}>
       Comptes à déclarer (3916-bis, CSV)
     </button>
@@ -353,20 +363,10 @@
     />
   {/if}
 
-  <section class="card">
-    <h2>{model.summary.title}</h2>
-    <div class="kpis">
-      {#each model.summary.kpis as kpi (kpi.label)}
-        <div class="kpi">
-          <p class="label">{kpi.label}</p>
-          <p class="value num {kpi.tone}">{kpi.value}</p>
-          {#if kpi.hint}<p class="hint">{kpi.hint}</p>{/if}
-        </div>
-      {/each}
-    </div>
+  {#snippet detailsTable(details: readonly ReportKpi[])}
     <table class="details">
       <tbody>
-        {#each model.summary.details as d (d.label)}
+        {#each details as d (d.label)}
           <tr>
             <th scope="row">{d.label}</th>
             <td class="right num {d.tone}">{d.value}</td>
@@ -375,191 +375,100 @@
         {/each}
       </tbody>
     </table>
-  </section>
+  {/snippet}
 
-  {#if model.insights}
-    <section class="card">
-      <h2>{model.insights.title}</h2>
-      <InsightList insights={model.insights.items} />
-      <p class="note">{model.insights.note}</p>
-    </section>
-  {/if}
+  <!--
+    UNE BOUCLE, six formes. L'écran ne connaît plus aucune section par son nom : ni son rang, ni la
+    figure qui l'accompagne, ni sa présence. C'est ce qui le tient au même récit que le PDF — les
+    deux séquences étaient écrites à la main, chacune de son côté, et celle du PDF avait perdu la
+    liste des comptes à déclarer au 3916-bis sans que rien ne le dise (décision n° 173).
+  -->
+  {#each model.sections as s (s.id)}
+    <section class="card" class:methodology={s.block.kind === 'paragraphs'}>
+      <h2>{s.title}</h2>
+      {#if s.lead}<p class="note">{s.lead}</p>{/if}
 
-  {#if model.risk}
-    <section class="card">
-      <h2>{model.risk.title}</h2>
-      <table class="details">
-        <tbody>
-          {#each model.risk.details as d (d.label)}
-            <tr>
-              <th scope="row">{d.label}</th>
-              <td class="right num {d.tone}">{d.value}</td>
-              <td class="hint">{d.hint ?? ''}</td>
-            </tr>
+      {#if s.block.kind === 'kpis'}
+        <div class="kpis">
+          {#each s.block.kpis as kpi (kpi.label)}
+            <div class="kpi">
+              <p class="label">{kpi.label}</p>
+              <p class="value num {kpi.tone}">{kpi.value}</p>
+              {#if kpi.hint}<p class="hint">{kpi.hint}</p>{/if}
+            </div>
           {/each}
-        </tbody>
-      </table>
-      <p class="note">{model.risk.note}</p>
-    </section>
-  {/if}
-
-  {#if model.tax}
-    <section class="card">
-      <h2>{model.tax.title}</h2>
-      <table class="details">
-        <tbody>
-          {#each model.tax.details as d (d.label)}
-            <tr>
-              <th scope="row">{d.label}</th>
-              <td class="right num {d.tone}">{d.value}</td>
-              <td class="hint">{d.hint ?? ''}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      {#if model.tax.warnings.length > 0}
-        <ul class="warnings">
-          {#each model.tax.warnings as warning (warning)}
-            <li>{warning}</li>
-          {/each}
-        </ul>
-      {/if}
-      <p class="note">{model.tax.note}</p>
-    </section>
-  {/if}
-
-  {#if model.declarations}
-    <section class="card">
-      <h2>{model.declarations.title}</h2>
-      <table class="details">
-        <tbody>
-          {#each model.declarations.details as d (d.label)}
-            <tr>
-              <th scope="row">{d.label}</th>
-              <td class="right num {d.tone}">{d.value}</td>
-              <td class="hint">{d.hint ?? ''}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      {#if model.declarations.warnings.length > 0}
-        <ul class="warnings">
-          {#each model.declarations.warnings as warning (warning)}
-            <li>{warning}</li>
-          {/each}
-        </ul>
-      {/if}
-      <p class="note">{model.declarations.note}</p>
-    </section>
-  {/if}
-
-  {#if model.watch}
-    <section class="card">
-      <h2>{model.watch.title}</h2>
-      <ul class="warnings">
-        {#each model.watch.items as item (item)}
-          <li>{item}</li>
-        {/each}
-      </ul>
-      <p class="note">{model.watch.note}</p>
-    </section>
-  {/if}
-
-  {#if model.spread}
-    <section class="card">
-      <h2>{model.spread.title}</h2>
-      <table class="details">
-        <tbody>
-          {#each model.spread.details as d (d.label)}
-            <tr>
-              <th scope="row">{d.label}</th>
-              <td class="right num {d.tone}">{d.value}</td>
-              <td class="hint">{d.hint ?? ''}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <p class="note">{model.spread.note}</p>
-    </section>
-  {/if}
-
-  {#if model.subscription}
-    <section class="card">
-      <h2>{model.subscription.title}</h2>
-      <table class="details">
-        <tbody>
-          {#each model.subscription.details as d (d.label)}
-            <tr>
-              <th scope="row">{d.label}</th>
-              <td class="right num {d.tone}">{d.value}</td>
-              <td class="hint">{d.hint ?? ''}</td>
-            </tr>
-          {/each}
-        </tbody>
-      </table>
-      <p class="note">{model.subscription.note}</p>
-    </section>
-  {/if}
-
-  {#each tables as table (table.kind)}
-    <section class="card">
-      <h2>{table.title}</h2>
-      {#if table.note}<p class="note">{table.note}</p>{/if}
-      {#if table.kind === 'allocation' && table.rows.length > 0}
-        <AllocationDonut entries={app.report.allocation} />
-      {/if}
-      {#if table.rows.length === 0}
-        <p class="muted">{table.emptyText}</p>
-      {:else}
-        <!-- Un tableau qui défile horizontalement doit rester accessible au clavier (WCAG 2.1.1). -->
-        <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-        <div
-          class="scroll"
-          tabindex="0"
-          role="region"
-          aria-label="{table.title} — tableau défilant"
-        >
-          <table>
-            <thead>
-              <tr>
-                {#each table.columns as col (col.label)}
-                  <th class={col.align}>{col.label}</th>
-                {/each}
-              </tr>
-            </thead>
-            <tbody>
-              {#each table.rows as row, r (r)}
-                <tr>
-                  {#each row as c, i (i)}
-                    <td class="{table.columns[i]?.align ?? 'left'} num {c.tone}">
-                      {c.text}{#if c.sub}<span class="sub">{c.sub}</span>{/if}
-                    </td>
-                  {/each}
-                </tr>
-              {/each}
-            </tbody>
-            {#if table.total}
-              <tfoot>
-                <tr>
-                  {#each table.total as c, i (i)}
-                    <td class="{table.columns[i]?.align ?? 'left'} num {c.tone}">{c.text}</td>
-                  {/each}
-                </tr>
-              </tfoot>
-            {/if}
-          </table>
         </div>
+        {@render detailsTable(s.block.details)}
+      {:else if s.block.kind === 'details'}
+        {@render detailsTable(s.block.details)}
+      {:else if s.block.kind === 'insights'}
+        <InsightList insights={s.block.items} />
+      {:else if s.block.kind === 'bullets'}
+        <ul class="warnings">
+          {#each s.block.items as item (item)}
+            <li>{item}</li>
+          {/each}
+        </ul>
+      {:else if s.block.kind === 'paragraphs'}
+        {#each s.block.items as item (item.title)}
+          <h3>{item.title}</h3>
+          <p>{item.text}</p>
+        {/each}
+      {:else if s.block.kind === 'table'}
+        {#if s.block.chart === 'allocation' && s.block.table.rows.length > 0}
+          <AllocationDonut entries={app.report.allocation} />
+        {/if}
+        {#if s.block.table.rows.length === 0}
+          <p class="muted">{s.block.table.emptyText}</p>
+        {:else}
+          <!-- Un tableau qui défile horizontalement doit rester accessible au clavier (WCAG 2.1.1). -->
+          <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+          <div class="scroll" tabindex="0" role="region" aria-label="{s.title} — tableau défilant">
+            <table>
+              <thead>
+                <tr>
+                  {#each s.block.table.columns as col (col.label)}
+                    <th class={col.align}>{col.label}</th>
+                  {/each}
+                </tr>
+              </thead>
+              <tbody>
+                {#each s.block.table.rows as row, r (r)}
+                  <tr>
+                    {#each row as c, i (i)}
+                      <td class="{s.block.table.columns[i]?.align ?? 'left'} num {c.tone}">
+                        {c.text}{#if c.sub}<span class="sub">{c.sub}</span>{/if}
+                      </td>
+                    {/each}
+                  </tr>
+                {/each}
+              </tbody>
+              {#if s.block.table.total}
+                <tfoot>
+                  <tr>
+                    {#each s.block.table.total as c, i (i)}
+                      <td class="{s.block.table.columns[i]?.align ?? 'left'} num {c.tone}"
+                        >{c.text}</td
+                      >
+                    {/each}
+                  </tr>
+                </tfoot>
+              {/if}
+            </table>
+          </div>
+        {/if}
       {/if}
+
+      {#if s.warnings.length > 0}
+        <ul class="warnings">
+          {#each s.warnings as warning (warning)}
+            <li>{warning}</li>
+          {/each}
+        </ul>
+      {/if}
+      {#if s.note}<p class="note">{s.note}</p>{/if}
     </section>
   {/each}
-
-  <section class="card methodology">
-    <h2>{model.methodology.title}</h2>
-    {#each model.methodology.items as item (item.title)}
-      <h3>{item.title}</h3>
-      <p>{item.text}</p>
-    {/each}
-  </section>
 
   <footer class="foot muted small">
     <span>{model.footer.left}</span>
