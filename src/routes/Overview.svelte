@@ -445,6 +445,13 @@
         lui, le résultat total aux apports.
       </p>
     {/if}
+    <!--
+      La porte du rapport consolidé. Une route sans lien n'existe pas : c'est ici qu'on la place,
+      au pied de la carte qui montre déjà cette décomposition, et non dans un menu.
+    -->
+    <a class="report-link" href={router.href({ name: 'netWorthReport' })}>
+      Rapport de patrimoine (PDF) →
+    </a>
   </section>
 {/if}
 
@@ -777,6 +784,15 @@
   }
   .rows > li.wealth {
     border-left-color: var(--accent-wealth);
+  }
+  .report-link {
+    justify-self: start;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .report-link:hover {
+    text-decoration: underline;
   }
   /*
    * Deux dispositions, décidées sur la largeur de la CARTE et non de la fenêtre (container query,

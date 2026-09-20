@@ -320,6 +320,7 @@ export function buildGlobalReportModel(
       currency,
       discreet: opts.discreet,
       dateStamp: generated.stamp,
+      fileSlug: 'patrimoine',
     },
     cover: {
       title: GLOBAL_REPORT_TITLE,

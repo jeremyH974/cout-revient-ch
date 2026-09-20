@@ -1,5 +1,6 @@
 /**
- * Espace Patrimoine : un relevé eToro déposé dans l'écran d'import doit remplir l'écran Titres.
+ * Un relevé eToro déposé dans l'écran d'import doit remplir l'écran Titres, rattaché à
+ * l'Investissement depuis la décision n° 122.
  *
  * Le fichier est un **classeur**, pas un CSV : ce parcours vérifie aussi qu'un binaire traverse
  * l'écran d'import sans être lu comme du texte (décision n° 107). Les actifs attendus sont
@@ -96,7 +97,7 @@ test('les intérêts de trésorerie visent la case 2TR, et disent pourquoi pas 2
   await expect(block).toContainText(INTEREST_TAX_BOXES.foreign.box);
 });
 
-test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoine', async ({
+test('la crypto du même relevé reste au Portefeuille, jamais dans l’écran Titres', async ({
   page,
 }) => {
   await page.goto('#/import');
@@ -112,11 +113,11 @@ test('la crypto du même relevé reste à l’Investissement, jamais au Patrimoi
   await expect(page.getByRole('list', { name: 'Titres détenus' }).getByText('BTC')).toHaveCount(0);
 });
 
-test('la barre de navigation mène au Patrimoine', async ({ page }) => {
+test('la barre de navigation mène aux Prêts', async ({ page }) => {
   await page.goto('#/wealth');
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-  await expect(nav.getByRole('link', { name: 'Patrimoine' })).toBeVisible();
-  await nav.getByRole('link', { name: 'Patrimoine' }).click();
+  await expect(nav.getByRole('link', { name: 'Prêts' })).toBeVisible();
+  await nav.getByRole('link', { name: 'Prêts' }).click();
   await expect(page).toHaveURL(/#\/wealth/);
 });
 

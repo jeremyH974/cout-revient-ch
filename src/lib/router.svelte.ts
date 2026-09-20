@@ -7,6 +7,7 @@ export type Route =
   | { name: 'import' }
   | { name: 'add' }
   | { name: 'report' }
+  | { name: 'netWorthReport' }
   | { name: 'declaration' }
   | { name: 'taxes' }
   | { name: 'secondOpinion' }
@@ -119,6 +120,13 @@ export function parseHash(hash: string): Route {
       return parseTrading(second, third);
     case 'wealth':
       return parseWealth(second);
+    /*
+     * Le rapport consolidé n'est pas `#/report` : ce hash est un alias v1 de la v1 du rapport
+     * d'investissement, et le détourner casserait des favoris. Il n'appartient pas non plus à
+     * un espace — il les additionne — d'où un hash de premier niveau, comme `#/impots`.
+     */
+    case 'patrimoine':
+      return { name: 'netWorthReport' };
     case 'more':
       return { name: 'more' };
     case 'market':
@@ -173,6 +181,8 @@ export function toHash(route: Route): string {
       return '#/invest/add';
     case 'report':
       return '#/invest/report';
+    case 'netWorthReport':
+      return '#/patrimoine';
     case 'secondOpinion':
       return '#/invest/second-opinion';
     case 'alerts':

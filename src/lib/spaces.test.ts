@@ -8,7 +8,7 @@ import { SPACES, spaceOf, spaceOfProducer } from './spaces';
 import type { RouteName } from './router.svelte';
 
 describe('registre des espaces', () => {
-  it('range les actifs cotés dans l’Investissement, le non-coté dans le Patrimoine', () => {
+  it('range les actifs cotés dans l’Investissement, les prêts dans leur propre espace', () => {
     // Crypto et titres partagent le moteur et le prix de revient moyen pondéré ; ce qui les sépare
     // est leur régime fiscal, pas leur nature de placement. Un prêt, lui, n'a pas de cours.
     expect(spaceOf('portfolio').id).toBe('invest');

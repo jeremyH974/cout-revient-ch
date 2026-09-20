@@ -23,7 +23,7 @@ export const SPACES: readonly Space[] = [
     label: "Vue d'ensemble",
     home: { name: 'overview' },
     backLabel: "Retour à la vue d'ensemble",
-    routes: ['overview', 'welcome'],
+    routes: ['overview', 'welcome', 'netWorthReport'],
   },
   {
     id: 'invest',
@@ -34,7 +34,12 @@ export const SPACES: readonly Space[] = [
   },
   {
     id: 'wealth',
-    label: 'Patrimoine',
+    // « Patrimoine » est réservé au TOTAL consolidé depuis que le rapport du même nom existe :
+    // il y affichait « Patrimoine : aucune donnée » au milieu d'un document intitulé « Rapport
+    // de patrimoine », dont le total s’appelle lui aussi « Patrimoine ». L’identifiant `wealth`
+    // et le hash `#/wealth` ne changent pas — un identifiant n'est pas un libellé, et un lien
+    // partagé ne se casse pas pour un mot.
+    label: 'Prêts',
     home: { name: 'loans' },
     backLabel: 'Retour aux prêts',
     routes: ['loans'],

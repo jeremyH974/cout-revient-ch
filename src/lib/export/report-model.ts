@@ -216,6 +216,12 @@ export interface ReportModel {
     discreet: boolean;
     /** AAAA-MM-JJ (date locale de génération), pour le nom de fichier. */
     dateStamp: string;
+    /**
+     * Le mot qui distingue ce rapport dans le nom du fichier téléchargé. Porté par le MODÈLE
+     * et non passé à l'appelant : deux rapports différents qui se téléchargent sous le même
+     * nom s’écrasent, et personne ne s’en aperçoit avant d’avoir perdu le premier.
+     */
+    fileSlug: string;
   };
   cover: {
     title: string;
@@ -1338,6 +1344,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       currency,
       discreet: opts.discreet,
       dateStamp: generated.stamp,
+      fileSlug: 'rapport',
     },
     cover: {
       title: REPORT_TITLE,

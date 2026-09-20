@@ -82,8 +82,8 @@ export function toPdfText(text: string): string {
   return out;
 }
 
-export function reportFileName(dateStamp: string): string {
-  return `cout-revient-ch-rapport-${dateStamp}.pdf`;
+export function reportFileName(dateStamp: string, slug = 'rapport'): string {
+  return `cout-revient-ch-${slug}-${dateStamp}.pdf`;
 }
 
 const toneColor = (tone: Tone): Rgb =>
@@ -109,7 +109,7 @@ export async function buildReportPdf(model: ReportModel): Promise<jsPDF> {
 /** Génère le PDF et déclenche son téléchargement ; renvoie le nom de fichier. */
 export async function downloadReportPdf(model: ReportModel): Promise<string> {
   const doc = await buildReportPdf(model);
-  const fileName = reportFileName(model.meta.dateStamp);
+  const fileName = reportFileName(model.meta.dateStamp, model.meta.fileSlug);
   doc.save(fileName);
   return fileName;
 }
