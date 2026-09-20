@@ -71,3 +71,26 @@ export const SPACES: readonly Space[] = [
 export function spaceOf(name: RouteName): Space {
   return SPACES.find((s) => s.routes.includes(name)) ?? SPACES[0]!;
 }
+
+/**
+ * Espace d'un producteur de la courbe de patrimoine (`history/net-worth.ts`).
+ *
+ * Trois endroits de la Vue d'ensemble en décidaient chacun de son côté : le lien, la bordure de la
+ * légende, et la couleur de la barre de répartition. Les deux premiers ont été corrigés (décision
+ * n° 117) ; **le troisième ne l'avait jamais été** — les Prêts s'y peignaient dans la couleur du
+ * trading tout en portant la bordure de l'investissement, faute de règle dédiée. La même chose
+ * montrée de deux façons : exactement ce qu'une norme de notation interdit.
+ *
+ * Le repli sur `trading` est voulu : les comptes de trading sont les seuls producteurs dont
+ * l'identifiant est celui du compte, donc inconnu d'avance. Cette reconnaissance par chaîne reste
+ * **provisoire** — P116 la remplacera par un champ porté par le producteur lui-même, plutôt que
+ * devinée à la lecture d'un identifiant.
+ */
+const PRODUCER_SPACES: Readonly<Record<string, SpaceId>> = {
+  invest: 'invest',
+  lending: 'wealth',
+};
+
+export function spaceOfProducer(id: string): SpaceId {
+  return PRODUCER_SPACES[id] ?? 'trading';
+}
