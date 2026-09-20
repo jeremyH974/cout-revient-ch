@@ -24,6 +24,7 @@
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
+  import TaxYearPicker from '../components/tax/TaxYearPicker.svelte';
   import { app } from '../state/app.svelte';
   import { history } from '../state/history.svelte';
   import { toasts } from '../state/ui.svelte';
@@ -35,7 +36,8 @@
   let taxYear = $state(declarationYear(nowIso().slice(0, 10)));
   let copied = $state<string | null>(null);
 
-  const yearChoices = $derived(declarableYears(app.events, nowIso().slice(0, 10)));
+  const today = $derived(nowIso().slice(0, 10));
+  const yearChoices = $derived(declarableYears(app.events, today));
   const cryptoReady = $derived(history.status.loadedAt !== null);
 
   const returnInput = $derived({
@@ -147,14 +149,7 @@
     ni un conseil fiscal.
   </p>
   <div class="controls">
-    <label class="year">
-      Année déclarée
-      <select bind:value={taxYear}>
-        {#each yearChoices as year (year)}
-          <option value={year}>{year}</option>
-        {/each}
-      </select>
-    </label>
+    <TaxYearPicker bind:value={taxYear} years={yearChoices} {today} />
     {#if options.length > 0}
       <label class="year">
         Votre tranche d’imposition
@@ -346,7 +341,9 @@
   .controls {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
+    /* Le sélecteur d'année porte sa phrase d'état : deux items de hauteurs très différentes, que
+       `center` désalignerait par le haut. */
+    align-items: flex-start;
     gap: var(--space-3);
     margin-top: var(--space-3);
   }

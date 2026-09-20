@@ -5408,3 +5408,59 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      rougir l'écran en nommant le montant coupable : « titre, 2000 € ». Accepter une vente plus
      grande que le portefeuille, et pré-remplir le champ, font rougir les deux tests qui les
      interdisent.
+
+172. **« Année déclarée 2026 » se lisait dans les deux sens, et les trois écrans n'en disaient pas
+     autant** (20/09/2026).
+
+     **La demande d'origine portait un doute, et le doute était le défaut.** « Pouvoir aussi voir
+     l'année en cours (donc ici 2027 si c'est par année de déclaration ?) ». L'année en cours était
+     **déjà** sélectionnée à l'écran : le 20 septembre, `declarationYear` a basculé sur 2026 depuis
+     le 1er juillet (décision n° 141), et le sélecteur affichait 2026. Rien ne manquait au calcul —
+     l'étiquette rendait le calcul illisible. « Année déclarée 2026 » se lit _l'année qu'on déclare_
+     (2026, celle qui court) ou _l'année où l'on déclare_ (2026, donc les revenus 2025), et les deux
+     lectures se défendent. Une fonctionnalité a donc été demandée pour un mot.
+
+     **Trois écrans, trois vocabulaires.** Le Rapport et la Déclaration écrivaient « Année
+     déclarée » et s'arrêtaient là ; l'écran Impôts écrivait « Année » et lui seul disait l'état de
+     l'année et le printemps où elle se déclare (décision n° 169). C'est la règle **UNIFY** d'ISO
+     24896:2026 — notation pour le reporting d'entreprise, publiée le 11/06/2026 — que le dépôt
+     citait déjà dans la Vue d'ensemble : même signification, même apparence. Le meilleur des trois
+     écrans devient donc la règle des trois, dans un composant unique, `TaxYearPicker`.
+
+     **Le libellé reste nu : « Année ».** Tout qualificatif rouvre l'ambiguïté — « déclarée » et
+     « d'imposition » la portent telle quelle, « fiscale » suggère un exercice décalé qui n'existe
+     pas pour un particulier français. Ce qu'aucune étiquette ne peut porter, une phrase le dit :
+     l'état de l'année, ce qu'il implique, et le printemps. C'est le même partage que la décision
+     n° 141 — un défaut proposé n'est pas une donnée devinée, dès lors qu'il est **nommé** à l'écran.
+
+     **« Elle se déclare au printemps N+1 », et non « À déclarer ».** L'impératif décrivait un
+     printemps passé comme s'il restait à venir dès qu'on choisissait une année close. Le présent
+     énonce un fait de calendrier, vrai hier comme demain, et dispense ce module de savoir où en
+     est la campagne déclarative — ce qu'il ne peut pas savoir sans horloge.
+
+     **Le Rapport sort son sélecteur de la barre d'actions.** Rangé entre « Télécharger le PDF » et
+     « Cessions au format 2086 », il passait pour un réglage du rapport **entier**, alors que le
+     rapport décrit le grand livre depuis le début et que l'année ne gouverne que trois objets.
+     C'est très exactement la confusion de la demande d'origine. Il occupe désormais son propre
+     bloc, au-dessus des boutons, avec la phrase qui dit ce qu'il gouverne et ce qu'il ne gouverne
+     pas.
+
+     **Et la page de garde du PDF porte les deux périodes côte à côte.** « Période couverte » décrit
+     le grand livre, « Année fiscale » les seules sections fiscales : un PDF détaché de l'écran qui
+     l'a produit ne disait ni laquelle s'applique à quoi, ni dans quel état est l'année décrite.
+
+     **Ce qui n'a PAS été fait, et pourquoi.** Aucun rapport par espace, aucune plage d'analyse
+     branchée sur le Rapport : la demande les vise, ils sont chiffrés et ordonnancés, mais ils
+     touchent le moteur (`computePortfolio` calcule depuis l'origine) et n'ont rien à voir avec un
+     mot mal choisi. Livrer le mot d'abord coûte une demi-journée et referme la gêne réelle.
+
+     **Contre-épreuves** (décision n° 75), deux, chacune vue rouge en nommant son sujet. Remettre
+     l'ambiguïté d'origine — le printemps rendu à l'année décrite au lieu de la suivante — fait
+     rougir le module : « expected 'Elle se déclare au printemps 2026.' to be 'Elle se déclare au
+     printemps 2027.' ». Et retirer la phrase du sélecteur fait rougir le parcours 2086 : « waiting
+     for locator('.tax-year').getByText('Elle se déclare au printemps 2027') ».
+
+     **La seconde contre-épreuve a corrigé son propre garde-fou avant qu'il ne serve.** Écrite
+     d'abord en `page.getByText(…)`, elle passait au vert **sans** la phrase : la page de garde du
+     rapport porte désormais la même, et la recherche globale l'attrapait. Un garde-fou qui
+     surveillait le mauvais élément, trouvé par la règle qui existe pour cela.

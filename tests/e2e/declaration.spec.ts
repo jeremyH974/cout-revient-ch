@@ -38,7 +38,7 @@ async function openYearWithAmounts(page: Page): Promise<string> {
   await expect(
     page.getByRole('heading', { level: 1, name: 'Ce qu’il faut reporter' }),
   ).toBeVisible();
-  const select = page.getByLabel('Année déclarée');
+  const select = page.getByLabel('Année');
   const years = await select.locator('option').allTextContents();
   for (const year of years) {
     await select.selectOption(year);

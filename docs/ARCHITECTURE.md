@@ -186,6 +186,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+- `src/lib/format/tax-year.ts` — le vocabulaire de l'année fiscale, **un seul pour les trois écrans
+  qui en portent un et pour le PDF** (décision n° 172) : le libellé nu « Année », l'état de l'année
+  et le printemps où elle se déclare. Le rendu partagé est `src/components/tax/TaxYearPicker.svelte`,
+  qui n'ajoute que le rattachement accessible entre le champ et sa phrase. L'état lui-même vient de
+  `yearStatus` (`src/lib/derive/tax-outlook.ts`) et se lit sur le seul calendrier.
 - `src/lib/derive` — les dérivations qui portaient une **règle** et vivaient dans `src/state`, sorties
   en fonctions pures testables (décision n° 94) : priorité des cotations (prix manuel > direct >
   cache), comptes implicites (trois comptes existent parce que des données existent), rattachement

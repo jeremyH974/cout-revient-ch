@@ -30,6 +30,7 @@
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
   import SaleForecast from '../components/tax/SaleForecast.svelte';
   import CostBar from '../components/tax/CostBar.svelte';
+  import TaxYearPicker from '../components/tax/TaxYearPicker.svelte';
   import { app } from '../state/app.svelte';
   import { history } from '../state/history.svelte';
 
@@ -64,6 +65,11 @@
   });
 
   const options = $derived(arbitrages(returnInput));
+  /**
+   * L'état de l'année sert encore, mais plus à la PHRASE du sélecteur — `TaxYearPicker` la rend
+   * désormais lui-même (décision n° 172). Il ne reste ici que ce qu'aucun vocabulaire partagé ne
+   * peut porter : le prévisionnel de vente ne s'affiche que sur une année en cours.
+   */
   const status = $derived(yearStatus(taxYear, today));
 
   /**
@@ -192,24 +198,7 @@
     ni un conseil fiscal.
   </p>
   <div class="controls">
-    <label class="year">
-      Année
-      <select bind:value={taxYear}>
-        {#each yearChoices as year (year)}
-          <option value={year}>{year}</option>
-        {/each}
-      </select>
-    </label>
-    <p class="state small" role="status">
-      {#if status.state === 'in-progress'}
-        <strong>Année en cours — provisoire.</strong> Tout peut encore bouger d’ici le 31 décembre.
-      {:else if status.state === 'future'}
-        <strong>Année à venir.</strong> Rien ne s’y est encore passé.
-      {:else}
-        <strong>Année close.</strong> Son résultat ne bougera plus.
-      {/if}
-      À déclarer au printemps {status.declaredIn}.
-    </p>
+    <TaxYearPicker bind:value={taxYear} years={yearChoices} {today} />
   </div>
   <p class="muted small">
     Tous les montants sont en <strong>euros</strong>, quelle que soit la devise d’affichage.
@@ -525,15 +514,6 @@
   .controls {
     display: grid;
     gap: var(--space-2);
-  }
-  .year {
-    display: grid;
-    gap: var(--space-1);
-    max-width: 12rem;
-    font-size: var(--fs-sm);
-  }
-  .state {
-    margin: 0;
   }
   .modes,
   .chips {

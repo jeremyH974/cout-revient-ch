@@ -113,6 +113,39 @@ describe('modèle de rapport — page de garde et synthèse', () => {
     expect(model.footer.left).toContain('version 0.1.0');
   });
 
+  /**
+   * « Période couverte » et « Année fiscale » ne disent pas la même chose, et c'est exactement ce
+   * qu'un PDF détaché de l'écran qui l'a produit ne pouvait pas savoir : la première décrit le
+   * grand livre entier, la seconde ne gouverne que le 2086, le 3916-bis et le DAC8.
+   */
+  it('sans année fiscale choisie, la page de garde n’en invente pas', () => {
+    expect(fact(model, 'Année fiscale')).toBeUndefined();
+    expect(model.cover.notes).toEqual([]);
+  });
+
+  it('l’année fiscale choisie figure sur la page de garde, avec ce qu’elle gouverne', () => {
+    const m = buildReportModel(report, { ...opts, taxYear: 2026 });
+    expect(fact(m, 'Année fiscale')).toBe('2026');
+    // Le périmètre d'abord : c'est la confusion que cette note existe pour fermer.
+    expect(m.cover.notes[0]).toContain('annexe 2086, comptes 3916-bis, récapitulatif DAC8');
+    expect(m.cover.notes[0]).toContain('l’intégralité de vos opérations');
+  });
+
+  /**
+   * Généré le 22/08/2026, un rapport sur 2026 décrit une année **en cours** — et elle se déclare
+   * au printemps 2027, jamais en 2026. C'est la question que l'ancienne étiquette « Année
+   * déclarée » laissait ouverte, et à laquelle le PDF doit répondre tout seul.
+   */
+  it('dit l’état de l’année décrite et le printemps où elle se déclare', () => {
+    const current = buildReportModel(report, { ...opts, taxYear: 2026 });
+    expect(current.cover.notes[0]).toContain('Année en cours — provisoire.');
+    expect(current.cover.notes[0]).toContain('Elle se déclare au printemps 2027.');
+
+    const closed = buildReportModel(report, { ...opts, taxYear: 2025 });
+    expect(closed.cover.notes[0]).toContain('Année close.');
+    expect(closed.cover.notes[0]).toContain('Elle se déclare au printemps 2026.');
+  });
+
   it('indicateurs de synthèse formatés, colorés, avec leur base', () => {
     const k = model.summary.kpis;
     expect(nbsp(kpi(k, 'Investi')?.value ?? '')).toBe('1 200,00 €');

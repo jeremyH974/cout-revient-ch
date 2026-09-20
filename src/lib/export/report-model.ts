@@ -36,6 +36,7 @@ import {
   roundsToZero,
 } from '../format/fr';
 import { renderDeclarations } from '../format/declarations-fr';
+import { taxYearWording } from '../format/tax-year';
 import { TIER_LABELS, renderInsights, type RenderedInsight } from '../format/insights';
 import { watchSummaryLine } from '../format/watch';
 import { msToParisDay } from '../import/time';
@@ -180,6 +181,10 @@ export interface ReportModelOptions {
    * Année décrite par la partie fiscale, **distincte de `generatedAt`** qui date la production du
    * rapport (décision n° 141). Elle titre la section 3916-bis : sur un PDF détaché de l'écran qui
    * l'a produit, rien d'autre ne dirait de quelle année parle la liste de comptes.
+   *
+   * Elle figure aussi en page de garde, à côté de « Période couverte », **avec ce qu'elle gouverne
+   * et ce qu'elle ne gouverne pas** : les deux voisinaient sans que rien ne dise que l'une décrit
+   * le grand livre entier et l'autre les seules sections fiscales.
    */
   taxYear?: number | undefined;
   /** Spread implicite estimé (décision n° 49), calculé par l'appelant sur l'historique de prix. */
@@ -1064,8 +1069,20 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     },
     { label: 'Cours', value: priced ? `au ${priced.label}` : 'aucun cours chargé' },
   ];
+  // « Période couverte » décrit le grand livre ; l'année fiscale ne gouverne QUE les sections
+  // fiscales. Les deux voisinent exprès : un PDF détaché de l'écran ne dirait sinon ni laquelle
+  // des deux s'applique à quoi, ni de quelle année parlent le 2086, le 3916-bis et le DAC8.
+  if (opts.taxYear !== undefined)
+    facts.push({ label: 'Année fiscale', value: String(opts.taxYear) });
 
   const notes: string[] = [];
+  if (opts.taxYear !== undefined)
+    notes.push(
+      `Année fiscale ${opts.taxYear} : c’est elle que décrivent les sections fiscales et leurs ` +
+        `exports (annexe 2086, comptes 3916-bis, récapitulatif DAC8) ; les autres sections ` +
+        `couvrent l’intégralité de vos opérations. ` +
+        taxYearWording(opts.taxYear, generated.stamp).note,
+    );
   if (opts.discreet)
     notes.push(
       `Mode discret : les montants et quantités sont masqués (${MASK}) ; prix, PRU et pourcentages restent lisibles.`,
