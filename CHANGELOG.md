@@ -86,6 +86,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Le PDF du Rapport oubliait la liste de vos comptes à déclarer.** La section « Comptes à
+  déclarer au titre de … (formulaire 3916-bis) » s'affichait à l'écran, mais **ne figurait pas dans
+  le PDF téléchargé** — c'est-à-dire dans le seul document que vous pouvez transmettre ou archiver.
+  Elle y est désormais, à sa place, entre la fiscalité et la veille réglementaire.
+
+### Fixed
+
 - **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez
   choisi un dossier de sauvegarde automatique, chaque modification y part — mais les vérifications
   automatiques ne regardaient que les téléchargements manuels, et vous annonçaient « aucune

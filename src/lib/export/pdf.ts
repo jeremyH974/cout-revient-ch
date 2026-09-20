@@ -11,6 +11,8 @@ import type {
   ReportCell,
   ReportKpi,
   ReportModel,
+  ReportParagraph,
+  ReportSection,
   ReportTable,
   TableKind,
   Tone,
@@ -303,12 +305,8 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     y += 3;
   };
 
+  /** Le tableau seul : titre, note et avertissements appartiennent à l'enveloppe de la section. */
   const table = (t: ReportTable): void => {
-    sectionTitle(t.title);
-    if (t.note) {
-      paragraph(t.note, 8.5, COLOR.muted);
-      y += 2;
-    }
     if (t.rows.length === 0) {
       paragraph(t.emptyText, 9.5, COLOR.muted);
       y += 6;
@@ -369,9 +367,8 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     y = finalY() + 10;
   };
 
-  const methodology = (): void => {
-    sectionTitle(model.methodology.title);
-    for (const item of model.methodology.items) {
+  const paragraphs = (items: readonly ReportParagraph[]): void => {
+    for (const item of items) {
       ensure(18);
       font('bold', 10.5, COLOR.ink);
       write(item.title, MARGIN.left, y);
@@ -396,49 +393,48 @@ function render(doc: jsPDF, autoTable: AutoTable, model: ReportModel): void {
     }
   };
 
+  /**
+   * **Une boucle, six formes.** Le rendu ne connaît plus aucune section par son nom : ni son rang,
+   * ni son saut de page, ni la figure qui l'accompagne. C'est ce qui a fait apparaître le défaut
+   * que cette séquence, écrite à la main, portait — la liste des comptes à déclarer au 3916-bis
+   * n'y figurait tout simplement pas, alors que l'écran l'affiche (décision n° 174).
+   */
+  const block = (s: ReportSection): void => {
+    switch (s.block.kind) {
+      case 'kpis':
+        kpiGrid(s.block.kpis);
+        detailsTable(s.block.details);
+        return;
+      case 'details':
+        detailsTable(s.block.details);
+        return;
+      case 'insights':
+        insightBullets(s.block.items);
+        return;
+      case 'bullets':
+        for (const item of s.block.items) paragraph(`• ${item}`, 8.5, COLOR.muted);
+        return;
+      case 'table':
+        table(s.block.table);
+        return;
+      case 'paragraphs':
+        paragraphs(s.block.items);
+        return;
+    }
+  };
+
   cover();
   newPage();
-  sectionTitle(model.summary.title);
-  kpiGrid(model.summary.kpis);
-  detailsTable(model.summary.details);
-  if (model.insights) {
-    sectionTitle(model.insights.title);
-    insightBullets(model.insights.items);
-    paragraph(model.insights.note, 8.5, COLOR.muted);
+  for (const s of model.sections) {
+    if (s.breakBefore) newPage();
+    sectionTitle(s.title);
+    if (s.lead) {
+      paragraph(s.lead, 8.5, COLOR.muted);
+      y += 2;
+    }
+    block(s);
+    for (const warning of s.warnings) paragraph(`• ${warning}`, 8.5, COLOR.muted);
+    if (s.note) paragraph(s.note, 8.5, COLOR.muted);
   }
-  if (model.risk) {
-    sectionTitle(model.risk.title);
-    detailsTable(model.risk.details);
-    paragraph(model.risk.note, 8.5, COLOR.muted);
-  }
-  if (model.tax) {
-    sectionTitle(model.tax.title);
-    detailsTable(model.tax.details);
-    for (const warning of model.tax.warnings) paragraph(`• ${warning}`, 8.5, COLOR.muted);
-    paragraph(model.tax.note, 8.5, COLOR.muted);
-  }
-  if (model.watch) {
-    sectionTitle(model.watch.title);
-    for (const item of model.watch.items) paragraph(`• ${item}`, 8.5, COLOR.muted);
-    paragraph(model.watch.note, 8.5, COLOR.muted);
-  }
-  if (model.spread) {
-    sectionTitle(model.spread.title);
-    detailsTable(model.spread.details);
-    paragraph(model.spread.note, 8.5, COLOR.muted);
-  }
-  if (model.subscription) {
-    sectionTitle(model.subscription.title);
-    detailsTable(model.subscription.details);
-    paragraph(model.subscription.note, 8.5, COLOR.muted);
-  }
-  table(model.allocation);
-  newPage();
-  table(model.positions);
-  table(model.stablecoins);
-  if (model.closed.rows.length > 0) newPage();
-  table(model.closed);
-  newPage();
-  methodology();
   chrome();
 }

@@ -5555,3 +5555,67 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      arrondis : « expected '20.01' to be '20' ». Faire lire à la facture l'autre voie que celle
      demandée fait rougir le parcours, qui nomme la contradiction : « lignes dues contre cartes ».
      Et retirer la carte fait rougir le passage axe : « aucune année n'a d'addition ».
+
+174. **Deux rendus, deux séquences écrites à la main — et l'une avait perdu une section** (20/09/2026).
+
+     **Le défaut trouvé en chemin, et qui justifie à lui seul le remaniement.** `pdf.ts` ne
+     mentionnait **pas une seule fois** `declarations` : la liste des comptes à déclarer au
+     formulaire 3916-bis n'était nulle part dans le PDF, alors que l'écran l'affiche. Cela
+     contredisait frontalement la décision n° 141, qui avait donné son année au titre de cette
+     section **parce qu'un PDF circule détaché de l'écran qui l'a produit**. Le titre portait son
+     année ; la section n'était pas imprimée.
+
+     **Pourquoi personne ne l'a vu.** Le modèle portait un champ nommé par section, et chaque rendu
+     écrivait la séquence de son côté — quarante lignes de `if (model.x)` dans `pdf.ts`, autant de
+     blocs `{#if model.x}` dans `Report.svelte`. L'ordre n'existait **nulle part comme donnée** :
+     aucun test ne pouvait donc le vérifier, et une omission dans l'une des deux copies ne
+     contredisait rien.
+
+     **Le filet a été posé AVANT de toucher au modèle**, et c'est lui qui a nommé le défaut. Côté
+     PDF, `pdf.test.ts` comptait des pages et lisait cinq octets d'en-tête ; il lit maintenant
+     l'artefact — flux de contenu décomprimés, opérateurs `(…) Tj` relevés dans l'ordre — et compare
+     des rangs. Côté écran, un parcours fige la séquence des titres. Les deux ont été vus rouges sur
+     une interversion et sur une section retirée, avant qu'une ligne du modèle ne bouge.
+
+     **La forme retenue : une enveloppe, six blocs.** `ReportModel.sections` est une liste ordonnée ;
+     chaque section porte un titre, une phrase d'introduction (`lead`), une note de bas, des
+     avertissements et `breakBefore`. Le contenu est l'un de six `ReportBlock` — indicateurs,
+     détails, constats, puces, tableau, paragraphes. Un rendu n'apprend que ces six formes ;
+     **une section de plus qui réemploie une forme existante ne lui coûte rien.**
+
+     **`lead` n'est pas un raffinement.** La note d'un tableau est rendue **avant** lui dans les deux
+     rendus (« Part de chaque actif… »), celle d'une section de détails **après**. Les confondre
+     aurait déplacé quatre phrases à l'écran et dans le PDF ; un drapeau de position aurait dit la
+     même chose en moins clair. Deux champs, et le rendu n'a rien à décider.
+
+     **Trois savoirs de mise en page sont sortis du rendu.** Le saut de page avant « Positions
+     ouvertes », avant « Méthodologie », et avant « Positions clôturées » **quand elle a des
+     lignes** : c'étaient trois `if` au milieu de `pdf.ts`, qui l'obligeaient à connaître ces
+     sections par leur nom. Ils sont désormais `breakBefore`, décidé par le constructeur. De même,
+     l'écran reconnaissait le tableau de répartition à son `kind` pour y dessiner l'anneau ; c'est
+     maintenant `chart`.
+
+     **Ce que le remaniement a rendu.** `sectionTitles()`, treize champs énumérés à la main dans le
+     test — une TROISIÈME copie de la séquence — est devenu `m.sections.map((s) => s.title)`.
+
+     **Ce qui reste une seconde source de vérité, et c'est dit.** L'anneau lit toujours
+     `app.report.allocation`, pas le modèle. Le rendu ne teste plus le `kind` d'un tableau, mais le
+     modèle ne porte pas les données de la figure. C'est P116/P117 qui devra trancher, quand un
+     rapport global aura besoin d'une allocation qui n'est pas celle de l'espace Investissement.
+
+     **`SectionId` est une chaîne, délibérément.** Une union fermée obligerait ce module à connaître
+     les sections du trading et des prêts. La sûreté de typage est portée par `ReportBlock`, la
+     seule chose sur laquelle un rendu raisonne.
+
+     **Contre-épreuves** (décision n° 75), quatre, chacune vue rouge en nommant son sujet.
+     _Avant_ le remaniement : intervertir « Constats » et « Risque » dans `pdf.ts` rend « sections
+     posées dans le désordre: [ 'Constats', 'Risque' ] » ; retirer « Risque » rend « sections
+     absentes du PDF: [ 'Risque' ] » ; intervertir deux tableaux à l'écran fait rougir le parcours
+     sur « Répartition ». _Après_ : faire sauter `breakBefore` dans la boucle rend « « Positions
+     ouvertes » n'ouvre pas sa page: expected 'Répartition' to be 'Positions ouvertes' ».
+
+     **Une limite du garde-fou, mesurée et non supposée.** Depuis que l'attendu du test PDF vient du
+     modèle, il surveille l'accord **rendu ↔ modèle**, plus la complétude du modèle : retirer
+     `watchSection()` du constructeur le laisse vert. C'est le parcours d'écran, aux titres
+     explicites, qui garde celle-ci — et il rougit bien sur « Veille réglementaire ». Les deux
+     garde-fous ne font pas le même travail, et il fallait le vérifier pour le savoir.

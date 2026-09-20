@@ -403,12 +403,20 @@ sélectionnée à l'écran ; « Année déclarée » se lisait dans les deux sen
 même (décision n° 172) et ne figure donc pas au tableau. Restent les quatre lots qui construisent
 réellement quelque chose.
 
-| #    | Proposition                                                                        | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
-| ---- | ---------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
-| P117 | Le rapport global, assis sur `reconcileNetWorth`, avec l'invariant Σ parts = total |   5    |     3     |    4    |    1     | **12**  |
-| P115 | Le modèle de rapport devient une liste ordonnée de sections                        |   2    |     4     |    0    |    1     |  **6**  |
-| P116 | Registre `REPORTS` : un rapport par espace, une route par périmètre                |   4    |     2     |    5    |    2     | **5,5** |
-| P118 | Le rapport honore la plage d'analyse, année en cours comprise                      |   5    |     2     |    5    |   2,5    | **4,8** |
+| #    | Proposition                                                                                 | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | ------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
+| P117 | Le rapport global, assis sur `reconcileNetWorth`, avec l'invariant Σ parts = total          |   5    |     3     |    4    |    1     | **12**  |
+| P115 | **Livré (20/09/2026, décision n° 174).** Le modèle de rapport devient une liste de sections |   2    |     4     |    0    |   1,5    |  **4**  |
+| P116 | Registre `REPORTS` : un rapport par espace, une route par périmètre                         |   4    |     2     |    5    |    2     | **5,5** |
+| P118 | Le rapport honore la plage d'analyse, année en cours comprise                               |   5    |     2     |    5    |   2,5    | **4,8** |
+
+**P115 est livrée le 20/09/2026, et elle a coûté une demi-session de plus que prévu** — pour une
+raison qui n'était pas dans la proposition : la couverture réelle du rendu PDF n'avait pas été
+mesurée. Deux tests sur la pagination, cinq octets d'en-tête, et rien sur l'ordre ni la présence des
+sections. Poser ce filet **avant** de remanier a été ajouté en étape 0, et c'est lui qui a nommé un
+défaut que la proposition n'annonçait pas : **le PDF ne contenait pas la section 3916-bis**, alors
+que l'écran l'affiche depuis toujours. La leçon vaut pour P116 et P117 : mesurer ce qui garde une
+zone avant d'estimer ce que coûte d'y toucher.
 
 **Ordre retenu** : P115 → P117 → P116 → P118. Il n'est pas celui du ROI brut : **P115 conditionne
 les trois autres** — tant que `ReportModel` impose quatre tableaux d'investissement, ni le global ni
