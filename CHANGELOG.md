@@ -48,28 +48,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   **moins-value encore imputable** avec sa date d'extinction : elle ne se reporte pas sur l'année
   suivante, et ce qui n'a pas servi est perdu.
 
-### Changed
+- **Le même sélecteur d'année, au mot près, sur les trois écrans fiscaux.** Le Rapport,
+  « Ce qu'il faut reporter » et « Impôts » demandent tous les trois de quelle année vous parlez.
+  Le libellé est **« Année »** — nu, parce que tout qualificatif se lit dans les deux sens :
+  « année déclarée 2026 » peut tout aussi bien désigner vos revenus 2026 que vos revenus 2025.
 
-- **« Année déclarée » disparaît : le sélecteur d'année dit maintenant ce qu'il fait.** L'étiquette
-  se lisait dans les deux sens — _l'année qu'on déclare_ ou _l'année où l'on déclare_ — si bien
-  qu'« Année déclarée 2026 » pouvait tout aussi bien désigner vos revenus 2026 que vos revenus 2025.
-  Elle devient **« Année »**, suivie d'une phrase qui ne laisse rien à deviner : dans quel état est
+  Ce que l'étiquette ne peut pas porter, une phrase le dit, juste dessous : dans quel état est
   cette année, ce que cet état implique, et **le printemps où elle se déclare**. Pour 2026 :
   « Année en cours — provisoire. Tout peut encore bouger d'ici le 31 décembre. Elle se déclare au
   printemps 2027. »
 
-  C'est désormais **le même sélecteur, au mot près, sur les trois écrans** qui en portent un — le
-  Rapport, « Ce qu'il faut reporter » et « Impôts ». Seul le dernier disait l'état de l'année ; les
-  deux autres se taisaient.
-
-  Au **Rapport**, il quitte la barre de boutons pour son propre bloc, et annonce ce qu'il gouverne :
-  les cessions 2086, les comptes 3916-bis et le récapitulatif DAC8, **et rien d'autre**. Rangé entre
-  deux boutons, il passait pour un réglage du rapport entier — alors que le rapport, lui, couvre
-  l'intégralité de vos opérations depuis le début.
-
-  La **page de garde du PDF** porte du coup les deux périodes côte à côte, « Période couverte » et
-  « Année fiscale », avec ce que chacune recouvre : un rapport transmis à quelqu'un d'autre ne
-  disait pas de quelle année parlaient ses sections fiscales.
+  Au **Rapport**, le sélecteur annonce en plus ce qu'il gouverne — les cessions 2086, les comptes
+  3916-bis et le récapitulatif DAC8, **et rien d'autre**. Le reste du rapport couvre l'intégralité
+  de vos opérations depuis le début, et les deux périodes n'ont rien à voir. La **page de garde du
+  PDF** les porte donc côte à côte, « Période couverte » et « Année fiscale » : un rapport transmis
+  à quelqu'un d'autre ne disait pas de quelle année parlaient ses sections fiscales.
 
 ### Fixed
 
@@ -88,7 +81,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
   **2026**, l'écran vous aurait montré trois mois de 2027. Et l'export « Cessions au format 2086 »
   déversait **toutes vos années à la fois**, sans qu'aucune année figure dans le nom du fichier.
-  Désormais un choix « **Année déclarée** » commande les trois, et il est proposé sur l'année que
+  Désormais un choix « **Année** » commande les trois, et il est proposé sur l'année que
   vous remplissez réellement : celle d'avant jusqu'au 30 juin, l'année en cours ensuite. L'année
   retenue est écrite dans le sélecteur, dans le titre de la liste des comptes et dans le nom des
   fichiers exportés — un PDF ou un CSV circule détaché de l'écran qui l'a produit.
