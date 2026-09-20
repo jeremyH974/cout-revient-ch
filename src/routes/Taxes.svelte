@@ -28,6 +28,7 @@
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import ArbitrageCaveats from '../components/tax/ArbitrageCaveats.svelte';
+  import SaleForecast from '../components/tax/SaleForecast.svelte';
   import CostBar from '../components/tax/CostBar.svelte';
   import { app } from '../state/app.svelte';
   import { history } from '../state/history.svelte';
@@ -64,6 +65,16 @@
 
   const options = $derived(arbitrages(returnInput));
   const status = $derived(yearStatus(taxYear, today));
+
+  /**
+   * La valeur du portefeuille que l'application connaît, en euros — le dénominateur de la formule
+   * de l'article 150 VH bis. Le rapport est dans la devise d'affichage ; la fiscalité française ne
+   * connaît que l'euro, d'où la conversion.
+   */
+  const knownGlobalValueEur = $derived.by((): DecimalString | null => {
+    const value = app.eurFromDisplay(app.report.totals.value);
+    return value === null ? null : toDecimalString(value);
+  });
   const outlook = $derived(cryptoReady ? yearOutlook(history.frenchTax(), taxYear, today) : null);
   const scaleChoice = $derived(scaleForYearOrLatest(taxYear));
 
@@ -466,6 +477,11 @@
         </li>
       {/if}
     </ul>
+
+    <!-- Le prévisionnel n'a de sens que sur l'année en cours : une année close ne se simule pas. -->
+    {#if status.state === 'in-progress'}
+      <SaleForecast input={returnInput} {basis} {knownGlobalValueEur} {discreet} />
+    {/if}
   </section>
 {/if}
 

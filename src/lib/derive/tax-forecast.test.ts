@@ -172,12 +172,49 @@ describe('forecastCession — l’avant et l’après', () => {
     expect(f.before.totalTaxableEur).toBe('1000');
   });
 
+  it('rend l’année d’AVANT, pour que l’écran n’ait pas à la recalculer', () => {
+    // Une colonne « aujourd'hui » reconstituée à l'écran finirait par ne plus correspondre à la
+    // colonne « avec cette vente », qui vient du moteur.
+    const f = forecastCession(input(ledger({}, [year({ netEur: '-3508.82' })])), sale())!;
+    expect(f.beforeProceedsEur).toBe('10000');
+    expect(f.beforeNetEur).toBe('-3508.82');
+    // Et les deux colonnes se déduisent l'une de l'autre par la plus-value annoncée.
+    expect(D(f.beforeNetEur).plus(D(f.preview.gainEur)).eq(D(f.preview.yearNetEur))).toBe(true);
+    expect(D(f.beforeProceedsEur).plus(D('1000')).eq(D(f.preview.yearProceedsEur))).toBe(true);
+  });
+
   it('une année que le grand livre ne connaît pas part de zéro', () => {
     const f = forecastCession(input(ledger({}, [year({ year: 2025, netEur: '9999' })])), sale())!;
     expect(f.before.bases).toHaveLength(0);
     expect(f.preview.yearProceedsEur).toBe('1000');
     expect(f.preview.yearNetEur).toBe('750');
     expect(f.after.totalTaxableEur).toBe('750');
+    // L'année rejouée part bien de rien : une cession, une plus-value, aucune moins-value.
+    expect(f.afterYear.cessionCount).toBe(1);
+    expect(f.afterYear.gainsEur).toBe('750');
+    expect(f.afterYear.lossesEur).toBe('0');
+    expect(f.afterYear.year).toBe(YEAR);
+    // Le taux de l'année rejouée vient de l'aperçu, pas d'une table recopiée à côté.
+    expect(f.afterYear.rate).toBe(rateFor(YEAR).pfu);
+    expect(f.afterYear.rateLabel).toBe(rateFor(YEAR).label);
+    expect(f.afterYear.unknownGlobalValue).toBe(0);
+  });
+
+  it('l’année rejouée compte une cession de plus, et range la vente du bon côté', () => {
+    const gagnante = forecastCession(input(ledger({}, [year({ netEur: '100' })])), sale())!;
+    expect(gagnante.afterYear.cessionCount).toBe(3);
+    expect(gagnante.afterYear.gainsEur).toBe('750');
+    expect(gagnante.afterYear.lossesEur).toBe('0');
+
+    // Un portefeuille en moins-value : la vente réalise −1 000 €, qui vont dans les moins-values.
+    const perdante = forecastCession(input(ledger({ ptaAfter: '40000' })), sale())!;
+    expect(perdante.afterYear.gainsEur).toBe('0');
+    expect(perdante.afterYear.lossesEur).toBe('1000');
+
+    // Les cessions dont la valeur globale manquait restent comptées : l'année rejouée n'est pas
+    // plus certaine que celle dont elle part.
+    const douteuse = forecastCession(input(ledger({}, [year({ unknownGlobalValue: 2 })])), sale())!;
+    expect(douteuse.afterYear.unknownGlobalValue).toBe(2);
   });
 });
 

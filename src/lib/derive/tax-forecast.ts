@@ -62,8 +62,22 @@ export interface Forecast {
   preview: CessionPreview;
   /** L'arbitrage de l'année **telle qu'elle est** aujourd'hui. */
   before: Arbitrage;
+  /**
+   * Le total des cessions et le résultat net de l'année **avant** cette vente. Rendus ici plutôt
+   * que laissés à soustraire à l'écran : un « avant / après » dont l'une des deux colonnes serait
+   * recalculée ailleurs finirait par ne plus correspondre à l'autre.
+   */
+  beforeProceedsEur: DecimalString;
+  beforeNetEur: DecimalString;
   /** L'arbitrage de l'année **cette vente comprise**. */
   after: Arbitrage;
+  /**
+   * L'année **rejouée**, telle que le moteur la verrait si la vente avait lieu : nombre de
+   * cessions, plus-values et moins-values brutes comprises. Exposée plutôt que gardée pour soi —
+   * c'est l'objet même du prévisionnel, et une année synthétique qu'on ne peut pas inspecter est
+   * une année qu'on ne peut pas vérifier.
+   */
+  afterYear: TaxYear;
   /**
    * `true` quand c'est **cette vente** qui fait franchir le seuil de 305 €. L'année entière
    * bascule alors d'un coup, les cessions déjà faites comprises.
@@ -75,22 +89,27 @@ export interface Forecast {
   pocketLeftEur: DecimalString;
 }
 
+/**
+ * Ce qu'il faut savoir de l'année **avant** la vente, et rien de plus.
+ *
+ * Volontairement plus étroit qu'un `TaxYear` : tout le reste — taux, exonération, impôt — se lit
+ * sur l'aperçu de la cession, qui le calcule. Une année vide qui porterait ces champs les poserait
+ * pour les voir aussitôt écrasés, c'est-à-dire du code que rien ne peut vérifier.
+ */
+type YearStart = Pick<
+  TaxYear,
+  'proceedsEur' | 'cessionCount' | 'gainsEur' | 'lossesEur' | 'netEur' | 'unknownGlobalValue'
+>;
+
 /** Une année sans aucune cession — le point de départ quand le grand livre n'en connaît pas. */
-function emptyYear(year: number, preview: CessionPreview): TaxYear {
-  return {
-    year,
-    proceedsEur: '0',
-    cessionCount: 0,
-    gainsEur: '0',
-    lossesEur: '0',
-    netEur: '0',
-    exempt: true,
-    rate: preview.rate,
-    rateLabel: preview.rateLabel,
-    taxEur: '0',
-    unknownGlobalValue: 0,
-  };
-}
+const NO_CESSION: YearStart = {
+  proceedsEur: '0',
+  cessionCount: 0,
+  gainsEur: '0',
+  lossesEur: '0',
+  netEur: '0',
+  unknownGlobalValue: 0,
+};
 
 /** Une moins-value nette, vue comme une poche positive ; `0` dès que l'année est en gain. */
 function pocket(netEur: Big): Big {
@@ -120,31 +139,37 @@ export function forecastCession(input: TaxReturnInput, sale: SaleHypothesis): Fo
   });
   if (preview === null) return null;
 
-  const beforeYear = current ?? emptyYear(input.year, preview);
+  const beforeYear: YearStart = current ?? NO_CESSION;
   const gain = D(preview.gainEur);
   const afterYear: TaxYear = {
-    ...beforeYear,
-    cessionCount: beforeYear.cessionCount + 1,
+    year: input.year,
     proceedsEur: preview.yearProceedsEur,
+    cessionCount: beforeYear.cessionCount + 1,
     gainsEur: toDecimalString(D(beforeYear.gainsEur).plus(gain.gt(ZERO) ? gain : ZERO)),
     lossesEur: toDecimalString(
       D(beforeYear.lossesEur).plus(gain.lt(ZERO) ? gain.times(D('-1')) : ZERO),
     ),
     netEur: preview.yearNetEur,
     exempt: preview.exempt,
+    rate: preview.rate,
+    rateLabel: preview.rateLabel,
     taxEur: preview.taxEur,
+    unknownGlobalValue: beforeYear.unknownGlobalValue,
   };
 
-  // Le grand livre rejoué. `cessions` n'est **pas** complété : le prévisionnel n'ajoute pas de
-  // ligne de formulaire, seul l'agrégat de l'année sert à l'arbitrage. Un test tient cet
-  // invariant — si un jour l'arbitrage lisait `cessions`, il rougirait.
+  /**
+   * Le grand livre rejoué, **réduit à la seule année simulée**.
+   *
+   * Ni les autres millésimes ni `cessions` n'y figurent, et ce n'est pas une paresse : une
+   * moins-value d'actifs numériques ne se reporte **pas** d'une année sur l'autre (CGI art. 150 VH
+   * bis, IV), si bien que l'arbitrage d'une année ne regarde jamais les précédentes. Y recopier un
+   * historique que le prévisionnel ne complète pas — il n'ajoute aucune ligne de formulaire —
+   * ferait croire ce grand livre complet alors qu'il ne l'est pas.
+   */
   const afterLedger: TaxLedger = {
     ...ledger,
     ptaAfter: preview.ptaAfterEur,
-    years:
-      current === null
-        ? [...ledger.years, afterYear]
-        : ledger.years.map((y) => (y.year === input.year ? afterYear : y)),
+    years: [afterYear],
   };
 
   const beforeProceeds = D(beforeYear.proceedsEur);
@@ -156,7 +181,10 @@ export function forecastCession(input: TaxReturnInput, sale: SaleHypothesis): Fo
     year: input.year,
     preview,
     before: arbitrate(input, '3CN'),
+    beforeProceedsEur: beforeYear.proceedsEur,
+    beforeNetEur: beforeYear.netEur,
     after: arbitrate({ ...input, crypto: afterLedger }, '3CN'),
+    afterYear,
     crossesThreshold: beforeProceeds.lte(D(EXEMPTION_THRESHOLD)) && !preview.exempt,
     pocketUsedEur: toDecimalString(consumed.gt(ZERO) ? consumed : ZERO),
     pocketLeftEur: toDecimalString(pocketLeft),

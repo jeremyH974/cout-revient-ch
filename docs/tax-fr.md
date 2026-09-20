@@ -72,9 +72,17 @@ française.
 
 ## Les hypothèses, et où elles peuvent casser
 
+**Une précision qui commande toutes les autres** (décision n° 171, relue le 20/09/2026) : le
+portefeuille, le seuil de 305 € et l'imputation des moins-values s'apprécient au niveau du **foyer
+fiscal**, « quel que soit [le] support de conservation (plateformes d'échanges, y compris
+étrangères, serveurs personnels, dispositifs de stockage hors-ligne) », et « un même cédant ne peut
+avoir qu'un seul portefeuille » (BOI-RPPM-PVBMC-30-20, § 70 et § 140). Si votre conjoint détient ou
+cède des crypto-actifs, ils entrent dans **les mêmes** totaux que les vôtres. L'écran Impôts laisse
+corriger la valeur globale pour cette raison — une valeur trop basse **sous-estime l'impôt**.
+
 | Hypothèse                                                                  | Effet si elle est fausse                                                      |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| **Ce portefeuille est votre portefeuille entier**                          | La méthode est globale : des avoirs ailleurs changent PTA _et_ valeur globale |
+| **Ce portefeuille est celui de votre FOYER FISCAL, entier**                | La méthode est globale : des avoirs ailleurs changent PTA _et_ valeur globale |
 | Valeur globale du jour reconstituée = clôture + produits encaissés ce jour | La loi vise la valeur à l'instant de la cession ; c'est une approximation     |
 | Historique de prix disponible à la date de chaque cession                  | Sans lui, la cession n'est pas chiffrée — et le dit, plutôt que d'inventer    |
 | Récompenses entrées à coût nul (décision n° 9)                             | Leur régime propre n'est pas traité ; elles sont comptées et signalées        |
@@ -95,7 +103,9 @@ récapitulatif par année dans le Rapport, décision n° 50). L'**option pour le
 l'écran Déclaration compare, pour la case 3CN comme pour la 2OP, ce que le barème coûterait à la
 tranche que vous indiquez (décision n° 150), et l'écran **Impôts** (`#/impots`, décision n° 170) met
 les deux voies côte à côte — impôt sur le revenu et prélèvements sociaux séparés, échelle des
-tranches, et ce qui reste ouvert d'une année en cours.
+tranches, et ce qui reste ouvert d'une année en cours. Sur l'année en cours, il porte en outre le
+**prévisionnel** : « et si je vendais d'ici le 31 décembre ? », qui rejoue l'année avec une vente de
+plus (décision n° 171).
 
 Ce dernier sait aussi appliquer le barème à votre **revenu imposable et vos parts** (décision
 n° 169) : depuis ce jour-là, l'application peut connaître le revenu global du foyer — si vous le lui

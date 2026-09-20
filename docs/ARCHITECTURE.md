@@ -235,7 +235,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'ordre du parcours en ligne (décision n° 149). `routes/Taxes.svelte` (`#/impots` — le seul
     hash de cet espace qui ne porte pas le nom de sa route, parce qu'un favori se lit) met les deux
     voies d'imposition **côte à côte** : impôt et prélèvements sociaux séparés, échelle des tranches
-    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170).
+    avec la vôtre et la bascule, et ce qui reste ouvert d'une année en cours (décision n° 170). Sur
+    l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
+    l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
+    (`derive/tax-forecast.ts`, décision n° 171).
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
   `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
