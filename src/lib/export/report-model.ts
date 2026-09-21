@@ -20,6 +20,11 @@ import type { AssetCode, NaiveDateTime } from '../domain/types';
 import type { BenchmarkResult } from '../domain/benchmark';
 import type { TwrResult } from '../domain/twr';
 import { xirrEur, XIRR_MIN_SPAN_DAYS } from '../domain/xirr';
+import {
+  presentMoneyWeighted,
+  presentTimeWeighted,
+  type PresentedReturn,
+} from '../derive/presented-return';
 import type { Insight } from '../domain/insights';
 import { RISK_MIN_DAYS, type RiskMetrics } from '../domain/risk';
 import { MIN_SPREAD_SAMPLES, type SpreadEstimate } from '../domain/spread';
@@ -250,8 +255,43 @@ export interface ReportModel {
   footer: { left: string; right: string };
 }
 
+/**
+ * La plage d'analyse du rapport, et ce que l'appelant en a déjà calculé (P118, décision n° 179).
+ *
+ * `from` est le PREMIER jour compris, `to` le dernier : l'ouverture est la clôture de la veille de
+ * `from` (`history/series.ts`). Le modèle ne calcule rien de ce qui suit — il choisit, pour chaque
+ * ligne de la synthèse, entre la grandeur de la plage et celle de l'origine, et le DIT.
+ *
+ * Ce que la plage gouverne : la synthèse, le résultat, les rendements et le risque. Ce qu'elle ne
+ * gouverne pas : les sections fiscales (l'année fiscale), et le tableau des positions, qui reste
+ * celui du jour de génération — ce que la page de garde écrit quand les deux diffèrent.
+ */
+export interface ReportWindow {
+  from: string | null;
+  to: string;
+  /** Libellé de la plage : les dates d'une période partielle (Q&R GIPS n° 5014), ou « depuis l'origine ». */
+  label: string;
+  /** Vrai quand la plage finit le jour de génération : les stocks sont alors ceux du moteur. */
+  endsToday: boolean;
+  startValue: Big;
+  endValue: Big;
+  /** Coût de revient à la clôture de `to` : la base du latent de fin de plage. */
+  endCost: Big;
+  netFlows: Big;
+  /** `valeur finale − valeur d'ouverture − apports nets de la plage`. */
+  gain: Big;
+  realized: Big;
+  /** Rendement pondéré par les capitaux de la plage, présenté selon GIPS 2.A.12 et 5.A.1.b. */
+  mwr: PresentedReturn;
+}
+
 export interface ReportModelOptions {
   discreet: boolean;
+  /**
+   * Plage d'analyse (P118). Absente ou `from: null` : le rapport couvre l'origine, comme avant —
+   * à ceci près que ses rendements suivent désormais GIPS 2.A.12 (jamais annualisés sous un an).
+   */
+  window?: ReportWindow | null | undefined;
   /** Devise d'affichage des montants (EUR par défaut). */
   currency?: Currency | undefined;
   /** Instant de génération, ISO 8601. */
@@ -559,6 +599,18 @@ function allocationSection(report: PortfolioReport, f: Formatter): ReportSection
 }
 
 /** Ligne « Rendement hors apports » : annualisé au-delà de 30 jours, cumulé en dessous. */
+/**
+ * Un rendement tel qu'un rapport a le droit de le présenter (GIPS 2020, 2.A.12 et 5.A.1.b) :
+ * annualisé à partir d'un an de données, cumulé et libellé par ses dates en deçà. Le libellé dit
+ * lequel des deux on lit — un « 12 % » sans unité se prend pour un taux annuel.
+ */
+function presentedHint(p: Exclude<PresentedReturn, { kind: 'none' }>): string {
+  const dates = `du ${fmtDate(p.since)} au ${fmtDate(p.until)}`;
+  return p.kind === 'annualized'
+    ? `par an, ${dates}`
+    : `sur la période, ${dates} — moins d’un an : jamais annualisé`;
+}
+
 function twrKpi(performance: ReportPerformance | undefined, f: Formatter): ReportKpi {
   const twr = performance?.twr;
   if (!twr || !twr.ok)
@@ -571,13 +623,18 @@ function twrKpi(performance: ReportPerformance | undefined, f: Formatter): Repor
           ? 'nécessite l’historique des prix, en cours de chargement'
           : 'pas encore assez de jours valorisés',
     };
-  const rate = twr.annualized ?? twr.cumulative;
-  const notes = [
-    twr.annualized === null
-      ? `cumulé sur ${twr.days} jours (trop court pour annualiser)`
-      : `annualisé, depuis le ${fmtDate(twr.since)}`,
-    'insensible à la date de vos apports',
-  ];
+  // La présentation suit GIPS 2.A.12, et non plus le plancher de 30 jours du moteur : entre un
+  // mois et un an, le rapport annualisait ce que la norme interdit d'annualiser.
+  const presented = presentTimeWeighted(twr);
+  if (presented.kind === 'none')
+    return {
+      label: 'Rendement hors apports (TWR)',
+      value: NONE,
+      tone: 'neutral',
+      hint: 'pas encore assez de jours valorisés',
+    };
+  const rate = presented.value;
+  const notes = [presentedHint(presented), 'insensible à la date de vos apports'];
   if (twr.estimatedDays > 0)
     notes.push(`${twr.estimatedDays} jour(s) sans cotation, valorisés au coût`);
   if (twr.neutralizedDays > 0) notes.push(`${twr.neutralizedDays} jour(s) sans capital engagé`);
@@ -591,14 +648,77 @@ function twrKpi(performance: ReportPerformance | undefined, f: Formatter): Repor
   };
 }
 
+/**
+ * La synthèse d'une plage (décision n° 179) : chaque ligne qui en dépend est remplacée à sa place,
+ * **libellé compris** — un « Réalisé » qui changerait de sens sans changer de nom serait la pire
+ * des deux lectures. Le ROI reste un multiple depuis l'origine : sur une plage il n'a pas de sens,
+ * et la ligne le dit plutôt que de disparaître (même charpente sur toutes les plages).
+ */
+function windowKpis(kpis: ReportKpi[], w: ReportWindow, f: Formatter): void {
+  const replace = (label: string, kpi: ReportKpi): void => {
+    const index = kpis.findIndex((k) => k.label === label);
+    if (index !== -1) kpis[index] = kpi;
+  };
+  const range = `du ${fmtDate(w.from ?? w.to)} au ${fmtDate(w.to)}`;
+  if (!w.endsToday) {
+    const latent = w.endValue.minus(w.endCost);
+    replace('Investi', {
+      label: 'Investi',
+      value: f.money(w.endCost),
+      tone: 'neutral',
+      hint: `au ${fmtDate(w.to)}, fin de la plage`,
+    });
+    replace('Valeur', {
+      label: 'Valeur',
+      value: f.money(w.endValue),
+      tone: 'neutral',
+      hint: `au ${fmtDate(w.to)}, fin de la plage`,
+    });
+    replace('Latent', {
+      label: 'Latent',
+      value: f.money(latent, true),
+      tone: toneOf(latent),
+      hint: `valeur − investi, au ${fmtDate(w.to)}`,
+    });
+  }
+  replace('Réalisé', {
+    label: 'Réalisé sur la période',
+    value: f.money(w.realized, true),
+    tone: toneOf(w.realized),
+    hint: `cessions ${range}`,
+  });
+  replace('P&L total', {
+    label: 'Résultat sur la période',
+    value: f.money(w.gain, true),
+    tone: toneOf(w.gain),
+    hint: 'valeur finale − valeur d’ouverture − apports nets de la plage',
+  });
+  replace('ROI', {
+    label: 'ROI',
+    value: NONE,
+    tone: 'neutral',
+    hint: 'multiple depuis l’origine : sans objet sur une plage — voir les rendements',
+  });
+}
+
 /** Ligne « Repère » : le même calendrier d'apports, mais entièrement sur un seul actif. */
 function benchmarkKpi(
   performance: ReportPerformance | undefined,
   portfolioValue: Big,
   f: Formatter,
+  windowed = false,
 ): ReportKpi {
   const benchmark = performance?.benchmark ?? null;
   const label = `Repère : mêmes apports en ${benchmark ? benchmark.asset.toUpperCase() : 'BTC'}`;
+  // Le repère rejoue les apports sur un seul actif en partant de ZÉRO : il ne sait pas partir
+  // d'une valeur d'ouverture. Sur une plage, il comparerait donc deux périodes différentes.
+  if (windowed)
+    return {
+      label,
+      value: NONE,
+      tone: 'neutral',
+      hint: 'calculé depuis l’origine seulement : choisissez « Tout » pour le lire',
+    };
   if (!benchmark)
     return {
       label,
@@ -1187,6 +1307,10 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       label: 'Période couverte',
       value: period ? `du ${fmtDate(period.from)} au ${fmtDate(period.to)}` : 'aucune opération',
     },
+    // Troisième période de la page de garde (décision n° 179) : le grand livre, l'année fiscale,
+    // et la plage que la synthèse et les rendements lisent. Un PDF détaché de l'écran ne dirait
+    // sinon pas laquelle gouverne quoi.
+    { label: 'Période d’analyse', value: opts.window?.label ?? 'depuis l’origine' },
     { label: 'Opérations', value: String(operations) },
     {
       label: 'Positions',
@@ -1201,6 +1325,13 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
     facts.push({ label: 'Année fiscale', value: String(opts.taxYear) });
 
   const notes: string[] = [];
+  const windowed = opts.window !== null && opts.window !== undefined && opts.window.from !== null;
+  if (windowed && opts.window)
+    notes.push(
+      `Période d’analyse ${opts.window.label} : elle gouverne la synthèse, le résultat, les ` +
+        `rendements et le risque. Les positions sont celles du ${generated.label.slice(0, 10)}` +
+        (opts.window.endsToday ? '.' : ` — ce tableau ne suit pas la fin de la plage.`),
+    );
   if (opts.taxYear !== undefined)
     notes.push(
       `Année fiscale ${opts.taxYear} : c’est elle que décrivent les sections fiscales et leurs ` +
@@ -1282,6 +1413,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       hint: `sur ${f.money(t.roiBase)} engagés${unpricedHint}`,
     },
   ];
+  if (windowed && opts.window) windowKpis(kpis, opts.window, f);
 
   const xirr = xirrEur(report.cashFlows, {
     day: msToParisDay(Date.parse(opts.generatedAt)),
@@ -1296,15 +1428,20 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
         ? 'non calculable sur ces flux'
         : 'pas encore assez de flux datés (au moins un apport et une valeur)';
 
+  // Le libellé ne dit plus « annualisé » : sous un an de données, le chiffre ne l'est pas, et
+  // la norme l'interdit (GIPS 2020, 5.A.1.b). C'est l'indication qui dit lequel des deux on lit.
+  const mwr: PresentedReturn =
+    windowed && opts.window ? opts.window.mwr : presentMoneyWeighted(xirr);
   const details: ReportKpi[] = [
     {
-      label: 'Rendement annualisé (XIRR)',
-      value: xirr.ok ? f.pct(xirr.rate) : NONE,
-      tone: xirr.ok ? toneOf(xirr.rate, 3) : 'neutral',
-      hint: xirrHint,
+      label: 'Rendement pondéré par les capitaux (XIRR)',
+      value: mwr.kind === 'none' ? NONE : f.pct(mwr.value),
+      tone: mwr.kind === 'none' ? 'neutral' : toneOf(mwr.value, 3),
+      hint:
+        mwr.kind === 'none' ? xirrHint : `${presentedHint(mwr)}${windowed ? '' : ` · ${xirrHint}`}`,
     },
     twrKpi(opts.performance, f),
-    benchmarkKpi(opts.performance, t.value, f),
+    benchmarkKpi(opts.performance, t.value, f, windowed),
     {
       label: 'Apports nets (espèces)',
       value: f.money(t.netCash),
@@ -1384,7 +1521,9 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       positionsSection(
         'positions',
         'Positions ouvertes',
-        null,
+        windowed && opts.window && !opts.window.endsToday
+          ? `Au ${generated.label.slice(0, 10)}, et non au ${fmtDate(opts.window.to)} : ce tableau ne suit pas la fin de la plage d’analyse.`
+          : null,
         report.positions,
         f,
         'Aucune position ouverte.',

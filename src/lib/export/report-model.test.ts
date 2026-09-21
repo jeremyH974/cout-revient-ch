@@ -6,6 +6,7 @@ import { buildInsights } from '../domain/insights';
 import { riskMetrics } from '../domain/risk';
 import { computeFrenchTax } from '../domain/tax-fr';
 import { xirrEur } from '../domain/xirr';
+import { presentMoneyWeighted } from '../derive/presented-return';
 import {
   DEFAULT_ENGINE_SETTINGS,
   type Account,
@@ -24,6 +25,7 @@ import {
   type ReportModel,
   type ReportSection,
   type ReportTable,
+  type ReportWindow,
 } from './report-model';
 
 /** Espaces insécables d'Intl (U+00A0, U+202F) → espace simple, sans caractère invisible dans la source. */
@@ -448,19 +450,26 @@ describe('modèle de rapport — mode discret et rapport vide', () => {
   });
 });
 
-describe('rendement annualisé (XIRR) dans la synthèse', () => {
-  it('affiche le taux des flux du moteur, avec la date du premier flux', () => {
-    const row = detailsOf(model, 'summary').find((d) => d.label === 'Rendement annualisé (XIRR)');
+describe('rendement pondéré par les capitaux (XIRR) dans la synthèse', () => {
+  const XIRR = 'Rendement pondéré par les capitaux (XIRR)';
+
+  it('présente le taux des flux du moteur selon GIPS : sous un an, celui de la PÉRIODE', () => {
+    const row = detailsOf(model, 'summary').find((d) => d.label === XIRR);
     expect(row).toBeDefined();
-    expect(row!.value).not.toBe('—');
-    expect(row!.hint).toContain('depuis le 01/01/2026');
-    // Le taux vient bien de xirrEur sur report.cashFlows + valeur finale.
+    // Le taux vient bien de xirrEur sur report.cashFlows + valeur finale…
     const expected = xirrEur([...report.cashFlows], {
       day: '2026-08-22',
       valueEur: report.totals.value,
     });
     expect(expected.ok).toBe(true);
-    if (expected.ok) expect(nbsp(row!.value)).toBe(nbsp(fmtPct(expected.rate, { sign: true })));
+    // … mais l'historique court du 01/01 au 22/08 : moins d'un an. GIPS 2020, 5.A.1.b, veut alors
+    // le taux NON annualisé de la période — celui que le libellé d'avant appelait « annualisé ».
+    const presented = presentMoneyWeighted(expected);
+    expect(presented.kind).toBe('cumulative');
+    if (presented.kind !== 'none')
+      expect(nbsp(row!.value)).toBe(nbsp(fmtPct(presented.value, { sign: true })));
+    expect(row!.hint).toContain('sur la période, du 01/01/2026 au 22/08/2026');
+    expect(row!.hint).not.toContain('par an');
   });
 
   it('explique pourquoi il manque quand la période est trop courte', () => {
@@ -468,9 +477,7 @@ describe('rendement annualisé (XIRR) dans la synthèse', () => {
       btc: price('btc', '250'),
     });
     const shortModel = buildReportModel(shortReport, opts);
-    const row = detailsOf(shortModel, 'summary').find(
-      (d) => d.label === 'Rendement annualisé (XIRR)',
-    );
+    const row = detailsOf(shortModel, 'summary').find((d) => d.label === XIRR);
     expect(row!.value).toBe('—');
     expect(row!.hint).toContain('30 jours');
   });
@@ -781,5 +788,101 @@ describe('section « Coût réel des opérations »', () => {
     expect(noteOf(m, 'spread')).toContain('reste fragile');
     // La méthode est expliquée dans tous les cas.
     expect(noteOf(m, 'spread')).toContain('MÉDIANE');
+  });
+});
+
+describe('plage d’analyse (P118, décision n° 179)', () => {
+  const kpiOf = (m: typeof model, label: string) =>
+    [...kpisOf(m, 'summary'), ...detailsOf(m, 'summary')].find((k) => k.label === label);
+  const fact = (m: typeof model, label: string) =>
+    m.cover.facts.find((f) => f.label === label)?.value;
+
+  const window = (over: Partial<ReportWindow> = {}): ReportWindow => ({
+    from: '2026-07-01',
+    to: '2026-08-22',
+    label: 'du 01/07/2026 au 22/08/2026',
+    endsToday: true,
+    startValue: D('900'),
+    endValue: D('1000'),
+    endCost: D('700'),
+    netFlows: D('50'),
+    gain: D('50'),
+    realized: D('12.5'),
+    mwr: {
+      kind: 'cumulative',
+      value: D('0.051'),
+      spanDays: 53,
+      since: '2026-06-30',
+      until: '2026-08-22',
+    },
+    ...over,
+  });
+
+  it('sans plage, dit « depuis l’origine » et garde la synthèse d’avant', () => {
+    expect(fact(model, 'Période d’analyse')).toBe('depuis l’origine');
+    expect(kpiOf(model, 'Réalisé')).toBeDefined();
+    expect(kpiOf(model, 'Réalisé sur la période')).toBeUndefined();
+  });
+
+  it('sur une plage, renomme ce qui change de sens — jamais un « Réalisé » qui ne l’est plus', () => {
+    const m = buildReportModel(report, { ...opts, window: window() });
+    expect(fact(m, 'Période d’analyse')).toBe('du 01/07/2026 au 22/08/2026');
+    expect(kpiOf(m, 'Réalisé')).toBeUndefined();
+    expect(kpiOf(m, 'Réalisé sur la période')?.value).toBe(
+      fmtMoney(D('12.5'), 'EUR', { sign: true }),
+    );
+    expect(kpiOf(m, 'Résultat sur la période')?.value).toBe(
+      fmtMoney(D('50'), 'EUR', { sign: true }),
+    );
+    // Le ROI est un multiple depuis l'origine : sur une plage il se tait, et dit pourquoi.
+    expect(kpiOf(m, 'ROI')?.value).toBe('—');
+    expect(kpiOf(m, 'ROI')?.hint).toContain('sans objet sur une plage');
+    // Le repère part de zéro : il comparerait une autre période.
+    expect(detailsOf(m, 'summary').find((d) => d.label.startsWith('Repère'))?.hint).toContain(
+      'depuis l’origine seulement',
+    );
+  });
+
+  it('lit le XIRR de la plage, présenté sur la période et non « par an »', () => {
+    const m = buildReportModel(report, { ...opts, window: window() });
+    const row = kpiOf(m, 'Rendement pondéré par les capitaux (XIRR)');
+    expect(nbsp(row!.value)).toBe(nbsp(fmtPct(D('0.051'), { sign: true })));
+    expect(row!.hint).toContain('sur la période, du 30/06/2026 au 22/08/2026');
+  });
+
+  it('quand la plage finit avant le jour de génération, lit les stocks à sa fin et le dit', () => {
+    const past = window({ to: '2026-07-31', endsToday: false });
+    const m = buildReportModel(report, { ...opts, window: past });
+    expect(kpiOf(m, 'Valeur')?.value).toBe(fmtMoney(D('1000'), 'EUR'));
+    expect(kpiOf(m, 'Investi')?.value).toBe(fmtMoney(D('700'), 'EUR'));
+    expect(kpiOf(m, 'Latent')?.value).toBe(fmtMoney(D('300'), 'EUR', { sign: true }));
+    expect(kpiOf(m, 'Valeur')?.hint).toContain('au 31/07/2026');
+    // Le tableau des positions, lui, reste celui du jour : il le dit, au lieu de se faire passer
+    // pour la fin de la plage.
+    expect(section(m, 'positions')?.lead).toContain('ne suit pas la fin de la plage');
+    expect(m.cover.notes.join(' ')).toContain('ce tableau ne suit pas la fin de la plage');
+  });
+
+  it('présente un TWR de moins d’un an cumulé, même au-delà du plancher de 30 jours du moteur', () => {
+    // GIPS 2020, 2.A.12 : le plancher de 30 jours du moteur annualisait entre un mois et un an.
+    const twr = {
+      ok: true as const,
+      cumulative: D('0.08'),
+      annualized: D('0.4'),
+      since: '2026-03-01',
+      until: '2026-08-22',
+      days: 174,
+      estimatedDays: 0,
+      neutralizedDays: 0,
+      index: [],
+    };
+    const m = buildReportModel(report, {
+      ...opts,
+      performance: { twr, benchmark: null, partialAssets: 0 },
+    });
+    const row = kpiOf(m, 'Rendement hors apports (TWR)');
+    expect(nbsp(row!.value)).toBe(nbsp(fmtPct(D('0.08'), { sign: true })));
+    expect(row!.hint).toContain('sur la période');
+    expect(row!.hint).not.toContain('par an');
   });
 });

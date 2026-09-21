@@ -3,9 +3,11 @@
   import { nowIso, nowMs } from '$lib/clock';
   import { buildRequest, type AiOutcome } from '$lib/ai/contract';
   import { buildNarrativeInput, runNarrative } from '$lib/ai/narrative';
-  import { toDecimalString } from '$lib/domain/money';
+  import { ZERO, toDecimalString } from '$lib/domain/money';
   import { insightsToText } from '$lib/format/insights';
-  import { msToParisNaive } from '$lib/import/time';
+  import { msToParisDay, msToParisNaive } from '$lib/import/time';
+  import { fmtDate } from '$lib/format/fr';
+  import { resolveWindow, type Period } from '$lib/history';
   import { ANTHROPIC_MODEL_ID, anthropicAdapter } from '$lib/net/anthropic';
   import { accountDeclarationsToCsv, cessionsToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
@@ -15,11 +17,17 @@
   import { dac8Summary, declarableYears, declarationYear } from '$lib/domain/tax-fr';
   import { riskMetrics } from '$lib/domain/risk';
   import { declarationsToText, renderDeclarations } from '$lib/format/declarations-fr';
-  import { buildReportModel, section, type ReportModel } from '$lib/export/report-model';
+  import {
+    buildReportModel,
+    section,
+    type ReportModel,
+    type ReportWindow,
+  } from '$lib/export/report-model';
   import { router } from '$lib/router.svelte';
   import ConsentSheet from '../../components/ai/ConsentSheet.svelte';
   import NarrativeCard from '../../components/ai/NarrativeCard.svelte';
   import AllocationDonut from '../../components/charts/AllocationDonut.svelte';
+  import RangePicker from '../../components/charts/RangePicker.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import TaxYearPicker from '../../components/tax/TaxYearPicker.svelte';
   import ReportBody from '../../components/report/ReportBody.svelte';
@@ -48,10 +56,58 @@
   let taxYear = $state(declarationYear(nowIso().slice(0, 10)));
   const yearChoices = $derived(declarableYears(app.events, generatedAt.slice(0, 10)));
 
+  /**
+   * La plage d'analyse (P118, décision n° 179) : la même que sur la Vue d'ensemble et les
+   * statistiques de trading, lue dans le réglage partagé. « 1 jour » n'a pas de sens pour un
+   * rapport : mêmes périodes que les statistiques.
+   *
+   * Le jour de fin se lit à Paris, comme le XIRR du rapport l'a toujours fait (`msToParisDay`) :
+   * « Tout » redonne ainsi exactement les chiffres d'avant la plage.
+   */
+  const PERIODS: Period[] = ['1w', '1m', '3m', '1y', 'all', 'custom'];
+
+  /**
+   * Depuis l'origine, le modèle ne lit de la plage que son libellé : les autres champs ne servent
+   * que sur une plage, et `from: null` le lui dit.
+   */
+  const ORIGIN = {
+    from: null,
+    endsToday: true,
+    startValue: ZERO,
+    endValue: ZERO,
+    endCost: ZERO,
+    netFlows: ZERO,
+    gain: ZERO,
+    realized: ZERO,
+    mwr: { kind: 'none', reason: 'insufficient-flows' },
+  } as const satisfies Omit<ReportWindow, 'label' | 'to'>;
+  const generatedDay = $derived(msToParisDay(Date.parse(generatedAt)));
+  // Pas `window` : le nom est déjà celui de l'objet global, dont `print()` sert plus bas.
+  const dayWindow = $derived(
+    resolveWindow(app.state.ui.period, app.state.ui.customRange, generatedDay),
+  );
+  /** Une période partielle se désigne par ses dates (Q&R GIPS n° 5014). */
+  const windowLabel = $derived(
+    dayWindow.from === null
+      ? 'depuis l’origine'
+      : `du ${fmtDate(dayWindow.from)} au ${fmtDate(dayWindow.to)}`,
+  );
+
   // Tant que l'historique n'est pas chargé, la série est vide ou partielle : mieux vaut dire
   // « pas encore » que d'afficher un chiffre qui bougera sous les yeux de l'utilisateur.
   const performance = $derived(
-    history.status.loadedAt === null ? undefined : history.performance(),
+    history.status.loadedAt === null ? undefined : history.performance('btc', dayWindow),
+  );
+
+  /** Ce que la synthèse lit sur une plage ; `null` depuis l'origine ou sans historique. */
+  const reportWindow = $derived(
+    history.status.loadedAt === null || dayWindow.from === null
+      ? null
+      : history.reportWindow(dayWindow, {
+          label: windowLabel,
+          endsToday: dayWindow.to >= generatedDay,
+          closingValue: app.report.totals.value,
+        }),
   );
 
   /**
@@ -105,6 +161,7 @@
   const model = $derived<ReportModel>(
     buildReportModel(app.report, {
       discreet: app.state.ui.discreet,
+      window: reportWindow ?? { ...ORIGIN, label: windowLabel, to: generatedDay },
       currency: app.currency,
       generatedAt,
       version: __APP_VERSION__,
@@ -291,6 +348,13 @@
      Elle est sortie de la barre d'actions : rangée entre les boutons, elle passait pour un réglage
      du rapport entier, alors que le rapport décrit le grand livre depuis le début. -->
 <div class="scope">
+  <div class="range">
+    <RangePicker id="report" available={PERIODS} />
+    <p class="muted small">
+      La plage gouverne la synthèse, le résultat, les rendements et le risque. Les sections fiscales
+      suivent l’année fiscale ci-dessous.
+    </p>
+  </div>
   <TaxYearPicker
     bind:value={taxYear}
     years={yearChoices}

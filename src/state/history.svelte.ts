@@ -1,7 +1,7 @@
 /** Historique des prix et séries d'évolution (portefeuille / actif) dans la devise d'affichage. */
 import { nowIso, nowMs } from '$lib/clock';
 import { isFiat } from '$lib/domain/assets';
-import { allPositions, type PositionReport } from '$lib/domain/engine';
+import { allPositions, holdings, type PositionReport } from '$lib/domain/engine';
 import { D, ZERO, toDecimalString, type Big, type DecimalString } from '$lib/domain/money';
 import { estimateSpread, type SpreadEstimate } from '$lib/domain/spread';
 import { computeFrenchTax, type TaxLedger } from '$lib/domain/tax-fr';
@@ -46,10 +46,13 @@ import {
   type Contribution,
   type NetWorthPoint,
 } from '$lib/history/net-worth';
-import { computePerformance, toBenchmarkPrices } from '$lib/history/performance';
+import { computePerformance, externalFlows, toBenchmarkPrices } from '$lib/history/performance';
+import { windowFlows, windowGain, windowMwr } from '$lib/history/window';
+import type { DayWindow } from '$lib/history/series';
+import { presentMoneyWeighted } from '$lib/derive/presented-return';
 import { rateLookup } from '$lib/fx/convert';
 import { msToParisDay } from '$lib/import/time';
-import type { ReportPerformance } from '$lib/export/report-model';
+import type { ReportPerformance, ReportWindow } from '$lib/export/report-model';
 import { app } from './app.svelte';
 
 export interface HistoryStatus {
@@ -507,18 +510,69 @@ export class HistoryState {
    * Performance du Rapport : TWR du portefeuille et repère « mêmes apports sur un seul actif ».
    * Nécessite l'historique quotidien (`ensure()`) ; sans cotation du repère, seul le TWR est rendu.
    */
-  performance(benchmarkAsset: AssetCode = 'btc'): ReportPerformance {
+  performance(
+    benchmarkAsset: AssetCode = 'btc',
+    window: DayWindow | null = null,
+  ): ReportPerformance {
     const today = todayOf(nowMs());
     const prices = toBenchmarkPrices(
       this.pricesFor([benchmarkAsset], today)[benchmarkAsset]?.points ?? [],
     );
-    return computePerformance({
-      series: this.metricPoints('portfolio'),
-      cashFlows: app.report.cashFlows,
-      internalTransferLegs: app.internalTransferLegs,
-      benchmark: prices.length > 0 ? { asset: benchmarkAsset, prices } : null,
-      partialAssets: this.status.partial.length + this.status.missing.length,
-    });
+    return computePerformance(
+      {
+        series: this.metricPoints('portfolio'),
+        cashFlows: app.report.cashFlows,
+        internalTransferLegs: app.internalTransferLegs,
+        benchmark: prices.length > 0 ? { asset: benchmarkAsset, prices } : null,
+        partialAssets: this.status.partial.length + this.status.missing.length,
+      },
+      window,
+    );
+  }
+
+  /**
+   * La plage d'analyse du Rapport (P118, décision n° 179) : ce que la synthèse et les rendements
+   * lisent quand une plage est choisie. Un seul grand livre, aucun rejeu : les flux sont un filtre
+   * de dates sur le rapport du moteur, les stocks se lisent sur la série quotidienne.
+   *
+   * Quand la plage finit le jour de génération, la valeur finale est celle du moteur
+   * (`closingValue`) : le résultat de la plage se recoupe alors avec la valeur affichée en tête,
+   * au lieu de la clôture de la veille qu'aurait lue la série.
+   */
+  reportWindow(
+    window: DayWindow,
+    opts: { label: string; endsToday: boolean; closingValue: Big },
+  ): ReportWindow {
+    const series = this.metricPoints('portfolio');
+    const flows = externalFlows(app.report.cashFlows, app.internalTransferLegs);
+    const input = {
+      series: series.map((p) => ({ day: p.day, value: p.value, estimated: p.estimated })),
+      flows,
+      ...(opts.endsToday ? { closingValue: opts.closingValue } : {}),
+    };
+    const gain = windowGain(input, window);
+    const flowsIn = windowFlows(
+      { positions: [...holdings(app.report), ...app.report.closed], events: app.displayEvents },
+      window,
+    );
+    let endCost = ZERO;
+    for (const point of series) {
+      if (point.day > window.to) break;
+      endCost = point.cost;
+    }
+    return {
+      from: window.from,
+      to: window.to,
+      label: opts.label,
+      endsToday: opts.endsToday,
+      startValue: gain.startValue,
+      endValue: gain.endValue,
+      endCost,
+      netFlows: gain.netFlows,
+      gain: gain.gain,
+      realized: flowsIn.realized,
+      mwr: presentMoneyWeighted(windowMwr(input, window)),
+    };
   }
 
   /**

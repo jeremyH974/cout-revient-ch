@@ -82,3 +82,35 @@ test('la plage libre traverse les écrans et survit au rechargement', async ({ p
   await page.goto('#/trading');
   await expect(chip(page, 'Dates')).toHaveAttribute('aria-checked', 'true');
 });
+
+/**
+ * Le Rapport suit la même plage (P118, décision n° 179). Ce qui est vérifié n'est pas qu'un
+ * sélecteur s'affiche, mais que le DOCUMENT dit sur quelle période il porte, et que ce qui change
+ * de sens change de nom : un « Réalisé » d'un mois libellé « Réalisé » se lirait comme le total.
+ */
+test('le rapport suit la plage, et renomme ce qui change de sens', async ({ page }) => {
+  await openDemo(page);
+  // Le rapport attend l'historique quotidien pour fenêtrer : on le laisse se charger.
+  await page.goto('#/invest');
+  await expect(page.locator('section.evolution footer')).toContainText('Sources :', {
+    timeout: 30_000,
+  });
+  await page.goto('#/invest/report');
+  const article = page.getByRole('article');
+  const summary = article.locator('section.card').filter({ hasText: 'Synthèse' }).first();
+
+  await chip(page, 'Tout').click();
+  await expect(article).toContainText('depuis l’origine');
+  await expect(summary).toContainText('Réalisé');
+  await expect(summary).not.toContainText('Réalisé sur la période');
+
+  await chip(page, '3M').click();
+  // Une période partielle se désigne par ses dates, sur la page de garde (Q&R GIPS n° 5014).
+  await expect(article).toContainText(
+    /Période d.analyse\s*du \d{2}\/\d{2}\/\d{4} au \d{2}\/\d{2}\/\d{4}/,
+  );
+  await expect(summary).toContainText('Réalisé sur la période');
+  await expect(summary).toContainText('Résultat sur la période');
+  // Moins d'un an : aucun rendement ne s'écrit « par an » (GIPS 2020, 2.A.12 et 5.A.1.b).
+  await expect(summary).not.toContainText('par an');
+});

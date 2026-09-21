@@ -249,6 +249,8 @@ export function buildGlobalReportModel(
     // compte de résultat, et elle décide de la moitié des libellés de ce fichier.
     { label: 'Arrêté au', value: fmtDate(r.day) },
     { label: 'Espaces', value: String(r.lines.length) },
+    // Même raison que le rapport de prêts : l'identité se lit depuis l'origine (décision n° 179).
+    { label: 'Période d’analyse', value: 'depuis l’origine' },
   ];
 
   const notes: string[] = [];
