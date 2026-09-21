@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { DEMO_ROUTES, EMPTY_ROUTES } from './a11y-routes';
 import { expectNoViolations } from './helpers/axe';
 import { openDemo } from './helpers/demo';
 import { ETORO_FIXTURE } from './helpers/expected';
@@ -9,31 +10,7 @@ test.beforeEach(async ({ context }) => {
 });
 
 test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
-  for (const route of [
-    '#/welcome',
-    '#/import',
-    '#/add',
-    '#/accounts',
-    '#/reconciliation',
-    '#/invest/second-opinion',
-    '#/help',
-    '#/privacy',
-    '#/settings',
-    '#/trading',
-    '#/trading/add',
-    '#/trading/seuil',
-    '#/more',
-    '#/market',
-    '#/watch',
-    '#/declaration',
-    '#/impots',
-    '#/news',
-    '#/invest/alerts',
-    '#/wealth/loans',
-    '#/invest/titles',
-    '#/wealth',
-    '#/patrimoine',
-  ]) {
+  for (const route of EMPTY_ROUTES) {
     test(`sans données : ${route}`, async ({ page }) => {
       await page.goto(route);
       await expect(page.getByRole('main')).toBeVisible();
@@ -41,28 +18,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     });
   }
 
-  for (const route of [
-    '#/',
-    '#/asset/btc',
-    '#/settings',
-    '#/report',
-    '#/invest',
-    '#/trading',
-    '#/trading/trades',
-    '#/trading/stats',
-    '#/trading/seuil',
-    '#/trading/fills',
-    '#/more',
-    '#/accounts',
-    '#/reconciliation',
-    '#/invest/second-opinion',
-    '#/invest/asset/btc',
-    '#/invest/alerts',
-    '#/declaration',
-    '#/impots',
-    '#/wealth',
-    '#/patrimoine',
-  ]) {
+  for (const route of DEMO_ROUTES) {
     test(`avec la démo : ${route}`, async ({ page }) => {
       await openDemo(page);
       await page.goto(route);

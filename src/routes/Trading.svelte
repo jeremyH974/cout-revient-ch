@@ -508,6 +508,9 @@
     {#each errors as error (error)}
       <p class="warn small" role="alert">Synchronisation interrompue : {error}</p>
     {/each}
+    <a class="report-link" href={router.href({ name: 'tradingReport' })}>
+      Rapport de trading (PDF) →
+    </a>
   </section>
 
   <section class="card evolution">
@@ -1012,5 +1015,16 @@
     .kpis {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
+  }
+  /* Le rapport se rejoint au pied de la carte qui montre ce qu'il consolide, et non depuis un
+     menu : même règle que le rapport de patrimoine sur la Vue d'ensemble (décision n° 178). */
+  .report-link {
+    justify-self: start;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .report-link:hover {
+    text-decoration: underline;
   }
 </style>

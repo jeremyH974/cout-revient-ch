@@ -23,6 +23,7 @@
   import AppBar from '../../components/layout/AppBar.svelte';
   import TaxYearPicker from '../../components/tax/TaxYearPicker.svelte';
   import ReportBody from '../../components/report/ReportBody.svelte';
+  import ReportLinks from '../../components/report/ReportLinks.svelte';
   import { aiKey } from '../../state/ai-key.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
@@ -283,6 +284,7 @@
 </script>
 
 <AppBar title="Rapport de portefeuille" back />
+<ReportLinks current="invest" />
 
 <!-- L'année DÉCRITE, jamais celle de la génération (décision n° 141). Le 2086, le 3916-bis et le
      récapitulatif DAC8 ne portent que sur une année, et au printemps on remplit celle d'avant.

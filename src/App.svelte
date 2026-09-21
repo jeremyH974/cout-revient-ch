@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { pageTitle } from '$lib/page-title';
   import { router } from '$lib/router.svelte';
   import BottomNav from './components/layout/BottomNav.svelte';
   import Toasts from './components/layout/Toasts.svelte';
@@ -22,11 +23,13 @@
   import Fills from './routes/trading/Fills.svelte';
   import TradeDetail from './routes/trading/TradeDetail.svelte';
   import Trades from './routes/trading/Trades.svelte';
+  import TradingReport from './routes/trading/TradingReport.svelte';
   import Welcome from './routes/Welcome.svelte';
   import Alerts from './routes/invest/Alerts.svelte';
   import AssetDetail from './routes/invest/AssetDetail.svelte';
   import Import from './routes/invest/Import.svelte';
   import Loans from './routes/wealth/Loans.svelte';
+  import LoansReport from './routes/wealth/LoansReport.svelte';
   import ManualEntry from './routes/invest/ManualEntry.svelte';
   import Portfolio from './routes/invest/Portfolio.svelte';
   import Titles from './routes/invest/Titles.svelte';
@@ -40,6 +43,14 @@
   import { toasts, update } from './state/ui.svelte';
 
   const route = $derived(router.route);
+
+  /*
+   * Le titre de l'onglet suit la vue (WCAG 2.2 § 2.4.2, décision n° 178) : c'est le premier repère
+   * qu'un lecteur d'écran annonce à chaque navigation, et il n'avait jamais changé.
+   */
+  $effect(() => {
+    document.title = pageTitle(route);
+  });
 
   function seenVersion(): void {
     app.setUi({ lastSeenVersion: __APP_VERSION__ });
@@ -142,6 +153,8 @@
           <Breakeven />
         {:else if route.name === 'fills'}
           <Fills />
+        {:else if route.name === 'tradingReport'}
+          <TradingReport />
         {:else if route.name === 'trading'}
           <Trading />
         {:else if route.name === 'more'}
@@ -160,6 +173,8 @@
           <Import />
         {:else if route.name === 'loans'}
           <Loans />
+        {:else if route.name === 'loansReport'}
+          <LoansReport />
         {:else if route.name === 'titles'}
           <Titles />
         {:else if route.name === 'alerts'}
