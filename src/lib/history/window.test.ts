@@ -423,6 +423,41 @@ describe('windowFlows', () => {
     expect(flows.otherIncome.toString()).toBe('0');
   });
 
+  it('une ligne de récompense sans valeur compte pour zéro, sans rien casser', () => {
+    // Le moteur écrit toujours une valeur sur une récompense ; le type l'autorise nulle, et une
+    // ligne venue d'ailleurs ne doit pas faire tomber l'addition.
+    const flows = windowFlows(
+      {
+        positions: [
+          {
+            asset: 'x',
+            history: [
+              {
+                at: '2026-01-05T09:00:00',
+                kind: 'reward',
+                realized: null,
+                feeEur: ZERO,
+                rebateEur: ZERO,
+                valueEur: null,
+              },
+              {
+                at: '2026-01-06T09:00:00',
+                kind: 'reward',
+                realized: null,
+                feeEur: ZERO,
+                rebateEur: ZERO,
+                valueEur: D('4'),
+              },
+            ],
+          },
+        ],
+        events: [],
+      },
+      { from: null, to: '2026-01-31' },
+    );
+    expect(flows.otherIncome.toString()).toBe('4');
+  });
+
   it('une position bloquée est hors des totaux, et hors de la fenêtre avec le bon périmètre', () => {
     const blocked = run([
       buy('2026-01-01T10:00:00', 'z', '1', '10'),

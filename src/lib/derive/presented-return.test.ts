@@ -178,6 +178,16 @@ describe('presentReturn', () => {
     ).toEqual(none);
   });
 
+  it('une fin illisible ne se lit jamais comme le 1er janvier 1970, même avec un début antérieur', () => {
+    // En JavaScript, `null` vaut 0 dans une comparaison — le jour zéro de l'époque. Après 1970, la
+    // garde « fin avant début » rattrape par chance une fin illisible ; avant 1970, plus rien ne la
+    // rattraperait, et la période se lirait « du 31/12/1969 au 01/01/1970 ». Le test de mutation
+    // l'a montré : la garde explicite était exécutée, jamais vérifiée.
+    expect(
+      presentReturn({ basis: 'cumulative', value: D('0.1'), since: '1969-12-31', until: 'jamais' }),
+    ).toEqual({ kind: 'none', reason: 'invalid-period' });
+  });
+
   it('une croissance négative ne se convertit pas : rien plutôt qu’un chiffre inventé', () => {
     const none = { kind: 'none', reason: 'invalid-rate' };
     expect(presentReturn(figure('annual', '-1.5', '2026-01-01', 100))).toEqual(none);
