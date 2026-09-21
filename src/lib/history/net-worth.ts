@@ -76,12 +76,28 @@ export interface ContributionValue {
 }
 
 /**
+ * L'espace de l'application auquel appartient un producteur de patrimoine.
+ *
+ * **Porté par le producteur, jamais deviné** (décision n° 178, qui honore la n° 176). Il se
+ * reconnaissait jusqu'ici à la lecture de l'identifiant — `invest`, `lending`, et « trading » pour
+ * tout le reste, faute de mieux : les comptes de trading sont les seuls dont l'identifiant est
+ * celui du compte, donc inconnu d'avance. Un quatrième producteur aurait été rangé dans le trading
+ * sans que rien ne le signale. Le constructeur, lui, sait ce qu'il produit.
+ *
+ * Un sous-ensemble de `SpaceId` (`src/lib/spaces.ts`), écrit ici pour que ce module pur ne dépende
+ * pas de la navigation ; un test de `spaces.test.ts` garde l'inclusion.
+ */
+export type ProducerSpace = 'invest' | 'trading' | 'wealth';
+
+/**
  * Un producteur de valeur pour la courbe de patrimoine. Les avoirs crypto, un compte de trading,
  * demain un bien immobilier ou un contrat d'assurance-vie : tous se présentent ainsi.
  */
 export interface Contribution {
   id: string;
   label: string;
+  /** L'espace qui porte ce producteur : sa couleur, son lien et son rapport en découlent. */
+  space: ProducerSpace;
   /**
    * Premier jour d'existence. Avant lui la contribution vaut **zéro** — le compte n'existait pas,
    * ce n'est pas une valeur manquante, et la distinction change la courbe.
@@ -107,6 +123,7 @@ export interface Liability {
 export interface NetWorthPart {
   id: string;
   label: string;
+  space: ProducerSpace;
   value: Big;
   contributed: Big;
   /** `true` : porté au coût faute de cotation. */
@@ -183,6 +200,7 @@ export function netWorthSeries({
         parts.push({
           id: contribution.id,
           label: contribution.label,
+          space: contribution.space,
           value: ZERO,
           contributed: ZERO,
           estimated: false,
@@ -209,6 +227,7 @@ export function netWorthSeries({
       parts.push({
         id: contribution.id,
         label: contribution.label,
+        space: contribution.space,
         value: at.value,
         contributed: at.contributed,
         estimated: at.estimated,
@@ -301,12 +320,14 @@ export function valueSeriesContribution(
   label: string,
   points: readonly ValuePoint[],
   contributedAt: (day: DayString) => Big,
+  space: ProducerSpace,
 ): Contribution {
   const byDay = new Map<DayString, ValuePoint>(points.map((p) => [p.day, p]));
   const sorted = [...points].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0));
   return {
     id,
     label,
+    space,
     firstDay: sorted[0]?.day ?? null,
     valueAt(day) {
       const point = byDay.get(day) ?? lastAtOrBefore(sorted, day);
@@ -386,6 +407,7 @@ export function tradingEquityContribution({
   return {
     id,
     label,
+    space: 'trading',
     firstDay: daily[0]?.day ?? null,
     valueAt(day) {
       const point = lastAtOrBefore(daily, day);
@@ -567,6 +589,7 @@ export function netWorthChange(
 export interface PartChange {
   id: string;
   label: string;
+  space: ProducerSpace;
   startValue: Big;
   endValue: Big;
   /** Apports nets reçus PENDANT la fenêtre — pour l'espace Trading, le capital qu'on lui a confié. */
@@ -632,6 +655,7 @@ export function netWorthPartChanges(
     return {
       id: part.id,
       label: part.label,
+      space: part.space,
       startValue,
       endValue: part.value,
       contributions,
@@ -762,6 +786,7 @@ export function lendingContribution({
   return {
     id,
     label,
+    space: 'wealth',
     firstDay: series[0]?.day ?? null,
     valueAt(day) {
       const point = lastAtOrBefore(series, day);

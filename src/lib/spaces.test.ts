@@ -3,8 +3,9 @@
  * la cible du lien de retour, et l'accent visuel. Une route rangée dans le mauvais espace ne
  * provoque aucune erreur — elle envoie simplement l'utilisateur ailleurs (décision n° 122).
  */
-import { describe, expect, it } from 'vitest';
-import { SPACES, spaceOf, spaceOfProducer } from './spaces';
+import { describe, expect, expectTypeOf, it } from 'vitest';
+import type { ProducerSpace } from './history/net-worth';
+import { SPACES, spaceById, spaceOf, type SpaceId } from './spaces';
 import type { RouteName } from './router.svelte';
 
 describe('registre des espaces', () => {
@@ -33,21 +34,22 @@ describe('registre des espaces', () => {
   });
 
   /**
-   * **La barre de répartition et sa légende doivent nommer le MÊME espace.** Elles ne le faisaient
-   * pas : les Prêts sortaient « trading » dans la barre et retombaient sur la bordure de
-   * l'investissement dans la légende, faute de règle dédiée. Les deux lisent désormais cette
-   * fonction, et ce test dit ce qu'elle doit rendre.
+   * **L'espace d'un producteur est porté par le producteur, jamais deviné** (décision n° 178).
+   * Deux tables le devinaient à la lecture d'un identifiant — la couleur d'un côté, la destination
+   * de l'autre —, avec un repli sur « trading » pour tout identifiant inconnu : un quatrième
+   * producteur y serait tombé sans que rien ne le dise. Ce qui reste à garder, c'est qu'un
+   * producteur ne puisse déclarer qu'un espace qui existe.
    */
-  it('range chaque producteur de la courbe dans son espace', () => {
-    expect(spaceOfProducer('invest')).toBe('invest');
-    expect(spaceOfProducer('lending')).toBe('wealth');
-    // Un compte de trading porte son propre identifiant : le repli existe pour lui seul.
-    expect(spaceOfProducer('0xabc123')).toBe('trading');
+  it('un producteur ne peut déclarer qu’un espace du registre', () => {
+    expectTypeOf<ProducerSpace>().toMatchTypeOf<SpaceId>();
+    const ids = SPACES.map((s) => s.id);
+    for (const space of ['invest', 'trading', 'wealth'] satisfies ProducerSpace[])
+      expect(ids, space).toContain(space);
   });
 
-  it('ne range jamais un producteur dans un espace absent du registre', () => {
-    const ids = SPACES.map((s) => s.id);
-    for (const producer of ['invest', 'lending', '0xabc123', 'inconnu'])
-      expect(ids).toContain(spaceOfProducer(producer));
+  it('retrouve un espace par son identifiant, et refuse d’en inventer un', () => {
+    expect(spaceById('wealth').home).toEqual({ name: 'loans' });
+    expect(spaceById('trading').home).toEqual({ name: 'trading' });
+    expect(() => spaceById('inconnu' as SpaceId)).toThrow('Espace inconnu : inconnu');
   });
 });

@@ -289,6 +289,8 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     const part = (id: string, label: string, value: string, contributed: string) => ({
       id,
       label,
+      // Sans objet pour le rendu : le PDF ne lit pas l'espace d'une ligne.
+      space: 'invest' as const,
       firstDay: null,
       valueAt: () => ({ value: D(value), contributed: D(contributed), estimated: false }),
     });

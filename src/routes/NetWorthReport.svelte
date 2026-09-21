@@ -16,7 +16,7 @@
   import { downloadReportPdf } from '$lib/export/pdf';
   import type { ReportModel } from '$lib/export/report-model';
   import { router } from '$lib/router.svelte';
-  import { SPACES, spaceOfProducer } from '$lib/spaces';
+  import { SPACES } from '$lib/spaces';
   import AppBar from '../components/layout/AppBar.svelte';
   import ReportBody from '../components/report/ReportBody.svelte';
   import { app } from '../state/app.svelte';
@@ -38,7 +38,7 @@
    * Les trois autres, oui — et un espace absent se nomme, il ne s'omet pas.
    */
   const emptyScopes = $derived.by(() => {
-    const seen = new Set((reconciliation?.lines ?? []).map((l) => spaceOfProducer(l.id)));
+    const seen = new Set<string>((reconciliation?.lines ?? []).map((l) => l.space));
     return SPACES.filter((s) => s.id !== 'overview' && s.id !== 'more' && !seen.has(s.id)).map(
       (s) => s.label,
     );

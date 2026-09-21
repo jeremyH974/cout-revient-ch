@@ -29,6 +29,7 @@ const eur = (amount: string, sign = false): string => fmtMoney(D(amount), 'EUR',
 const flat = (id: string, label: string, value: string, contributed = '0'): Contribution => ({
   id,
   label,
+  space: 'invest',
   firstDay: null,
   valueAt: () => ({ value: D(value), contributed: D(contributed), estimated: false }),
 });
@@ -37,6 +38,7 @@ const flat = (id: string, label: string, value: string, contributed = '0'): Cont
 const unvaluable = (id: string, label: string): Contribution => ({
   id,
   label,
+  space: 'invest',
   firstDay: null,
   valueAt: () => null,
 });
@@ -45,6 +47,7 @@ const unvaluable = (id: string, label: string): Contribution => ({
 const unreconciled = (id: string, label: string, contributed: string): Contribution => ({
   id,
   label,
+  space: 'invest',
   firstDay: null,
   valueAt: () => ({
     value: ZERO,

@@ -58,6 +58,7 @@ function flat(
   return {
     id,
     label: id,
+    space: 'invest',
     firstDay: firstDay as DayString | null,
     valueAt: () => ({ value: D(value), contributed: D(contributed), estimated: false }),
   };
@@ -105,6 +106,7 @@ describe('approché ou incomplet : la distinction qui sépare un chiffre juste d
           'Investissement',
           [vp('2026-08-01', '700', '700', ['zzz'])],
           noContribution,
+          'invest',
         ),
       ],
       days: days('2026-08-01'),
@@ -118,6 +120,7 @@ describe('approché ou incomplet : la distinction qui sépare un chiffre juste d
     const broken: Contribution = {
       id: 'hl',
       label: 'Trading',
+      space: 'trading',
       firstDay: null,
       valueAt: () => null,
     };
@@ -148,6 +151,19 @@ describe('équité de trading rééchantillonnée au jour', () => {
     });
     // 1500 $ / 1,25 = 1200 € — et non le point de 6 h.
     expect(c.valueAt('2026-08-01' as DayString)?.value.toString()).toBe('1200');
+  });
+
+  it('se range dans le Trading, quel que soit l’identifiant du compte', () => {
+    // Un compte de trading porte l'identifiant de la plateforme, inconnu d'avance : c'est
+    // précisément le cas qu'une reconnaissance par identifiant ne savait traiter que par défaut.
+    const c = tradingEquityContribution({
+      id: '0xabc123',
+      label: 'Compte',
+      history: [[at('2026-08-01T06:00:00Z'), '1000']],
+      dayOfMs,
+      usdPerDisplay,
+    });
+    expect(c.space).toBe('trading');
   });
 
   it('reporte le dernier point connu à travers les trous de l’échantillonnage', () => {
@@ -302,6 +318,7 @@ describe('propriétés', () => {
               'I',
               [vp('2026-08-01', '1000', '900')],
               contributedFrom(['2026-08-01', '900']),
+              'invest',
             ),
           ],
           days: days('2026-08-01'),
@@ -313,6 +330,7 @@ describe('propriétés', () => {
               'I',
               [vp('2026-08-01', D('1000').plus(deposit).toString(), '900')],
               contributedFrom(['2026-08-01', '900'], ['2026-08-01', deposit.toString()]),
+              'invest',
             ),
           ],
           days: days('2026-08-01'),
@@ -353,6 +371,7 @@ describe('propriétés', () => {
           'I',
           [vp('2026-08-01', '10', '10'), vp('2026-08-02', '20', '10')],
           contributedFrom(['2026-08-01', '10']),
+          'invest',
         ),
       ],
       days: days('2026-08-01', '2026-08-02'),
@@ -388,6 +407,7 @@ describe('apports nets : de l’argent qui entre, jamais l’assiette de coût',
           'I',
           [vp('2026-08-01', '1000', '1000'), vp('2026-08-02', '600', '600')],
           contributedFrom(['2026-08-01', '1000']),
+          'invest',
         ),
       ],
       days: days('2026-08-01', '2026-08-02'),
@@ -404,6 +424,7 @@ describe('variation de période, apports neutralisés', () => {
         {
           id: 'x',
           label: 'X',
+          space: 'invest',
           firstDay: null,
           valueAt: (day) => {
             const row = rows.find(([d]) => d === day);
@@ -456,11 +477,23 @@ describe('variation de période, apports neutralisés', () => {
     const points = netWorthSeries({
       contributions: [
         flat('ok', '100'),
-        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+        { id: 'ko', label: 'KO', space: 'invest', firstDay: null, valueAt: () => null },
       ],
       days: days('2026-08-01', '2026-08-02'),
     });
     expect(netWorthChange(points)?.incomplete).toBe(true);
+  });
+
+  it('fait suivre l’espace du producteur jusqu’aux parts et aux lignes de réconciliation', () => {
+    // La couleur de la barre, la destination du lien et le rapport d'un espace en dépendent :
+    // l'espace doit arriver intact au bout de la chaîne, sans être redeviné en route.
+    const points = netWorthSeries({
+      contributions: [flat('invest', '100'), { ...flat('lending', '50'), space: 'wealth' }],
+      days: days('2026-08-01'),
+    });
+    const last = points.at(-1) ?? null;
+    expect(last?.parts.map((p) => p.space)).toEqual(['invest', 'wealth']);
+    expect(reconcileNetWorth(last)?.lines.map((l) => l.space)).toEqual(['invest', 'wealth']);
   });
 
   it('rend null sur une série vide au lieu d’inventer une variation', () => {
@@ -477,6 +510,7 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
           'Investissement',
           [vp('2026-08-31', '16167.76', '18137.39')],
           contributedFrom(['2026-08-01', '23000'], ['2026-08-15', '-5570.31']),
+          'invest',
         ),
         flat('hl', '5171.70', '5570.31'),
       ],
@@ -511,7 +545,7 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
     const points = netWorthSeries({
       contributions: [
         flat('ok', '100', '80'),
-        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+        { id: 'ko', label: 'KO', space: 'invest', firstDay: null, valueAt: () => null },
       ],
       days: days('2026-08-01'),
     });
@@ -571,10 +605,11 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
     const points = netWorthSeries({
       contributions: [
         flat('invest', '9000', '8000'),
-        { id: 'lending', label: 'Prêts', firstDay: null, valueAt: () => null },
+        { id: 'lending', label: 'Prêts', space: 'wealth', firstDay: null, valueAt: () => null },
         {
           id: 'hl',
           label: 'Trading',
+          space: 'trading',
           firstDay: null,
           valueAt: () => ({
             value: ZERO,
@@ -610,6 +645,7 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
         {
           id: 'invest',
           label: 'Investissement',
+          space: 'invest',
           firstDay: null,
           valueAt: () => ({
             value: D('1000'),
@@ -671,6 +707,7 @@ describe('variation par espace : recevoir du capital n’est pas en produire', (
         {
           id: 'invest',
           label: 'Investissement',
+          space: 'invest',
           firstDay: null,
           valueAt: (day) =>
             day === '2026-08-01'
@@ -680,6 +717,7 @@ describe('variation par espace : recevoir du capital n’est pas en produire', (
         {
           id: 'hl',
           label: 'Trading',
+          space: 'trading',
           firstDay: null,
           valueAt: (day) =>
             day === '2026-08-01'
@@ -751,6 +789,7 @@ describe('le pourcentage : rapporté aux apports pour le bilan, à la Dietz pour
         {
           id: 'seul',
           label: 'Seul',
+          space: 'invest',
           firstDay: null,
           valueAt: (day) =>
             day === '2026-08-01'
@@ -776,6 +815,7 @@ describe('le pourcentage : rapporté aux apports pour le bilan, à la Dietz pour
         {
           id: 'tardif',
           label: 'Tardif',
+          space: 'invest',
           firstDay: null,
           valueAt: (day) =>
             day === '2026-08-31'
@@ -797,6 +837,7 @@ describe('le pourcentage : rapporté aux apports pour le bilan, à la Dietz pour
         {
           id: 'hl',
           label: 'Trading',
+          space: 'trading',
           firstDay: null,
           valueAt: (day) =>
             day === '2026-08-01'
@@ -820,7 +861,7 @@ describe('une valeur non établie ne produit aucun résultat (décision n° 97)'
     const points = netWorthSeries({
       contributions: [
         flat('ok', '120', '100'),
-        { id: 'ko', label: 'KO', firstDay: null, valueAt: () => null },
+        { id: 'ko', label: 'KO', space: 'invest', firstDay: null, valueAt: () => null },
       ],
       days: days('2026-08-01'),
     });
@@ -840,6 +881,7 @@ describe('une valeur non établie ne produit aucun résultat (décision n° 97)'
         {
           id: 'hl',
           label: 'Trading',
+          space: 'trading',
           firstDay: null,
           valueAt: () => ({
             value: ZERO,
@@ -929,6 +971,10 @@ describe('lendingContribution', () => {
       ...over,
     });
 
+  it('se range dans l’espace des prêts', () => {
+    expect(build().space).toBe('wealth');
+  });
+
   it('vaut l’encours plus la trésorerie qui dort sur la plateforme', () => {
     const c = build();
     // 01/01 : 1 000 déposés, rien prêté.
@@ -1004,6 +1050,7 @@ describe('estimatedShare — l’ampleur, pas seulement le fait', () => {
   const partielle = (id: string, value: string, part: string | null): Contribution => ({
     id,
     label: id,
+    space: 'invest',
     firstDay: null,
     valueAt: () => ({
       value: D(value),
