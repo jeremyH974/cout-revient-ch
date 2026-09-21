@@ -67,7 +67,17 @@ export interface Withheld {
   foreignCreditEur: DecimalString;
   /** Un prélèvement a bien eu lieu, mais sa ventilation est inconnue : rien n'en est imputé. */
   unsplit: boolean;
-  /** Dividendes de l'année sur lesquels l'application ne connaît aucun acompte français. */
+  /**
+   * Dividendes **encaissés** dans l'année sur lesquels l'application ne connaît aucun acompte
+   * français.
+   *
+   * C'est le **brut**, et non ce qui est reportable en case 2DC. La nuance a failli rendre cet
+   * avertissement inutile : tant que le pays de la source n'est pas désigné, `declaredEur` vaut
+   * zéro — l'application montre le dividende sans le chiffrer (`equity-income-fr.ts`). Or
+   * l'obligation de verser l'acompte ne tient pas au pays de l'**émetteur** : elle tient au
+   * **payeur** établi hors de France (CGI art. 117 quater, III). L'avertissement se serait donc
+   * tu pour exactement ceux qui n'ont rien désigné — c'est-à-dire pour tout nouvel arrivant.
+   */
   dividendsWithoutAdvanceEur: DecimalString;
 }
 
@@ -138,7 +148,7 @@ export function withheldFor(input: TaxReturnInput): Withheld {
     socialEur: social,
     foreignCreditEur: dividends?.creditEur ?? '0',
     unsplit,
-    dividendsWithoutAdvanceEur: dividends?.declaredEur ?? '0',
+    dividendsWithoutAdvanceEur: dividends?.grossEur ?? '0',
   };
 }
 

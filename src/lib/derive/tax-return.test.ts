@@ -375,6 +375,20 @@ describe('revenus de capitaux mobiliers', () => {
     expect(result.caveats[1]?.text).toContain('n’est pas imputable en France');
   });
 
+  it('avoue que des dividendes sans pays ne vont dans AUCUNE case, 2DC comprise', () => {
+    // Un pays non désigné laisse `declaredEur` à zéro — le moteur montre le dividende sans le
+    // chiffrer, à dessein. La case 2DC disparaît donc, et l'avertissement ne parlait que du
+    // crédit d'impôt : on pouvait le lire comme « il ne manque que le crédit » et omettre le
+    // dividende lui-même. Sur une déclaration, c'est une omission, pas une imprécision.
+    const result = taxReturn(
+      input({
+        dividends: dividends({ undesignated: ['eq:acme'], declaredEur: '0', creditEur: '0' }),
+      }),
+    );
+    expect(codes(result)).not.toContain('2DC');
+    expect(result.caveats[0]?.text).toContain('ne figurent dans AUCUNE case');
+  });
+
   it('met les intérêts de trésorerie en 2TR, et non en 2TT', () => {
     const result = taxReturn(input({ interest: interest() }));
     expect(codes(result)).toEqual(['2047', '2TR', '2OP']);

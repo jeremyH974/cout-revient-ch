@@ -268,6 +268,19 @@ describe('taxBill', () => {
     });
     expect(bill?.caveats.some((c) => c.includes('2778-DIV-SD'))).toBe(true);
   });
+
+  it('avertit même quand rien n’est reportable en 2DC', () => {
+    // Le cas du nouvel arrivant : aucun pays de source désigné, donc `declaredEur` à zéro et
+    // aucune case 2DC. L'acompte, lui, se doit quand même — il tient au PAYEUR établi hors de
+    // France, jamais à l'émetteur. Un avertissement adossé au montant reportable se serait tu
+    // pour exactement ceux qui en ont le plus besoin.
+    const bill = taxBill({
+      year: YEAR,
+      options: [rcm],
+      withheld: withheldFor(inputWith([], [dividendYear({ declaredEur: '0', creditEur: '0' })])),
+    });
+    expect(bill?.caveats.some((c) => c.includes('2778-DIV-SD'))).toBe(true);
+  });
 });
 
 // --- `withheldFor` : ce qui a déjà été prélevé, lu dans les millésimes -------------------------

@@ -5712,3 +5712,45 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      **Contre-épreuves** : rendre les Prêts au `trading` (le comportement exact de la barre) fait
      rougir le garde-fou du registre ; remettre « Patrimoine » sur l'espace fait rougir deux parcours
      de navigation.
+
+177. **Un commentaire affirmait une case que l'application ne remplit pas** (21/09/2026).
+
+     **D'où vient la question.** En écrivant l'addition (n° 173), un test de bout en bout devait
+     vérifier l'avertissement sur le formulaire 2778-DIV-SD — celui qui ne se déclenche qu'en
+     présence de dividendes. Il ne se déclenchait jamais sur le relevé de démonstration, alors
+     qu'un commentaire de `declaration.spec.ts` affirmait depuis toujours : « il remplit 2047,
+     **2DC**, 3VG et 2TR ». Le test a été retiré et la question mise de côté ; la voici tranchée.
+
+     **Rien ne se perd.** Les trois dividendes de la fixture traversent l'import entiers, se posent
+     sur leur ligne, et leur retenue arrive — `etoro-fixture.test.ts` le tenait déjà. Ce qui
+     manquait n'était pas la donnée, c'était le **chiffrage** : tant qu'aucun pays de source n'est
+     désigné, `dividendTaxFr` rend `declaredEur = 0`. C'est délibéré et le code le dit — « aucun
+     pays désigné : on montre, on ne calcule pas. C'est l'arbitrage de l'utilisateur » — parce que
+     le pays ne se déduit pas d'un ISIN (un ADR japonais porte un ISIN américain). La case 2DC
+     disparaît donc, et le commentaire se trompait. **Deux tests le fixent maintenant dans les deux
+     sens** : sans pays, le brut est là et le reportable est à zéro ; avec un pays, le montant
+     apparaît. Sans le second, le premier passerait au vert sur un moteur cassé.
+
+     **Mais l'enquête a trouvé un vrai défaut — dans la décision n° 173, écrite la veille.**
+     L'avertissement sur l'acompte de 12,8 % s'adossait au montant **reportable**. Il se taisait
+     donc exactement pour qui n'a rien désigné, c'est-à-dire pour tout nouvel arrivant. Or
+     l'obligation ne tient pas au pays de l'**émetteur** : elle tient au **payeur établi hors de
+     France** (CGI art. 117 quater, III). Il s'adosse désormais aux dividendes **encaissés**, et le
+     test de bout en bout retiré la veille est revenu — vert sur la démonstration, cette fois.
+
+     **Et un avertissement qui mentait par omission.** « Aucun crédit d'impôt n'est calculé pour
+     eux, et les montants ci-dessus sont donc incomplets » se lit comme « il ne manque que le
+     crédit ». Il manquait **le dividende entier** : aucune case ne le portait. Sur une
+     déclaration, c'est une omission, pas une imprécision. Il dit maintenant que ces dividendes ne
+     figurent dans **aucune** case, et où aller désigner le pays.
+
+     **La leçon n'est pas sur les dividendes.** Un commentaire de test avait valeur de spécification
+     depuis des semaines, et **aucun test ne le vérifiait**. Ce que la prose d'un fichier de test
+     affirme du comportement doit être tenu par une assertion, ou effacé.
+
+     **Contre-épreuves** (décision n° 75), quatre, chacune vue rouge en nommant son sujet. Radosser
+     l'avertissement au montant reportable : « expected false to be true ». Rendre à l'avertissement
+     sa version d'avant : « expected '1 titre n'a pas de pays de source dés…' to contain 'ne
+     figurent dans AUCUNE case' ». Faire chiffrer un dividende sans pays : « rien à reporter en
+     2DC: expected '0.63' to be '0' ». Et priver le moteur de sa table conventionnelle : « le
+     montant de la case 2DC: expected false to be true ».
