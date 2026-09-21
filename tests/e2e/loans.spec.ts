@@ -208,12 +208,14 @@ test('avec des prêts et AUCUNE crypto, le patrimoine s’ouvre et les compte', 
 
   // Et l'écran reste atteignable par la navigation, sans connaître l'adresse.
   await page.getByRole('link', { name: 'Plus' }).click();
-  await page.getByRole('link', { name: 'Prêts' }).click();
+  // Depuis que l onglet de la barre du bas s appelle lui aussi « Prêts », il faut dire LEQUEL :
+  // celui de l écran « Plus », et non celui de la navigation.
+  await page.getByRole('main').getByRole('link', { name: 'Prêts' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
   await expect(page.locator('.headline')).toContainText(eur(summary.value));
 });
 
-test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans l’Investissement', async ({
+test('les prêts ont leur espace, et aucun raccourci ne les ramène dans l’Investissement', async ({
   page,
 }) => {
   // Un export Coinhouse d'abord : sans lui, l'écran Portefeuille renvoie à l'accueil.
@@ -223,9 +225,9 @@ test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans
   await expect(page.getByRole('heading', { name: 'Prêts importés' })).toBeVisible();
 
   /*
-   * Un prêt participatif n'est pas un actif numérique : il appartient au Patrimoine, et rien ne
-   * doit le ramener dans l'Investissement (décision n° 118). La forme a changé avec la n° 122 :
-   * les titres ayant rejoint l'Investissement, le Patrimoine n'a plus qu'un écran — la passerelle
+   * Un prêt participatif n'est pas un actif numérique : il a son propre espace, et rien ne doit
+   * le ramener dans l'Investissement (décision n° 118). La forme a changé avec la n° 122 : les
+   * titres ayant rejoint l'Investissement, cet espace n'a plus qu'un écran — la passerelle
    * qui reliait ses deux écrans n'a plus d'objet, et les prêts SONT désormais la racine de
    * l'espace. L'intention, elle, ne bouge pas : la présence ici, l'absence là-bas.
    */
@@ -241,7 +243,7 @@ test('les prêts sont dans le Patrimoine, et aucun raccourci ne les ramène dans
   await expect(page.locator('a.bridge')).toHaveCount(0);
 
   const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-  await nav.getByRole('link', { name: 'Patrimoine' }).click();
+  await nav.getByRole('link', { name: 'Prêts' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Prêts' })).toBeVisible();
 });
 

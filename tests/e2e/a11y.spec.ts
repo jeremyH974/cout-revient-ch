@@ -32,6 +32,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/wealth/loans',
     '#/invest/titles',
     '#/wealth',
+    '#/patrimoine',
   ]) {
     test(`sans données : ${route}`, async ({ page }) => {
       await page.goto(route);
@@ -60,6 +61,7 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     '#/declaration',
     '#/impots',
     '#/wealth',
+    '#/patrimoine',
   ]) {
     test(`avec la démo : ${route}`, async ({ page }) => {
       await openDemo(page);

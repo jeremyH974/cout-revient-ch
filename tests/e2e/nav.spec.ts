@@ -29,7 +29,7 @@ test.describe('navigation principale', () => {
   test('cinq destinations, aria-current suit la route', async ({ page }) => {
     await openDemo(page);
     const nav = page.getByRole('navigation', { name: 'Navigation principale' });
-    const labels = ["Vue d'ensemble", 'Investissement', 'Patrimoine', 'Trading', 'Plus'];
+    const labels = ["Vue d'ensemble", 'Investissement', 'Prêts', 'Trading', 'Plus'];
     await expect(nav.getByRole('link')).toHaveCount(labels.length);
     for (const label of labels) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible();

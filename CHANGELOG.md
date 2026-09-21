@@ -7,6 +7,27 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Un rapport de patrimoine, tous espaces confondus.** Jusqu'ici le seul rapport téléchargeable
+  était celui de l'Investissement : votre crypto, et rien d'autre. Un second existe désormais, qui
+  additionne **tout** — investissement, trading, prêts — et tient en une identité lisible de gauche
+  à droite : **apports nets + résultat = patrimoine**. Dessous, une ligne par espace, ce qu'il a
+  reçu, ce qu'il vaut, ce qu'il a produit, et sa part du total. Il se télécharge en PDF, il
+  s'imprime, et il se rejoint depuis la carte « Répartition » de la Vue d'ensemble.
+
+  **Il dit ce qu'il ne sait pas.** Une part que l'application n'a pas pu valoriser n'y est jamais
+  comptée pour zéro : le rapport la nomme et annonce le total comme **incomplet**. Une valeur
+  servie par une plateforme qui ne se recoupe pas avec votre grand livre s'affiche, mais aucun
+  résultat n'en est tiré. Un espace sans aucune donnée est **nommé** plutôt que de disparaître —
+  une ligne qui s'efface se lit comme une ligne à zéro, et les deux ne veulent pas dire la même
+  chose.
+
+- **L'espace « Patrimoine » s'appelle maintenant « Prêts ».** Le mot désignait deux choses à la
+  fois : le total de votre patrimoine, en haut de la Vue d'ensemble, et l'espace qui ne contient
+  que vos prêts participatifs. Le nouveau rapport rendait la confusion intenable — il affichait
+  « Patrimoine : aucune donnée » au milieu d'un document intitulé « Rapport de patrimoine ».
+  « Patrimoine » ne désigne plus que le **total**. Vos liens et vos favoris ne changent pas :
+  l'adresse `#/wealth` reste la même.
+
 - **« Combien vais-je payer, et quand ? »** L'écran Impôts comparait deux voies d'imposition, option
   par option, sans jamais faire la somme — et sans dire ce qui, de cette somme, avait **déjà** été
   prélevé. Il ouvre maintenant sur **une addition** : un montant, une date, et le détail ligne à

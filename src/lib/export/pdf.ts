@@ -51,6 +51,7 @@ const COLUMN_WIDTHS: Record<TableKind, (number | 'auto')[]> = {
   stablecoins: [22, 20, 19.5, 19.5, 20, 20, 17.5, 19.5, 20],
   allocation: ['auto', 45, 35],
   closed: ['auto', 26, 26, 26, 22, 30],
+  contribution: ['auto', 30, 32, 30, 20],
 };
 
 /** Caractères hors Latin-1 que WinAnsi encode quand même (jsPDF les mappe sur 0x80–0x9F). */
@@ -81,8 +82,8 @@ export function toPdfText(text: string): string {
   return out;
 }
 
-export function reportFileName(dateStamp: string): string {
-  return `cout-revient-ch-rapport-${dateStamp}.pdf`;
+export function reportFileName(dateStamp: string, slug = 'rapport'): string {
+  return `cout-revient-ch-${slug}-${dateStamp}.pdf`;
 }
 
 const toneColor = (tone: Tone): Rgb =>
@@ -108,7 +109,7 @@ export async function buildReportPdf(model: ReportModel): Promise<jsPDF> {
 /** Génère le PDF et déclenche son téléchargement ; renvoie le nom de fichier. */
 export async function downloadReportPdf(model: ReportModel): Promise<string> {
   const doc = await buildReportPdf(model);
-  const fileName = reportFileName(model.meta.dateStamp);
+  const fileName = reportFileName(model.meta.dateStamp, model.meta.fileSlug);
   doc.save(fileName);
   return fileName;
 }

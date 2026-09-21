@@ -523,6 +523,141 @@ describe('réconciliation : apports + gain = patrimoine, et la somme des parts r
     ]);
   });
 
+  /**
+   * **Quatre producteurs à la fois** — le cas dont le rapport global dépend.
+   *
+   * Les cas ci-dessus n'en confrontent jamais plus de DEUX. Or la réconciliation qu'un rapport
+   * consolidé imprime réunit l'investissement, les prêts et un producteur PAR compte de trading
+   * (`state/history.svelte.ts`) : la cardinalité réelle est 0..N, et elle n'était pas gardée.
+   */
+  it('décompose quatre producteurs sans perdre un centime en route', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('invest', '12000', '10000'),
+        flat('hl:a', '3000', '4000'),
+        flat('hl:b', '500', '250'),
+        flat('lending', '2200', '2000'),
+      ],
+      days: days('2026-09-20'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    expect(r.lines).toHaveLength(4);
+    expect(r.net.toString()).toBe('17700');
+    expect(r.contributed.toString()).toBe('16250');
+    expect(r.gain.toString()).toBe('1450');
+    expect(r.lines.map((l) => [l.id, l.gain?.toString() ?? null])).toEqual([
+      ['invest', '2000'],
+      ['hl:a', '-1000'],
+      ['hl:b', '250'],
+      ['lending', '200'],
+    ]);
+    const sumValue = r.lines.reduce((acc, l) => acc.plus(l.value), ZERO);
+    const sumContributed = r.lines.reduce((acc, l) => acc.plus(l.contributed), ZERO);
+    const sumGain = r.lines.reduce((acc, l) => acc.plus(l.gain ?? ZERO), ZERO);
+    expect(sumValue.toString()).toBe(r.net.toString());
+    expect(sumContributed.toString()).toBe(r.contributed.toString());
+    expect(sumGain.toString()).toBe(r.gain.toString());
+  });
+
+  /**
+   * **Les deux drapeaux dans la même réconciliation.**
+   *
+   * Chacun était testé seul. Un rapport consolidé les rencontrera ensemble dès qu'un prêt n'est pas
+   * valorisable pendant qu'un compte de trading ne se recoupe pas. Ce qui compte n'est pas qu'ils
+   * soient vrais, c'est qu'ils ne se CONTAMINENT pas : la part non valorisable n'est pas « non
+   * recoupée », l'inverse non plus, et la part saine garde son résultat.
+   */
+  it('porte « incomplet » et « non recoupé » ensemble, sans que l’un maquille l’autre', () => {
+    const points = netWorthSeries({
+      contributions: [
+        flat('invest', '9000', '8000'),
+        { id: 'lending', label: 'Prêts', firstDay: null, valueAt: () => null },
+        {
+          id: 'hl',
+          label: 'Trading',
+          firstDay: null,
+          valueAt: () => ({
+            value: ZERO,
+            contributed: D('5000'),
+            estimated: false,
+            unreconciled: true,
+          }),
+        },
+      ],
+      days: days('2026-09-20'),
+    });
+    const r = reconcileNetWorth(latestNetWorth(points))!;
+    expect([r.incomplete, r.unreconciled]).toEqual([true, true]);
+    expect(r.lines.map((l) => [l.id, l.unavailable, l.unreconciled])).toEqual([
+      ['invest', false, false],
+      ['lending', true, false],
+      ['hl', false, true],
+    ]);
+    expect(r.lines.map((l) => l.gain?.toString() ?? null)).toEqual(['1000', null, null]);
+  });
+
+  /**
+   * **Ce qui est porté au coût voyage jusqu'à la ligne, nommément.**
+   *
+   * `reconcileNetWorth` recopie la part par un simple `...part` : rien ne vérifiait que `estimated`,
+   * `estimatedValue` et `estimatedAssets` y survivent. Un rapport qui circule doit pouvoir écrire
+   * « 250 € portés au coût, dont jeton-sans-cours » — sans ce passage il ne saurait que « quelque
+   * chose » est estimé, ce qui ne se met pas dans un PDF.
+   */
+  it('transmet à la ligne ce qui est porté au coût, nommément', () => {
+    const points = netWorthSeries({
+      contributions: [
+        {
+          id: 'invest',
+          label: 'Investissement',
+          firstDay: null,
+          valueAt: () => ({
+            value: D('1000'),
+            contributed: D('900'),
+            estimated: true,
+            estimatedValue: D('250'),
+            estimatedAssets: ['jeton-sans-cours'],
+          }),
+        },
+      ],
+      days: days('2026-09-20'),
+    });
+    const line = reconcileNetWorth(latestNetWorth(points))!.lines[0]!;
+    expect(line.estimated).toBe(true);
+    expect(line.estimatedValue.toString()).toBe('250');
+    expect(line.estimatedAssets).toEqual(['jeton-sans-cours']);
+  });
+
+  /**
+   * **L'invariant, pour un nombre QUELCONQUE de producteurs.**
+   *
+   * Les cas ci-dessus le vérifient sur deux puis quatre valeurs choisies par moi. Le rapport
+   * global, lui, imprimera ce que l'utilisateur a : un producteur ou onze. C'est l'identité que
+   * l'auto-vérification `net-worth-parts` contrôle en production, et qu'un document consolidé
+   * affirme dès son en-tête ; elle mérite d'être tirée au sort, pas illustrée.
+   */
+  it('Σ parts = total, quel que soit le nombre de producteurs (propriété)', () => {
+    const amount = fc.integer({ min: -1_000_000, max: 1_000_000 }).map((c) => String(c / 100));
+    fc.assert(
+      fc.property(fc.array(fc.tuple(amount, amount), { minLength: 1, maxLength: 11 }), (rows) => {
+        const points = netWorthSeries({
+          contributions: rows.map(([value, contributed], i) => flat(`p${i}`, value, contributed)),
+          days: days('2026-09-20'),
+        });
+        const r = reconcileNetWorth(latestNetWorth(points))!;
+        const sumValue = r.lines.reduce((acc, l) => acc.plus(l.value), ZERO);
+        const sumContributed = r.lines.reduce((acc, l) => acc.plus(l.contributed), ZERO);
+        const sumGain = r.lines.reduce((acc, l) => acc.plus(l.gain ?? ZERO), ZERO);
+        return (
+          r.lines.length === rows.length &&
+          sumValue.eq(r.net) &&
+          sumContributed.eq(r.contributed) &&
+          sumGain.eq(r.gain)
+        );
+      }),
+    );
+  });
+
   it('rend null sans point plutôt qu’une réconciliation vide', () => {
     expect(reconcileNetWorth(null)).toBeNull();
   });

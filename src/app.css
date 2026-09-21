@@ -19,6 +19,7 @@
   /* Accent par espace (proposition v2, § 6.0) : toujours doublé d'une icône et d'un libellé. */
   --accent-invest: #5b8def;
   --accent-trading: #f0a24b;
+  --accent-wealth: #3fbfa8;
   --gain: #4ade80;
   --loss: #f87171;
   --warn: #fbbf24;
@@ -65,6 +66,7 @@
   --accent-fg: #ffffff;
   --accent-invest: #2563eb;
   --accent-trading: #c2410c;
+  --accent-wealth: #0f766e;
   --gain: #15803d;
   --loss: #b91c1c;
   --warn: #b45309;
@@ -86,6 +88,7 @@
     --accent-fg: #ffffff;
     --accent-invest: #2563eb;
     --accent-trading: #c2410c;
+    --accent-wealth: #0f766e;
     --gain: #15803d;
     --loss: #b91c1c;
     --warn: #b45309;

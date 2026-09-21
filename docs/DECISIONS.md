@@ -5619,3 +5619,96 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      `watchSection()` du constructeur le laisse vert. C'est le parcours d'écran, aux titres
      explicites, qui garde celle-ci — et il rougit bien sur « Veille réglementaire ». Les deux
      garde-fous ne font pas le même travail, et il fallait le vérifier pour le savoir.
+
+175. **Un second rapport, et pas une ligne de rendu en plus** (20/09/2026, P117).
+
+     **Ce que le lot devait prouver.** La décision n° 174 affirmait qu'un périmètre de plus ne
+     coûterait rien aux rendus, puisque le modèle était devenu une liste ordonnée de sections que ni
+     `pdf.ts` ni le markup ne connaissent par leur nom. C'était une promesse ; ce lot l'a mise à
+     l'épreuve, et elle tient : `buildGlobalReportModel` rend le **même** `ReportModel`, et un test
+     confronte le PDF produit à la séquence de ce modèle. Le seul ajout qu'a exigé ce périmètre est
+     un gabarit de largeurs de colonnes — et c'est le **compilateur** qui l'a réclamé, `COLUMN_WIDTHS`
+     étant un `Record<TableKind, …>`. Une entrée manquante y est une erreur de type, pas une liste à
+     tenir à jour.
+
+     **Le modèle ne calcule rien.** Tout vient de `reconcileNetWorth`, qui posait déjà
+     `apports nets + résultat = patrimoine` et le dépliait producteur par producteur. Le rapport met
+     en mots et formate. L'invariant « la somme des parts refait le tout » reste gardé par
+     l'auto-vérification `net-worth-parts` (niveau `fail`, tolérance 1e-6) : le rapport ne crée pas
+     une seconde vérité, il affiche la somme à côté du total pour que le lecteur refasse le calcul.
+
+     **Trois mots ont été choisis contre leurs synonymes, sources à l'appui.** _Contribution_ et non
+     _attribution_ : l'attribution décompose un écart à un indice de référence en effets d'allocation
+     et de sélection, et il n'existe aucun indice par espace ici. _Multiple sur capital investi_ pour
+     le rapport résultat ÷ apports (MOIC/TVPI des gabarits ILPA) — pondéré par les montants, donc
+     **non comparable** au TWR du rapport d'investissement, qui neutralise exprès le calendrier des
+     versements ; la méthodologie le dit. Et un dénominateur nul rend ce multiple **indéfini** : le
+     rapport écrit « — », jamais « 0 % ».
+
+     **Un périmètre vide se nomme.** Dans un consolidé, une ligne qui disparaît se lit comme une
+     ligne à zéro. Les normes de présentation statistique distinguent « non disponible » de « zéro »
+     par des symboles dédiés, précisément pour cela ; et faire disparaître un poste d'un consolidé
+     est une agrégation qui masque de l'information. D'où `emptyScopes`, calculé par l'écran — lui
+     seul sait quels espaces existent.
+
+     **Le corps du rapport est devenu un composant.** `components/report/ReportBody.svelte` dessine
+     la garde, les sections et le pied ; les deux écrans l'emploient. Deux markups jumeaux ne
+     garantissent pas que la même signification garde la même apparence ; un seul, si. Ce qui reste
+     propre à un périmètre lui est passé en bribe — le récit IA, l'anneau de répartition.
+
+     **`#/patrimoine`, et non `#/report`.** Ce dernier est l'alias v1 du rapport d'investissement :
+     le détourner aurait cassé des favoris et des liens partagés. Le rapport consolidé n'appartient
+     d'ailleurs à aucun espace — il les additionne —, d'où un hash de premier niveau, comme
+     `#/impots`. Et sans courbe de patrimoine, l'écran **refuse d'ouvrir** : un tableau de zéros
+     serait un mensonge par mise en page.
+
+     **Deux points de couplage n'étaient gardés par rien**, trouvés en inventoriant ce qu'une route
+     neuve oblige à toucher. `App.svelte` est une chaîne de `{#if route.name === …}` terminée par un
+     repli : une route déclarée, comprise par le routeur, rangée dans son espace et **oubliée là**
+     retombe en silence sur la Vue d'ensemble — le pire des défauts, celui dont le symptôme ressemble
+     à un fonctionnement normal. Un test le garde désormais. Et le nom du fichier téléchargé était
+     l'affaire de l'appelant : deux rapports différents s'écrasaient l'un l'autre. Il est maintenant
+     porté par le modèle.
+
+     **Contre-épreuves** (décision n° 75), sept, chacune vue rouge en nommant son sujet. Compter une
+     part sans résultat pour zéro ; écrire « 0 % » un multiple indéfini ; omettre le périmètre vide
+     (rouge **aussi** côté PDF, ce qui prouve que la ligne atteint le papier) ; déplacer une section ;
+     recopier l'avertissement qui nomme Coinhouse ; retirer la branche de la route ; et, côté
+     réconciliation, perdre une part **au-delà de quatre producteurs** — faute que seul le test de
+     propriété attrape, les cas énumérés restant tous verts.
+
+     **Ce qui reste une seconde source de vérité, et c'est toujours dit.** L'anneau de répartition
+     lit `app.report.allocation`, pas le modèle : celui-ci porte le fait qu'une figure accompagne le
+     tableau, pas ses données. Le rapport de patrimoine n'en affiche aucune, donc la question ne se
+     pose pas encore — elle se posera à P116, quand un rapport par espace voudra la sienne.
+
+176. **« Patrimoine » ne nomme plus qu'une chose** (20/09/2026, P116, premier morceau).
+
+     Le mot désignait à la fois le **total consolidé** de la Vue d'ensemble et l'**espace des prêts**
+     dans la navigation. L'arbitrage était pris le matin même ; c'est le rapport de patrimoine qui a
+     rendu la collision intenable, en imprimant « Patrimoine : aucune donnée » au milieu d'un
+     document intitulé « Rapport de patrimoine » dont le total s'appelle lui aussi « Patrimoine ».
+     Une catégorie sœur homonyme du tout qu'elle compose viole le MECE dès son titre.
+
+     **L'espace s'appelle « Prêts ». L'identifiant `wealth` et le hash `#/wealth` ne bougent pas** :
+     un identifiant n'est pas un libellé, et un lien partagé ne se casse pas pour un mot. L'écran
+     lui-même titrait déjà « Prêts » — c'est la barre de navigation qui disait autre chose, et donc
+     l'application qui se contredisait d'un écran à l'autre.
+
+     **Le même principe avait un troisième manquement, jamais corrigé.** La carte « Répartition »
+     choisissait la couleur de la barre par `id === 'invest' ? 'invest' : 'trading'` : les Prêts s'y
+     peignaient dans la couleur du **trading**, tout en portant la bordure de l'**investissement**
+     dans la légende juste dessous, faute de règle dédiée. Trois endroits décidaient chacun de leur
+     côté ; la décision n° 117 en avait corrigé un (le lien), un autre l'avait été depuis (la
+     bordure), et le troisième ne l'avait jamais été. Ils lisent désormais un seul
+     `spaceOfProducer()`, et le troisième espace a enfin son propre accent (`--accent-wealth`) —
+     il retombait sur l'accent générique, comme le font encore « Vue d'ensemble » et « Plus ».
+
+     Cette reconnaissance par chaîne de caractères est **provisoire et dite telle** : un producteur
+     devrait porter son espace plutôt que le voir deviné à la lecture de son identifiant. Le repli
+     sur `trading` existe parce qu'un compte de trading porte son propre identifiant, inconnu
+     d'avance. La suite de P116 le remplacera par un champ.
+
+     **Contre-épreuves** : rendre les Prêts au `trading` (le comportement exact de la barre) fait
+     rougir le garde-fou du registre ; remettre « Patrimoine » sur l'espace fait rougir deux parcours
+     de navigation.

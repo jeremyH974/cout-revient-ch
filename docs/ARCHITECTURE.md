@@ -186,6 +186,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 - `src/lib/format/fr.ts` — le seul endroit qui arrondit (Intl fr-FR). C'est aussi là que vit
   `displayGap` : l'écart entre deux montants **tel qu'il doit s'afficher**, calculé sur les valeurs
   arrondies, sans quoi trois nombres justes affichent une addition fausse d'un centime.
+- `src/lib/export/global-report-model.ts` — le **second** constructeur de rapport, assis sur
+  `reconcileNetWorth` : apports nets + résultat = patrimoine, une ligne par producteur. Il rend
+  le même `ReportModel` que le premier, et `src/components/report/ReportBody.svelte` le dessine
+  sans une ligne de rendu en plus — c'est la mise à l'épreuve de la liste ordonnée de sections.
+  Le seul ajout exigé fut un gabarit de largeurs de colonnes, réclamé par le compilateur.
 - `src/lib/export/report-model.ts` — le rapport, **mise en page exclue** : `ReportModel.sections`
   est une LISTE ORDONNÉE (décision n° 174). Chaque section porte son enveloppe (titre, `lead` avant
   le bloc, `note` après, avertissements, `breakBefore`) et l'un de six `ReportBlock`. Les deux
@@ -224,11 +229,18 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et
   sa cible de retour de barre d'application :
   - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
-    résultats de nature différente) : `overview`, `welcome`.
+    résultats de nature différente) : `overview`, `welcome`, `netWorthReport`.
+    Ce dernier (`#/patrimoine`) est le **rapport consolidé** : il n'appartient à aucun espace
+    puisqu'il les additionne, d'où un hash de premier niveau. `#/report` reste l'alias v1 du
+    rapport d'investissement — le détourner aurait cassé des favoris.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
-    `secondOpinion`, `alerts`.
-  - **Patrimoine** (`#/wealth`) : `titles`, l’écran des actions et fonds indiciels — classe
-    d’actif et régime fiscal distincts de la crypto (décisions n° 103 et 106).
+    `secondOpinion`, `alerts`, `titles` — ce dernier est l’écran des actions et fonds indiciels,
+    classe d’actif et régime fiscal distincts de la crypto (décisions n° 103 et 106), rattaché
+    ici par la décision n° 122. Ce document le rangeait encore dans l’espace voisin.
+  - **Prêts** (`#/wealth`) : `loans`, et lui seul. Le libellé de navigation disait
+    « Patrimoine » jusqu’au 20/09/2026 ; ce mot est maintenant réservé au **total consolidé**,
+    que le rapport de patrimoine et la Vue d’ensemble nomment ainsi. L’identifiant `wealth` et
+    le hash `#/wealth` ne changent pas.
     `loans` (`#/wealth/loans`) est l'écran des prêts de financement participatif : il ne dépend pas
     de `hasData` (état vide informatif, comme l'espace Trading) et n'affiche en tête que deux
     chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
@@ -255,8 +267,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
     (`derive/tax-forecast.ts`, décision n° 171).
 
-  Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `portfolio`, `asset`, `import`,
-  `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
+  Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `netWorthReport`, `portfolio`,
+  `asset`, `import`, `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
   `tradeStats`, `tradeBreakeven`, `fills`, `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
   `reconciliation`, `settings`, `help`, `news`, `privacy`.
 
