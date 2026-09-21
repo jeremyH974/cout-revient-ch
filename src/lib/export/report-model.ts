@@ -51,11 +51,18 @@ export const DISCLAIMER =
   'gestion : ils ne constituent ni un conseil en investissement, ni un calcul fiscal (la plus-value ' +
   'imposable en France suit la méthode globale de l’article 150 VH bis du CGI).';
 
-const NONE = '—';
+/*
+ * Les aides ci-dessous sont partagées avec le constructeur du rapport de patrimoine
+ * (`global-report-model.ts`) : un second périmètre doit formater ses montants, ses tons et ses
+ * dates EXACTEMENT comme le premier, sans quoi deux rapports du même outil se liraient
+ * différemment. Elles sont exportées plutôt que recopiées ; si un troisième périmètre s'y
+ * ajoute, elles méritent leur propre module.
+ */
+export const NONE = '—';
 
 export type Tone = 'neutral' | 'gain' | 'loss';
 export type Align = 'left' | 'right';
-export type TableKind = 'allocation' | 'positions' | 'stablecoins' | 'closed';
+export type TableKind = 'allocation' | 'positions' | 'stablecoins' | 'closed' | 'contribution';
 
 export interface ReportCell {
   text: string;
@@ -152,7 +159,7 @@ export interface ReportSection {
 }
 
 /** Une section de détails : la forme la plus courante, d'où ce raccourci. */
-const detailsSection = (
+export const detailsSection = (
   id: SectionId,
   title: string,
   details: ReportKpi[],
@@ -169,7 +176,7 @@ const detailsSection = (
 });
 
 /** Une section de tableau : titre et note appartiennent à l'enveloppe, plus au tableau. */
-const tableSection = (
+export const tableSection = (
   id: SectionId,
   title: string,
   lead: string | null,
@@ -209,6 +216,12 @@ export interface ReportModel {
     discreet: boolean;
     /** AAAA-MM-JJ (date locale de génération), pour le nom de fichier. */
     dateStamp: string;
+    /**
+     * Le mot qui distingue ce rapport dans le nom du fichier téléchargé. Porté par le MODÈLE
+     * et non passé à l'appelant : deux rapports différents qui se téléchargent sous le même
+     * nom s’écrasent, et personne ne s’en aperçoit avant d’avoir perdu le premier.
+     */
+    fileSlug: string;
   };
   cover: {
     title: string;
@@ -280,14 +293,14 @@ export interface ReportPerformance {
   partialAssets: number;
 }
 
-interface Formatter {
+export interface Formatter {
   money(value: Big | null, sign?: boolean): string;
   qty(value: Big | null): string;
   price(value: Big | null): string;
   pct(value: Big | null, sign?: boolean): string;
 }
 
-function createFormatter(discreet: boolean, currency: Currency): Formatter {
+export function createFormatter(discreet: boolean, currency: Currency): Formatter {
   return {
     // Le signe est décidé par `fmtMoney` sur la valeur arrondie : « 0,00 € » n'est jamais signé.
     money: (value, sign = false) => {
@@ -302,10 +315,14 @@ function createFormatter(discreet: boolean, currency: Currency): Formatter {
 }
 
 /** Ton d'une valeur telle qu'affichée : neutre si elle s'arrondit à zéro (`dp` = 3 pour un ratio). */
-const toneOf = (value: Big | null, dp = 2): Tone =>
+export const toneOf = (value: Big | null, dp = 2): Tone =>
   value === null || roundsToZero(value, dp) ? 'neutral' : value.lt(ZERO) ? 'loss' : 'gain';
 
-const cell = (text: string, tone: Tone = 'neutral', sub: string | null = null): ReportCell => ({
+export const cell = (
+  text: string,
+  tone: Tone = 'neutral',
+  sub: string | null = null,
+): ReportCell => ({
   text,
   sub,
   tone,
@@ -321,12 +338,13 @@ function assetCell(code: AssetCode, extra: string | null = null): ReportCell {
 const sumBy = (items: PositionReport[], pick: (p: PositionReport) => Big | null): Big =>
   items.reduce((acc, p) => acc.plus(pick(p) ?? ZERO), ZERO);
 
-const plural = (n: number, one: string, many: string): string => `${n} ${n > 1 ? many : one}`;
+export const plural = (n: number, one: string, many: string): string =>
+  `${n} ${n > 1 ? many : one}`;
 
 const tickers = (codes: AssetCode[]): string => codes.map((c) => c.toUpperCase()).join(', ');
 
 /** Date et heure locales d'un instant ISO : libellé « JJ/MM/AAAA à HH:MM » et tampon AAAA-MM-JJ. */
-function localDateTime(
+export function localDateTime(
   iso: string,
   timeZone: string | undefined,
 ): { label: string; stamp: string } {
@@ -1326,6 +1344,7 @@ export function buildReportModel(report: PortfolioReport, opts: ReportModelOptio
       currency,
       discreet: opts.discreet,
       dateStamp: generated.stamp,
+      fileSlug: 'rapport',
     },
     cover: {
       title: REPORT_TITLE,

@@ -405,9 +405,9 @@ réellement quelque chose.
 
 | #    | Proposition                                                                                 | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
 | ---- | ------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
-| P117 | Le rapport global, assis sur `reconcileNetWorth`, avec l'invariant Σ parts = total          |   5    |     3     |    4    |    1     | **12**  |
+| P117 | **Livré (20/09/2026, décision n° 175).** Le rapport global, assis sur `reconcileNetWorth`   |   5    |     3     |    4    |    1     | **12**  |
 | P115 | **Livré (20/09/2026, décision n° 174).** Le modèle de rapport devient une liste de sections |   2    |     4     |    0    |   1,5    |  **4**  |
-| P116 | Registre `REPORTS` : un rapport par espace, une route par périmètre                         |   4    |     2     |    5    |    2     | **5,5** |
+| P116 | **Entamé** (renommage livré, décision n° 176). Registre `REPORTS`, un rapport par espace    |   4    |     2     |    5    |   1,5    | **5,5** |
 | P118 | Le rapport honore la plage d'analyse, année en cours comprise                               |   5    |     2     |    5    |   2,5    | **4,8** |
 
 **P115 est livrée le 20/09/2026, et elle a coûté une demi-session de plus que prévu** — pour une
@@ -417,6 +417,19 @@ sections. Poser ce filet **avant** de remanier a été ajouté en étape 0, et c
 défaut que la proposition n'annonçait pas : **le PDF ne contenait pas la section 3916-bis**, alors
 que l'écran l'affiche depuis toujours. La leçon vaut pour P116 et P117 : mesurer ce qui garde une
 zone avant d'estimer ce que coûte d'y toucher.
+
+**P117 est livrée le 20/09/2026, dans la session de P115**, et elle a tenu son estimation. Ce
+qui n'était pas prévu, c'est qu'elle **force** le renommage de P116 : la section « Ce que ce
+document ne dit pas » imprimait « Patrimoine : aucune donnée » dans un document intitulé
+« Rapport de patrimoine ». La proposition avait vu juste en écrivant que le renommage se ferait
+« pas avant : c'est le rapport global qui rend la collision visible » — il l'a rendue visible en
+production, et attendre aurait signifié livrer sciemment un contresens. Le reste de P116 (le
+registre `REPORTS`, les routes par espace) est intact.
+
+**Deux garde-fous manquants ont été posés en chemin**, trouvés en inventoriant les sept points
+de couplage qu'une route neuve oblige à toucher : `App.svelte` ne vérifiait pas qu'une route
+déclarée a bien sa branche, et les deux listes de `a11y.spec.ts` restent tenues à la main. Le
+premier est gardé ; le second ne l’est toujours pas, et le reste de P116 devra le traiter.
 
 **Ordre retenu** : P115 → P117 → P116 → P118. Il n'est pas celui du ROI brut : **P115 conditionne
 les trois autres** — tant que `ReportModel` impose quatre tableaux d'investissement, ni le global ni

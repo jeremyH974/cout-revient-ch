@@ -29,6 +29,7 @@
   import { resolveWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import { netWorthChange, netWorthPartChanges } from '$lib/history/net-worth';
   import { router } from '$lib/router.svelte';
+  import { spaceOfProducer } from '$lib/spaces';
   import NetWorthCard from '../components/charts/NetWorthCard.svelte';
   import RangePicker from '../components/charts/RangePicker.svelte';
   import ShareSheet from '../components/shared/ShareSheet.svelte';
@@ -391,10 +392,7 @@
           reconciliation.lines.map((l) => `${l.label} ${shareOf(l.value) ?? 0} %`).join(', ')}
       >
         {#each reconciliation.lines as line (line.id)}
-          <span
-            class={line.id === 'invest' ? 'invest' : 'trading'}
-            style="width: {shareOf(line.value) ?? 0}%"
-          ></span>
+          <span class={spaceOfProducer(line.id)} style="width: {shareOf(line.value) ?? 0}%"></span>
         {/each}
       </div>
     {/if}
@@ -402,7 +400,7 @@
       {#each reconciliation.lines as line (line.id)}
         {@const share = shareOf(line.value)}
         {@const moved = changeOf(line.id)}
-        <li class={line.id === 'invest' ? 'invest' : line.id === 'lending' ? 'lending' : 'trading'}>
+        <li class={spaceOfProducer(line.id)}>
           <a href={routeOf(line.id)}>
             <span class="name">{line.label}</span>
             <span class="amount"><Money value={line.value} /></span>
@@ -447,6 +445,13 @@
         lui, le résultat total aux apports.
       </p>
     {/if}
+    <!--
+      La porte du rapport consolidé. Une route sans lien n'existe pas : c'est ici qu'on la place,
+      au pied de la carte qui montre déjà cette décomposition, et non dans un menu.
+    -->
+    <a class="report-link" href={router.href({ name: 'netWorthReport' })}>
+      Rapport de patrimoine (PDF) →
+    </a>
   </section>
 {/if}
 
@@ -760,6 +765,9 @@
   .bar .trading {
     background: var(--accent-trading);
   }
+  .bar .wealth {
+    background: var(--accent-wealth);
+  }
   .rows {
     list-style: none;
     margin: 0;
@@ -773,6 +781,18 @@
   }
   .rows > li.trading {
     border-left-color: var(--accent-trading);
+  }
+  .rows > li.wealth {
+    border-left-color: var(--accent-wealth);
+  }
+  .report-link {
+    justify-self: start;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .report-link:hover {
+    text-decoration: underline;
   }
   /*
    * Deux dispositions, décidées sur la largeur de la CARTE et non de la fenêtre (container query,

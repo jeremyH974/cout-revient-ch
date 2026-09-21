@@ -9,6 +9,7 @@
   import Market from './routes/Market.svelte';
   import More from './routes/More.svelte';
   import News from './routes/News.svelte';
+  import NetWorthReport from './routes/NetWorthReport.svelte';
   import Overview from './routes/Overview.svelte';
   import Privacy from './routes/Privacy.svelte';
   import Reconciliation from './routes/Reconciliation.svelte';
@@ -173,6 +174,8 @@
           <Help />
         {:else if route.name === 'report'}
           <Report />
+        {:else if route.name === 'netWorthReport'}
+          <NetWorthReport />
         {:else if route.name === 'declaration'}
           <Declaration />
         {:else if route.name === 'taxes'}

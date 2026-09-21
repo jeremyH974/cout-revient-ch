@@ -4,11 +4,11 @@
  * provoque aucune erreur — elle envoie simplement l'utilisateur ailleurs (décision n° 122).
  */
 import { describe, expect, it } from 'vitest';
-import { SPACES, spaceOf } from './spaces';
+import { SPACES, spaceOf, spaceOfProducer } from './spaces';
 import type { RouteName } from './router.svelte';
 
 describe('registre des espaces', () => {
-  it('range les actifs cotés dans l’Investissement, le non-coté dans le Patrimoine', () => {
+  it('range les actifs cotés dans l’Investissement, les prêts dans leur propre espace', () => {
     // Crypto et titres partagent le moteur et le prix de revient moyen pondéré ; ce qui les sépare
     // est leur régime fiscal, pas leur nature de placement. Un prêt, lui, n'a pas de cours.
     expect(spaceOf('portfolio').id).toBe('invest');
@@ -30,5 +30,24 @@ describe('registre des espaces', () => {
         seen.add(name);
       }
     }
+  });
+
+  /**
+   * **La barre de répartition et sa légende doivent nommer le MÊME espace.** Elles ne le faisaient
+   * pas : les Prêts sortaient « trading » dans la barre et retombaient sur la bordure de
+   * l'investissement dans la légende, faute de règle dédiée. Les deux lisent désormais cette
+   * fonction, et ce test dit ce qu'elle doit rendre.
+   */
+  it('range chaque producteur de la courbe dans son espace', () => {
+    expect(spaceOfProducer('invest')).toBe('invest');
+    expect(spaceOfProducer('lending')).toBe('wealth');
+    // Un compte de trading porte son propre identifiant : le repli existe pour lui seul.
+    expect(spaceOfProducer('0xabc123')).toBe('trading');
+  });
+
+  it('ne range jamais un producteur dans un espace absent du registre', () => {
+    const ids = SPACES.map((s) => s.id);
+    for (const producer of ['invest', 'lending', '0xabc123', 'inconnu'])
+      expect(ids).toContain(spaceOfProducer(producer));
   });
 });
