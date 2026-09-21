@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/` et les sept moteurs fiscaux. Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 96` est un CLIQUET posé sous le score mesuré (97,03 % le 20/09/2026, contre 96,51 % le 15/09 et 86,47 % la veille du premier relevé), jamais une cible ; on le resserre à chaque gain durable. Voir docs/tests-de-mutation.md.",
+  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/`, les sept moteurs fiscaux et `history/window.ts` (la fenêtre d’analyse du Rapport, P118). Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 96` est un CLIQUET posé sous le score mesuré (97,03 % le 20/09/2026, contre 96,51 % le 15/09 et 86,47 % la veille du premier relevé), jamais une cible ; on le resserre à chaque gain durable. Voir docs/tests-de-mutation.md.",
   "packageManager": "npm",
   "testRunner": "vitest",
   "vitest": {
@@ -18,6 +18,7 @@
     "src/lib/domain/interest-income-fr.ts",
     "src/lib/domain/lending/tax-fr.ts",
     "src/lib/domain/declarations-fr.ts",
+    "src/lib/history/window.ts",
     "!**/*.test.ts"
   ],
   "_comment_sandbox": "Le bac à sable est une COPIE du projet. Sans ces exclusions il embarque le cache de pré-bundling de Vite (`.vite`), et deux exécutions qui se chevauchent se disputent le même renommage : `EPERM (rename)` sous Windows, sur un chemin qui n'accuse ni le code ni les tests (décision n° 149). Les autres entrées ne sont que du poids mort recopié à chaque exécution.",

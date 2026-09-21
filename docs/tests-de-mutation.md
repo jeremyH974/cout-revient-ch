@@ -269,7 +269,9 @@ rien.
 
 `stryker.config.json` mute `src/lib/derive` et les **sept moteurs fiscaux** de `src/lib/domain` —
 les modules **purs**, sans DOM, sans horloge, sans navigateur, et ceux qui produisent les montants
-qu'un utilisateur recopiera dans une déclaration.
+qu'un utilisateur recopiera dans une déclaration. S'y ajoute `src/lib/history/window.ts` (P118) :
+pur lui aussi, il produit les flux, le gain et les rendements de la fenêtre d'analyse du Rapport,
+et il vit dans `history` parce qu'il lit la série quotidienne.
 
 - **`src/state` est hors périmètre** : ce sont des classes à runes couplées au navigateur, que
   Vitest n'exécute pas. C'est pourtant là qu'est le vrai trou — `app.svelte.ts` est à **0 %** de

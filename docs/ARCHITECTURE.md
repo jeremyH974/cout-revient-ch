@@ -130,6 +130,13 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   seul fournisseur coté en **dollars** : sa conversion au taux BCE du jour est **injectée** depuis
   `state/history.svelte.ts` (série `fx.rates.USD`, chargée quelle que soit la devise d'affichage) et
   un jour sans taux voit son point omis plutôt que converti de travers. Décision n° 42.
+  `window.ts` (P118) est le cœur pur de la **fenêtre d'analyse** du Rapport : une fenêtre
+  `{ from, to }` couvre ses jours bornes incluses, part de la clôture de la **veille** de `from` et
+  arrive à celle de `to`. Ses flux de résultat sont un filtre de dates sur un seul résultat du
+  moteur (aucun rejeu du grand livre), son TWR la série tranchée à la veille de `from` (chaînage
+  géométrique, GIPS 2020 2.A.24.f), son rendement pondéré par les flux reçoit la valeur d'ouverture
+  comme un premier versement, et son gain est exactement additif d'une fenêtre à la suivante.
+  Depuis l'origine, elle redonne au dernier chiffre le XIRR et le TWR que le Rapport affichait.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, sauvegarde JSON et fusion.
   Persistance à deux étages (docs/DECISIONS.md n° 21) : `idb-state-store.ts` (IndexedDB, base
   `crch-state`, source principale, sans le plafond ~5 Mo de localStorage) et `local-storage.ts`
@@ -208,7 +215,10 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   d'une qualification à ses lignes brutes, l'aplatissement des cinq moteurs fiscaux en une liste
   de cases à remplir (`tax-return.ts`, décision n° 149) et l'arbitrage forfait / barème
   (`pfu-vs-bareme.ts`, décision n° 150), qui chiffre un écart à une hypothèse donnée sans jamais
-  recommander une option. Le câblage réactif, lui, reste dans `src/state` : l'y
+  recommander une option. La règle de présentation d'un rendement y vit aussi
+  (`presented-return.ts`, P118) : annualisé à partir de 365 jours, rendement de la période en deçà
+  (GIPS 2020, 2.A.12 et 5.A.1.b) — un seuil de présentation, distinct du plancher de bruit de
+  30 jours du moteur, qui ne bouge pas. Le câblage réactif, lui, reste dans `src/state` : l'y
   extraire déplacerait du code sans rien rendre testable.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
@@ -302,13 +312,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   tranches ; et, sur le prévisionnel, que vendre davantage fait varier le résultat de l'année
   toujours dans le même sens — c'est elle qui a montré que le domaine est borné par la valeur du
   portefeuille ; et, sur l'addition, que la somme des lignes vaut toujours le solde et que le
-  défaut ne coûte jamais plus cher qu'un choix imposé. Treize fichiers `*.property.test.ts`, croisés
-  avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
+  défaut ne coûte jamais plus cher qu'un choix imposé ; et, sur la fenêtre d'analyse du Rapport,
+  que le TWR de deux fenêtres contiguës se chaîne en celui de leur réunion, que « depuis
+  l'origine » redonne le XIRR du Rapport, que flux et gains s'additionnent exactement d'une fenêtre
+  à l'autre, que le gain se décompose en réalisé et variation du latent sur le vrai moteur, et
+  qu'aucun rendement n'est présenté annualisé sous 365 jours. Quinze fichiers `*.property.test.ts`,
+  croisés avec le dépôt par `tests/integration/architecture-doc.test.ts`. **Liste vérifiée** :
   `anchor.property.test.ts`, `engine.property.test.ts`, `sort-order.property.test.ts`,
   `trace.property.test.ts`, `reconciliation.property.test.ts`, `second-opinion.property.test.ts`,
   `mapping.property.test.ts`, `payload.property.test.ts`, `koinly-roundtrip.property.test.ts`,
   `household-tax.property.test.ts`, `tax-choice.property.test.ts`, `tax-forecast.property.test.ts`,
-  `tax-bill.property.test.ts`.
+  `tax-bill.property.test.ts`, `window.property.test.ts`, `presented-return.property.test.ts`.
 - **Charge** (`tests/perf/`) : le garde-fou `engine-load.test.ts` tourne en CI et **ne chronomètre
   rien** — un test qui mesure des millisecondes sur un runner partagé clignote, et un garde-fou qui
   clignote finit désactivé. Il compte deux grandeurs déterministes : objets de trace produits
