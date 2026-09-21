@@ -137,6 +137,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   géométrique, GIPS 2020 2.A.24.f), son rendement pondéré par les flux reçoit la valeur d'ouverture
   comme un premier versement, et son gain est exactement additif d'une fenêtre à la suivante.
   Depuis l'origine, elle redonne au dernier chiffre le XIRR et le TWR que le Rapport affichait.
+  **Cette lecture vaut pour toute l'application** depuis la décision n° 179 : `periodWindow` rend
+  le premier jour compris (et non plus le jour de base), `openingDay` la veille, et les courbes
+  se découpent par `windowSeries` (`series.ts`), point d'ouverture compris — une seule définition
+  d'une plage pour la Vue d'ensemble, la carte Évolution, les statistiques de trading et le
+  Rapport. `history.reportWindow` (état) assemble ce que la synthèse du Rapport lit.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, sauvegarde JSON et fusion.
   Persistance à deux étages (docs/DECISIONS.md n° 21) : `idb-state-store.ts` (IndexedDB, base
   `crch-state`, source principale, sans le plafond ~5 Mo de localStorage) et `local-storage.ts`

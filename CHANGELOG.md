@@ -7,6 +7,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
+  d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
+  rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui
+  change de sens change de nom : sur un mois, on lit « Réalisé sur la période » et « Résultat sur
+  la période », jamais un total qui ne l'est plus. Les sections fiscales, elles, suivent toujours
+  l'année fiscale. Le rapport de trading applique la plage à ses statistiques, comme l'écran
+  Statistiques.
+
 - **Un rapport par espace.** Le trading et les prêts ont désormais chacun leur rapport, à
   télécharger en PDF ou à imprimer, avec la même mise en page que les rapports de portefeuille et de
   patrimoine. On le trouve au pied de la carte qui montre ce qu'il résume, et chaque rapport mène
@@ -245,6 +253,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Changed
 
+- **Sous un an de données, le rapport ne donne plus de rendement « par an ».** Il le donne sur la
+  période, dates à l'appui. Prolonger quelques mois sur une année produit un chiffre simulé, que la
+  norme de présentation des performances (GIPS) interdit : sur la démonstration, l'ancien rapport
+  affichait +67 % « annualisé » à partir de sept mois et demi, là où la période rapportait +39 %.
+  Le libellé suit : « Rendement pondéré par les capitaux », et non plus « annualisé ». Les autres
+  écrans ne changent pas.
+
 - **La vue d'ensemble s'ouvre sur votre patrimoine, plus sur une liste de vérifications.** Un seul
   contrôle en échec faisait monter la liste entière en haut de l'écran, au-dessus de la courbe :
   l'écran qu'on ouvre pour lire un chiffre commençait par une liste de conseils. Désormais,
@@ -254,6 +269,13 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   complète reste dans les réglages.
 
 ### Fixed
+
+- **Une plage de dates comptait mal ses bornes.** Choisie à la main, elle oubliait la variation de
+  son premier jour sur la Vue d'ensemble ; choisie parmi les présélections, elle comptait un jour
+  de trop dans les statistiques de trading (« 1 semaine » y couvrait huit jours). Une seule lecture
+  désormais : du premier au dernier jour, bornes comprises, depuis la clôture de la veille. Et la
+  courbe de patrimoine comme la carte Évolution suivent enfin une plage choisie à la main, au lieu
+  de retomber sur « Tout ».
 
 - **Le rapport de patrimoine imprimait « EUR » quelle que soit la devise d'affichage.** En dollars,
   ses montants étaient des dollars, étiquetés en euros.
