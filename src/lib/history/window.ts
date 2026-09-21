@@ -41,8 +41,8 @@ import { ZERO, type Big } from '../domain/money';
 import { twrEur, type TwrDay, type TwrFlow, type TwrResult } from '../domain/twr';
 import type { AssetCode, LedgerEvent } from '../domain/types';
 import { xirrEur, type XirrFlow, type XirrResult } from '../domain/xirr';
-import { addDays, dayOfNaive } from './days';
-import { sliceSeries, type DayWindow } from './series';
+import { dayOfNaive } from './days';
+import { openingDay, sliceSeries, type DayWindow } from './series';
 import type { DayString } from './types';
 
 /** Vrai si l'horodatage (naïf ou jour) tombe dans la fenêtre, bornes incluses. */
@@ -51,10 +51,9 @@ export function inWindow(at: string, window: DayWindow): boolean {
   return (window.from === null || day >= window.from) && day <= window.to;
 }
 
-/** Jour dont la clôture sert de départ : la veille de `from` ; `null` depuis l'origine. */
-export function openingDay(window: DayWindow): DayString | null {
-  return window.from === null ? null : addDays(window.from, -1);
-}
+// La veille de `from` : définie avec la fenêtre elle-même (`series.ts`), pour que la courbe et le
+// Rapport ne puissent pas en avoir deux lectures.
+export { openingDay };
 
 /**
  * Valeur à la clôture d'un jour : celle du dernier point dont le jour le précède ou l'égale, dans

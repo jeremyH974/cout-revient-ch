@@ -9,9 +9,11 @@ import {
   lastPointAtOrBefore,
   mergeLivePoint,
   periodPerformance,
+  openingDay,
   periodWindow,
   resolveWindow,
   sliceSeries,
+  windowSeries,
   valueSeries,
   type FlowPoint,
   type ValuePoint,
@@ -233,21 +235,37 @@ describe('actif sans cotation en tête de série (XYZ)', () => {
 });
 
 describe('périodes', () => {
-  it('periodWindow borne chaque période en calendaire UTC', () => {
-    expect(periodWindow('1d', '2026-08-22')).toEqual({ from: '2026-08-21', to: '2026-08-22' });
-    expect(periodWindow('1w', '2026-08-22')).toEqual({ from: '2026-08-15', to: '2026-08-22' });
-    expect(periodWindow('1m', '2026-03-31')).toEqual({ from: '2026-02-28', to: '2026-03-31' });
-    expect(periodWindow('3m', '2026-08-22')).toEqual({ from: '2026-05-22', to: '2026-08-22' });
-    expect(periodWindow('1y', '2024-02-29')).toEqual({ from: '2023-02-28', to: '2024-02-29' });
+  it('periodWindow rend le PREMIER jour compris, en calendaire UTC (décision n° 179)', () => {
+    // « 1 mois » au 31 mars couvre du 1er au 31 mars ; sa base est la clôture du 28 février.
+    expect(periodWindow('1d', '2026-08-22')).toEqual({ from: '2026-08-22', to: '2026-08-22' });
+    expect(periodWindow('1w', '2026-08-22')).toEqual({ from: '2026-08-16', to: '2026-08-22' });
+    expect(periodWindow('1m', '2026-03-31')).toEqual({ from: '2026-03-01', to: '2026-03-31' });
+    expect(periodWindow('3m', '2026-08-22')).toEqual({ from: '2026-05-23', to: '2026-08-22' });
+    expect(periodWindow('1y', '2024-02-29')).toEqual({ from: '2023-03-01', to: '2024-02-29' });
     expect(periodWindow('all', '2026-08-22')).toEqual({ from: null, to: '2026-08-22' });
   });
 
-  it('sliceSeries restreint à la fenêtre', () => {
+  it('une semaine compte sept jours de flux, pas huit', () => {
+    // Le défaut corrigé : le jour de BASE était rangé dans `from`, et un filtre de flux « jour ≥
+    // from » (les trades clos, les fills) comptait donc un jour de trop.
+    const { from, to } = periodWindow('1w', '2026-08-22');
+    expect(eachDay(from!, to)).toHaveLength(7);
+  });
+
+  it('windowSeries garde la clôture d’ouverture ; sliceSeries reste un simple filtre de jours', () => {
     const series = eachDay('2026-08-01', '2026-08-31').map((day) => point(day, '1'));
-    expect(sliceSeries(series, periodWindow('1w', '2026-08-22')).map((p) => p.day)).toEqual(
+    // Une présélection : la même coupe qu'avant — la courbe et le bandeau n'en bougent pas.
+    expect(windowSeries(series, periodWindow('1w', '2026-08-22')).map((p) => p.day)).toEqual(
       eachDay('2026-08-15', '2026-08-22'),
     );
-    expect(sliceSeries(series, { from: null, to: '2026-08-02' })).toHaveLength(2);
+    // Une plage libre garde la veille de son premier jour : sa première variation disparaissait.
+    expect(
+      windowSeries(series, { from: '2026-08-10', to: '2026-08-12' }).map((p) => p.day),
+    ).toEqual(['2026-08-09', '2026-08-10', '2026-08-11', '2026-08-12']);
+    expect(sliceSeries(series, { from: '2026-08-10', to: '2026-08-12' })).toHaveLength(3);
+    expect(windowSeries(series, { from: null, to: '2026-08-02' })).toHaveLength(2);
+    expect(openingDay({ from: '2026-03-01', to: '2026-03-31' })).toBe('2026-02-28');
+    expect(openingDay({ from: null, to: '2026-03-31' })).toBeNull();
   });
 
   it('periodPerformance neutralise les apports (bornes exclusive/inclusive, Dietz modifié)', () => {

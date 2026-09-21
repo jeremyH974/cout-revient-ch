@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { fmtDate, fmtMoney } from '$lib/format/fr';
-  import { periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import { resolveWindow, todayOf, windowSeries, type Period } from '$lib/history';
   import {
     estimatedShare,
     hasUnavailable,
@@ -26,10 +26,11 @@
   // La série est calculée une fois dans l'état d'historique : le bandeau, la réconciliation et
   // cette courbe lisent le MÊME objet, donc aucun des trois ne peut diverger des deux autres.
   const series = $derived<NetWorthPoint[]>(history.netWorth);
-  const window = $derived(periodWindow(period, today));
-  const visible = $derived(
-    sliceSeries(series, { from: window.from ?? series[0]?.day ?? today, to: window.to }),
-  );
+  // La plage libre aussi, et plus seulement les présélections : `periodWindow` seul rendait
+  // « Tout » pour une plage libre, si bien que cette carte montrait autre chose que le bandeau
+  // posé au-dessus d'elle (décision n° 179).
+  const window = $derived(resolveWindow(period, app.state.ui.customRange, today));
+  const visible = $derived(windowSeries(series, window));
 
   /**
    * Part portée au coût, jour par jour, arrondie une seule fois — la trame ET le texte la lisent

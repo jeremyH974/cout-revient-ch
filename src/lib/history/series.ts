@@ -231,9 +231,25 @@ export const PERIODS: readonly Period[] = [...PRESET_PERIODS, 'custom'];
 /** La plage retenue quand rien n'a été choisi, ou quand ce qui l'a été n'existe plus. */
 export const DEFAULT_PERIOD: Period = '1m';
 
+/**
+ * Une plage d'analyse : les jours `from` à `to`, **bornes incluses** — une seule lecture pour
+ * toute l'application (décision n° 179).
+ *
+ * `from` est le **premier jour compris**, jamais le jour de base. L'état de départ d'une fenêtre
+ * est donc la clôture de la VEILLE de `from` (`openingDay`), et son état d'arrivée la clôture de
+ * `to`. C'est la convention des périodes libellées : la Q&R GIPS n° 5014 écrit « du 1er mars au
+ * 31 décembre » une période dont la base est la clôture du 28 février, et IAS 1 § 10 lit la
+ * position « à la fin de la période », le résultat « pour la période ».
+ *
+ * Elle n'était pas tenue. Une présélection rangeait son jour de BASE dans `from` (« 1 semaine » =
+ * huit jours de clôtures), une plage libre son PREMIER jour : les statistiques de trading
+ * comptaient un jour de trop sur la première, la Vue d'ensemble oubliait la variation du premier
+ * jour de la seconde.
+ */
 export interface DayWindow {
-  /** `null` = depuis le début (période « Tout »). */
+  /** Premier jour compris ; `null` = depuis le début (période « Tout »). */
   from: DayString | null;
+  /** Dernier jour compris. */
   to: DayString;
 }
 
@@ -266,28 +282,53 @@ export function resolveWindow(
     : { from: custom.to, to: custom.from };
 }
 
-/** Bornes d'une période se terminant à `toDay` (mois et années calendaires, UTC). */
+/**
+ * Bornes d'une période se terminant à `toDay` (mois et années calendaires, UTC).
+ *
+ * Le PREMIER JOUR COMPRIS est le lendemain du jour de base : « 1 mois » au 31 mars couvre du
+ * 1er au 31 mars, sa base étant la clôture du 28 février. La courbe et le bandeau n'en bougent
+ * pas — ils lisent la série depuis `openingDay`, donc depuis la même clôture qu'avant.
+ */
 export function periodWindow(period: Period, toDay: DayString): DayWindow {
+  const after = (base: DayString): DayWindow => ({ from: addDays(base, 1), to: toDay });
   switch (period) {
     case 'custom':
       // Une plage libre n'a pas de bornes déductibles : `resolveWindow` est la porte d'entrée.
       return { from: null, to: toDay };
     case '1d':
-      return { from: addDays(toDay, -1), to: toDay };
+      return after(addDays(toDay, -1));
     case '1w':
-      return { from: addDays(toDay, -7), to: toDay };
+      return after(addDays(toDay, -7));
     case '1m':
-      return { from: addMonths(toDay, -1), to: toDay };
+      return after(addMonths(toDay, -1));
     case '3m':
-      return { from: addMonths(toDay, -3), to: toDay };
+      return after(addMonths(toDay, -3));
     case '1y':
-      return { from: addMonths(toDay, -12), to: toDay };
+      return after(addMonths(toDay, -12));
     case 'all':
       return { from: null, to: toDay };
   }
 }
 
-/** Restreint une série (triée) à une fenêtre. */
+/** Le jour dont la clôture ouvre la fenêtre : la veille de `from` ; `null` depuis l'origine. */
+export function openingDay(window: DayWindow): DayString | null {
+  return window.from === null ? null : addDays(window.from, -1);
+}
+
+/**
+ * La série d'une fenêtre, **point d'ouverture compris** : la clôture de la veille de `from`, sans
+ * laquelle la variation du premier jour n'aurait pas de base. C'est ce que lisent la courbe et le
+ * bandeau de la Vue d'ensemble, la carte Évolution et le rendement pondéré par le temps du
+ * Rapport — un seul découpage, donc une seule période affichée.
+ */
+export function windowSeries<T extends { day: DayString }>(
+  series: readonly T[],
+  window: DayWindow,
+): T[] {
+  return sliceSeries(series, { from: openingDay(window), to: window.to });
+}
+
+/** Restreint une série (triée) aux jours `from` à `to`, bornes incluses. */
 export function sliceSeries<T extends { day: DayString }>(
   series: readonly T[],
   window: DayWindow,

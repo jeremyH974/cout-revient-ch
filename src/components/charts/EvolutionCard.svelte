@@ -5,7 +5,13 @@
   import { seriesToCsv } from '$lib/export/csv-export';
   import { downloadText } from '$lib/export/download';
   import { fmtMoney, fmtPct, fmtPoints, fmtPrice } from '$lib/format/fr';
-  import { periodPerformance, periodWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import {
+    periodPerformance,
+    resolveWindow,
+    todayOf,
+    windowSeries,
+    type Period,
+  } from '$lib/history';
   import { isAggregate } from '$lib/history/scope';
   import {
     METRIC_SPECS,
@@ -45,11 +51,9 @@
   });
 
   const today = $derived(todayOf(nowMs()));
-  const window = $derived(periodWindow(period, today));
+  const window = $derived(resolveWindow(period, app.state.ui.customRange, today));
   const daily = $derived(history.metricPoints(scope));
-  const visibleDaily = $derived(
-    sliceSeries(daily, { from: window.from ?? daily[0]?.day ?? today, to: window.to }),
-  );
+  const visibleDaily = $derived(windowSeries(daily, window));
   const visible = $derived<MetricPoint[]>(
     period === '1d' ? history.intradayMetricPoints(scope) : visibleDaily,
   );
