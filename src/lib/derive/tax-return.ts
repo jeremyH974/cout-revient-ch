@@ -289,7 +289,7 @@ function dividendContributions(
   if (y.undesignated.length > 0)
     caveats.push({
       family: 'dividend',
-      text: `${plural(y.undesignated.length, 'titre n’a', 'titres n’ont')} pas de pays de source désigné : aucun crédit d’impôt n’est calculé pour eux, et les montants ci-dessus sont donc incomplets.`,
+      text: `${plural(y.undesignated.length, 'titre n’a', 'titres n’ont')} pas de pays de source désigné. Tant qu’il ne l’est pas, ces dividendes ne figurent dans AUCUNE case : ni leur montant en 2DC, ni le crédit d’impôt. Désignez le pays sur la fiche du titre.`,
     });
   if (!isZero(D(y.excessEur)))
     caveats.push({

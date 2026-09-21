@@ -146,6 +146,27 @@ test('l’addition ne recommande jamais rien, et dit ce qu’elle n’est pas', 
   ).toBeVisible();
 });
 
+test('un acompte non retenu sur les dividendes est nommé, avec sa démarche', async ({ page }) => {
+  // Un intermédiaire établi hors de France ne retient pas l'acompte de 12,8 % : c'est au
+  // contribuable de le verser, et rien dans l'application ne le disait avant cette carte.
+  //
+  // Ce test a d'abord été écrit, puis retiré faute de se déclencher : l'avertissement s'adossait
+  // au montant reportable en 2DC, qui vaut zéro tant qu'aucun pays de source n'est désigné — donc
+  // sur une démonstration fraîche. Il s'adosse désormais aux dividendes ENCAISSÉS, et c'est bien
+  // le relevé de démonstration qui le prouve.
+  const bill = await openBill(page);
+  const select = page.getByLabel('Année');
+  const years = await select.locator('option').allTextContents();
+  for (const year of years) {
+    await select.selectOption(year);
+    if ((await bill.getByText('2778-DIV-SD').count()) > 0) {
+      await expect(bill.getByText('2778-DIV-SD')).toBeVisible();
+      return;
+    }
+  }
+  throw new Error(`aucune année ne porte de dividende (essayées : ${years.join(', ')})`);
+});
+
 test('l’année des gains et l’année du règlement ne se confondent pas', async ({ page }) => {
   // « Combien vais-je payer l'an prochain ? » : la carte doit dire N+1, jamais N. L'année se lit
   // sur le sélecteur plutôt que sur l'horloge — le millésime de la fixture bouge avec la date.

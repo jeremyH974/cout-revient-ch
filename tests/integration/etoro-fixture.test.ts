@@ -8,8 +8,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { assetClass } from '../../src/lib/domain/assets';
+import { dividendTaxFr } from '../../src/lib/domain/equity-income-fr';
 import { computePortfolio } from '../../src/lib/domain/engine/aggregate';
-import { isPositive, toDecimalString } from '../../src/lib/domain/money';
+import { D, isPositive, toDecimalString } from '../../src/lib/domain/money';
 import { DEFAULT_ENGINE_SETTINGS, type Qualification } from '../../src/lib/domain/types';
 import { importEtoroWorkbook } from '../../src/lib/import/etoro/index';
 import { pivotLedgerEvents } from '../../src/lib/import/pivot/events';
@@ -211,6 +212,39 @@ describe('relevé eToro de démonstration', () => {
       expect(result.issues.map((i) => i.message).join(' | ')).toContain(
         "1 dividende(s) dont la position n'est plus identifiable",
       );
+    });
+  });
+
+  /**
+   * Ce que la fiscalité fait de ces dividendes **tant qu'aucun pays de source n'est désigné**.
+   *
+   * La question a coûté une demi-session : un commentaire de `declaration.spec.ts` affirmait que
+   * ce relevé remplit la case 2DC, et il ne la remplit pas. Ce n'est pas un défaut — le moteur
+   * montre le dividende sans le chiffrer, faute de savoir de quel pays il vient — mais rien ne le
+   * disait, et il n'y avait aucun test pour l'empêcher de changer dans un sens ou dans l'autre.
+   */
+  describe('sans pays de source, un dividende se montre mais ne se chiffre pas', () => {
+    const ledgerFor = async (country: string | null) => {
+      const { events } = await eventsOf(await imported());
+      return dividendTaxFr({ events, countryOf: () => country, throughYear: 2100 });
+    };
+
+    it('le brut est là, le reportable est à zéro, et le titre est nommé', async () => {
+      const ledger = await ledgerFor(null);
+      const year = ledger.years[0]!;
+      expect(isPositive(D(year.grossEur)), 'le dividende existe').toBe(true);
+      expect(year.declaredEur, 'rien à reporter en 2DC').toBe('0');
+      expect(year.undesignated, 'et le titre qui l’explique est nommé').toEqual(['eq:demo']);
+      expect(ledger.hasUndesignated).toBe(true);
+    });
+
+    it('désigner le pays suffit à faire apparaître le montant', async () => {
+      // La contre-partie de l'assertion précédente : si le reportable restait nul une fois le
+      // pays connu, le premier test passerait au vert sur un moteur cassé.
+      const ledger = await ledgerFor('US');
+      const year = ledger.years[0]!;
+      expect(isPositive(D(year.declaredEur)), 'le montant de la case 2DC').toBe(true);
+      expect(year.undesignated).toEqual([]);
     });
   });
 

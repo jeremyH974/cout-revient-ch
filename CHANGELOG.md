@@ -5,6 +5,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
+### Fixed
+
+- **L'avertissement sur l'acompte des dividendes se taisait pour les nouveaux venus.** L'écran
+  Impôts rappelle qu'un intermédiaire établi hors de France ne retient pas l'acompte de 12,8 % —
+  c'est à vous de le verser. Mais il s'adossait au montant reportable en case 2DC, lequel reste
+  vide tant que vous n'avez pas désigné le **pays de source** de vos titres. Autrement dit : il se
+  taisait précisément pour qui vient d'importer son relevé. Il s'adosse désormais aux dividendes
+  **encaissés**, qui, eux, ne dépendent d'aucun réglage.
+
+- **Et l'avertissement sur les titres sans pays disait moins que la vérité.** « Aucun crédit
+  d'impôt n'est calculé pour eux » laissait croire qu'il ne manquait que le crédit. Il manquait le
+  dividende **entier** : aucune case ne le portait. Sur une déclaration, c'est une omission. Il dit
+  maintenant que ces dividendes ne figurent dans aucune case, et où aller désigner le pays.
+
 ### Added
 
 - **« Combien vais-je payer, et quand ? »** L'écran Impôts comparait deux voies d'imposition, option

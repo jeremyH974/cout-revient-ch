@@ -15,7 +15,14 @@ test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
 });
 
-/** Dépose le relevé de titres : il remplit 2047, 2DC, 3VG et 2TR sans aucune cotation. */
+/**
+ * Dépose le relevé de titres : il remplit 2047, 2TR, 2074, 3VG et 2OP sans aucune cotation.
+ *
+ * **Pas 2DC**, et ce n'est pas un oubli : le relevé porte bien trois dividendes, mais aucun pays
+ * de source n'est désigné sur une démonstration fraîche — le moteur les montre alors sans les
+ * chiffrer, et la case reste vide (`tests/integration/etoro-fixture.test.ts`). Ce commentaire
+ * annonçait 2DC ; il se trompait, et rien ne l'avait relevé.
+ */
 async function importTitles(page: Page): Promise<void> {
   await page.goto('#/import');
   await page.setInputFiles('input[type="file"]', ETORO_FIXTURE);
