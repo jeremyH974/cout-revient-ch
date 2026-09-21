@@ -47,9 +47,8 @@ import {
   type NetWorthPoint,
 } from '$lib/history/net-worth';
 import { computePerformance, externalFlows, toBenchmarkPrices } from '$lib/history/performance';
-import { windowFlows, windowGain, windowMwr } from '$lib/history/window';
 import type { DayWindow } from '$lib/history/series';
-import { presentMoneyWeighted } from '$lib/derive/presented-return';
+import { reportWindowFigures, type ReportWindowOptions } from '$lib/derive/report-window';
 import { rateLookup } from '$lib/fx/convert';
 import { msToParisDay } from '$lib/import/time';
 import type { ReportPerformance, ReportWindow } from '$lib/export/report-model';
@@ -539,40 +538,19 @@ export class HistoryState {
    * (`closingValue`) : le résultat de la plage se recoupe alors avec la valeur affichée en tête,
    * au lieu de la clôture de la veille qu'aurait lue la série.
    */
-  reportWindow(
-    window: DayWindow,
-    opts: { label: string; endsToday: boolean; closingValue: Big },
-  ): ReportWindow {
-    const series = this.metricPoints('portfolio');
-    const flows = externalFlows(app.report.cashFlows, app.internalTransferLegs);
-    const input = {
-      series: series.map((p) => ({ day: p.day, value: p.value, estimated: p.estimated })),
-      flows,
-      ...(opts.endsToday ? { closingValue: opts.closingValue } : {}),
-    };
-    const gain = windowGain(input, window);
-    const flowsIn = windowFlows(
-      { positions: [...holdings(app.report), ...app.report.closed], events: app.displayEvents },
+  reportWindow(window: DayWindow, opts: ReportWindowOptions): ReportWindow {
+    // La règle vit dans `derive/report-window.ts`, où elle est testée ; l'état ne fait que
+    // brancher les sources du rapport.
+    return reportWindowFigures(
+      {
+        series: this.metricPoints('portfolio'),
+        flows: externalFlows(app.report.cashFlows, app.internalTransferLegs),
+        positions: [...holdings(app.report), ...app.report.closed],
+        events: app.displayEvents,
+      },
       window,
+      opts,
     );
-    let endCost = ZERO;
-    for (const point of series) {
-      if (point.day > window.to) break;
-      endCost = point.cost;
-    }
-    return {
-      from: window.from,
-      to: window.to,
-      label: opts.label,
-      endsToday: opts.endsToday,
-      startValue: gain.startValue,
-      endValue: gain.endValue,
-      endCost,
-      netFlows: gain.netFlows,
-      gain: gain.gain,
-      realized: flowsIn.realized,
-      mwr: presentMoneyWeighted(windowMwr(input, window)),
-    };
   }
 
   /**

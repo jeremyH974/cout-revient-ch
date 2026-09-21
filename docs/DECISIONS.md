@@ -5894,3 +5894,11 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      deeply equal [ '2026-08-15', … ] ») ; annualiser le TWR dès 30 jours (« expected '+40,0 %' to be
      '+8,0 %' ») ; ne pas basculer la synthèse (« renomme ce qui change de sens ») ; remettre le XIRR
      en taux annuel (« expected '+67,4 %' to be '+38,9 %' »).
+
+     **Ce que la CI a rattrapé.** L'assemblage de la synthèse sur une plage — quelle valeur ferme la
+     plage, quel coût de revient — avait d'abord été écrit dans l'état (`history.reportWindow`), où
+     aucun test ne l'exécute. `npm run check` ne mesure pas la couverture ; la CI, si : le seuil de
+     `src/state` a fléchi de 2,6 % à 2,58 %. L'avertissement de `CLAUDE.md` (lancer
+     `npm run test:coverage` avant de pousser dans une zone à seuil) n'avait pas été suivi. La
+     règle a rejoint `derive/report-window.ts`, avec ses tests et sous Stryker ; le seuil n'a pas
+     bougé — le baisser aurait fait taire le seul contrôle qui avait vu juste.

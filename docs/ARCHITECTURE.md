@@ -141,7 +141,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   le premier jour compris (et non plus le jour de base), `openingDay` la veille, et les courbes
   se découpent par `windowSeries` (`series.ts`), point d'ouverture compris — une seule définition
   d'une plage pour la Vue d'ensemble, la carte Évolution, les statistiques de trading et le
-  Rapport. `history.reportWindow` (état) assemble ce que la synthèse du Rapport lit.
+  Rapport. `derive/report-window.ts` assemble ce que la synthèse du Rapport lit ;
+  `history.reportWindow` (état) ne fait que le câbler.
 - `src/lib/storage` — schéma versionné (`StoredStateV1`), migrations, sauvegarde JSON et fusion.
   Persistance à deux étages (docs/DECISIONS.md n° 21) : `idb-state-store.ts` (IndexedDB, base
   `crch-state`, source principale, sans le plafond ~5 Mo de localStorage) et `local-storage.ts`
@@ -238,8 +239,11 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   recommander une option. La règle de présentation d'un rendement y vit aussi
   (`presented-return.ts`, P118) : annualisé à partir de 365 jours, rendement de la période en deçà
   (GIPS 2020, 2.A.12 et 5.A.1.b) — un seuil de présentation, distinct du plancher de bruit de
-  30 jours du moteur, qui ne bouge pas. Le câblage réactif, lui, reste dans `src/state` : l'y
-  extraire déplacerait du code sans rien rendre testable.
+  30 jours du moteur, qui ne bouge pas. L'assemblage de la synthèse sur une plage y vit également
+  (`report-window.ts`) : la valeur et le coût de revient qui ferment la plage sont deux choix, pas
+  du câblage — écrits d'abord dans l'état, aucun test ne les exécutait, et c'est le seuil de
+  couverture de `src/state` qui l'a dit en CI. Le câblage réactif, lui, reste dans `src/state` :
+  l'y extraire déplacerait du code sans rien rendre testable.
 - `src/state/app.svelte.ts` — store runes : état persisté + dérivés (`events`, `quotes`, `report`).
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
   traqueur de dépendances, et l'en sortir ferait cesser silencieusement l'enregistrement des
