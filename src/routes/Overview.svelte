@@ -29,7 +29,7 @@
   import { resolveWindow, sliceSeries, todayOf, type Period } from '$lib/history';
   import { netWorthChange, netWorthPartChanges } from '$lib/history/net-worth';
   import { router } from '$lib/router.svelte';
-  import { spaceOfProducer } from '$lib/spaces';
+  import { spaceById } from '$lib/spaces';
   import NetWorthCard from '../components/charts/NetWorthCard.svelte';
   import RangePicker from '../components/charts/RangePicker.svelte';
   import ShareSheet from '../components/shared/ShareSheet.svelte';
@@ -172,17 +172,6 @@
   function changeOf(id: string) {
     return partChanges.find((c) => c.id === id) ?? null;
   }
-  /*
-   * Chaque producteur a sa destination. Le repli sur `trading` valait tant que la courbe n'avait
-   * que deux producteurs ; depuis que les Prêts en sont un, il envoyait « Prêts → » sur l'écran
-   * Trading (décision n° 117). Seuls les comptes de trading, dont l'identifiant est celui du
-   * compte, tombent encore dans le repli — et c'est bien pour eux qu'il existe.
-   */
-  const HREF_OF: Record<string, { name: 'portfolio' } | { name: 'trading' } | { name: 'loans' }> = {
-    invest: { name: 'portfolio' },
-    lending: { name: 'loans' },
-  };
-  const routeOf = (id: string) => router.href(HREF_OF[id] ?? { name: 'trading' });
   const loanCount = $derived(Object.keys(app.state.lending.loans).length);
   /** Fills du compte de trading de la ligne — et non le total consolidé de tous les comptes. */
   const fillsOf = (id: string): number =>
@@ -392,7 +381,7 @@
           reconciliation.lines.map((l) => `${l.label} ${shareOf(l.value) ?? 0} %`).join(', ')}
       >
         {#each reconciliation.lines as line (line.id)}
-          <span class={spaceOfProducer(line.id)} style="width: {shareOf(line.value) ?? 0}%"></span>
+          <span class={line.space} style="width: {shareOf(line.value) ?? 0}%"></span>
         {/each}
       </div>
     {/if}
@@ -400,8 +389,8 @@
       {#each reconciliation.lines as line (line.id)}
         {@const share = shareOf(line.value)}
         {@const moved = changeOf(line.id)}
-        <li class={spaceOfProducer(line.id)}>
-          <a href={routeOf(line.id)}>
+        <li class={line.space}>
+          <a href={router.href(spaceById(line.space).home)}>
             <span class="name">{line.label}</span>
             <span class="amount"><Money value={line.value} /></span>
             <span class="share muted"

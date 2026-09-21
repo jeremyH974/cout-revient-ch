@@ -13,6 +13,7 @@ export type Route =
   | { name: 'secondOpinion' }
   | { name: 'alerts' }
   | { name: 'loans' }
+  | { name: 'loansReport' }
   | { name: 'titles' }
   | { name: 'trading' }
   | { name: 'trades' }
@@ -21,6 +22,7 @@ export type Route =
   | { name: 'tradeStats' }
   | { name: 'tradeBreakeven' }
   | { name: 'fills' }
+  | { name: 'tradingReport' }
   | { name: 'more' }
   | { name: 'market' }
   | { name: 'watch' }
@@ -54,6 +56,8 @@ function parseTrading(sub: string | undefined, arg: string | undefined): Route {
       return { name: 'tradeBreakeven' };
     case 'fills':
       return { name: 'fills' };
+    case 'report':
+      return { name: 'tradingReport' };
     default:
       return { name: 'trading' };
   }
@@ -87,15 +91,19 @@ function parseInvest(sub: string | undefined, arg: string | undefined): Route {
 }
 
 /**
- * Sous-chemins de l'espace Patrimoine : `#/wealth`, `#/wealth/loans`…
+ * Sous-chemins de l'espace des prêts : `#/wealth`, `#/wealth/loans`, `#/wealth/report`…
  *
+ * Le hash garde son mot d'origine (`wealth`) depuis que l'espace s'appelle « Prêts » (décision
+ * n° 176) : un identifiant n'est pas un libellé, et un lien partagé ne se casse pas pour un mot.
  * `#/wealth/titles` reste compris et mène aux titres, bien que ceux-ci aient rejoint
- * l'Investissement : un lien partagé ne casse pas — même règle que les hashes v1.
+ * l'Investissement — même règle que les hashes v1.
  */
 function parseWealth(sub: string | undefined): Route {
   switch (sub) {
     case 'titles':
       return { name: 'titles' };
+    case 'report':
+      return { name: 'loansReport' };
     default:
       return { name: 'loans' };
   }
@@ -189,6 +197,8 @@ export function toHash(route: Route): string {
       return '#/invest/alerts';
     case 'loans':
       return '#/wealth/loans';
+    case 'loansReport':
+      return '#/wealth/report';
     case 'titles':
       return '#/invest/titles';
     case 'trades':
@@ -203,6 +213,8 @@ export function toHash(route: Route): string {
       return '#/trading/seuil';
     case 'fills':
       return '#/trading/fills';
+    case 'tradingReport':
+      return '#/trading/report';
     // Le seul hash de cet espace qui ne porte pas le nom de sa route : « impots » se reconnaît
     // dans un favori, « taxes » non — même raison que `#/trading/seuil`.
     case 'taxes':

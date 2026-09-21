@@ -15,6 +15,7 @@
    * de place française — le référentiel de Financement Participatif France n'en donne aucune —
    * c'est plus défendable qu'un seuil inventé.
    */
+  import { xirrFailureLabel } from '$lib/format/xirr';
   import { D, type Big } from '$lib/domain/money';
   import { fmtPct, fmtRatio } from '$lib/format/fr';
   import type { LoanStatus } from '$lib/domain/lending/types';
@@ -114,13 +115,6 @@
   };
   const LIVE: LoanStatus[] = ['pending', 'performing', 'late', 'defaulted'];
 
-  const XIRR_REASON: Record<string, string> = {
-    'insufficient-flows': 'pas assez de flux',
-    'same-sign': 'aucun remboursement encore',
-    'too-recent': 'moins de 30 jours d’historique',
-    'no-convergence': 'non calculable',
-  };
-
   /** La liste s'ouvre par défaut : la replier est un choix, la trouver fermée serait une perte. */
   let listOpen = $state(true);
   let showClosed = $state(false);
@@ -203,7 +197,7 @@
           {#if perf.net.ok}
             <strong><Pct value={perf.net.rate} colored={false} /> par an</strong>
           {:else}
-            <span class="muted">{XIRR_REASON[perf.net.reason] ?? '—'}</span>
+            <span class="muted">{xirrFailureLabel(perf.net.reason)}</span>
           {/if}
         </span>
         <span class="muted">
@@ -215,6 +209,9 @@
         Le TRI net est calculé après les prélèvements retenus à la source. Il est annualisé ; le
         gain cumulé, lui, couvre toute la période.
       </p>
+      <a class="report-link" href={router.href({ name: 'loansReport' })}>
+        Rapport de prêts (PDF) →
+      </a>
     </section>
 
     <section class="card rings" aria-labelledby="rings-title">
@@ -651,5 +648,16 @@
   }
   .note {
     margin: 0;
+  }
+  /* Le rapport se rejoint au pied de la carte qui montre ce qu'il consolide, et non depuis un
+     menu : même règle que le rapport de patrimoine sur la Vue d'ensemble (décision n° 178). */
+  .report-link {
+    justify-self: start;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .report-link:hover {
+    text-decoration: underline;
   }
 </style>

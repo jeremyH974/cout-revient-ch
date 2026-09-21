@@ -5754,3 +5754,76 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      figurent dans AUCUNE case' ». Faire chiffrer un dividende sans pays : « rien à reporter en
      2DC: expected '0.63' to be '0' ». Et priver le moteur de sa table conventionnelle : « le
      montant de la case 2DC: expected false to be true ».
+
+178. **Un rapport par espace, et ce que leur construction a fait remonter** (21/09/2026, P116).
+
+     **Ce qui est livré.** Un registre `REPORTS` (`src/lib/reports.ts`) : un rapport par espace qui
+     produit de la valeur, plus le consolidé. Deux rapports neufs — **trading** (`#/trading/report`)
+     et **prêts** (`#/wealth/report`) —, une coquille commune (`ReportShell.svelte`) et des liens
+     entre rapports (`ReportLinks.svelte`), les mêmes dans le même ordre sur les quatre. Même
+     contrat que la décision n° 174 : chaque constructeur rend un `ReportModel`, et aucun rendu n'a
+     gagné une ligne — seulement une forme de tableau chacun, que le compilateur fait déclarer.
+
+     **Les périmètres sont les espaces**, pas une taxonomie inventée pour le lecteur : l'approche
+     par la direction d'IFRS 8, déjà retenue par la proposition du 20/09/2026. Chaque rapport se
+     rejoint **au pied de la carte qui montre ce qu'il consolide** — la règle que le rapport de
+     patrimoine suivait déjà sur la Vue d'ensemble —, jamais par un sixième onglet que la largeur
+     d'un téléphone ne tient pas (décision n° 158).
+
+     **Le rapport de trading dit deux choses que l'écran taisait.** Sa synthèse porte sur tous les
+     fills, ses statistiques sur les seuls allers-retours clos : leurs deux « résultats nets »
+     diffèrent, à dessein, et le document le dit plutôt que de laisser croire à une erreur. Et
+     chaque statistique dit sur combien de trades elle porte, avec un avertissement sous 30 — le
+     plancher couramment cité ; la pratique en recommande plus de cent (Tradervue, _Report
+     Statistics_). Aucun ratio de Sharpe n'est ajouté : l'application n'en calcule pas, et sur des
+     rendements autocorrélés il s'annualise mal (Lo, 2002, repris par D. Kidd pour le CFA
+     Institute, 2012).
+
+     **Le rapport de prêts reprend l'écran Prêts, ni plus ni moins.** Ce qu'il devrait contenir
+     au-delà reste une **décision du propriétaire**, et deux sessions de suite se sont gardées de
+     la prendre à sa place : un taux de défaut personnel calqué sur l'article 20 du règlement (UE)
+     2020/1503 (au moins 36 mois, défaut au-delà de 90 jours de retard, compté en nombre de prêts
+     selon le règlement délégué 2022/2115), et une version « douze derniers mois » du recyclage. Le
+     recyclage lui-même est présenté comme ce qu'il est : **une métrique maison**, qu'aucune source
+     trouvée ne nomme, et dont les deux termes cumulés grossissent mécaniquement.
+     Une identité a été **retirée avant d'être imprimée** : « intérêts nets + bonus − pertes =
+     résultat », que le code du moteur énonce, ne tient pas dès qu'il y a des intérêts courus — ils
+     entrent dans la valeur. Le bandeau porte déjà l'identité vérifiée ; la seconde aurait été fausse
+     sur un portefeuille vivant.
+
+     **Quatre défauts trouvés en chemin, et corrigés.**
+
+     1. **Deux tables devinaient l'espace d'un producteur à la lecture de son identifiant**, pas une :
+        `spaceOfProducer` pour la couleur, et un `HREF_OF` de la Vue d'ensemble pour la destination,
+        chacune avec un repli sur « trading » pour tout identifiant inconnu. La décision n° 176
+        demandait de remplacer la première ; la seconde n'était signalée nulle part. Le producteur
+        **porte** désormais son espace (`ProducerSpace`), qui suit la chaîne jusqu'aux lignes de
+        réconciliation, et les deux tables sont supprimées.
+     2. **Aucune route ne posait `document.title`.** Les trente écrans portaient tous le titre de
+        `index.html`, contre WCAG 2.2 § 2.4.2 — que le W3C précise pour les applications à vues : le
+        titre change avec la vue. `page-title.ts` le pose à chaque navigation, depuis un
+        `Record<RouteName, string>` : une route sans titre ne compile pas.
+     3. **Le rapport de patrimoine étiquetait « EUR » des montants en devise d'affichage.** La courbe
+        de patrimoine est convertie en amont (`pricesFor`), mais l'écran ne transmettait pas la
+        devise au modèle, qui retombait sur l'euro : en dollars, le PDF imprimait des dollars avec
+        un symbole €. Une ligne, et les quatre rapports se comportent désormais à l'identique.
+        **Aucun test ne tient cette ligne** — il demanderait un parcours complet avec historique et
+        devise changée ; c'est dit ici plutôt que tu.
+     4. **Les deux listes du passage axe n'étaient croisées avec rien** — la décision n° 175 l'avait
+        relevé sans le corriger. Sorties dans `tests/e2e/a11y-routes.ts`, elles sont désormais
+        exigées par `tests/integration/a11y-routes.test.ts` : une route qui n'y figure pas, ni dans
+        un test dédié, fait rougir la CI.
+
+     **Et une phrase de documentation corrigée plutôt que le code.** `ARCHITECTURE.md` disait que
+     le rapport consolidé « n'appartient à aucun espace », quand le registre des espaces le rangeait
+     déjà dans la Vue d'ensemble — qui est elle-même la consolidation. Le code avait raison.
+
+     **Contre-épreuves** (décision n° 75), une par garde-fou neuf, chacune vue rouge en nommant son
+     sujet. Ranger le rapport de trading dans l'espace des prêts : « range chaque rapport dans
+     l'espace qui porte sa route ». Intervertir deux liens : « expected [ +0, 1, 3, 2 ] to deeply
+     equal [ +0, 1, 2, 3 ] ». Donner à deux routes le même titre : « titres en double: expected [
+     'Aide' ] ». Oublier une route dans le passage axe : « routes jamais passées sous axe: expected [
+     'tradingReport' ] ». Taire l'avertissement de petit échantillon : « expected '' to contain
+     'sous 30' ». Ranger un producteur de prêts dans le trading : « expected 'trading' to be
+     'wealth' ». Et retirer le lien de la carte Trading fait rougir le parcours, qui attend
+     « getByRole('link', { name: /Rapport de trading \(PDF\)/ }) ».

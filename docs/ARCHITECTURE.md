@@ -191,6 +191,21 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   le même `ReportModel` que le premier, et `src/components/report/ReportBody.svelte` le dessine
   sans une ligne de rendu en plus — c'est la mise à l'épreuve de la liste ordonnée de sections.
   Le seul ajout exigé fut un gabarit de largeurs de colonnes, réclamé par le compilateur.
+- `src/lib/export/trading-report-model.ts` et `src/lib/export/lending-report-model.ts` — les
+  constructeurs des rapports de **trading** et de **prêts** (décision n° 178). Même contrat que le
+  consolidé : un `ReportModel`, zéro ligne de rendu en plus, une forme de tableau chacun que le
+  compilateur fait déclarer dans `pdf.ts`. Le rapport de prêts reprend l'écran Prêts, ni plus ni
+  moins ; le rapport de trading dit sur combien de trades clos portent ses statistiques, et que sa
+  synthèse (tous les fills) et ses statistiques (les seuls allers-retours clos) ne se recoupent pas,
+  à dessein.
+- `src/lib/reports.ts` — le registre `REPORTS` : un rapport par espace qui produit de la valeur,
+  plus le consolidé, avec sa route, son titre (lu dans son modèle) et l'ordre des liens croisés.
+  `components/report/ReportShell.svelte` est la coquille commune (barre, liens, actions, état vide,
+  corps) et `components/report/ReportLinks.svelte` les liens entre rapports, les mêmes dans le même
+  ordre sur les quatre (WCAG 2.2 § 3.2.3).
+- `src/lib/page-title.ts` — le titre de l'onglet, route par route (WCAG 2.2 § 2.4.2) : un
+  `Record<RouteName, string>`, si bien qu'une route sans titre ne compile pas. `App.svelte` le pose
+  à chaque navigation ; aucune route ne le faisait avant la décision n° 178.
 - `src/lib/export/report-model.ts` — le rapport, **mise en page exclue** : `ReportModel.sections`
   est une LISTE ORDONNÉE (décision n° 174). Chaque section porte son enveloppe (titre, `lead` avant
   le bloc, `note` après, avertissements, `breakBefore`) et l'un de six `ReportBlock`. Les deux
@@ -230,14 +245,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   sa cible de retour de barre d'application :
   - **Vue d'ensemble** (`#/`, aussi le `start_url` de la PWA — additionne des soldes, jamais des
     résultats de nature différente) : `overview`, `welcome`, `netWorthReport`.
-    Ce dernier (`#/patrimoine`) est le **rapport consolidé** : il n'appartient à aucun espace
-    puisqu'il les additionne, d'où un hash de premier niveau. `#/report` reste l'alias v1 du
-    rapport d'investissement — le détourner aurait cassé des favoris.
+    Ce dernier (`#/patrimoine`) est le **rapport consolidé**. Il appartient à la Vue d'ensemble,
+    qui est elle-même la consolidation — ce document disait « à aucun espace » alors que le
+    registre l'y rangeait déjà ; c'est le texte qui a été corrigé. Son hash reste de premier
+    niveau, comme `#/impots`. `#/report` reste l'alias v1 du rapport d'investissement — le
+    détourner aurait cassé des favoris.
   - **Investissement** (`#/invest…`) : `portfolio`, `asset`, `import`, `add`, `report`,
     `secondOpinion`, `alerts`, `titles` — ce dernier est l’écran des actions et fonds indiciels,
     classe d’actif et régime fiscal distincts de la crypto (décisions n° 103 et 106), rattaché
     ici par la décision n° 122. Ce document le rangeait encore dans l’espace voisin.
-  - **Prêts** (`#/wealth`) : `loans`, et lui seul. Le libellé de navigation disait
+  - **Prêts** (`#/wealth`) : `loans`, et son rapport `loansReport` (`#/wealth/report`, décision
+    n° 178), qu'on rejoint au pied de la carte de rendement. Le libellé de navigation disait
     « Patrimoine » jusqu’au 20/09/2026 ; ce mot est maintenant réservé au **total consolidé**,
     que le rapport de patrimoine et la Vue d’ensemble nomment ainsi. L’identifiant `wealth` et
     le hash `#/wealth` ne changent pas.
@@ -246,7 +264,9 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     chiffres — apports nets et valeur — le capital prêté cumulé étant relégué au bloc explicatif
     pour ne pas se lire comme un investissement.
   - **Trading** (`#/trading`) : `trading`, `trades`, `trade`, `tradeAdd`, `tradeStats`,
-    `tradeBreakeven`, `fills`.
+    `tradeBreakeven`, `fills`, et le rapport `tradingReport` (`#/trading/report`, décision n° 178),
+    qu'on rejoint au pied de la carte de synthèse — pas depuis un sixième onglet, que la largeur
+    d'un téléphone ne tient pas (décision n° 158).
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
@@ -268,8 +288,8 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     (`derive/tax-forecast.ts`, décision n° 171).
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `netWorthReport`, `portfolio`,
-  `asset`, `import`, `add`, `report`, `secondOpinion`, `alerts`, `loans`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
-  `tradeStats`, `tradeBreakeven`, `fills`, `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
+  `asset`, `import`, `add`, `report`, `secondOpinion`, `alerts`, `loans`, `loansReport`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
+  `tradeStats`, `tradeBreakeven`, `fills`, `tradingReport`, `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
   `reconciliation`, `settings`, `help`, `news`, `privacy`.
 
   L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu

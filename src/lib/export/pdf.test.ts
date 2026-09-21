@@ -10,8 +10,10 @@ import { DEFAULT_ENGINE_SETTINGS, type Account, type TradeEvent } from '../domai
 import { latestNetWorth, netWorthSeries, reconcileNetWorth } from '../history/net-worth';
 import type { DayString } from '../history/types';
 import { buildGlobalReportModel } from './global-report-model';
+import { buildLendingReportModel } from './lending-report-model';
 import { buildReportPdf, reportFileName, toPdfText } from './pdf';
 import { buildReportModel, type ReportModel } from './report-model';
+import { buildTradingReportModel } from './trading-report-model';
 
 /** Les opérateurs d'affichage de texte `(…) Tj` d'un flux, décodés dans l'ordre. */
 const showTexts = (content: string): string[] =>
@@ -289,6 +291,8 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     const part = (id: string, label: string, value: string, contributed: string) => ({
       id,
       label,
+      // Sans objet pour le rendu : le PDF ne lit pas l'espace d'une ligne.
+      space: 'invest' as const,
       firstDay: null,
       valueAt: () => ({ value: D(value), contributed: D(contributed), estimated: false }),
     });
@@ -324,5 +328,136 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
     // latin1, ce ne sont PAS leurs points de code Unicode. Une assertion qui contient l’un ou
     // l’autre échoue donc sans rien prouver.
     expect(texts.some((t) => t.includes('Trading : aucune donnée'))).toBe(true);
+  });
+
+  const opts = {
+    discreet: false,
+    generatedAt: '2026-09-21T08:00:00.000Z',
+    version: '0.1.0',
+    timeZone: 'Europe/Paris',
+  };
+
+  it('pose le rapport de trading, sans une ligne de rendu en plus', async () => {
+    const trading = buildTradingReportModel(
+      {
+        net: D('600'),
+        realized: D('700'),
+        fees: D('90'),
+        funding: D('-10'),
+        unrealized: D('150'),
+        equity: D('5200'),
+        netFlows: D('4000'),
+        accounts: [
+          {
+            label: 'Compte principal',
+            equity: D('5200'),
+            net: D('600'),
+            realized: D('700'),
+            fees: D('90'),
+            funding: D('-10'),
+            netFlows: D('4000'),
+            fills: 120,
+          },
+        ],
+        unvalued: [],
+        nativeFeeTokens: [],
+        stats: {
+          total: 12,
+          closed: 12,
+          open: 0,
+          incomplete: 0,
+          excluded: 0,
+          wins: 7,
+          losses: 5,
+          breakeven: 0,
+          winRate: D('0.5833'),
+          profitFactor: D('1.4'),
+          expectancy: D('8'),
+          expectancyR: null,
+          nR: 0,
+          avgWin: D('40'),
+          avgLoss: D('-30'),
+          payoff: D('1.33'),
+          best: D('90'),
+          worst: D('-60'),
+          netTotal: D('96'),
+          grossTotal: D('120'),
+          feesTotal: D('20'),
+          fundingTotal: D('-4'),
+          maxDrawdown: D('75'),
+          longestWinStreak: 3,
+          longestLossStreak: 2,
+          avgHoldSeconds: 3600,
+          smallSample: true,
+        },
+      },
+      opts,
+    );
+    const texts = pdfTexts(await buildReportPdf(trading));
+    const expected = sectionTitles(trading);
+    expect(expected).toEqual([
+      'Synthèse',
+      'Statistiques des trades clos',
+      'Comptes',
+      'Ce que ce document ne dit pas',
+      'Méthodologie',
+    ]);
+    assertSectionOrder(texts, expected);
+    expect(texts).toContain('Rapport de trading');
+    // L'avertissement de petit échantillon arrive jusqu'au papier, pas seulement à l'écran.
+    expect(texts.some((t) => t.includes('sous 30'))).toBe(true);
+  });
+
+  it('pose le rapport de prêts, sans une ligne de rendu en plus', async () => {
+    const ok = {
+      ok: true as const,
+      rate: D('0.05'),
+      since: '2025-01-01',
+      until: '2026-09-21',
+      flowCount: 8,
+    };
+    const loans = buildLendingReportModel(
+      {
+        netContributions: D('1000'),
+        result: D('14.18'),
+        value: D('1014.18'),
+        deposits: D('1000'),
+        withdrawals: D('0'),
+        bonus: D('5'),
+        principalLent: D('800'),
+        outstanding: D('380'),
+        accrued: D('0'),
+        cash: D('634.18'),
+        interestGross: D('12.11'),
+        withheld: D('2.93'),
+        interestNet: D('9.18'),
+        taxDebitedFromWallet: D('0'),
+        writtenOff: D('0'),
+        recycling: D('0.8'),
+        returnOnContributions: D('0.01418'),
+        xirrNet: ok,
+        xirrGross: ok,
+        accrualUnavailable: 0,
+        concentration: {
+          index: D('0.12'),
+          effectiveCount: D('8.3'),
+          top: [{ key: 'Emprunteur A', outstanding: D('120'), weight: D('0.3158') }],
+        },
+      },
+      opts,
+    );
+    const texts = pdfTexts(await buildReportPdf(loans));
+    const expected = sectionTitles(loans);
+    expect(expected).toEqual([
+      'Synthèse',
+      'Détails du compte',
+      'Revenus et pertes',
+      'Répartition du risque',
+      'Ce que ce document ne dit pas',
+      'Méthodologie',
+    ]);
+    assertSectionOrder(texts, expected);
+    expect(texts).toContain('Rapport de prêts');
+    expect(texts).toContain('Emprunteur A');
   });
 });

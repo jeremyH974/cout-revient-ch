@@ -62,7 +62,14 @@ export const NONE = '—';
 
 export type Tone = 'neutral' | 'gain' | 'loss';
 export type Align = 'left' | 'right';
-export type TableKind = 'allocation' | 'positions' | 'stablecoins' | 'closed' | 'contribution';
+export type TableKind =
+  | 'allocation'
+  | 'positions'
+  | 'stablecoins'
+  | 'closed'
+  | 'contribution'
+  | 'tradingAccounts'
+  | 'lendingRisk';
 
 export interface ReportCell {
   text: string;

@@ -5,21 +5,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ## [Unreleased]
 
-### Fixed
-
-- **L'avertissement sur l'acompte des dividendes se taisait pour les nouveaux venus.** L'écran
-  Impôts rappelle qu'un intermédiaire établi hors de France ne retient pas l'acompte de 12,8 % —
-  c'est à vous de le verser. Mais il s'adossait au montant reportable en case 2DC, lequel reste
-  vide tant que vous n'avez pas désigné le **pays de source** de vos titres. Autrement dit : il se
-  taisait précisément pour qui vient d'importer son relevé. Il s'adosse désormais aux dividendes
-  **encaissés**, qui, eux, ne dépendent d'aucun réglage.
-
-- **Et l'avertissement sur les titres sans pays disait moins que la vérité.** « Aucun crédit
-  d'impôt n'est calculé pour eux » laissait croire qu'il ne manquait que le crédit. Il manquait le
-  dividende **entier** : aucune case ne le portait. Sur une déclaration, c'est une omission. Il dit
-  maintenant que ces dividendes ne figurent dans aucune case, et où aller désigner le pays.
-
 ### Added
+
+- **Un rapport par espace.** Le trading et les prêts ont désormais chacun leur rapport, à
+  télécharger en PDF ou à imprimer, avec la même mise en page que les rapports de portefeuille et de
+  patrimoine. On le trouve au pied de la carte qui montre ce qu'il résume, et chaque rapport mène
+  aux trois autres par les mêmes liens, dans le même ordre.
+
+  Le **rapport de trading** dit deux choses que l'écran taisait : ses statistiques ne portent que
+  sur les trades **clos**, alors que sa synthèse compte tous les fills — leurs deux résultats nets
+  diffèrent, et c'est normal —, et sous 30 trades clos, il prévient que les ratios ne permettent
+  aucune conclusion. Le **rapport de prêts** reprend l'écran Prêts, ni plus ni moins ; il présente
+  le « recyclage » pour ce qu'il est, une mesure propre à l'application.
+
+- **Chaque page a son titre d'onglet.** Toutes portaient le même : un lecteur d'écran annonce
+  maintenant la page où l'on arrive, et deux onglets ouverts sur l'application se distinguent.
 
 - **Un rapport de patrimoine, tous espaces confondus.** Jusqu'ici le seul rapport téléchargeable
   était celui de l'Investissement : votre crypto, et rien d'autre. Un second existe désormais, qui
@@ -118,93 +118,6 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   de vos opérations depuis le début, et les deux périodes n'ont rien à voir. La **page de garde du
   PDF** les porte donc côte à côte, « Période couverte » et « Année fiscale » : un rapport transmis
   à quelqu'un d'autre ne disait pas de quelle année parlaient ses sections fiscales.
-
-### Fixed
-
-- **Le PDF du Rapport oubliait la liste de vos comptes à déclarer.** La section « Comptes à
-  déclarer au titre de … (formulaire 3916-bis) » s'affichait à l'écran, mais **ne figurait pas dans
-  le PDF téléchargé** — c'est-à-dire dans le seul document que vous pouvez transmettre ou archiver.
-  Elle y est désormais, à sa place, entre la fiscalité et la veille réglementaire.
-
-### Fixed
-
-- **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez
-  choisi un dossier de sauvegarde automatique, chaque modification y part — mais les vérifications
-  automatiques ne regardaient que les téléchargements manuels, et vous annonçaient « aucune
-  sauvegarde ». Elles tiennent maintenant compte des deux.
-  Deux autres choses au passage. Le voyant vous dit désormais quand **le navigateur ne garantit pas**
-  de conserver vos données — un message qui existait dans le code mais ne pouvait jamais s'afficher.
-  Et sur **Firefox, Safari et iPhone**, il ne vous laisse plus croire à un réglage oublié : la
-  sauvegarde automatique dans un dossier **n'y est pas possible du tout**, ces navigateurs ayant
-  choisi de ne pas l'implémenter. L'export manuel y est votre seule copie, et c'est écrit ainsi.
-
-- **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
-  les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
-  cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
-  **2026**, l'écran vous aurait montré trois mois de 2027. Et l'export « Cessions au format 2086 »
-  déversait **toutes vos années à la fois**, sans qu'aucune année figure dans le nom du fichier.
-  Désormais un choix « **Année** » commande les trois, et il est proposé sur l'année que
-  vous remplissez réellement : celle d'avant jusqu'au 30 juin, l'année en cours ensuite. L'année
-  retenue est écrite dans le sélecteur, dans le titre de la liste des comptes et dans le nom des
-  fichiers exportés — un PDF ou un CSV circule détaché de l'écran qui l'a produit.
-  Le tableau fiscal, lui, ne change pas : il montrait déjà vos trois derniers millésimes, ligne par
-  ligne, et c'était la bonne réponse.
-
-- **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
-  **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
-  classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
-  de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
-
-- **La plus-value d'une vente de cryptos était surestimée dès que la vente payait des frais.** Pour
-  savoir quelle part de votre prix d'acquisition imputer à une vente, la méthode globale rapporte le
-  prix de vente à la valeur de tout votre portefeuille. Ce rapport se calcule sur le prix **avant**
-  frais, qui ne se retirent qu'ensuite : c'est la formule qu'imprime le formulaire 2086, et ce que
-  dit la doctrine fiscale (BOFiP, BOI-RPPM-PVBMC-30-20, § 50). L'application prenait le prix **après** frais
-  aux deux endroits. Exemple : 10 000 € investis, un portefeuille de 12 000 €, une vente de 3 000 €
-  dont 30 € de frais — la plus-value est de 470 €, l'application affichait 495 €. Le prix
-  d'acquisition restant était trop élevé d'autant, et l'écart se reportait sur les ventes suivantes.
-  Si vous avez déjà établi une 2086 avec l'application et que vos ventes portaient des frais,
-  refaites le calcul. L'erreur a été trouvée en préparant un **banc d'essai public** : huit cas
-  figés, dont chaque résultat se refait à la calculatrice (`docs/exactitude.md` dans le dépôt).
-
-- **Le second avis lisait de travers une annexe 2086 aux colonnes numérotées.** Si votre fichier
-  désignait ses colonnes par les numéros de ligne du formulaire, la colonne 220 — votre prix
-  d'acquisition — était comparée à notre plus-value, et la 216 — une soulte — à notre prix
-  d'acquisition : l'écran annonçait des écarts « à examiner » qui n'existaient pas. Les numéros sont
-  désormais ceux du formulaire, relus sur ses sept éditions depuis 2020, qui numérotent toutes de la
-  même façon. Et chaque montant est désormais comparé à la ligne qui désigne le même chiffre, y
-  compris dans un fichier en libellés : votre prix d'acquisition **net** des fractions déjà imputées
-  (ligne 223), pas le brut (ligne 220), qui ne lui est égal que jusqu'à votre première vente.
-  L'export de l'application, **relu** par le second avis, n'était pas concerné — **recopié** dans le
-  formulaire, il l'était : c'est l'entrée suivante.
-
-- **L'export « Cessions au format 2086 » vous faisait recopier un prix de vente amputé de vos
-  frais.** Le fichier écrivait votre prix de vente **déjà diminué des frais** sous l'intitulé
-  « Prix de cession » — qui, sur le formulaire, est le prix **avant** frais — et n'indiquait vos
-  frais nulle part. Recopié case par case, il refaisait donc l'erreur que l'application venait de
-  corriger : sur l'exemple ci-dessus, le formulaire aboutissait à **495 € de plus-value au lieu de
-  470 €**. L'écran affichait le bon chiffre, et le fichier en faisait écrire un faux.
-  Désormais **chaque colonne porte le numéro de la case où elle se recopie** : 211 la date, 212 la
-  valeur de votre portefeuille, 213 le prix de vente, 214 les frais, 215 le prix net des frais, 220
-  votre prix total d'acquisition, 221 les fractions déjà imputées lors de vos ventes précédentes,
-  223 le prix d'acquisition net. Les cases de soulte (216 et 222) n'ont pas de colonne :
-  l'application n'en connaît aucune, et une case vide vaut zéro. Une colonne disparaît, « Fraction
-  du prix d'acquisition imputée » : elle ne correspond à aucune case du formulaire et voisinait
-  dangereusement avec la 221 — c'est le prix net (215) moins la plus-value.
-  Au passage, la note de méthode du **rapport PDF** énonçait la formule avec « prix de cession » aux
-  deux endroits, la même ambiguïté : elle distingue maintenant le prix avant frais du prix après.
-  **Si vous avez déjà rempli une 2086 à partir de ce fichier, refaites le calcul** avec les
-  nouvelles colonnes.
-
-- **L'écran de déclaration vous disait que l'option pour le barème était réversible. Pour vos
-  cryptos, elle ne l'est pas.** La loi de finances pour 2026 a rendu réversible l'option de la case
-  **2OP**, celle des dividendes, des intérêts et des plus-values sur titres. La case **3CN**, celle
-  des crypto-actifs, dépend d'un autre article du code, qui dit toujours « option expresse **et
-  irrévocable** » — l'écran affichait pourtant la même phrase sous les deux. Autrement dit, il vous
-  annonçait qu'une erreur était rattrapable sur la seule des deux options qui ne se reprend pas.
-  Chaque option énonce désormais sa propre règle, et la case 3CN renvoie enfin à **son** article.
-
-### Added
 
 - **Le calendrier de P&L se lit aussi à la semaine.** À côté de « Jour », « Mois » et « Année », le
   choix « Semaine » affiche les semaines de l'année, avec pour chacune son numéro, ses dates, son
@@ -341,6 +254,102 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   complète reste dans les réglages.
 
 ### Fixed
+
+- **Le rapport de patrimoine imprimait « EUR » quelle que soit la devise d'affichage.** En dollars,
+  ses montants étaient des dollars, étiquetés en euros.
+
+- **L'avertissement sur l'acompte des dividendes se taisait pour les nouveaux venus.** L'écran
+  Impôts rappelle qu'un intermédiaire établi hors de France ne retient pas l'acompte de 12,8 % —
+  c'est à vous de le verser. Mais il s'adossait au montant reportable en case 2DC, lequel reste
+  vide tant que vous n'avez pas désigné le **pays de source** de vos titres. Autrement dit : il se
+  taisait précisément pour qui vient d'importer son relevé. Il s'adosse désormais aux dividendes
+  **encaissés**, qui, eux, ne dépendent d'aucun réglage.
+
+- **Et l'avertissement sur les titres sans pays disait moins que la vérité.** « Aucun crédit
+  d'impôt n'est calculé pour eux » laissait croire qu'il ne manquait que le crédit. Il manquait le
+  dividende **entier** : aucune case ne le portait. Sur une déclaration, c'est une omission. Il dit
+  maintenant que ces dividendes ne figurent dans aucune case, et où aller désigner le pays.
+
+- **Le PDF du Rapport oubliait la liste de vos comptes à déclarer.** La section « Comptes à
+  déclarer au titre de … (formulaire 3916-bis) » s'affichait à l'écran, mais **ne figurait pas dans
+  le PDF téléchargé** — c'est-à-dire dans le seul document que vous pouvez transmettre ou archiver.
+  Elle y est désormais, à sa place, entre la fiscalité et la veille réglementaire.
+
+- **Le voyant « Sauvegarde » alarmait précisément ceux qui étaient le mieux protégés.** Si vous avez
+  choisi un dossier de sauvegarde automatique, chaque modification y part — mais les vérifications
+  automatiques ne regardaient que les téléchargements manuels, et vous annonçaient « aucune
+  sauvegarde ». Elles tiennent maintenant compte des deux.
+  Deux autres choses au passage. Le voyant vous dit désormais quand **le navigateur ne garantit pas**
+  de conserver vos données — un message qui existait dans le code mais ne pouvait jamais s'afficher.
+  Et sur **Firefox, Safari et iPhone**, il ne vous laisse plus croire à un réglage oublié : la
+  sauvegarde automatique dans un dossier **n'y est pas possible du tout**, ces navigateurs ayant
+  choisi de ne pas l'implémenter. L'export manuel y est votre seule copie, et c'est écrit ainsi.
+
+- **Le Rapport confondait la date du jour et l'année que vous déclarez.** Le récapitulatif DAC8,
+  les comptes à déclarer au 3916-bis et les constats fiscaux portaient tous sur l'**année civile en
+  cours**. Autrement dit : au printemps 2027, pendant que vous remplissez votre déclaration de
+  **2026**, l'écran vous aurait montré trois mois de 2027. Et l'export « Cessions au format 2086 »
+  déversait **toutes vos années à la fois**, sans qu'aucune année figure dans le nom du fichier.
+  Désormais un choix « **Année** » commande les trois, et il est proposé sur l'année que
+  vous remplissez réellement : celle d'avant jusqu'au 30 juin, l'année en cours ensuite. L'année
+  retenue est écrite dans le sélecteur, dans le titre de la liste des comptes et dans le nom des
+  fichiers exportés — un PDF ou un CSV circule détaché de l'écran qui l'a produit.
+  Le tableau fiscal, lui, ne change pas : il montrait déjà vos trois derniers millésimes, ligne par
+  ligne, et c'était la bonne réponse.
+
+- **Un relevé eToro ne survivait pas à la fermeture de l'application.** Le compte et
+  **toutes ses lignes** étaient écartés en silence à chaque réouverture : il fallait réimporter le
+  classeur à chaque fois. Même chose, en partie, pour le compte de prêts. La cause était un contrôle
+  de forme trop étroit sur les identifiants de compte ; rien n'en avertissait.
+
+- **La plus-value d'une vente de cryptos était surestimée dès que la vente payait des frais.** Pour
+  savoir quelle part de votre prix d'acquisition imputer à une vente, la méthode globale rapporte le
+  prix de vente à la valeur de tout votre portefeuille. Ce rapport se calcule sur le prix **avant**
+  frais, qui ne se retirent qu'ensuite : c'est la formule qu'imprime le formulaire 2086, et ce que
+  dit la doctrine fiscale (BOFiP, BOI-RPPM-PVBMC-30-20, § 50). L'application prenait le prix **après** frais
+  aux deux endroits. Exemple : 10 000 € investis, un portefeuille de 12 000 €, une vente de 3 000 €
+  dont 30 € de frais — la plus-value est de 470 €, l'application affichait 495 €. Le prix
+  d'acquisition restant était trop élevé d'autant, et l'écart se reportait sur les ventes suivantes.
+  Si vous avez déjà établi une 2086 avec l'application et que vos ventes portaient des frais,
+  refaites le calcul. L'erreur a été trouvée en préparant un **banc d'essai public** : huit cas
+  figés, dont chaque résultat se refait à la calculatrice (`docs/exactitude.md` dans le dépôt).
+
+- **Le second avis lisait de travers une annexe 2086 aux colonnes numérotées.** Si votre fichier
+  désignait ses colonnes par les numéros de ligne du formulaire, la colonne 220 — votre prix
+  d'acquisition — était comparée à notre plus-value, et la 216 — une soulte — à notre prix
+  d'acquisition : l'écran annonçait des écarts « à examiner » qui n'existaient pas. Les numéros sont
+  désormais ceux du formulaire, relus sur ses sept éditions depuis 2020, qui numérotent toutes de la
+  même façon. Et chaque montant est désormais comparé à la ligne qui désigne le même chiffre, y
+  compris dans un fichier en libellés : votre prix d'acquisition **net** des fractions déjà imputées
+  (ligne 223), pas le brut (ligne 220), qui ne lui est égal que jusqu'à votre première vente.
+  L'export de l'application, **relu** par le second avis, n'était pas concerné — **recopié** dans le
+  formulaire, il l'était : c'est l'entrée suivante.
+
+- **L'export « Cessions au format 2086 » vous faisait recopier un prix de vente amputé de vos
+  frais.** Le fichier écrivait votre prix de vente **déjà diminué des frais** sous l'intitulé
+  « Prix de cession » — qui, sur le formulaire, est le prix **avant** frais — et n'indiquait vos
+  frais nulle part. Recopié case par case, il refaisait donc l'erreur que l'application venait de
+  corriger : sur l'exemple ci-dessus, le formulaire aboutissait à **495 € de plus-value au lieu de
+  470 €**. L'écran affichait le bon chiffre, et le fichier en faisait écrire un faux.
+  Désormais **chaque colonne porte le numéro de la case où elle se recopie** : 211 la date, 212 la
+  valeur de votre portefeuille, 213 le prix de vente, 214 les frais, 215 le prix net des frais, 220
+  votre prix total d'acquisition, 221 les fractions déjà imputées lors de vos ventes précédentes,
+  223 le prix d'acquisition net. Les cases de soulte (216 et 222) n'ont pas de colonne :
+  l'application n'en connaît aucune, et une case vide vaut zéro. Une colonne disparaît, « Fraction
+  du prix d'acquisition imputée » : elle ne correspond à aucune case du formulaire et voisinait
+  dangereusement avec la 221 — c'est le prix net (215) moins la plus-value.
+  Au passage, la note de méthode du **rapport PDF** énonçait la formule avec « prix de cession » aux
+  deux endroits, la même ambiguïté : elle distingue maintenant le prix avant frais du prix après.
+  **Si vous avez déjà rempli une 2086 à partir de ce fichier, refaites le calcul** avec les
+  nouvelles colonnes.
+
+- **L'écran de déclaration vous disait que l'option pour le barème était réversible. Pour vos
+  cryptos, elle ne l'est pas.** La loi de finances pour 2026 a rendu réversible l'option de la case
+  **2OP**, celle des dividendes, des intérêts et des plus-values sur titres. La case **3CN**, celle
+  des crypto-actifs, dépend d'un autre article du code, qui dit toujours « option expresse **et
+  irrévocable** » — l'écran affichait pourtant la même phrase sous les deux. Autrement dit, il vous
+  annonçait qu'une erreur était rattrapable sur la seule des deux options qui ne se reprend pas.
+  Chaque option énonce désormais sa propre règle, et la case 3CN renvoie enfin à **son** article.
 
 - **Les montants fiscaux des cessions de titres étaient convertis deux fois** si votre devise
   d'affichage n'était pas l'euro. Sans effet en euros — donc invisible par défaut.

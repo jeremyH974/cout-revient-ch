@@ -355,6 +355,7 @@ export class HistoryState {
               'Investissement',
               investPoints,
               cumulativeContributions(this.flows('portfolio')),
+              'invest',
             ),
           ]
         : [];
