@@ -378,13 +378,11 @@ describe('windowFlows', () => {
 
   it('depuis l’origine : les totaux du moteur, au centime et sans tolérance', () => {
     const flows = windowFlows(input, { from: null, to: '2026-12-31' });
-    const t = report.totals;
-    expect(flows.realized.eq(t.realized)).toBe(true);
-    expect(flows.feesEur.eq(t.feesEur)).toBe(true);
-    expect(flows.rebatesEur.eq(t.rebatesEur)).toBe(true);
-    expect(flows.otherIncome.eq(t.otherIncome)).toBe(true);
-    expect(flows.accountIncomeEur.eq(t.accountIncomeEur)).toBe(true);
-    expect(flows.subscriptionsEur.eq(t.subscriptionsEur)).toBe(true);
+    for (const field of Object.keys(flows) as (keyof typeof flows)[])
+      expect(
+        flows[field].eq(report.totals[field]),
+        `${field} : ${flows[field].toString()} ≠ total du moteur ${report.totals[field].toString()}`,
+      ).toBe(true);
     // Et ces totaux sont bien ceux qu'on attend de tête.
     expect(Object.values(flows).map(String)).toEqual(['150', '1.5', '0.5', '32', '2', '9.99']);
   });

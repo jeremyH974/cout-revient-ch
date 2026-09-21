@@ -11,13 +11,15 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
 import { D, type Big } from '../domain/money';
-import {
-  ANNUALIZE_MIN_DAYS,
-  annualizedRate,
-  periodRate,
-  presentReturn,
-  type ReturnBasis,
-} from './presented-return';
+import { annualizedRate, periodRate, presentReturn, type ReturnBasis } from './presented-return';
+
+/**
+ * La règle, écrite ici en toutes lettres plutôt qu'importée : une propriété qui tirerait son
+ * domaine de `ANNUALIZE_MIN_DAYS` suivrait la constante qu'elle surveille. La contre-épreuve l'a
+ * montré — seuil ramené à 30 jours, la propriété restait verte, puisqu'elle ne tirait plus que
+ * des périodes de moins de 30 jours.
+ */
+const ONE_YEAR = 365;
 
 const addDays = (day: string, n: number): string => {
   const [y, m, d] = day.split('-').map(Number) as [number, number, number];
@@ -33,7 +35,7 @@ describe('propriétés de la règle de présentation', () => {
     fc.assert(
       fc.property(
         since,
-        fc.integer({ min: 0, max: ANNUALIZE_MIN_DAYS - 1 }),
+        fc.integer({ min: 0, max: ONE_YEAR - 1 }),
         basis,
         rate,
         (start, span, b, value) => {
@@ -56,7 +58,7 @@ describe('propriétés de la règle de présentation', () => {
     fc.assert(
       fc.property(
         since,
-        fc.integer({ min: ANNUALIZE_MIN_DAYS, max: 20_000 }),
+        fc.integer({ min: ONE_YEAR, max: 20_000 }),
         basis,
         rate,
         (start, span, b, value) => {
