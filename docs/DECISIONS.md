@@ -5827,3 +5827,78 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      'sous 30' ». Ranger un producteur de prêts dans le trading : « expected 'trading' to be
      'wealth' ». Et retirer le lien de la carte Trading fait rougir le parcours, qui attend
      « getByRole('link', { name: /Rapport de trading \(PDF\)/ }) ».
+
+179. **Le rapport honore la plage d'analyse — et une seule lecture de ce qu'est une plage**
+     (21/09/2026, P118).
+
+     **Ce qui est livré.** Le rapport de portefeuille lit la plage partagée (`ui.period`,
+     `ui.customRange`) : sa synthèse, son résultat, ses deux rendements et son risque portent sur la
+     plage ; sa page de garde porte une troisième période, « Période d'analyse », à côté de la
+     période couverte et de l'année fiscale — un PDF détaché de l'écran dit ainsi laquelle gouverne
+     quoi. Le cœur est pur et tient seul (`history/window.ts`, `derive/presented-return.ts`), écrit
+     par un agent sur un worktree isolé pendant que P116 avançait, puis relu et rejoué ici.
+
+     **Aucun rejeu du grand livre.** Les flux d'une plage sont un filtre de dates sur UN résultat du
+     moteur, les stocks se lisent sur la série quotidienne — ce qu'une note de la session précédente
+     avait établi, et que la proposition du 20/09 redoutait comme un chantier de moteur.
+
+     **Un défaut plus ancien que P118, trouvé en câblant.** Le champ `from` d'une plage ne voulait
+     pas dire la même chose selon d'où elle venait : une présélection y rangeait son **jour de base**
+     (« 1 semaine » = huit jours de clôtures), une plage libre son **premier jour** (« bornes
+     incluses »). Conséquences : les statistiques de trading comptaient un jour de trop sur les
+     présélections, et la Vue d'ensemble oubliait la variation du premier jour d'une plage libre.
+     **Une seule lecture désormais** : `from` est le premier jour compris, l'ouverture est la
+     clôture de la veille (`openingDay`), et les courbes se découpent par `windowSeries`, point
+     d'ouverture compris — si bien que les courbes des présélections ne bougent pas d'un point. C'est
+     la convention des périodes libellées : la Q&R GIPS n° 5014 écrit « du 1er mars au 31 décembre »
+     une période dont la base est la clôture du 28 février, et IAS 1 § 10 lit la position « à la fin
+     de la période », le résultat « pour la période ». En chemin, deux cartes qui ignoraient la plage
+     libre (la courbe de patrimoine et la carte Évolution, qui retombaient sur « Tout ») la suivent.
+
+     **Le rendement pondéré par les capitaux ne se fenêtre pas par un filtre de dates** : couper les
+     flux à la borne jette tout le capital investi avant elle. La valeur d'ouverture entre comme un
+     premier flux, au signe d'un achat. C'est l'extension logique de la définition (CFA Institute,
+     _Rates and Returns_) ; aucune source primaire ne l'énonce mot pour mot pour une sous-période, et
+     le module le dit plutôt que de lui prêter une citation. Depuis l'origine, le résultat est
+     **exactement** le XIRR d'avant (vérifié sur les fixtures Coinhouse et eToro).
+
+     **Les rendements du rapport suivent GIPS 2020 — y compris sur « Tout ».** 2.A.12 : un rendement
+     de moins d'un an ne s'annualise pas ; 5.A.1.b transpose la règle au rendement pondéré par les
+     capitaux. Le plancher de 30 jours de la décision n° 30 reste le plancher de BRUIT du moteur ;
+     la présentation a désormais son propre seuil, à 365 jours. Sur la démonstration, l'ancien rapport
+     affichait **+67,4 % « annualisé »** à partir de sept mois et demi de données, là où la norme veut
+     **+38,9 % sur la période**. Le libellé ne dit plus « Rendement annualisé » — sous un an, le chiffre
+     ne l'est pas — mais « Rendement pondéré par les capitaux », l'indication disant laquelle des deux
+     lectures on a sous les yeux. **Les autres écrans ne changent pas** : étendre la règle à la Vue
+     d'ensemble et aux Prêts amende la décision n° 30, et reste une décision du propriétaire.
+
+     **Ce qui change de sens change de nom.** Sur une plage, « Réalisé » devient « Réalisé sur la
+     période », « P&L total » devient « Résultat sur la période », et le ROI — un multiple depuis
+     l'origine — se tait en disant pourquoi, plutôt que de disparaître : la charpente de la synthèse
+     est la même sur toutes les plages. Le repère « mêmes apports en BTC » rejoue les apports en
+     partant de zéro ; sur une plage il comparerait une autre période, et le rapport le dit.
+
+     **Ce que la plage ne gouverne pas, dit comme tel.** Les sections fiscales suivent l'année
+     fiscale. Le tableau des positions reste celui du jour de génération : quand la plage finit
+     avant, la synthèse lit les stocks à sa fin (valeur et coût de revient sur la série
+     quotidienne), et le tableau écrit sa propre date. Le rapport de trading suit la plage pour ses
+     **statistiques**, comme l'écran Statistiques, et garde une synthèse cumulée, comme le tableau de
+     bord ; les rapports de prêts et de patrimoine sont des identités depuis l'origine (apports +
+     résultat = valeur), et leur page de garde le dit.
+
+     **Contre-épreuves** (décision n° 75). Celles du cœur, seize, sont dans son commit : seuil ramené à
+     30 jours, exposant inversé, ouverture au jour `from` au lieu de la veille, borne haute exclusive,
+     signe du gain, flux du MWR non inversés… Celles du câblage, chacune vue rouge en nommant son
+     sujet : remettre le jour de base dans `from` (« une semaine compte sept jours de flux, pas
+     huit ») ; découper une plage sans sa clôture d'ouverture (« expected [ '2026-08-16', … ] to
+     deeply equal [ '2026-08-15', … ] ») ; annualiser le TWR dès 30 jours (« expected '+40,0 %' to be
+     '+8,0 %' ») ; ne pas basculer la synthèse (« renomme ce qui change de sens ») ; remettre le XIRR
+     en taux annuel (« expected '+67,4 %' to be '+38,9 %' »).
+
+     **Ce que la CI a rattrapé.** L'assemblage de la synthèse sur une plage — quelle valeur ferme la
+     plage, quel coût de revient — avait d'abord été écrit dans l'état (`history.reportWindow`), où
+     aucun test ne l'exécute. `npm run check` ne mesure pas la couverture ; la CI, si : le seuil de
+     `src/state` a fléchi de 2,6 % à 2,58 %. L'avertissement de `CLAUDE.md` (lancer
+     `npm run test:coverage` avant de pousser dans une zone à seuil) n'avait pas été suivi. La
+     règle a rejoint `derive/report-window.ts`, avec ses tests et sous Stryker ; le seuil n'a pas
+     bougé — le baisser aurait fait taire le seul contrôle qui avait vu juste.

@@ -390,6 +390,7 @@ describe('buildReportPdf (jsPDF chargé à la demande, exécuté sous Node)', ()
           avgHoldSeconds: 3600,
           smallSample: true,
         },
+        statsPeriod: 'depuis l’origine',
       },
       opts,
     );

@@ -72,6 +72,7 @@ const input = (over: Partial<TradingReportInput> = {}): TradingReportInput => ({
   unvalued: [],
   nativeFeeTokens: [],
   stats: stats(),
+  statsPeriod: 'depuis l’origine',
   ...over,
 });
 
@@ -122,7 +123,7 @@ describe('rapport de trading', () => {
 
   it('dit sur combien de trades clos portent ses statistiques', () => {
     const lead = section(build(input()), 'stats')?.lead ?? '';
-    expect(lead).toContain('38 allers-retours clos');
+    expect(lead).toContain('38 allers-retours clos depuis l’origine');
   });
 
   it('prévient sous 30 trades clos, et se tait au-delà', () => {

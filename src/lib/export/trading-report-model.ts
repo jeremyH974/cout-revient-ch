@@ -83,6 +83,11 @@ export interface TradingReportInput {
   nativeFeeTokens: readonly string[];
   /** Statistiques des aller-retours clos, déjà dans la devise d'affichage. */
   stats: TradingStats;
+  /**
+   * La période des statistiques : les trades CLOS dans la plage d'analyse, comme sur l'écran
+   * Statistiques (décision n° 179). La synthèse, elle, reste cumulée — comme le tableau de bord.
+   */
+  statsPeriod: string;
 }
 
 export interface TradingReportOptions {
@@ -145,7 +150,7 @@ function accountsTable(input: TradingReportInput, f: Formatter): ReportTable {
   };
 }
 
-function statsSection(s: TradingStats, f: Formatter): ReportSection {
+function statsSection(s: TradingStats, period: string, f: Formatter): ReportSection {
   const kpis: ReportKpi[] = [
     {
       label: 'Trades clos',
@@ -220,8 +225,8 @@ function statsSection(s: TradingStats, f: Formatter): ReportSection {
     title: 'Statistiques des trades clos',
     block: { kind: 'kpis', kpis, details },
     lead:
-      `Sur ${plural(s.closed, 'aller-retour clos', 'allers-retours clos')}, et eux seuls : ` +
-      `un trade encore ouvert n'a pas de résultat à compter.`,
+      `Sur ${plural(s.closed, 'aller-retour clos', 'allers-retours clos')} ${period}, et eux ` +
+      `seuls : un trade encore ouvert n'a pas de résultat à compter.`,
     note: null,
     warnings,
     breakBefore: false,
@@ -309,6 +314,10 @@ export function buildTradingReportModel(
     { label: 'Devise', value: currency },
     { label: 'Comptes', value: String(input.accounts.length) },
     { label: 'Trades clos', value: String(input.stats.closed) },
+    // La synthèse est cumulée ; seules les statistiques suivent la plage : la page de garde dit
+    // les deux, pour qu'un PDF détaché de l'écran ne les confonde pas.
+    { label: 'Synthèse', value: 'depuis l’origine' },
+    { label: 'Statistiques', value: input.statsPeriod },
   ];
 
   const notes: string[] = [];
@@ -385,7 +394,7 @@ export function buildTradingReportModel(
       warnings: [],
       breakBefore: false,
     },
-    hasTrades ? statsSection(input.stats, f) : null,
+    hasTrades ? statsSection(input.stats, input.statsPeriod, f) : null,
     tableSection(
       'accounts',
       'Comptes',

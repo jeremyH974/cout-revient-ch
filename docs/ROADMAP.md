@@ -408,7 +408,7 @@ réellement quelque chose.
 | P117 | **Livré (20/09/2026, décision n° 175).** Le rapport global, assis sur `reconcileNetWorth`                   |   5    |     3     |    4    |    1     | **12**  |
 | P115 | **Livré (20/09/2026, décision n° 174).** Le modèle de rapport devient une liste de sections                 |   2    |     4     |    0    |   1,5    |  **4**  |
 | P116 | **Livré (21/09/2026, décision n° 178).** Registre `REPORTS`, un rapport par espace, une route par périmètre |   4    |     2     |    5    |   1,5    | **5,5** |
-| P118 | Le rapport honore la plage d'analyse, année en cours comprise                                               |   5    |     2     |    5    |   2,5    | **4,8** |
+| P118 | **Livré (21/09/2026, décision n° 179).** Le rapport honore la plage d'analyse, année en cours comprise      |   5    |     2     |    5    |   2,5    | **4,8** |
 
 **P115 est livrée le 20/09/2026, et elle a coûté une demi-session de plus que prévu** — pour une
 raison qui n'était pas dans la proposition : la couverture réelle du rendu PDF n'avait pas été

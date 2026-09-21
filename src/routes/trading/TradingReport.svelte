@@ -7,14 +7,17 @@
    * exactement comme l'écran Trading, par `usdcToDisplay` —, puis passe le tout au constructeur de
    * modèle. Une conversion impossible rend `null`, que le modèle écrit « — » : jamais zéro.
    *
-   * Il couvre l'historique ENTIER, comme les trois autres rapports : la plage d'analyse arrivera
-   * pour les quatre à la fois (P118), plutôt que pour celui-ci seul.
+   * Ses statistiques suivent la plage d'analyse, comme l'écran Statistiques ; sa synthèse reste
+   * cumulée, comme le tableau de bord (décision n° 179). La page de garde dit les deux.
    */
-  import { nowIso } from '$lib/clock';
+  import { nowIso, nowMs } from '$lib/clock';
   import type { Big } from '$lib/domain/money';
   import { ZERO } from '$lib/domain/money';
   import type { JournaledTrip } from '$lib/domain/trading/journal';
-  import { computeStats } from '$lib/domain/trading/stats';
+  import { computeStats, tripsClosedIn } from '$lib/domain/trading/stats';
+  import { fmtDate } from '$lib/format/fr';
+  import { resolveWindow, todayOf, type Period } from '$lib/history';
+  import RangePicker from '../../components/charts/RangePicker.svelte';
   import type { ReportModel } from '$lib/export/report-model';
   import {
     buildTradingReportModel,
@@ -32,6 +35,18 @@
     value === null ? null : app.usdcToDisplay(value);
   const toDisplay = (t: JournaledTrip, value: Big): Big | null =>
     app.quoteToDisplay(t.trip.quote, value);
+
+  /** Les mêmes périodes que l'écran Statistiques : « 1 jour » n'a pas de sens pour des ratios. */
+  const PERIODS: Period[] = ['1w', '1m', '3m', '1y', 'all', 'custom'];
+  // Pas `window` : le nom est déjà celui de l'objet global.
+  const dayWindow = $derived(
+    resolveWindow(app.state.ui.period, app.state.ui.customRange, todayOf(nowMs())),
+  );
+  const statsPeriod = $derived(
+    dayWindow.from === null
+      ? 'depuis l’origine'
+      : `clos du ${fmtDate(dayWindow.from)} au ${fmtDate(dayWindow.to)}`,
+  );
 
   const trading = $derived(app.tradingReport);
   const hasTrading = $derived(trading.accounts.length > 0 || app.roundTrips.length > 0);
@@ -64,7 +79,8 @@
         nativeFeeTokens: Object.entries(t.feesNative)
           .filter(([, amount]) => !amount.eq(ZERO))
           .map(([token]) => token.toUpperCase()),
-        stats: computeStats(app.roundTrips, toDisplay),
+        stats: computeStats(tripsClosedIn(app.roundTrips, dayWindow), toDisplay),
+        statsPeriod,
       },
       {
         discreet: app.state.ui.discreet,
@@ -77,6 +93,12 @@
 </script>
 
 <ReportShell {report} {model} stamp={() => (generatedAt = nowIso())}>
+  {#snippet controls()}
+    <RangePicker id="trading-report" available={PERIODS} />
+    <p class="muted small">
+      La plage gouverne les statistiques ; la synthèse couvre tout l’historique.
+    </p>
+  {/snippet}
   {#snippet empty()}
     <h2>Rien à rapporter pour l’instant</h2>
     <p class="muted">

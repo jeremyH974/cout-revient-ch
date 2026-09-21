@@ -28,8 +28,10 @@
     stamp: () => void;
     /** Ce que l'écran dit quand il n'a rien à rapporter : pas de document vide. */
     empty: Snippet;
+    /** Réglages propres à ce rapport (une plage d'analyse), posés au-dessus des actions. */
+    controls?: Snippet | undefined;
   }
-  let { report, model, stamp, empty }: Props = $props();
+  let { report, model, stamp, empty, controls }: Props = $props();
 
   let busy = $state(false);
 
@@ -66,6 +68,9 @@
     {@render empty()}
   </section>
 {:else}
+  {#if controls}
+    <div class="controls">{@render controls()}</div>
+  {/if}
   <div class="actions">
     <button class="primary" type="button" onclick={() => void download()} disabled={busy}>
       {busy ? 'Génération…' : 'Télécharger le PDF'}
@@ -87,6 +92,11 @@
     align-items: center;
     margin: 0 auto var(--space-3);
     max-width: 960px;
+    padding: 0 var(--space-3);
+  }
+  .controls {
+    max-width: 960px;
+    margin: 0 auto var(--space-2);
     padding: 0 var(--space-3);
   }
   .empty {
@@ -126,7 +136,8 @@
   }
   @media print {
     /* Le corps du rapport cache le chrome de l'application ; ici, seul le bloc d'actions. */
-    .actions {
+    .actions,
+    .controls {
       display: none !important;
     }
   }

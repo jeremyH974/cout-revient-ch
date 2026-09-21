@@ -16,6 +16,8 @@ import { twrEur, type TwrDay, type TwrFlow } from '../domain/twr';
 import type { AssetCode, EventId } from '../domain/types';
 import type { ReportPerformance } from '../export/report-model';
 import type { MetricPoint } from './metrics';
+import type { DayWindow } from './series';
+import { windowTwr } from './window';
 
 export interface PerformanceInput {
   /** Série quotidienne du portefeuille (valeur de clôture par jour), triée. */
@@ -40,13 +42,30 @@ export function externalFlows(
     .map((flow) => ({ at: flow.at, amountEur: flow.amountEur.neg() }));
 }
 
-export function computePerformance(input: PerformanceInput): ReportPerformance {
+/**
+ * TWR et repère du Rapport.
+ *
+ * Sur une plage (`window.from` non nul, décision n° 179), le TWR se chaîne sur la seule plage, à
+ * partir de la clôture de la veille de son premier jour (`windowTwr`). Le repère, lui, n'est PAS
+ * calculé : il rejoue les apports sur un seul actif en partant de zéro, et comparerait donc une
+ * autre période que la plage — le rapport le dit plutôt que de le montrer.
+ */
+export function computePerformance(
+  input: PerformanceInput,
+  window: DayWindow | null = null,
+): ReportPerformance {
   const days: TwrDay[] = input.series.map((point) => ({
     day: point.day,
     value: point.value,
     estimated: point.estimated,
   }));
   const flows = externalFlows(input.cashFlows, input.internalTransferLegs);
+  if (window !== null && window.from !== null)
+    return {
+      twr: windowTwr({ series: days, flows }, window),
+      benchmark: null,
+      partialAssets: input.partialAssets,
+    };
   const benchmark =
     input.benchmark === null
       ? null

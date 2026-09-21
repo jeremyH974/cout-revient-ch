@@ -77,12 +77,15 @@
       visibles : ce sont des prix, pas des montants. Le rapport PDF suit la même règle ; les exports
       CSV ne sont jamais masqués.
     </dd>
-    <dt>Rendement annualisé (XIRR)</dt>
+    <dt>Rendement pondéré par les capitaux (XIRR)</dt>
     <dd>
-      Le taux annuel qui, appliqué à chacun de vos apports et retraits à leur date réelle, redonne
+      Le taux qui, appliqué à chacun de vos apports et retraits à leur date réelle, redonne
       exactement la valeur actuelle de votre portefeuille (méthode utilisée par Excel).
       Contrairement au ROI, il tient compte du moment où l'argent est entré ou sorti. Affiché dans
-      le Rapport ; pas calculé avec moins de 30 jours d'historique.
+      le Rapport ; pas calculé avec moins de 30 jours d'historique. <strong
+        >Sous un an de données, le Rapport le donne sur la période, jamais « par an »</strong
+      > : prolonger quelques mois sur une année produit un chiffre simulé, et la norme de présentation
+      des performances (GIPS) l'interdit. Le TWR suit la même règle.
     </dd>
     <dt>Rendement hors apports (TWR)</dt>
     <dd>

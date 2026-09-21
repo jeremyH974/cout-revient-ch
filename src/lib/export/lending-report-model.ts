@@ -206,6 +206,9 @@ export function buildLendingReportModel(
     { label: 'Généré le', value: generated.label },
     { label: 'Devise', value: currency },
     { label: 'Emprunteurs en cours', value: String(input.concentration.top.length) },
+    // « Apports nets + résultat = valeur » est une identité depuis l'origine : la plage d'analyse
+    // ne la gouverne pas, pas plus qu'elle ne gouverne l'écran Prêts (décision n° 179).
+    { label: 'Période d’analyse', value: 'depuis l’origine' },
   ];
   const notes: string[] = [];
   if (opts.discreet)

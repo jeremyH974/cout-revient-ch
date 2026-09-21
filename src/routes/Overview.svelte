@@ -26,7 +26,7 @@
   import { displayGap, fmtDate, fmtPeriod } from '$lib/format/fr';
   import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
-  import { resolveWindow, sliceSeries, todayOf, type Period } from '$lib/history';
+  import { resolveWindow, todayOf, windowSeries, type Period } from '$lib/history';
   import { netWorthChange, netWorthPartChanges } from '$lib/history/net-worth';
   import { router } from '$lib/router.svelte';
   import { spaceById } from '$lib/spaces';
@@ -101,9 +101,7 @@
   const today = $derived(todayOf(nowMs()));
   const window = $derived(resolveWindow(period, customRange, today));
   const series = $derived(history.netWorth);
-  const visible = $derived(
-    sliceSeries(series, { from: window.from ?? series[0]?.day ?? today, to: window.to }),
-  );
+  const visible = $derived(windowSeries(series, window));
   /** « Tout » part de zéro la veille du premier jour : sinon les apports du premier jour manquent. */
   const fromInception = $derived(period === 'all');
   const change = $derived(netWorthChange(visible, { fromInception }));
