@@ -289,6 +289,29 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
+
+    **La liste des trades filtre et synthétise (P121), et s'annote en trois gestes (P122).**
+    `routes/trading/Trades.svelte` applique `domain/trading/filter.ts` (recherche + facettes en
+    puces — sens, issue, setup, erreur, tag, compte — dont quatre visibles et le reste dans une
+    feuille « Filtres (n) ») et affiche `summarizeFiltered` au-dessus de la liste : exactement la
+    recette de `TradeStats.svelte`, pour que les deux écrans ne puissent pas se contredire sur le
+    même sous-ensemble. L'état du filtre vit dans `ui.tradeFilter` (réglages de l'appareil), comme
+    `ui.period` et pour la même raison (décisions n° 156-157 et n° 182) : il survit ainsi à
+    l'aller-retour vers la fiche d'un trade. `components/trading/JournalSheet.svelte` (sur
+    `Sheet.svelte`) ouvre une annotation rapide — setup, erreurs, tags, note, une ligne de revue —
+    depuis chaque ligne et depuis le haut de `TradeDetail.svelte` ; « Enregistrer » fusionne ce
+    patch dans l'entrée existante (`app.saveJournal`), jamais ne la remplace, et un brouillon non
+    enregistré vit en mémoire (une carte hors de `app.state`, perdue au rechargement) pour être
+    restitué à la réouverture. Le retour Android (et le bouton retour du navigateur) referme la
+    feuille sans quitter l'écran (`history.pushState`/`popstate`, jamais de `hashchange` sur la
+    même URL) ; une fermeture par la croix consomme l'entrée d'historique posée.
+    `components/trading/TagField.svelte` est le champ de saisie des tags (motif APG « combobox
+    with list autocomplete », suggestions par fréquence via `tagSuggestions`, normalisation à
+    l'écriture par `domain/trading/tags.ts` — jamais réécrite dans le composant).
+    `components/trading/TagManageSheet.svelte` liste l'usage des tags, renomme (fusionne si la
+    cible existe déjà, `renameTag`, une seule mutation de l'état via `app.renameJournalTag`) et
+    supprime avec confirmation ; ouverte depuis la feuille de filtres, sans route à elle.
+
   - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
     `reconciliation`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
     déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM

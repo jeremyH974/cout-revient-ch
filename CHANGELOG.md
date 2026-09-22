@@ -7,6 +7,24 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La liste des trades se filtre, et se résume.** Une recherche (symbole, compte, journal) et des
+  puces par sens, issue (gagnant, perdant, ouvert, à annoter), setup et tag, plus une feuille
+  « Filtres » qui ajoute les erreurs et le compte. Un bandeau au-dessus de la liste résume le
+  sous-ensemble affiché (trades clos, résultat net, taux de réussite, espérance, profit factor) —
+  exactement les mêmes chiffres que l'écran Statistiques sur la même période. Le filtre choisi
+  survit quand on ouvre puis referme la fiche d'un trade.
+
+- **Annoter un trade en trois gestes, depuis la liste.** Un bouton « Annoter » sur chaque ligne (et
+  en tête de la fiche) ouvre une feuille rapide : setup, erreurs, tags, note sur 5, une ligne de
+  revue. Un brouillon non enregistré est retrouvé à la réouverture, et le bouton retour du
+  téléphone referme la feuille sans quitter l'écran. Une pastille « à annoter » repère les trades
+  clos qui n'ont pas encore de journal.
+
+- **Des tags enfin vivants.** Le champ de tags suggère par fréquence au fil de la saisie (« btc »
+  retrouve « BTC » déjà utilisé, sans créer de doublon), et un écran de gestion (depuis la feuille
+  de filtres) permet de renommer un tag — en fusionnant avec un tag existant du même nom — ou de le
+  supprimer.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui
