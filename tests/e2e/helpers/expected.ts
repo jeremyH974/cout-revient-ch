@@ -12,6 +12,12 @@ import { importCoinhouseCsv } from '../../../src/lib/import/coinhouse/index';
 import { importEtoroWorkbook } from '../../../src/lib/import/etoro/index';
 import { normalizeCoinhouseRows } from '../../../src/lib/import/coinhouse/normalize';
 import { fmtMoney, fmtPrice } from '../../../src/lib/format/fr';
+import type { JournalEntry, JournaledTrip } from '../../../src/lib/domain/trading/journal';
+import { journaledTrips } from '../../../src/lib/domain/trading/journal';
+import { buildRoundTrips } from '../../../src/lib/domain/trading/round-trips';
+import { fixtureClient, type HlFixture } from '../../../src/lib/import/hyperliquid/fixture-client';
+import { normalizeHlAccount } from '../../../src/lib/import/hyperliquid/normalize';
+import { syncAccount } from '../../../src/lib/import/hyperliquid/sync';
 
 export const FIXTURE = 'tests/fixtures/coinhouse/export-demo.csv';
 
@@ -63,4 +69,54 @@ export async function etoroAssets(): Promise<{ code: string; label: string }[]> 
   }
   // Le nom commercial : c’est lui que l’écran affiche, un ISIN ne se lit pas.
   return [...codes].sort().map((code) => ({ code, label: result.labels[code] ?? code }));
+}
+
+/** Taux stubé (`tests/e2e/helpers/network.ts`) appliqué à tous les montants Hyperliquid, USD. */
+export const HL_EUR_USD = '1.1';
+
+/**
+ * Exécutions et aller-retours de la démo Hyperliquid, reconstruits par le moteur depuis la
+ * fixture — jamais de chiffre en dur : `trading-journal.spec.ts` et `trading-filters.spec.ts` en
+ * partagent une seule définition.
+ */
+export async function expectedTrading(): Promise<{
+  executions: ReturnType<typeof normalizeHlAccount>['trading']['executions'];
+  trips: JournaledTrip[];
+}> {
+  const fixture = JSON.parse(
+    readFileSync('tests/fixtures/hyperliquid/demo.json', 'utf8'),
+  ) as HlFixture;
+  const sync = await syncAccount(fixtureClient(fixture), null, fixture.address, {
+    now: () => 1_755_900_000_000,
+  });
+  const normalized = normalizeHlAccount(sync.data, {
+    accountId: `hl:${fixture.address}`,
+    spotPairs: sync.spotPairs,
+    spotAsInvestment: false,
+    eurUsdRate: () => HL_EUR_USD,
+  });
+  const { executions, funding } = normalized.trading;
+  return { executions, trips: journaledTrips(buildRoundTrips(executions, funding), [], {}) };
+}
+
+/** Aller-retours attendus, journal vide (aucune annotation) : la forme que la démo charge. */
+export async function expectedTrips(): Promise<JournaledTrip[]> {
+  return (await expectedTrading()).trips;
+}
+
+/**
+ * Les mêmes aller-retours, journalisés avec les entrées `journal` fournies — pour recalculer,
+ * dans la spec, ce que `applyFilter`/`summarizeFiltered` doivent rendre une fois qu'un trade a
+ * été annoté depuis l'écran (les valeurs du journal sont alors celles QUE LE TEST A SAISIES,
+ * jamais dérivées d'ailleurs : les reprendre ici n'est pas un chiffre en dur).
+ */
+export async function expectedTripsWithJournal(
+  journal: Readonly<Record<string, JournalEntry>>,
+): Promise<JournaledTrip[]> {
+  const trips = await expectedTrips();
+  return journaledTrips(
+    trips.map((t) => t.trip),
+    [],
+    journal,
+  );
 }
