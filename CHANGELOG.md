@@ -7,6 +7,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La fusion entre appareils tient enfin compte du temps.** Restaurer une sauvegarde « en
+  fusionnant » depuis un autre navigateur (variante privée, site public, téléphone…) ne fait plus
+  gagner systématiquement l'appareil courant : pour chaque compte, trade, note de journal, alerte,
+  saisie ou import, c'est désormais la modification la plus récente qui l'emporte — d'où qu'elle
+  vienne — et une suppression reste supprimée tant qu'aucun appareil n'a écrit dessus depuis. Le
+  message affiché après une fusion détaille ce qui a changé (ajouts, mises à jour, suppressions) et
+  signale les rares cas où deux appareils avaient modifié la même chose sans qu'aucun ne le sache
+  encore, auquel cas celui sur lequel vous fusionnez tranche et la décision se propage ensuite
+  normalement. Une sauvegarde plus ancienne, écrite avant cette mise à jour, se fusionne toujours
+  correctement. Voir `docs/backup-format.md` § Fusion et `docs/DECISIONS.md` n° 180.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui

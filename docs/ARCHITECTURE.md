@@ -157,7 +157,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   référence (`AppState.accounts`, dérivé). `hyperliquid: HlState` (conteneur additif,
   docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
   (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
-  `json-io.ts`, jamais remplacé en bloc.
+  `sync/merge.ts`, jamais remplacé en bloc.
+  `src/lib/storage/sync` (fusion multi-appareils, docs/DECISIONS.md n° 180) porte toute la LOGIQUE,
+  en modules purs testés (mutation ≥ 90 %, hors Stryker par défaut — voir `stryker.config.json`) :
+  `hlc.ts` (horloge logique hybride, chaîne triable), `canon.ts` (JSON canonique pour comparer deux
+  enregistrements), `tracked.ts` (registre des collections SUIVIES — LWW par enregistrement — et
+  accès uniforme, `imports` compris malgré sa forme de tableau), `stamp.ts` (`stampChanges` : date
+  un diff entre deux instantanés, jamais un mutateur), `merge.ts` (`mergeSynced` : LWW + pierres
+  tombales sur les collections suivies, union sur `rawRows`/`pivotRows`/`hyperliquid`/`lending`/
+  `alerts.events`, réglages locaux inchangés sur les autres) et `import-prune.ts` (règle de
+  suppression des lignes d'un lot d'import, partagée par `undoImport` et l'élagage post-fusion).
+  Le seul point d'entrée IMPUR est `src/state/app.svelte.ts` — voir ce fichier ci-dessous.
 - `src/lib/calendar` — calendrier macroéconomique américain **et de la zone euro**, **compilé dans le bundle et jamais
   récupéré au vol** : `events.generated.ts` est engendré et committé par
   `scripts/generate-calendar.ts` (Fed et BEA relus par le cron hebdomadaire ; BLS recopié à la main
@@ -248,6 +258,19 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
   traqueur de dépendances, et l'en sortir ferait cesser silencieusement l'enregistrement des
   mutations profondes (décision n° 81).
+  **Seul point de branchement, impur, de la fusion multi-appareils** (décision n° 180) : trois
+  champs privés HORS de l'état réactif (`deviceId`, `syncMeta`, `baseline` — jamais `$state`, pour
+  la même raison que ci-dessus : les y mêler daterait `sync` lui-même et bouclerait l'effet).
+  `stampSnapshot()` — appelé par `flush`/`flushSync`/`exportBackup`/`installVault`/`removeVault`,
+  jamais l'inverse — date les changements depuis `baseline` (`stampChanges`, pur) et avance
+  `baseline` jusqu'au nouvel instantané ; sauté en mode démo, pour qu'aucune pierre tombale ne naisse
+  de données fictives. `restoreBackup()` appelle `mergeSynced` (« en fusionnant ») et réaligne
+  `baseline` sur le résultat **avant** le prochain `flush` — l'oublier redaterait les valeurs reçues
+  comme des éditions locales fraîches, cassant « le plus récent gagne » à la fusion suivante
+  (contre-épreuve dans le rapport de la PR). `clearAll()` réinitialise `baseline` et `syncMeta` SANS
+  pierre tombale : effacer les données d'un appareil ne doit jamais se propager comme des
+  suppressions aux autres. `deviceId` (UUID, `$lib/storage/device-id.ts`) vit dans le magasin `meta`
+  d'IndexedDB, jamais dans `StoredStateV1` — deux appareils ne partagent jamais d'identifiant.
 - `src/state/history.svelte.ts` — historique des prix et **séries** : `dailySeries`, `flows` (les
   apports, au sens des flux externes) et la courbe consolidée `netWorth`, définie **ici** et non
   dans un composant pour que le bandeau, la réconciliation et le graphique lisent le même objet.
