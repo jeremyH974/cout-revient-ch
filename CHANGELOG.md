@@ -270,6 +270,25 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Les cartes collaient leur contenu au bord.** Sur la plupart des écrans (Vue d'ensemble,
+  Trading, Comptes, Statistiques, Trades…), le texte d'une carte touchait sa bordure. Chaque carte
+  respire désormais du même espace ; les listes à séparateurs pleine largeur (positions ouvertes,
+  écran « Plus »…) gardent leur bord à bord voulu, séparateurs compris.
+
+- **Dix boutons s'affichaient en texte nu, sans fond ni bordure.** Sur les rapports (prêts,
+  trading, patrimoine), les alertes, les réglages IA et le récit de l'année : un bouton
+  « secondaire » qui se lisait comme un lien perdu au milieu du texte. Tous les boutons de
+  l'application partagent maintenant le même style, avec un contour visible au clavier et une fois
+  désactivés.
+
+- **La barre d'onglets Trading passait sur deux lignes à 390 px**, « Seuil » seul sur la seconde.
+  Les barres d'onglets d'Investissement et de Trading tiennent désormais toujours sur une seule
+  ligne et défilent horizontalement si besoin, l'onglet en cours restant visible.
+
+- **Certaines cibles tactiles étaient sous le plancher recommandé (24 px).** Le bouton d'aide
+  « i » et plusieurs boutons secondaires (« Tester la clé », par exemple) l'atteignent désormais,
+  sans grossir le rond du bouton d'aide.
+
 - **Une plage de dates comptait mal ses bornes.** Choisie à la main, elle oubliait la variation de
   son premier jour sur la Vue d'ensemble ; choisie parmi les présélections, elle comptait un jour
   de trop dans les statistiques de trading (« 1 semaine » y couvrait huit jours). Une seule lecture

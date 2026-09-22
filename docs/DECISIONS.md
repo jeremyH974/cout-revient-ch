@@ -5902,3 +5902,57 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      `npm run test:coverage` avant de pousser dans une zone à seuil) n'avait pas été suivi. La
      règle a rejoint `derive/report-window.ts`, avec ses tests et sous Stryker ; le seuil n'a pas
      bougé — le baisser aurait fait taire le seul contrôle qui avait vu juste.
+
+180. **Un socle de cohérence d'interface : classes globales pour les cartes et les boutons, un
+     composant pour les onglets** (22/09/2026).
+
+     **Le constat.** `.card` n'avait aucun padding — la plupart des `<section class="card">`
+     collaient leur texte au bord —, et vingt-quatre fichiers redéfinissaient localement
+     `.primary`/`.secondary`, dont dix sans aucune définition, affichés en texte nu. Les deux
+     barres d'onglets d'espace (Investissement, Trading) dupliquaient le même markup et le même
+     CSS sans qu'aucune ne défile : à 390 px, la barre Trading passait sur deux lignes, « Seuil »
+     seul sur la seconde — la décision n° 158 avait posé le repli (passer à la ligne plutôt que
+     déborder) sans jamais revenir sur le fond, une seule ligne étant ce que demande Material 3
+     pour des onglets.
+
+     **Classes globales plutôt qu'un composant par bouton.** Un `<Button variant="primary">`
+     encapsulerait la logique, mais chaque appelant garde une raison d'exister en `<a>` ou en
+     `<button>`, avec ou sans `type="submit"`, avec ou sans gestionnaire propre — un composant
+     n'aurait fait qu'ajouter une couche de props pour retrouver ce que l'élément natif offre
+     déjà. `.primary`/`.secondary`, posées en classes globales dans `app.css`, gardent cette
+     liberté et se lisent d'un coup d'œil dans le markup existant ; ne reste localement que ce qui
+     varie vraiment — une couleur teintée à l'accent sur les sous-écrans des alertes, une taille de
+     CTA, `justify-self` dans une grille. Même raisonnement pour `.card`/`.card.flush` et
+     `dl.stat-grid` : une classe, pas un wrapper.
+
+     **Un composant pour les onglets, parce que le comportement se dupliquait, pas seulement le
+     style.** Contrairement aux boutons, `InvestTabs` et `TradingTabs` partageaient une LOGIQUE —
+     défilement horizontal, ombres de débordement, rappel de l'onglet courant en vue au montage —
+     qu'une classe CSS ne porte pas : `onMount` et `scrollIntoView` n'ont pas d'équivalent
+     déclaratif. Le nouveau `SpaceTabs.svelte` ne connaît ni route ni règle d'onglet actif ; chaque
+     appelant lui passe une liste déjà résolue (`{ href, label, current }`) et garde sa propre
+     logique — `TradingTabs` garde ainsi son tableau `covers`, propre à ses cinq destinations.
+     `nav` + `aria-current`, jamais le motif ARIA tablist : celui-ci suppose des panneaux
+     affichés/masqués sur UNE MÊME page, alors que chaque onglet mène ici à une route différente —
+     un lecteur d'écran qui annoncerait « onglet 2 sur 5 » mentirait sur ce que fait le clic.
+
+     **La règle ESLint, pas seulement les remplacements ponctuels.** Remplacer les doublons
+     recensés sans empêcher le suivant n'aurait rien clos : `no-restricted-syntax` interdit
+     `.toFixed(` et `.toLocaleString(` dans `src/routes` et `src/components`, où `src/lib/format`
+     n'est jamais qu'à une importation de distance. Le balayage du dépôt qu'elle a forcé a
+     confirmé la liste examinée au clavier, plus une occurrence de plus qu'elle n'avait pas
+     nommée (`LensSection.svelte`, l'écart de corrélation d'une carte macro) — la règle les aurait
+     de toute façon tous fait échouer d'un coup en CI, plutôt qu'un à un au hasard des relectures.
+     Neuf occurrences restent, chacune avec un motif écrit en commentaire, pour trois raisons : la
+     précision interne d'un `ChartPoint`/`ChartLevel` n'est jamais affichée telle quelle (six
+     occurrences, trois écrans) ; une largeur CSS exige un point décimal, jamais une virgule
+     (`CostBar.svelte`, la largeur bornée de `Overview.svelte`) ; le presse-papiers vers un champ
+     de la déclaration en ligne ne doit pas porter l'espace insécable de groupement des milliers
+     qu'`Intl` — donc `fmtRatio` — ajoute au-delà de mille (`Declaration.svelte`). Un
+     `no-restricted-syntax` structurel plutôt que trois messages ad hoc, pour que la prochaine
+     exception légitime s'écrive de la même façon et reste visible dans la revue.
+
+     **Contre-épreuve** (décision n° 75). Un `.toFixed(` introduit dans `Info.svelte`, une fois
+     dans le script, une fois dans une expression de gabarit : les deux font échouer `npm run lint`
+     en nommant `no-restricted-syntax` et le message « Formater via src/lib/format », avant d'être
+     retirés.
