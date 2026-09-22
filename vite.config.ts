@@ -297,8 +297,16 @@ export default defineConfig(({ mode }) => {
            * specs Playwright (hors de cette mesure). La LOGIQUE, elle, vit dans `src/lib/storage/
            * sync/`, mesurée à 99,14 % de lignes juste à côté. `functions`/`branches` n'ont pas eu
            * besoin de baisser (4,43 % et 0,38 % mesurés, planchers inchangés).
+           *
+           * Même geste à la boîte aux lettres synchronisée (décision n° 183, `docs/DECISIONS.md`,
+           * 22/09/2026) : `app.svelte.ts` gagne le câblage de `syncMailbox`/`buildMailboxDeposit`
+           * (démarrage, retour au premier plan, anti-rebond 60 s, écran `Synchro.svelte`) — encore
+           * de la circuiterie, la LOGIQUE restant dans `src/lib/storage/mailbox-sync.ts`, mesurée à
+           * 96,36 % de lignes. `lines`/`statements`/`functions` redescendus sous leur valeur
+           * MESURÉE (2,38 %/2,19 %/4,28 %) ; `branches` n'a pas eu besoin de baisser (0,36 % mesuré,
+           * plancher inchangé).
            */
-          'src/state/**/*.ts': { lines: 2.5, statements: 2.3, functions: 4.4, branches: 0.3 },
+          'src/state/**/*.ts': { lines: 2.3, statements: 2.1, functions: 4.2, branches: 0.3 },
         },
       },
     },
