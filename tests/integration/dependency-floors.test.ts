@@ -20,6 +20,13 @@
  * et ces deux-là figurent ici quand même, comme planchers, précisément pour que le verrou ne
  * puisse pas redescendre en silence.
  *
+ * **Le 22/09/2026, le même cas, et un angle mort de plus.** `npm audit` signalait deux failles de
+ * `qs` (CVE-2026-82417 et CVE-2026-82562, corrigées en 6.16.0) que GitHub n'affichait pas : son tri
+ * automatique les avait **écartées d'office** le jour même, la dépendance étant de développement.
+ * Aucune trace dans le dépôt. `express` 4.22.3 et `body-parser` 1.20.8 déclaraient déjà
+ * `~6.16.0` : `npm update express body-parser qs` a suffi, trois paquets, aucun `override` neuf —
+ * seul celui de `typed-rest-client`, qui épingle `qs` à l'identique, monte à `^6.16.0`.
+ *
  * **Tout descend de deux outils de développement**, jamais livrés au navigateur : `@lhci/cli`
  * (Lighthouse CI, figé depuis le 25/06/2025) et `@stryker-mutator/core`. `npm run audit:prod`, qui
  * regarde ce qui est *livré*, n'a jamais rien eu à dire — et c'est exactement la distinction que la
@@ -89,7 +96,13 @@ const FLOORS: readonly { name: string; floor: string; avis: string }[] = [
     avis: 'CVE-2026-44705 — traversée de chemin par préfixe non assaini',
   },
   { name: 'uuid', floor: '11.1.1', avis: 'CVE-2026-41907 — dépassement de tampon en v3/v5/v6' },
-  { name: 'qs', floor: '6.15.2', avis: 'CVE-2026-8723 — déni de service déclenchable à distance' },
+  {
+    name: 'qs',
+    floor: '6.16.0',
+    avis:
+      'CVE-2026-82417 et CVE-2026-82562 — déni de service, limite de tableau contournée ; ' +
+      'après CVE-2026-8723',
+  },
 ];
 
 describe('les planchers de version tenus par les overrides', () => {

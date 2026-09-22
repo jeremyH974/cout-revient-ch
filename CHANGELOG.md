@@ -274,6 +274,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Fixed
 
+- **Deux failles modérées de `qs` corrigées dans les outils de développement** (CVE-2026-82417 et
+  CVE-2026-82562, déni de service) : elles venaient de Lighthouse CI et de Stryker, jamais du code
+  servi aux utilisateurs — la production reste à zéro. GitHub les avait écartées d'office, sans
+  que rien ne le dise ; `npm audit` les montrait. Un rafraîchissement du verrou a suffi (`qs`
+  6.16.0), et le test des planchers de version l'impose désormais. Reste la faille connue
+  d'`extract-zip`, sans correctif publié, surveillée toutes les six heures.
 - **Une plage de dates comptait mal ses bornes.** Choisie à la main, elle oubliait la variation de
   son premier jour sur la Vue d'ensemble ; choisie parmi les présélections, elle comptait un jour
   de trop dans les statistiques de trading (« 1 semaine » y couvrait huit jours). Une seule lecture
