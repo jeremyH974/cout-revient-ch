@@ -445,6 +445,35 @@ est seulement le dernier écran à ne pas la lire.
 désigne aujourd'hui à la fois le total consolidé de la Vue d'ensemble et l'espace des prêts ; un
 rapport global qui contiendrait une part homonyme serait faux dès son titre.
 
+### 3 septies. Propositions issues de la demande du 22/09/2026 (cohérence, trading, téléphone)
+
+Détail, sources datées et limites :
+[`proposals/2026-09-22-coherence-trading-mobile.md`](proposals/2026-09-22-coherence-trading-mobile.md).
+
+Constat central : **l'écran tient au téléphone, les données non.** Aucune des 32 routes ne déborde
+à 360 px, mais la restauration « en fusionnant » garde toujours l'appareil courant, sans date ni
+suppression reportée — or le propriétaire utilise trois navigateurs (variante privée, site public,
+Android). Le reste est de la cohérence : des cartes sans marge, dix boutons sans style, un journal
+de trading sans filtre et des tags qu'aucun écran ne permet de saisir.
+
+| #    | Proposition                                                                                  | Valeur | Fiabilité | Satisf. | Sessions |   ROI   |
+| ---- | -------------------------------------------------------------------------------------------- | :----: | :-------: | :-----: | :------: | :-----: |
+| P119 | Socle d'interface partagé : cartes, boutons, onglets d'une ligne, aide à 24 px, règle ESLint |   3    |     3     |    4    |    1     | **10**  |
+| P120 | Fusion entre appareils : LWW par enregistrement, horloge hybride, pierres tombales, rapport  |   5    |     5     |    4    |    2     |  **7**  |
+| P121 | Trades filtrables, et la synthèse du sous-ensemble filtré                                    |   4    |     2     |    5    |    1     | **11**  |
+| P122 | Annoter en trois gestes (feuille basse), tags normalisés, pastille « à annoter »             |   4    |     2     |    5    |   1,5    | **7,3** |
+| P123 | Distance à la liquidation, au prix mark, par sens                                            |   4    |     3     |    4    |   0,5    | **22**  |
+| P124 | Téléphone : `svh`, Réglages repliables, Marché par jour, interrupteurs, installation Android |   3    |     2     |    5    |   1,5    | **6,7** |
+| P125 | Boîte aux lettres chiffrée : dossier synchronisé sur PC, partage et Share Target sur Android |   5    |     4     |    5    |    2     |  **7**  |
+| P126 | Un seul vocabulaire, gardé par un test ; « Plus » rangé en groupes                           |   3    |     2     |    4    |    1     |  **9**  |
+
+**Ordre retenu** : P119 et P120 d'abord, en parallèle ; puis P121-P123, P124 et P125 ; P126 en
+dernier. Ce n'est pas l'ordre du ROI brut. **P119 conditionne les écrans neufs** — sans lui, P121,
+P122 et P124 construiraient avec les anciens boutons et les anciennes cartes, qu'il faudrait
+reprendre. **P120 conditionne P125** : une boîte aux lettres qui fusionnerait avec la règle
+actuelle propagerait des pertes. P126 touche toutes les chaînes et passe après les écrans qui en
+créent.
+
 ## 4. Ordre d'exécution recommandé
 
 ### Phase 0 — Socle de confiance (≈ 3 sessions, à faire en premier)
