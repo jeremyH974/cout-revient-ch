@@ -9,6 +9,7 @@
 import { epochDayOf, weekdayMondayFirst } from '../date';
 import { D, ZERO, divOrNull, type Big } from '../money';
 import type { JournaledTrip } from './journal';
+import type { RoundTrip } from './round-trips';
 
 /** En dessous de ce nombre de trades clos, l'échantillon ne permet aucune conclusion. */
 export const MIN_SAMPLE = 30;
@@ -86,6 +87,21 @@ export interface TradingStats {
   smallSample: boolean;
 }
 
+export type TripOutcome = 'win' | 'loss' | 'breakeven';
+
+/**
+ * Issue d'un aller-retour clos, sur son P&L net NATIF (jamais converti) : gagnant si strictement
+ * positif, perdant si strictement négatif, à l'équilibre sinon. Exportée pour que la facette
+ * gagnant/perdant du filtre (P121, `trading/filter.ts`) ne redéfinisse jamais ce seuil ailleurs —
+ * même motif que `tripOfFunding` dans `round-trips.ts` : deux définitions qui pourraient diverger
+ * donneraient deux chiffres différents pour le même trade.
+ */
+export function outcomeOf(trip: RoundTrip): TripOutcome {
+  if (trip.netPnl.gt(ZERO)) return 'win';
+  if (trip.netPnl.lt(ZERO)) return 'loss';
+  return 'breakeven';
+}
+
 export function computeStats(
   trips: readonly JournaledTrip[],
   toDisplay: ToDisplay = identity,
@@ -120,13 +136,13 @@ export function computeStats(
 
   for (const t of closedTrips) {
     // Signes et séries : sur le P&L natif (invariants de devise) ; sommes : converties.
-    const native = t.trip.netPnl;
-    if (native.gt(ZERO)) {
+    const outcome = outcomeOf(t.trip);
+    if (outcome === 'win') {
       wins++;
       winStreak++;
       lossStreak = 0;
       longestWinStreak = Math.max(longestWinStreak, winStreak);
-    } else if (native.lt(ZERO)) {
+    } else if (outcome === 'loss') {
       losses++;
       lossStreak++;
       winStreak = 0;

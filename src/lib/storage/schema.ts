@@ -6,6 +6,12 @@ import { METRICS, type Metric } from '../history/metrics';
 import { isDayString } from '../history/days';
 import { DEFAULT_PERIOD, PERIODS, type CustomRange, type Period } from '../history/series';
 import { KEYED_FLAVORS, type ExplorerFlavor } from '../import/onchain/etherscan';
+import {
+  EMPTY_FILTER,
+  type TradeFilter,
+  type TradeOutcome,
+  type TradeSide,
+} from '../domain/trading/filter';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { emptyHlState, type HlState } from '../import/hyperliquid/data';
 import { emptyLendingState, type LendingState } from '../domain/lending/types';
@@ -31,6 +37,8 @@ import {
 import type { CorporateAction, PivotAmount } from '../domain/types';
 import type { TransferOverride } from '../domain/transfers';
 import type { DuplicateReview } from '../domain/reconciliation';
+import { TRACKED_COLLECTIONS } from './sync/tracked';
+import type { EntryVersion, SyncMeta } from './sync/types';
 
 export const SCHEMA_VERSION = 1 as const;
 export const APP_ID = 'cout-revient-ch';
@@ -101,6 +109,15 @@ export interface UiSettings {
    * reprendre la forme de l'état au premier ajout.
    */
   customRange: CustomRange | null;
+  /**
+   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 183) : même choix que
+   * `period` ci-dessus, et pour la même raison — le routeur est à hash sans modèle de requête,
+   * aucune donnée ne voyage dans l'URL, et le seul bénéfice restant (le bouton retour) est déjà
+   * couvert autrement (`JournalSheet`, décision n° 183). Vivre ici, plutôt que dans un état de
+   * route perdu à la navigation, est justement ce qui le fait **survivre** à l'aller-retour vers
+   * la fiche d'un trade.
+   */
+  tradeFilter: TradeFilter;
   /**
    * Tailles saisies dans l'onglet « Seuil » de l'espace Trading, **par actif** (`BTC` → « 10 20 30 »),
    * telles que tapées (décision n° 158). Des quantités hypothétiques, jamais une position : le texte
@@ -290,6 +307,14 @@ export interface StoredStateV1 {
   /** Alertes de prix relatives au PRU (règles, états, journal, réglages). */
   alerts: AlertsState;
   ui: UiSettings;
+  /**
+   * Métadonnées de fusion multi-appareils (`src/lib/storage/sync/`) : horloge logique hybride et
+   * version par enregistrement de chaque collection SUIVIE. Champ **additif** — absent d'une
+   * sauvegarde antérieure à ce chantier, qui se relit alors comme « tout hérité »
+   * (`docs/backup-format.md` § Fusion). Jamais posé par `emptyState()` : un état neuf n'a encore
+   * rien à dater.
+   */
+  sync?: SyncMeta;
 }
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
@@ -300,6 +325,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   displayCurrency: 'EUR',
   period: DEFAULT_PERIOD,
   customRange: null,
+  tradeFilter: { ...EMPTY_FILTER },
   breakevenSizes: {},
   chartMetric: 'value',
   assetChartMetric: 'pru',
@@ -638,6 +664,36 @@ function sanitizeManualTrade(id: string, raw: unknown): ManualTrade | null {
     quote: QUOTES.has(raw['quote'] as string) ? (raw['quote'] as ManualTrade['quote']) : 'USD',
   };
 }
+
+const TRADE_OUTCOMES = new Set(['win', 'loss', 'open', 'unannotated']);
+
+/**
+ * Assainit `ui.tradeFilter` (P121) : listes de chaînes plafonnées (même plafond que le journal,
+ * `textList`), `sides`/`outcomes` en LISTE BLANCHE (jamais une chaîne arbitraire réinjectée dans
+ * `applyFilter`), un identifiant de compte mal formé simplement écarté — jamais tout le filtre.
+ * Totale : un `raw` qui n'est pas un objet rend le filtre vide plutôt que d'échouer.
+ */
+function sanitizeTradeFilter(raw: unknown): TradeFilter {
+  if (!isRecord(raw)) return { ...EMPTY_FILTER };
+  const whitelisted = <T extends string>(value: unknown, allowed: ReadonlySet<string>): T[] =>
+    Array.isArray(value)
+      ? [...new Set(value.filter((v): v is T => typeof v === 'string' && allowed.has(v)))]
+      : [];
+  const accounts = Array.isArray(raw['accounts'])
+    ? raw['accounts']
+        .filter((a): a is string => typeof a === 'string' && ACCOUNT_ID.test(a))
+        .slice(0, MAX_LIST)
+    : [];
+  return {
+    query: textOrEmpty(raw['query'], 200),
+    sides: whitelisted<TradeSide>(raw['sides'], DIRECTIONS),
+    outcomes: whitelisted<TradeOutcome>(raw['outcomes'], TRADE_OUTCOMES),
+    setups: textList(raw['setups']) ?? [],
+    mistakes: textList(raw['mistakes']) ?? [],
+    tags: textList(raw['tags']) ?? [],
+    accounts,
+  };
+}
 // --- Alertes de prix (P29) --------------------------------------------------------------------
 
 const ALERT_DIRECTIONS = new Set(['below', 'above']);
@@ -861,8 +917,10 @@ function validQualification(raw: unknown): raw is Qualification {
   return required === undefined || isDecimal(raw[required]);
 }
 
-const MAX_LIST = 40;
-const MAX_TEXT = 120;
+// Exportées (seulement) pour que `domain/trading/tags.ts` — qui n'importe jamais ce module —
+// fasse vérifier par un test que ses propres plafonds valent ceux, persistés, du schéma.
+export const MAX_LIST = 40;
+export const MAX_TEXT = 120;
 /** Clé d'API CoinGecko : jeton court sans espace ; tout le reste est écarté. */
 const API_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 const sanitizeApiKey = (v: unknown): string | null =>
@@ -897,10 +955,58 @@ function sanitizeImport(raw: unknown): ImportBatchMeta | null {
   return meta;
 }
 
+// --- Métadonnées de synchronisation (`sync/`) ---------------------------------------------------
+
+/** `''` (hérité) ou `<13 chiffres>.<4 chiffres>.<deviceId>` (`sync/hlc.ts`). */
+const HLC_STRING = /^(|\d{13}\.\d{4}\..+)$/;
+const TRACKED_COLLECTION_SET = new Set<string>(TRACKED_COLLECTIONS);
+
+function sanitizeEntryVersion(raw: unknown): EntryVersion | null {
+  if (!isRecord(raw)) return null;
+  // Une version ENREGISTRÉE n'est jamais héritée : `t: ''` n'a pas sa place ici, l'héritage se
+  // traduit par l'ABSENCE de version (voir `mergeSynced`), jamais par une chaîne vide stockée.
+  if (typeof raw['t'] !== 'string' || raw['t'] === '' || !HLC_STRING.test(raw['t'])) return null;
+  // `del` présent mais ni `true` ni absent (ex. la CHAÎNE "true", un fichier édité à la main) :
+  // l'entrée ENTIÈRE est écartée plutôt que de deviner. Coercer silencieusement vers « non
+  // supprimée » serait le pire des deux mondes — une suppression réelle redeviendrait une valeur
+  // vivante affirmée avec confiance ; l'écarter la fait retomber sur « héritée », qui perd contre
+  // toute version réelle des deux côtés à la prochaine fusion plutôt que d'en affirmer une fausse.
+  if ('del' in raw && raw['del'] !== true) return null;
+  return raw['del'] === true ? { t: raw['t'], del: true } : { t: raw['t'] };
+}
+
+/**
+ * Valide la forme de `sync` plutôt que de laisser planter une fusion sur un fichier édité à la
+ * main ou écrit par une version future : `undefined` en l'absence du champ (sauvegarde héritée,
+ * silencieusement acceptée) ou en cas de forme illisible (écarté plutôt que de faire échouer toute
+ * la restauration — `docs/backup-format.md:130-139`). Une collection inconnue (sauvegarde d'une
+ * version future qui suit une collection que celle-ci ne connaît pas encore) est simplement
+ * ignorée, jamais un motif de refus.
+ */
+function sanitizeSyncMeta(raw: unknown): SyncMeta | undefined {
+  if (raw === undefined) return undefined;
+  if (!isRecord(raw)) return undefined;
+  if (raw['v'] !== 1) return undefined;
+  if (typeof raw['clock'] !== 'string' || !HLC_STRING.test(raw['clock'])) return undefined;
+  if (!isRecord(raw['versions'])) return undefined;
+  const versions: SyncMeta['versions'] = {};
+  for (const [collection, entries] of Object.entries(raw['versions'])) {
+    if (!TRACKED_COLLECTION_SET.has(collection) || !isRecord(entries)) continue;
+    const clean: Record<string, EntryVersion> = {};
+    for (const [key, value] of Object.entries(entries)) {
+      const version = sanitizeEntryVersion(value);
+      if (version) clean[key] = version;
+    }
+    if (Object.keys(clean).length > 0) versions[collection] = clean;
+  }
+  return { v: 1, clock: raw['clock'], versions };
+}
+
 /** Écarte les entrées invalides plutôt que de laisser le moteur planter ; renvoie le nombre écarté. */
 export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dropped: number } {
   let state = input;
   let dropped = 0;
+  const sync = sanitizeSyncMeta(input.sync);
   const imports: ImportBatchMeta[] = [];
   for (const raw of state.imports) {
     const meta = sanitizeImport(raw);
@@ -1129,6 +1235,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     ...state,
     ui: {
       ...state.ui,
+      tradeFilter: sanitizeTradeFilter(state.ui.tradeFilter),
       coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey),
       explorerKey: sanitizeApiKey(state.ui.explorerKey),
       twelveDataApiKey: sanitizeApiKey(state.ui.twelveDataApiKey),
@@ -1138,9 +1245,14 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
         : 'etherscan',
     },
   };
+  // `exactOptionalPropertyTypes` distingue « absent » de « présent et `undefined` » : `sync` ne
+  // doit apparaître dans l'objet final QUE quand `sanitizeSyncMeta` a rendu une valeur, jamais
+  // comme une clé valant `undefined` — et jamais recopié tel quel (non assaini) via `...state`.
+  const { sync: _rawSync, ...stateWithoutSync } = state;
+  void _rawSync;
   return {
     state: {
-      ...state,
+      ...stateWithoutSync,
       imports,
       rawRows,
       pivotRows,
@@ -1159,6 +1271,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       engineSettings,
       fx,
       alerts,
+      ...(sync !== undefined ? { sync } : {}),
     },
     dropped,
   };

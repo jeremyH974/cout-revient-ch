@@ -157,7 +157,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   référence (`AppState.accounts`, dérivé). `hyperliquid: HlState` (conteneur additif,
   docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
   (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
-  `json-io.ts`, jamais remplacé en bloc.
+  `sync/merge.ts`, jamais remplacé en bloc.
+  `src/lib/storage/sync` (fusion multi-appareils, docs/DECISIONS.md n° 182) porte toute la LOGIQUE,
+  en modules purs testés (mutation ≥ 90 %, hors Stryker par défaut — voir `stryker.config.json`) :
+  `hlc.ts` (horloge logique hybride, chaîne triable), `canon.ts` (JSON canonique pour comparer deux
+  enregistrements), `tracked.ts` (registre des collections SUIVIES — LWW par enregistrement — et
+  accès uniforme, `imports` compris malgré sa forme de tableau), `stamp.ts` (`stampChanges` : date
+  un diff entre deux instantanés, jamais un mutateur), `merge.ts` (`mergeSynced` : LWW + pierres
+  tombales sur les collections suivies, union sur `rawRows`/`pivotRows`/`hyperliquid`/`lending`/
+  `alerts.events`, réglages locaux inchangés sur les autres) et `import-prune.ts` (règle de
+  suppression des lignes d'un lot d'import, partagée par `undoImport` et l'élagage post-fusion).
+  Le seul point d'entrée IMPUR est `src/state/app.svelte.ts` — voir ce fichier ci-dessous.
 - `src/lib/calendar` — calendrier macroéconomique américain **et de la zone euro**, **compilé dans le bundle et jamais
   récupéré au vol** : `events.generated.ts` est engendré et committé par
   `scripts/generate-calendar.ts` (Fed et BEA relus par le cron hebdomadaire ; BLS recopié à la main
@@ -248,6 +258,19 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
   traqueur de dépendances, et l'en sortir ferait cesser silencieusement l'enregistrement des
   mutations profondes (décision n° 81).
+  **Seul point de branchement, impur, de la fusion multi-appareils** (décision n° 182) : trois
+  champs privés HORS de l'état réactif (`deviceId`, `syncMeta`, `baseline` — jamais `$state`, pour
+  la même raison que ci-dessus : les y mêler daterait `sync` lui-même et bouclerait l'effet).
+  `stampSnapshot()` — appelé par `flush`/`flushSync`/`exportBackup`/`installVault`/`removeVault`,
+  jamais l'inverse — date les changements depuis `baseline` (`stampChanges`, pur) et avance
+  `baseline` jusqu'au nouvel instantané ; sauté en mode démo, pour qu'aucune pierre tombale ne naisse
+  de données fictives. `restoreBackup()` appelle `mergeSynced` (« en fusionnant ») et réaligne
+  `baseline` sur le résultat **avant** le prochain `flush` — l'oublier redaterait les valeurs reçues
+  comme des éditions locales fraîches, cassant « le plus récent gagne » à la fusion suivante
+  (contre-épreuve dans le rapport de la PR). `clearAll()` réinitialise `baseline` et `syncMeta` SANS
+  pierre tombale : effacer les données d'un appareil ne doit jamais se propager comme des
+  suppressions aux autres. `deviceId` (UUID, `$lib/storage/device-id.ts`) vit dans le magasin `meta`
+  d'IndexedDB, jamais dans `StoredStateV1` — deux appareils ne partagent jamais d'identifiant.
 - `src/state/history.svelte.ts` — historique des prix et **séries** : `dailySeries`, `flows` (les
   apports, au sens des flux externes) et la courbe consolidée `netWorth`, définie **ici** et non
   dans un composant pour que le bandeau, la réconciliation et le graphique lisent le même objet.
@@ -258,7 +281,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
-- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 182) : capture de
+- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 184) : capture de
   `beforeinstallprompt` **au chargement du module** (posée en tête de `main.ts`, avant
   `app.init()`, qui est asynchrone et laisserait échapper un événement précoce),
   `preventDefault()` pour supprimer la mini-infobar native, invite gardée en mémoire de module et
@@ -315,6 +338,29 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
+
+    **La liste des trades filtre et synthétise (P121), et s'annote en trois gestes (P122).**
+    `routes/trading/Trades.svelte` applique `domain/trading/filter.ts` (recherche + facettes en
+    puces — sens, issue, setup, erreur, tag, compte — dont quatre visibles et le reste dans une
+    feuille « Filtres (n) ») et affiche `summarizeFiltered` au-dessus de la liste : exactement la
+    recette de `TradeStats.svelte`, pour que les deux écrans ne puissent pas se contredire sur le
+    même sous-ensemble. L'état du filtre vit dans `ui.tradeFilter` (réglages de l'appareil), comme
+    `ui.period` et pour la même raison (décisions n° 156-157 et n° 183) : il survit ainsi à
+    l'aller-retour vers la fiche d'un trade. `components/trading/JournalSheet.svelte` (sur
+    `Sheet.svelte`) ouvre une annotation rapide — setup, erreurs, tags, note, une ligne de revue —
+    depuis chaque ligne et depuis le haut de `TradeDetail.svelte` ; « Enregistrer » fusionne ce
+    patch dans l'entrée existante (`app.saveJournal`), jamais ne la remplace, et un brouillon non
+    enregistré vit en mémoire (une carte hors de `app.state`, perdue au rechargement) pour être
+    restitué à la réouverture. Le retour Android (et le bouton retour du navigateur) referme la
+    feuille sans quitter l'écran (`history.pushState`/`popstate`, jamais de `hashchange` sur la
+    même URL) ; une fermeture par la croix consomme l'entrée d'historique posée.
+    `components/trading/TagField.svelte` est le champ de saisie des tags (motif APG « combobox
+    with list autocomplete », suggestions par fréquence via `tagSuggestions`, normalisation à
+    l'écriture par `domain/trading/tags.ts` — jamais réécrite dans le composant).
+    `components/trading/TagManageSheet.svelte` liste l'usage des tags, renomme (fusionne si la
+    cible existe déjà, `renameTag`, une seule mutation de l'état via `app.renameJournalTag`) et
+    supprime avec confirmation ; ouverte depuis la feuille de filtres, sans route à elle.
+
   - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
     `reconciliation`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
     déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM
@@ -379,7 +425,7 @@ affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le m�
   (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
   grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
 
-  **P124 (décision n° 182)** ajoute deux primitives sur le même principe — un endroit, jamais un
+  **P124 (décision n° 184)** ajoute deux primitives sur le même principe — un endroit, jamais un
   style redéfini par écran :
 
   - **Interrupteur** (`src/components/shared/Switch.svelte`) : `<input type="checkbox"

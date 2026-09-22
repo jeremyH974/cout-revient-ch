@@ -164,4 +164,37 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
     });
     await expectNoViolations(page, '#/settings sans données (sections dépliées)');
   });
+
+  /**
+   * P121 : la feuille de filtres, avec ses six facettes dépliées (`<fieldset>`, puces
+   * `aria-pressed`) — elle ne peut pas figurer dans la liste ci-dessus, il faut l'ouvrir.
+   */
+  test('avec la démo : la feuille « Filtres » de la liste des trades', async ({ page }) => {
+    await openDemo(page);
+    await page.goto('#/trading/trades');
+    await page.getByRole('button', { name: /^Filtres/ }).click();
+    const sheet = page.getByRole('dialog', { name: 'Filtres' });
+    await expect(sheet).toBeVisible();
+    await expectNoViolations(page, 'feuille « Filtres »');
+  });
+
+  /**
+   * P122 : la feuille d'annotation, avec son champ de tags en combobox (puces, suggestions) —
+   * la structure la plus proche du motif APG de tout l'espace Trading.
+   */
+  test('avec la démo : la feuille d’annotation, champ de tags ouvert sur des suggestions', async ({
+    page,
+  }) => {
+    await openDemo(page);
+    await page.goto('#/trading/trades');
+    const rows = page.getByRole('list', { name: 'Trades' }).getByRole('listitem');
+    await rows.first().getByRole('button', { name: 'Annoter' }).click();
+    const sheet = page.getByRole('dialog', { name: /Annoter/ });
+    await expect(sheet).toBeVisible();
+    const tagField = sheet.getByRole('combobox', { name: 'Tags' });
+    await tagField.fill('a');
+    // Peut ne rendre aucune suggestion (aucun tag ne contient « a ») : la feuille reste valide
+    // dans les deux cas, seule la fermeture propre du combobox est vérifiée par l'absence d'axe.
+    await expectNoViolations(page, 'feuille d’annotation');
+  });
 });

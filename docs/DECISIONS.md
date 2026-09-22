@@ -6012,7 +6012,263 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      en nommant `no-restricted-syntax` et le message « Formater via src/lib/format », avant d'être
      retirés.
 
-182. **Le téléphone : écran et installation Android** (22/09/2026).
+182. **Fusion multi-appareils : un CRDT à base d'état, pas une union par identifiant** (22/09/2026).
+
+     ## Le problème que l'union ne résolvait pas
+
+     `mergeStates()` fusionnait chaque conteneur par `{ ...incoming, ...current }` : l'appareil
+     COURANT gagnait toujours, sans regarder aucune date — parce qu'aucun enregistrement n'en
+     portait. Avec trois navigateurs réels (variante privée, site public, téléphone), une note
+     écrite au téléphone se perdait en silence au retour sur l'ordinateur si celui-ci avait, entre
+     temps, modifié n'importe quoi d'autre dans le même conteneur. Pire : les suppressions étaient
+     destructives — `delete` sur une copie, omission par déstructuration, reconstruction filtrée,
+     selon l'endroit — et sans pierre tombale, une suppression réapparaissait à la fusion suivante
+     depuis un appareil qui ne savait pas qu'elle avait eu lieu.
+
+     ## Conception : LWW-map par collection, horloge logique hybride, pierres tombales
+
+     Sources : Shapiro, Preguiça, Baquero, Zawirski, « A comprehensive study of Convergent and
+     Commutative Replicated Data Types », INRIA RR-7506 (2011) — la famille LWW-Register / LWW-Map,
+     et la preuve que l'union par timestamp converge quel que soit l'ordre et le nombre de fusions ;
+     Kulkarni & Demirbas, « Logical Physical Clocks and Consistent Snapshots in Globally Distributed
+     Databases » (2014) — l'horloge logique hybride, qui reste proche de l'heure murale quand les
+     appareils sont d'accord et ne s'en détache que pour rester strictement croissante quand ils ne
+     le sont pas ; Ink & Switch, « Cambria: Schema Evolution for Collaborative Software » — la
+     discipline des champs additifs plutôt que des migrations cassantes, pour qu'un format de
+     synchronisation puisse évoluer sans casser les appareils qui tournent une version plus ancienne.
+
+     **LWW par ENREGISTREMENT, pas par champ.** Une carte LWW par champ existe (Shapiro et al. la
+     décrivent aussi) et résout plus de conflits — éditer le prix d'entrée d'un trade sur un
+     appareil et sa devise sur un autre fusionnerait les deux au lieu d'en écraser un. Écartée : elle
+     exige de connaître la FORME de chaque enregistrement (quels champs existent, lesquels se
+     fusionnent comment), donc un schéma par type de donnée à maintenir à la main et à faire évoluer
+     avec chaque `interface` du domaine. Un enregistrement entier, lui, se traite comme une valeur
+     opaque — `canon()` le compare, rien ne sait ce qu'il contient — et la seule perte réelle
+     (deux champs modifiés séparément sur deux appareils) est rare face à la simplicité qui en
+     résulte : douze collections suivies, zéro schéma de fusion par champ à écrire ni à maintenir.
+
+     **HLC plutôt qu'horloge murale seule.** Une horloge murale seule (`Date.now()`) se fait devancer
+     par un appareil dont l'heure système avance vite, ou piéger par un qui recule après un
+     changement de fuseau ; deux écritures dans la même milliseconde sont indépartageables. L'horloge
+     logique hybride répare les deux : elle ne recule jamais (`wall = max(maintenant, mur vu)`), et
+     un compteur départage les écritures simultanées. Sérialisée en chaîne `<ms 13 chiffres>.
+<compteur 4 chiffres>.<deviceId>`, triable par simple comparaison de chaînes — jamais
+     `localeCompare` (décision n° 81 : les deux ordres divergent sur la casse, et l'identifiant
+     d'appareil est un UUID, donc sans lettre dont la casse varierait, mais la règle reste la même
+     partout dans ce dépôt). `''` (chaîne vide) vaut « hérité » : plus petit que toute horloge
+     réelle, par construction (une chaîne vide est un préfixe strict de toute chaîne non vide en
+     JavaScript). Un débordement du compteur (plusieurs milliers d'écritures à la même milliseconde
+     logique — un gros import peut dater des milliers de qualifications d'un coup) fait avancer le
+     mur d'une unité plutôt que déborder sur un cinquième chiffre, ce qui casserait le tri.
+
+     **Datée au DIFF d'enregistrement, jamais dans un mutateur.** `src/state/app.svelte.ts` compte
+     des dizaines de mutateurs et n'a presque aucun test (2,5 % de lignes, décision n° 147) ; un
+     mutateur oublié n'aurait jamais daté son changement, en silence. `stampChanges()` (pure, testée
+     à part) compare deux instantanés complets — `baseline` (dernier enregistré) et le nouvel état —
+     et date ce qui diffère, quel que soit le mutateur qui l'a produit. Un seul point d'appel
+     (`AppState.stampSnapshot()`, appelé par `flush`/`flushSync`/`exportBackup`/`installVault`/
+     `removeVault`) garantit qu'aucune écriture complète n'échappe à la datation.
+
+     **Champ additif, jamais une migration.** `StoredStateV1.sync?: SyncMeta` est optionnel : une
+     sauvegarde antérieure à ce chantier n'en a pas, se relit comme « tout hérité » (§ Fusion,
+     `docs/backup-format.md`), et `SCHEMA_VERSION` ne bouge pas — la politique de version de ce
+     dépôt (« additif → pas de bump ») s'applique telle quelle. `sanitizeState()` valide sa forme
+     (chaînes HLC bien formées, collections connues) et l'écarte plutôt que de laisser planter une
+     restauration sur un fichier édité à la main ou écrit par une version future qui suivrait une
+     collection inconnue d'ici.
+
+     **Conflit hérité : tranché LOCALEMENT, daté sur-le-champ.** Deux valeurs jamais datées et
+     différentes (le cas de TOUT conflit avant ce chantier, et de toute fusion impliquant une
+     sauvegarde héritée) n'ont aucune horloge à comparer. Plutôt que de refuser de trancher, l'appareil
+     COURANT l'emporte — comportement identique à l'ancien `mergeStates()`, donc aucune surprise
+     pour un fichier hérité — et la valeur retenue reçoit une date fraîche : la décision devient
+     explicite et se propagera normalement à tous les appareils à la prochaine fusion (propriété
+     vérifiée : `merge(A, B) = A′` puis `merge(B, A′) ≡ A′` sur les collections suivies — deux tours
+     suffisent à converger). Le rapport de fusion liste ces clés spécifiquement, sous
+     « conflits hérités tranchés en faveur de cet appareil » à l'écran.
+
+     **Démo et effacements : hors datation, par construction.** Charger le jeu de démonstration ne
+     doit dater aucune ligne fictive, et effacer les données d'UN appareil ne doit jamais se
+     propager comme des suppressions aux autres à la prochaine fusion — un appareil qui a juste subi
+     un « Effacer toutes les données » n'a pas le droit de faire disparaître le travail d'un autre.
+     `stampSnapshot()` saute la datation quand `ui.demoMode` est vrai ; `clearAll()` réinitialise
+     `baseline` ET `syncMeta` à vide, sans écrire la moindre pierre tombale.
+
+     ## Ce qui reste une union, ce qui reste local
+
+     Cinq collections de FAITS IMMUABLES (`rawRows`, `pivotRows`, `hyperliquid`, `lending`,
+     `alerts.events`) continuent de fusionner par union de clés, comme avant : une ligne brute ou un
+     fill Hyperliquid ne change jamais après coup, LWW n'y répond à aucune question qu'une union ne
+     résout pas déjà. Cinq collections de RÉGLAGES (`engineSettings`, `priceCache`, `fx`, `ui`,
+     `alerts.settings`) restent celles de l'appareil courant, inchangées par une fusion — une
+     préférence d'affichage n'a pas vocation à voyager.
+
+     ## Élagage déterministe après fusion
+
+     Trois dépendances entre collections ne se règlent pas par LWW seul : les lignes brutes/pivot
+     d'un lot d'import devenu pierre tombale (règle extraite d'`undoImport` en fonction pure,
+     `sync/import-prune.ts`, réutilisée aux deux endroits plutôt que dupliquée), les bruts
+     Hyperliquid d'un compte devenu pierre tombale, et l'état d'armement d'une règle d'alerte
+     devenue pierre tombale. Chacun est tranché sur une pierre tombale EXPLICITE (`del: true`),
+     jamais sur une simple absence : un premier essai élaguait `hyperliquid.accounts[id]` dès que
+     `id` manquait du résultat suivi `accounts`, et une fixture de test qui peuple les deux
+     conteneurs séparément (legitimement, pour isoler ce qu'elle vérifie) perdait ses bruts
+     synchronisés sans qu'aucune suppression n'ait eu lieu. Le pire d'une pierre tombale manquée est
+     une entrée orpheline inoffensive ; le pire d'une absence mal interprétée serait une perte de
+     données — la dissymétrie a tranché.
+
+     ## Identité d'appareil
+
+     `deviceId` (UUID, `crypto.randomUUID()`) vit dans le magasin `meta` d'IndexedDB — comme le
+     handle de dossier de sauvegarde automatique et l'en-tête du coffre — jamais dans `StoredStateV1`
+     ni dans `ui` : il ne doit jamais voyager dans une sauvegarde, sous peine que deux appareils se
+     retrouvent à en partager un. Chaque origine (variante privée, site public, téléphone) obtient
+     donc naturellement le sien, IndexedDB n'étant pas partagé entre elles.
+
+     ## Contre-épreuves (décision n° 75)
+
+     Trois, chacune faussant le code puis constatant qu'un test rougit en le nommant, puis
+     restaurant : (1) `mergeCollection` forcé à toujours garder le local, quelle que soit l'horloge
+     — treize tests rougissent, dont la commutativité, l'idempotence et le départage « le plus
+     récent gagne » ; (2) `stampChanges` empêché de dater une suppression — deux tests rougissent,
+     dont « suppression : pierre tombale datée » ; (3) `AppState.restoreBackup` privé de la
+     réinitialisation de `baseline` après une fusion — invisible du scénario `multi-device.spec.ts`
+     tel qu'il vérifiait d'abord le contenu affiché (l'attribution erronée n'empêche pas la
+     convergence des DONNÉES, l'horloge restant strictement croissante), donc un test dédié a été
+     ajouté avant de refaire la contre-épreuve : il ré-exporte immédiatement après une fusion et
+     vérifie que la version d'un enregistrement reçu porte toujours l'identifiant de l'appareil qui
+     l'a écrit — jamais celui qui vient de fusionner. Sans la réinitialisation, ce test échoue en
+     nommant précisément la réattribution silencieuse.
+
+     ## Mesuré, pas supposé
+
+     `stampChanges` sur 5 000 qualifications (`src/lib/storage/schema.ts`, `emptyState()` peuplé) :
+     18 à 23 ms selon que 0, 1, 500 ou les 5 000 entrées changent — dominé par le calcul du canon
+     des DEUX côtés sur chaque clé, pas par le nombre de changements réels. Sous le budget d'une
+     frame à 60 Hz (16,6 ms) de peu, et appelé au plus 3 à 4 fois par seconde (debounce 300 ms) :
+     accepté sans l'optimisation suggérée (cache du canon de la ligne de base) — décision n° 151
+     l'a déjà dit pour un autre chemin chaud, « la mesure a retourné la proposition ». À reconsidérer
+     si `qualifications` grossit d'un ordre de grandeur, ou si un profil réel montre un décrochage
+     perceptible.
+
+     `src/lib/storage/sync/**` a rejoint le périmètre `mutate` de `stryker.config.json` : 91,82 % de
+     mutants tués (≥ 90 % visé), mesuré SEUL (`npx stryker run --mutate "src/lib/storage/sync/**/
+*.ts,!src/lib/storage/sync/**/*.test.ts"`) — `thresholds.break: 96` n'a pas bougé, il reste
+     calibré sur `derive/` et les moteurs fiscaux, dont le plancher est plus haut ; aucune course
+     combinée n'a encore mesuré le score mélangé des deux planchers. Survivants acceptés, analysés un
+     par un plutôt que chassés à l'aveugle : des littéraux `'remote'`/`''` dans `mergeCollection` que
+     la seule vérification `=== 'local'` rend équivalents quelle que soit leur valeur exacte ;
+     `hlcMax` à égalité stricte de deux chaînes primitives, où rien ne peut observer laquelle des
+     deux références a été choisie ; le premier retour de `parseHlc('')`, doublonné par l'échec
+     naturel de la regex sur une chaîne vide. `src/state` gagne de la circuiterie (`stampSnapshot`,
+     l'aiguillage de `restoreBackup`) et non de la logique : son plancher de couverture
+     (`vite.config.ts`) est redescendu de 2,6 %/2,4 % à 2,5 %/2,3 % (lignes/instructions) — la
+     LOGIQUE, elle, vit dans `sync/`, mesurée à 99 %+ de lignes.
+
+     ## Ce qui a été délibérément écarté
+
+     Une carte LWW par CHAMP (ci-dessus, § Conception). Un vecteur d'horloges par appareil plutôt
+     qu'une HLC unique : plus précis sur la causalité, mais sa taille croît avec le nombre
+     d'appareils jamais vus, à conserver pour toujours dans chaque sauvegarde — disproportionné pour
+     trois navigateurs. Une fusion à trois voies avec ancêtre commun (façon Git) : exigerait de
+     conserver l'historique complet des instantanés, alors que l'objectif ici est de converger, pas
+     de proposer une résolution manuelle de conflit à l'écran.
+
+183. **Des trades qu'on retrouve, et qu'on annote en trois gestes : filtres, synthèse du filtre et
+     tags vivants** (P121-P122, 22/09/2026).
+
+     **Le filtre vit dans les réglages de l'appareil, pas dans l'URL.** Même choix que la plage
+     d'analyse et pour la même raison (décisions n° 156-157) : le routeur est à hash sans modèle de
+     requête, aucune donnée ne voyage dans une URL partagée, et le seul bénéfice qu'une URL
+     apporterait — le bouton retour — est couvert autrement ici, par le piège d'historique de la
+     feuille d'annotation (ci-dessous). `ui.tradeFilter` est un champ additif de plus dans
+     `UiSettings`, assaini champ par champ dans `sanitizeState` : listes de chaînes plafonnées au
+     même plafond que le journal (`textList`, 40 entrées), `sides`/`outcomes` en LISTE BLANCHE —
+     jamais une chaîne arbitraire réinjectée dans `applyFilter` —, un identifiant de compte mal
+     formé écarté seul plutôt que d'invalider tout le filtre. Vivre dans les réglages plutôt que
+     dans un état de route est justement ce qui le fait **survivre** à l'aller-retour vers la fiche
+     d'un trade — le vrai besoin derrière la demande initiale d'un bouton retour.
+
+     **Sémantique des facettes, standard des praticiens (TradeZella, TradesViz, Edgewonk) : ET
+     entre facettes, OU à l'intérieur d'une facette.** Cocher « Long » et « Perdant » retient les
+     longs perdants ; cocher « Long » et « Short » retient tout. `domain/trading/filter.ts` (déjà
+     posé et sous test de mutation, décision antérieure de cette même session) porte ce prédicat,
+     `facetOptions` peuple les puces à partir de l'ensemble NON filtré — les options ne
+     disparaissent pas à mesure qu'on filtre, un choix de lisibilité plutôt que de narrowing
+     progressif — et `summarizeFiltered` applique la fenêtre de période **seulement** au sous-
+     ensemble déjà filtré, exactement la recette de `TradeStats.svelte:31-42`. La liste elle-même
+     n'est PAS bornée par la période : un trade ouvert plus ancien que la fenêtre reste visible
+     dans un journal, quand un rapport, lui, a raison de le taire.
+
+     **La feuille d'annotation fusionne un patch, jamais toute l'entrée.** `JournalSheet.svelte`
+     n'édite que setup, erreurs, tags, note et une ligne de revue — la thèse et le plan restent la
+     part du formulaire complet de la fiche, qui gagne simplement le champ de tags. « Enregistrer »
+     recompose `{ ...app.journalOf(id), ...patch }` avant `app.saveJournal` : sans ce mélange, la
+     feuille rapide effacerait silencieusement la thèse déjà écrite depuis la fiche.
+
+     **Brouillon en mémoire, hors de `app.state` (décision n° 45 : brouillon automatique ET action
+     explicite).** Une carte `Map` tenue au niveau du module (`<script module>`), jamais un champ
+     réactif de l'application : elle ne doit ni se sauvegarder, ni se synchroniser entre appareils
+     (P120), ni survivre à un rechargement — un brouillon n'est pas une donnée, c'est un filet entre
+     deux gestes. `eslint-disable` explicite sur le `Map` (la règle `svelte/prefer-svelte-reactivity`
+     suppose par défaut qu'une carte mutable veut être réactive ; celle-ci ne le veut justement pas).
+
+     **Le piège d'historique, vérifié sur les sources primaires du jour** (MDN, « Window: popstate
+     event » et « History: pushState() », consultées le 22/09/2026). `pushState()` ne déclenche
+     jamais lui-même `popstate` ni `hashchange` ; `popstate` ne se déclenche qu'à une navigation
+     réelle (retour, `history.back()`). À l'ouverture, la feuille pousse une entrée sur la MÊME URL
+     (aucun `hashchange`, donc le routeur ne bouge pas) ; le retour Android ou navigateur déclenche
+     `popstate`, que la feuille intercepte pour se refermer sans quitter l'écran. Une fermeture
+     DEPUIS la feuille (croix, fond — sauf `dismissible={false}`, ajouté à `Sheet.svelte` pour
+     cette seule feuille, décision ci-dessous —, Échap natif du `<dialog>`) consomme au contraire
+     l'entrée posée via `history.back()`, pour ne pas en laisser traîner une qui ne fermerait plus
+     rien au retour suivant — sauf si l'URL a déjà changé entre-temps (l'utilisateur a quitté
+     l'écran par un autre lien pendant que la feuille était ouverte) : revenir en arrière romprait
+     ALORS cette navigation-là, donc l'entrée orpheline est acceptée plutôt que corrigée à l'aveugle.
+     **Deux fermetures, pas trois** (NN/g, fermetures accidentelles de superpositions, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) :
+     `Sheet.svelte` gagne une prop `dismissible` (`true` par défaut, inchangé pour ses six autres
+     usages) que seule `JournalSheet` met à `false` — un tapotement à côté ne doit pas faire perdre
+     une saisie que le brouillon, de toute façon, aurait déjà mise à l'abri, mais autant ne pas
+     entraîner l'habitude.
+
+     **Un dialogue qui se nomme.** `Sheet.svelte` ne portait ni `aria-label` ni `aria-labelledby` :
+     un lecteur d'écran qui y entrait n'annonçait rien qui la distingue d'une autre feuille du même
+     écran — le motif APG « Dialog (Modal) » l'exige. `$props.id()` pose un identifiant stable,
+     `aria-labelledby` le relie au `<h2>{title}</h2>` déjà présent : un correctif transverse à ses
+     sept usages, jamais un ajout propre à cette seule feuille.
+
+     **Les tags se normalisent à l'ÉCRITURE, jamais à la lecture.** `domain/trading/tags.ts` (posé
+     plus tôt dans cette session, sous test de mutation) distingue le libellé affiché (espaces
+     réduits, casse conservée) de la clé de comparaison (NFKD sans diacritiques, minuscules
+     françaises) : « Breakout », « breakout » et « bréakout » partagent une clé, jamais deux
+     entrées. `TagField.svelte` est le seul point de saisie (motif APG combobox with list
+     autocomplete — `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`,
+     `aria-autocomplete="list"`, popup `role="listbox"`/`role="option"` ; W3C ARIA Authoring
+     Practices Guide, motif combobox, consulté le 22/09/2026, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) ; un premier brouillon posait un
+     `<button>` DANS chaque `role="option"` — deux
+     éléments interactifs imbriqués, que le motif proscrit — corrigé en rendant l'option elle-même
+     cliquable. Renommer (`TagManageSheet.svelte`) fusionne s'il cible un nom déjà pris, en UNE
+     mutation de l'état (`app.renameJournalTag`, qui n'existait pas : `saveJournal` ne referait
+     qu'une entrée à la fois).
+
+     **Hors périmètre, à dessein.** La distance à la liquidation (P123) a son module pur
+     (`domain/trading/liquidation.ts`, posé et testé plus tôt dans cette session) ; son affichage
+     sur les positions ouvertes appartient à `PositionRow.svelte`/`Trading.svelte`, travaillés EN
+     PARALLÈLE par un autre agent sur cette même branche — n'y pas toucher était la consigne, pas
+     un oubli.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause puis restaurée à
+     l'octet près : le bandeau de `Trades.svelte` bricolé pour résumer `trips` (non filtré) plutôt
+     que `filtered` — la spec attendait 1 trade clos, en a reçu 4 ; `collapseSpaces` de
+     `domain/trading/tags.ts` bricolée pour ne plus réduire les espaces internes (`tags.test.ts`
+     rougit sur `'Breakout    Range'` reçu là où `'Breakout Range'` était attendu) ; le gestionnaire
+     `popstate` de `JournalSheet.svelte` bricolé pour ne plus fermer la feuille (`closedByBack =
+true` posé, `sheetOpen = false` retiré) — la spec `page.goBack()` rougit en constatant le
+     dialogue toujours visible au lieu de fermé.
+
+184. **Le téléphone : écran et installation Android** (22/09/2026).
 
      **Le constat.** L'application n'avait jamais été pensée au doigt sur un petit écran : `100vh`
      comptait la barre d'adresse de Chrome Android dépliée, laissant un bandeau vide au pied de

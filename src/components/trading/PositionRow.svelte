@@ -3,13 +3,16 @@
    * Position perp ouverte, présentée comme une ligne de position de l'espace Investissement
    * (même grammaire visuelle qu'`AssetRow`) avec des colonnes de trading : taille · entrée,
    * marque (valeur ÷ taille), valeur notionnelle, latent (et % sur la marge engagée),
-   * liquidation. La ligne mène à l'aller-retour ouvert (détail + journal) quand il existe.
+   * distance à la liquidation (P123). La ligne mène à l'aller-retour ouvert (détail + journal)
+   * quand il existe.
    */
   import { D, ZERO, divOrNull, type Big } from '$lib/domain/money';
+  import { isNearLiquidation, liquidationDistance } from '$lib/domain/trading/liquidation';
   import type { OpenPosition } from '$lib/domain/trading/types';
-  import { fmtPrice } from '$lib/format/fr';
+  import { fmtMoney, fmtPct, fmtPrice } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import CoinBadge from '../shared/CoinBadge.svelte';
+  import Info from '../shared/Info.svelte';
   import Money from '../shared/Money.svelte';
   import Pct from '../shared/Pct.svelte';
   import Qty from '../shared/Qty.svelte';
@@ -32,6 +35,27 @@
     return D(p.marginUsed);
   });
   const roe = $derived(initialMargin.gt(ZERO) ? upnl.div(initialMargin) : null);
+
+  // --- Distance à la liquidation (P123) ----------------------------------------------------
+  const distance = $derived(liquidationDistance(p));
+  /**
+   * Le badge « proche » ne s'ajoute qu'à la phrase de distance elle-même : un instantané PÉRIMÉ
+   * (`breached`) est toujours « proche » au sens de la fraction (≤ 0, donc ≤ 10 %), mais sa
+   * propre phrase (« Instantané périmé ») porte déjà l'alerte — un second mot ferait doublon.
+   */
+  const near = $derived(
+    distance.kind === 'value' && !distance.breached && isNearLiquidation(distance),
+  );
+  /** Texte visible, jamais un chiffre en dur : les quatre états de `LiquidationDistance`. */
+  const liqText = $derived.by((): string => {
+    if (distance.kind === 'none') return 'Pas de seuil de liquidation au collatéral actuel';
+    if (distance.kind === 'unknown') return 'Distance à la liquidation indisponible';
+    if (distance.breached) return 'Instantané périmé : actualisez';
+    const verb = p.side === 'long' ? 'Peut baisser de' : 'Peut monter de';
+    const pct = fmtPct(distance.fraction, { sign: false });
+    const gap = fmtMoney(distance.priceGap, 'USD', { sign: true });
+    return `${verb} ${pct} (${gap}) avant liquidation`;
+  });
 </script>
 
 <li class="item">
@@ -54,9 +78,7 @@
       ></span
     >
     <span class="cell price muted"
-      ><span class="sr-only">Marque</span>{mark ? fmtPrice(mark, 'USD') : '—'}<span class="small"
-        >liq. {p.liquidationPrice ? fmtPrice(p.liquidationPrice, 'USD') : '—'}</span
-      ></span
+      ><span class="sr-only">Marque</span>{mark ? fmtPrice(mark, 'USD') : '—'}</span
     >
     <span class="cell value"
       ><span class="sr-only">Valeur</span><Money value={money(D(p.value))} compact /></span
@@ -70,6 +92,18 @@
         compact
       /><span class="small"><Pct value={roe} /> <span class="muted">ROE</span></span></span
     >
+    <span class="liq small muted">
+      {liqText}
+      {#if near}<span
+          class="badge"
+          title="Écart sous les 10 % du prix de marque (heuristique d'affichage)">proche</span
+        >{/if}
+      {#if distance.kind === 'value' && !distance.breached && distance.crossMargin}<Info
+          title="Marge croisée"
+          >En marge croisée, ce seuil dépend de tout le compte : il suppose le reste inchangé, et un
+          dépôt, un retrait ou une autre position peut le déplacer.</Info
+        >{/if}
+    </span>
   </svelte:element>
 </li>
 
@@ -85,7 +119,8 @@
     grid-template-areas:
       'id latent'
       'qty value'
-      'price price';
+      'price price'
+      'liq liq';
     gap: 2px var(--space-3);
     padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--border);
@@ -135,10 +170,27 @@
     grid-area: latent;
     text-align: right;
   }
+  .liq {
+    grid-area: liq;
+    font-size: var(--fs-xs);
+  }
+  .badge {
+    display: inline-block;
+    margin-left: var(--space-1);
+    padding: 0 var(--space-2);
+    border: 1px solid currentColor;
+    border-radius: var(--radius-sm);
+    color: var(--warn);
+    font-size: var(--fs-xs);
+    font-weight: 600;
+    line-height: 1.6;
+  }
   @media (min-width: 768px) {
     .row {
       grid-template-columns: 2fr 1.4fr 1.4fr 1fr 1.2fr;
-      grid-template-areas: 'id qty price value latent';
+      grid-template-areas:
+        'id qty price value latent'
+        'liq liq liq liq liq';
       align-items: center;
     }
     .qty,

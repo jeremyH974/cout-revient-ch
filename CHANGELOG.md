@@ -7,6 +7,45 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La liste des trades se filtre, et se résume.** Une recherche (symbole, compte, journal) et des
+  puces par sens, issue (gagnant, perdant, ouvert, à annoter), setup et tag, plus une feuille
+  « Filtres » qui ajoute les erreurs et le compte. Un bandeau au-dessus de la liste résume le
+  sous-ensemble affiché (trades clos, résultat net, taux de réussite, espérance, profit factor) —
+  exactement les mêmes chiffres que l'écran Statistiques sur la même période. Le filtre choisi
+  survit quand on ouvre puis referme la fiche d'un trade.
+
+- **Annoter un trade en trois gestes, depuis la liste.** Un bouton « Annoter » sur chaque ligne (et
+  en tête de la fiche) ouvre une feuille rapide : setup, erreurs, tags, note sur 5, une ligne de
+  revue. Un brouillon non enregistré est retrouvé à la réouverture, et le bouton retour du
+  téléphone referme la feuille sans quitter l'écran. Une pastille « à annoter » repère les trades
+  clos qui n'ont pas encore de journal.
+
+- **Des tags enfin vivants.** Le champ de tags suggère par fréquence au fil de la saisie (« btc »
+  retrouve « BTC » déjà utilisé, sans créer de doublon), et un écran de gestion (depuis la feuille
+  de filtres) permet de renommer un tag — en fusionnant avec un tag existant du même nom — ou de le
+  supprimer.
+
+- **La distance à la liquidation, sur chaque position ouverte.** « Peut baisser de 12,4 %
+  (−10,23 $) avant liquidation » (« peut monter » pour un short) plutôt qu'un prix de liquidation
+  nu à décoder soi-même. Un mot — « proche » — signale un écart sous 10 %, jamais la seule
+  couleur ; en marge croisée, une bulle rappelle que ce seuil suppose le reste du compte inchangé.
+  Sans seuil au collatéral actuel, l'écran le dit plutôt que de laisser un tiret muet.
+
+- **Le nombre de trades à annoter, depuis le tableau de bord Trading.** Un lien « n trades à
+  annoter » mène à l'onglet Trades dès qu'un trade clos attend sa note ; absent quand tout est à
+  jour.
+
+- **La fusion entre appareils tient enfin compte du temps.** Restaurer une sauvegarde « en
+  fusionnant » depuis un autre navigateur (variante privée, site public, téléphone…) ne fait plus
+  gagner systématiquement l'appareil courant : pour chaque compte, trade, note de journal, alerte,
+  saisie ou import, c'est désormais la modification la plus récente qui l'emporte — d'où qu'elle
+  vienne — et une suppression reste supprimée tant qu'aucun appareil n'a écrit dessus depuis. Le
+  message affiché après une fusion détaille ce qui a changé (ajouts, mises à jour, suppressions) et
+  signale les rares cas où deux appareils avaient modifié la même chose sans qu'aucun ne le sache
+  encore, auquel cas celui sur lequel vous fusionnez tranche et la décision se propage ensuite
+  normalement. Une sauvegarde plus ancienne, écrite avant cette mise à jour, se fusionne toujours
+  correctement. Voir `docs/backup-format.md` § Fusion et `docs/DECISIONS.md` n° 182.
+
 - **L'application s'installe sur Android, avec un aperçu.** Un bouton « Installer l'application »
   apparaît dans les réglages dès que Chrome le permet (masqué si l'app tourne déjà en application
   installée). L'icône, maintenue enfoncée, propose désormais quatre raccourcis — Trading, Trades,
@@ -263,6 +302,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Changed
 
+- **Le tableau de bord Trading se lit d'un coup d'œil.** Les positions ouvertes remontent juste
+  après la synthèse, avant la courbe : c'était la quatrième carte, et il fallait faire défiler
+  plus de deux écrans à 390 px pour les voir ; elles arrivent maintenant à moins d'un écran. Les
+  paragraphes d'explication (courbe, formule du résultat, avoirs spot) passent dans des bulles
+  « i » ; une seule phrase reste visible par carte, celle qui évite une erreur de lecture.
+
+  Le vocabulaire change aussi : « P&L total » devient « Résultat total », « P&L net » devient
+  « Résultat net », « Dépôts nets » devient « Apports nets » — « Valeur du compte » ne change pas.
+  Les bulles d'aide continuent de nommer « P&L », pour qui cherche ce mot.
+
 - **Le calendrier du Marché se lit par jour, avec un en-tête qui reste visible en défilant.**
   Chaque jour de publications garde son titre à l'écran tant qu'on n'est pas passé au suivant. Les
   liens vers les publications officielles sont plus faciles à toucher au doigt.
@@ -293,6 +342,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   couverture, les deux paquets de Stryker — arrivent désormais dans une seule PR.
 
 ### Fixed
+
+- **Les cases « Prix en direct » et « Trades en direct » avaient une zone cliquable trop
+  étroite**, sous les 24 px recommandés. Toute la ligne — case et libellé — répond désormais au
+  clic, avec 44 px de haut sur un écran tactile.
 
 - **Sur certains téléphones Android, le bas de l'écran restait vide une fois la barre d'adresse de
   Chrome repliée.** La hauteur de la page suit maintenant la plus petite des deux tailles possibles
@@ -503,6 +556,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   compte qui n'a que des prêts ouvre désormais son tableau de bord au lieu d'être renvoyé à
   l'accueil. L'écran lui-même vit maintenant dans l'espace **Patrimoine**, aux côtés des titres ;
   l'ancienne adresse continue de fonctionner.
+- **Deux failles modérées de `qs` corrigées dans les outils de développement** (CVE-2026-82417 et
+  CVE-2026-82562, déni de service) : elles venaient de Lighthouse CI et de Stryker, jamais du code
+  servi aux utilisateurs — la production reste à zéro. GitHub les avait écartées d'office, sans
+  que rien ne le dise ; `npm audit` les montrait. Un rafraîchissement du verrou a suffi (`qs`
+  6.16.0), et le test des planchers de version l'impose désormais. Reste la faille connue
+  d'`extract-zip`, sans correctif publié, surveillée toutes les six heures.
+- **Sous Windows, l'audit de production rend enfin un verdict.** `npm run audit:prod` y lançait
+  npm d'une façon que Node refuse depuis avril 2024 ; faute de réponse, il concluait à une panne du
+  registre npm — à chaque fois, sans avoir jamais rien vérifié. La CI, sous Linux, n'était pas
+  touchée. Un npm qui ne démarre pas est désormais nommé comme tel, sans accuser le registre.
 
 ## [2.17.0] - 2026-09-05
 
