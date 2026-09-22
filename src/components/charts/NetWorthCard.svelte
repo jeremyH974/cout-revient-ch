@@ -37,6 +37,7 @@
    * ici, et ne peuvent donc pas se contredire à l'arrondi près. Une part inférieure au millionième
    * retombe à zéro : elle ne se dessine ni ne s'annonce, parce qu'elle ne change rien.
    */
+  // eslint-disable-next-line no-restricted-syntax -- précision interne pour ChartPoint.estimated, jamais affiché tel quel
   const shares = $derived(visible.map((p) => Number(estimatedShare(p).toFixed(6))));
 
   /**
@@ -47,7 +48,9 @@
   const points = $derived<ChartPoint[]>(
     visible.map((p, i) => ({
       day: p.day,
+      // eslint-disable-next-line no-restricted-syntax -- précision interne d'un ChartPoint, jamais affiché tel quel
       primary: Number(p.net.toFixed(2)),
+      // eslint-disable-next-line no-restricted-syntax -- précision interne d'un ChartPoint, jamais affiché tel quel
       secondary: Number(p.contributed.toFixed(2)),
       // La PART portée au coût, et non plus le seul fait qu'il y en ait une : un jeton marginal
       // sans cours ne doit plus effacer le gain et la perte de toute la journée (décision n° 114).
@@ -165,7 +168,6 @@
 
 <style>
   .group {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }

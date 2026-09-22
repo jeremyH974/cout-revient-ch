@@ -26,6 +26,7 @@
     const max = D(scaleMaxEur);
     if (!max.gt(ZERO)) return '0';
     const share = D(amountEur).div(max).times(D('100'));
+    // eslint-disable-next-line no-restricted-syntax -- largeur CSS en pourcentage (point décimal requis, jamais affiché)
     return (share.gt(D('100')) ? D('100') : share.lt(ZERO) ? ZERO : share).toFixed(2);
   };
 </script>

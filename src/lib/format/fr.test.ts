@@ -9,6 +9,7 @@ import {
   fmtPct,
   fmtPrice,
   fmtQty,
+  fmtRatio,
   fmtRelative,
   localDay,
   roundsToZero,
@@ -42,6 +43,20 @@ describe('format fr-FR', () => {
     expect(nbsp(fmtQty(D('110000000'), { abbreviate: true }))).toBe('110 M');
     expect(nbsp(fmtQty(D('7.999999667')))).toBe('7,999999667');
     expect(nbsp(fmtQty(D('-0.1'), { sign: true }))).toBe('−0,1');
+  });
+  it('ratios (Sortino, multiple, résultat en R…), sans signe par défaut', () => {
+    expect(nbsp(fmtRatio(D('1.2345')))).toBe('1,23');
+    expect(nbsp(fmtRatio(D('-1.2345')))).toBe('−1,23');
+    expect(nbsp(fmtRatio(D('0')))).toBe('0,00');
+    expect(nbsp(fmtRatio(D('3.14159'), 3))).toBe('3,142');
+    expect(fmtRatio(null)).toBe('—');
+  });
+  it('ratios avec signe : « + » pour un résultat strictement positif, jamais pour zéro', () => {
+    expect(nbsp(fmtRatio(D('1.5'), 2, { sign: true }))).toBe('+1,50');
+    expect(nbsp(fmtRatio(D('-1.5'), 2, { sign: true }))).toBe('−1,50');
+    expect(nbsp(fmtRatio(D('0'), 2, { sign: true }))).toBe('0,00');
+    // Une chaîne décimale plutôt qu'un `Big` (durée en jours, part en pourcentage…).
+    expect(nbsp(fmtRatio('2.666666666', 1))).toBe('2,7');
   });
   it('dates', () => {
     expect(fmtDateTime('2026-06-24T18:55:00')).toBe('24/06/2026 · 18:55');

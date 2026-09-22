@@ -202,8 +202,11 @@
       ? 'masqué'
       : fmtEur(displayGap(D(baremeEur), D(choice.flat.incomeTaxEur)) ?? ZERO, { sign: true });
 
-  /** Pour 100 € d'assiette — un taux exprimé en euros, donc lisible sans calcul mental. */
-  const per100 = (rate: DecimalString): string => fmtEur(D(rate).times(D('100')).toFixed(2));
+  /**
+   * Pour 100 € d'assiette — un taux exprimé en euros, donc lisible sans calcul mental. `fmtEur`
+   * arrondit déjà à 2 décimales : un `.toFixed(2)` intermédiaire ne faisait que le devancer.
+   */
+  const per100 = (rate: DecimalString): string => fmtEur(D(rate).times(D('100')));
 
   const setIncome = (raw: string): void => {
     incomeRaw = raw;

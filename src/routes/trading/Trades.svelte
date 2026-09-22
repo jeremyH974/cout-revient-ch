@@ -4,11 +4,11 @@
    * ancien : sens, taille, entrée → sortie, P&L net (coloré), R quand le plan le permet, badges
    * (ouvert, liquidation, incomplet, setup). La saisie ne vit jamais ici (P21).
    */
-  import { ZERO, type Big } from '$lib/domain/money';
+  import type { Big } from '$lib/domain/money';
   import type { JournaledTrip } from '$lib/domain/trading/journal';
   import { downloadText } from '$lib/export/download';
   import { tradesToCsv } from '$lib/export/trades-csv';
-  import { fmtDate, fmtPct, fmtPrice, fmtQty } from '$lib/format/fr';
+  import { fmtDate, fmtPct, fmtPrice, fmtQty, fmtRatio } from '$lib/format/fr';
   import { router } from '$lib/router.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
   import Money from '../../components/shared/Money.svelte';
@@ -20,7 +20,7 @@
   const money = (t: JournaledTrip, value: Big): Big | null =>
     app.quoteToDisplay(t.trip.quote, value);
   const label = (id: string): string => app.accountLabels[id] ?? id;
-  const rText = (r: Big): string => `${r.gte(ZERO) ? '+' : ''}${r.toFixed(2).replace('.', ',')} R`;
+  const rText = (r: Big): string => `${fmtRatio(r, 2, { sign: true })} R`;
 
   function exportCsv(): void {
     const stamp = new Date().toISOString().slice(0, 10);
@@ -116,26 +116,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-  }
-  .primary {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .secondary {
-    min-height: var(--tap);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--fg);
-    font-weight: 600;
   }
   .trades {
     list-style: none;
