@@ -1,7 +1,8 @@
 /** Sauvegarde / restauration JSON (la seule protection contre « vider les données de navigation »). */
-import type { HlState } from '../import/hyperliquid/data';
 import { migrateState } from './migrations';
-import { APP_ID, MAX_ALERT_EVENTS, SCHEMA_VERSION, type StoredStateV1 } from './schema';
+import { APP_ID, SCHEMA_VERSION, type StoredStateV1 } from './schema';
+import { mergeSynced } from './sync/merge';
+import { emptySyncMeta } from './sync/types';
 
 export interface BackupFile {
   app: typeof APP_ID;
@@ -46,82 +47,25 @@ export function parseBackup(text: string): ParseBackupResult {
   return { ok: true, state: migrated.state, exportedAt };
 }
 
-/** Fusion des bruts Hyperliquid : union par clé (`tid`, clés funding / grand livre), compte par compte. */
-function mergeHyperliquid(current: HlState, incoming: HlState): HlState {
-  const accounts: HlState['accounts'] = { ...incoming.accounts };
-  for (const [id, mine] of Object.entries(current.accounts)) {
-    const theirs = incoming.accounts[id];
-    accounts[id] = theirs
-      ? {
-          ...mine,
-          fills: { ...theirs.fills, ...mine.fills },
-          funding: { ...theirs.funding, ...mine.funding },
-          ledger: { ...theirs.ledger, ...mine.ledger },
-          cursors: {
-            fills: maxOrNull(mine.cursors.fills, theirs.cursors.fills),
-            funding: maxOrNull(mine.cursors.funding, theirs.cursors.funding),
-            ledger: maxOrNull(mine.cursors.ledger, theirs.cursors.ledger),
-          },
-          snapshot: newest(mine.snapshot, theirs.snapshot),
-          lastSyncAt:
-            mine.lastSyncAt && theirs.lastSyncAt
-              ? mine.lastSyncAt > theirs.lastSyncAt
-                ? mine.lastSyncAt
-                : theirs.lastSyncAt
-              : (mine.lastSyncAt ?? theirs.lastSyncAt),
-        }
-      : mine;
-  }
-  return { accounts, spotPairs: { ...incoming.spotPairs, ...current.spotPairs } };
-}
-
-const maxOrNull = (a: number | null, b: number | null): number | null =>
-  a === null ? b : b === null ? a : Math.max(a, b);
-const newest = <T extends { at: string }>(a: T | null, b: T | null): T | null =>
-  a === null ? b : b === null ? a : a.at >= b.at ? a : b;
-
-/** Fusion des alertes : union des règles et du journal ; réglages de l'état courant conservés. */
-function mergeAlerts(
-  current: StoredStateV1['alerts'],
-  incoming: StoredStateV1['alerts'],
-): StoredStateV1['alerts'] {
-  const events = [...current.events];
-  for (const event of incoming.events)
-    if (!events.some((e) => e.id === event.id)) events.push(event);
-  events.sort((a, b) => b.at.localeCompare(a.at));
-  return {
-    rules: { ...incoming.rules, ...current.rules },
-    states: { ...incoming.states, ...current.states },
-    events: events.slice(0, MAX_ALERT_EVENTS),
-    settings: current.settings,
-  };
-}
-
-/** Fusion : union des lignes, saisies et qualifications ; réglages de l'état courant conservés. */
+/**
+ * Fusion « brute » : compatibilité pour les appelants qui ne veulent que l'état résultant, sans le
+ * rapport ni les métadonnées de synchronisation (essentiellement des tests écrits avant ce
+ * chantier). L'application, elle, appelle `mergeSynced` (`./sync/merge`) directement — c'est la
+ * seule façon d'obtenir le rapport affiché à l'écran après une fusion.
+ *
+ * Sans horodatage connu d'un côté ou de l'autre (`sync` absent — le cas de tout appelant qui
+ * construit ses états à la main), chaque clé commune est « héritée » des deux côtés : la règle de
+ * conflit hérité s'applique, et `current` (« local ») l'emporte — exactement le comportement
+ * historique de cette fonction, avant que la datation n'existe.
+ */
 export function mergeStates(current: StoredStateV1, incoming: StoredStateV1): StoredStateV1 {
-  const imports = [...current.imports];
-  for (const batch of incoming.imports)
-    if (!imports.some((b) => b.id === batch.id)) imports.push(batch);
-  return {
-    ...current,
-    imports,
-    rawRows: { ...incoming.rawRows, ...current.rawRows },
-    pivotRows: { ...incoming.pivotRows, ...current.pivotRows },
-    manualEvents: { ...incoming.manualEvents, ...current.manualEvents },
-    qualifications: { ...incoming.qualifications, ...current.qualifications },
-    transferOverrides: { ...incoming.transferOverrides, ...current.transferOverrides },
-    duplicateOverrides: { ...incoming.duplicateOverrides, ...current.duplicateOverrides },
-    taxAnnotations: { ...incoming.taxAnnotations, ...current.taxAnnotations },
-    assetSettings: { ...incoming.assetSettings, ...current.assetSettings },
-    accounts: { ...incoming.accounts, ...current.accounts },
-    hyperliquid: mergeHyperliquid(current.hyperliquid, incoming.hyperliquid),
-    journal: { ...incoming.journal, ...current.journal },
-    manualTrades: { ...incoming.manualTrades, ...current.manualTrades },
-    lending: {
-      loans: { ...incoming.lending.loans, ...current.lending.loans },
-      events: { ...incoming.lending.events, ...current.lending.events },
-      wallet: { ...incoming.lending.wallet, ...current.lending.wallet },
-    },
-    alerts: mergeAlerts(current.alerts, incoming.alerts),
-  };
+  const { sync: currentSync, ...currentRest } = current;
+  const { sync: incomingSync, ...incomingRest } = incoming;
+  const result = mergeSynced(
+    { state: currentRest as StoredStateV1, sync: currentSync ?? emptySyncMeta() },
+    { state: incomingRest as StoredStateV1, sync: incomingSync ?? emptySyncMeta() },
+    'legacy-merge-states',
+    Date.now(),
+  );
+  return result.state;
 }

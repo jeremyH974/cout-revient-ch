@@ -23,6 +23,8 @@
     isEncryptedBackup,
     type EncryptedBackup,
   } from '$lib/storage/encryption';
+  import { summarizeMergeReport } from '$lib/storage/sync/merge';
+  import { fmtMergeSummary } from '$lib/format/sync';
   import Sheet from '../components/shared/Sheet.svelte';
   import type { UiSettings } from '$lib/storage/schema';
   import { app } from '../state/app.svelte';
@@ -127,7 +129,9 @@
     const result = app.restoreBackup(text, restoreMode);
     if (!result.ok) return toasts.push(result.error, 'error');
     toasts.push(
-      restoreMode === 'replace' ? 'Sauvegarde restaurée.' : 'Sauvegarde fusionnée.',
+      result.report
+        ? fmtMergeSummary(summarizeMergeReport(result.report))
+        : 'Sauvegarde restaurée.',
       'success',
     );
     void app.refreshPrices();
@@ -242,6 +246,13 @@
         ></select
       >
     </div>
+    {#if restoreMode === 'merge'}
+      <p class="muted small">
+        En fusionnant : la version la plus récente de chaque élément l'emporte, quel que soit
+        l'appareil qui l'a écrite ; les suppressions sont reportées. Les réglages et les cours en
+        cache restent ceux de cet appareil ; les règles d'alerte, elles, sont fusionnées.
+      </p>
+    {/if}
     <p class="muted small">
       <strong>Sauvegarde JSON</strong> — tout, pour revenir ici. Comptes, réglages, alertes, journal.
       Le fichier qui vous fait retrouver exactement où vous en étiez, dans cette app.
