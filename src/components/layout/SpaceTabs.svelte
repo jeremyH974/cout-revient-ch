@@ -2,7 +2,7 @@
   /**
    * Barre de sous-navigation partagée par les espaces à plusieurs écrans (Investissement,
    * Trading) : des LIENS entre pages, jamais des panneaux d'une même page — d'où `nav` +
-   * `a[aria-current="page"]`, et non le motif ARIA tablist (décision n° 158 puis n° 180).
+   * `a[aria-current="page"]`, et non le motif ARIA tablist (décision n° 158 puis n° 181).
    *
    * Une seule ligne, toujours (recommandation Material 3 pour les onglets : jamais deux lignes).
    * Sur un téléphone étroit, la barre ne pousse pas la page

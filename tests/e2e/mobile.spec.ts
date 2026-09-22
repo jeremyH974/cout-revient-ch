@@ -82,7 +82,7 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
 
 /**
  * La barre d'onglets Trading tient sur UNE SEULE ligne, à 320 px (largeur du critère WCAG 1.4.10)
- * comme à 390 px (décision n° 158, puis n° 180 : plus de retour à la ligne, elle défile).
+ * comme à 390 px (décision n° 158, puis n° 181 : plus de retour à la ligne, elle défile).
  *
  * Le test précédent ne voyait un débordement qu'avec les polices du poste qui le lance : le
  * cinquième onglet débordait de 12 px sur la CI Linux et tenait sous Windows. Vérifier que tous les

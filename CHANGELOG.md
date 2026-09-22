@@ -267,6 +267,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   prendre avec réserve ». Les recommandations — copie de secours, prix, opérations à qualifier… —
   tiennent en **une ligne** qui les compte, les nomme et mène à l'écran où les traiter ; leur liste
   complète reste dans les réglages.
+- Dependabot ne propose plus Vitest 5 : sous cette version, le test de mutation ne lance plus aucun
+  test par mutant (97 % → 25 %, défaut connu de Stryker, correctif non publié). L'exclusion tombe
+  dès que Stryker le publie. Les paquets qui s'exigent à la version exacte — Vitest et sa
+  couverture, les deux paquets de Stryker — arrivent désormais dans une seule PR.
 
 ### Fixed
 

@@ -319,7 +319,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
 
 ## Primitives d'interface partagées
 
-Le constat qui a ouvert la décision n° 180 : `.card` n'avait **aucun padding** — la plupart des
+Le constat qui a ouvert la décision n° 181 : `.card` n'avait **aucun padding** — la plupart des
 `<section class="card">` collaient leur texte au bord —, aucun style de bouton n'était partagé
 (24 fichiers redéfinissaient `.primary`/`.secondary`, dont dix sans aucune définition locale,
 affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le même markup.
