@@ -77,7 +77,7 @@
 
 <AppBar title="Plus" />
 
-<nav class="card" aria-label="Écrans secondaires">
+<nav class="card flush" aria-label="Écrans secondaires">
   <ul class="menu">
     {#each visible as entry (entry.route.name)}
       <li>

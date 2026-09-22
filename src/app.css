@@ -205,6 +205,13 @@ svg {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  padding: var(--space-4);
+}
+
+/* Carte pleine largeur (liste à séparateurs, tableau) : le padding revient aux enfants qui en
+   ont besoin, pas à la carte elle-même — sinon les séparateurs n'atteignent jamais son bord. */
+.card.flush {
+  padding: 0;
 }
 
 .sr-only {

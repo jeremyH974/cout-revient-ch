@@ -423,8 +423,7 @@
       text-align: right;
     }
   }
-  .empty,
-  .empty-state {
+  .empty {
     padding: var(--space-4);
   }
   .empty-state h2 {
