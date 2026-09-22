@@ -486,6 +486,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   compte qui n'a que des prêts ouvre désormais son tableau de bord au lieu d'être renvoyé à
   l'accueil. L'écran lui-même vit maintenant dans l'espace **Patrimoine**, aux côtés des titres ;
   l'ancienne adresse continue de fonctionner.
+- **Deux failles modérées de `qs` corrigées dans les outils de développement** (CVE-2026-82417 et
+  CVE-2026-82562, déni de service) : elles venaient de Lighthouse CI et de Stryker, jamais du code
+  servi aux utilisateurs — la production reste à zéro. GitHub les avait écartées d'office, sans
+  que rien ne le dise ; `npm audit` les montrait. Un rafraîchissement du verrou a suffi (`qs`
+  6.16.0), et le test des planchers de version l'impose désormais. Reste la faille connue
+  d'`extract-zip`, sans correctif publié, surveillée toutes les six heures.
+- **Sous Windows, l'audit de production rend enfin un verdict.** `npm run audit:prod` y lançait
+  npm d'une façon que Node refuse depuis avril 2024 ; faute de réponse, il concluait à une panne du
+  registre npm — à chaque fois, sans avoir jamais rien vérifié. La CI, sous Linux, n'était pas
+  touchée. Un npm qui ne démarre pas est désormais nommé comme tel, sans accuser le registre.
 
 ## [2.17.0] - 2026-09-05
 

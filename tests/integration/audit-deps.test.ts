@@ -8,7 +8,7 @@
  * non-réponse se réessaie (décision n° 99, qui applique à la CI la règle de la n° 98).
  */
 import { describe, expect, it } from 'vitest';
-import { classify, summarize } from '../../scripts/audit-deps.ts';
+import { classify, npmInvocation, outcome, summarize } from '../../scripts/audit-deps.ts';
 
 /** Ce que npm rend quand tout va bien : un rapport complet, aucune vulnérabilité, sortie 0. */
 const CLEAN = JSON.stringify({
@@ -68,5 +68,66 @@ describe('résumé lisible du verdict', () => {
   it('dit « aucune » sur un rapport propre, « illisible » sur un non-rapport', () => {
     expect(summarize(CLEAN)).toBe('aucune');
     expect(summarize('pas du JSON')).toBe('illisible');
+  });
+});
+
+/**
+ * Sous Windows, le script lançait `npm.cmd` sans shell, ce que Node refuse depuis le correctif de
+ * CVE-2024-27980 : `EINVAL`, aucune sortie — pris pour un registre muet. Constaté le 22/09/2026 :
+ * `npm run audit:prod` n'y avait jamais rendu de verdict, et accusait le registre à chaque fois.
+ */
+describe('lancer npm sans shell, sous tous les systèmes', () => {
+  const NODE = String.raw`C:\Program Files\nodejs\node.exe`;
+  const CLI = String.raw`C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js`;
+  const nothing = (): boolean => false;
+
+  it('sous `npm run`, le Node courant exécute le npm-cli.js que npm désigne', () => {
+    expect(npmInvocation({ npm_execpath: CLI }, 'win32', NODE, nothing)).toEqual({
+      command: NODE,
+      prefix: [CLI],
+    });
+  });
+
+  it('sous Windows hors `npm run`, le npm-cli.js posé à côté de node', () => {
+    expect(npmInvocation({}, 'win32', NODE, (path) => path === CLI)).toEqual({
+      command: NODE,
+      prefix: [CLI],
+    });
+  });
+
+  it('jamais un `.cmd` : Node refuse de le lancer sans shell', () => {
+    for (const env of [{}, { npm_execpath: CLI }])
+      for (const platform of ['win32', 'linux', 'darwin'])
+        for (const exists of [nothing, (path: string) => path === CLI])
+          expect(npmInvocation(env, platform, NODE, exists).command).not.toMatch(/\.cmd$/i);
+  });
+
+  it('un `npm_execpath` qui n’est pas npm (pnpm, yarn) est ignoré', () => {
+    const pnpm = { npm_execpath: '/usr/lib/node_modules/pnpm/bin/pnpm.cjs' };
+    expect(npmInvocation(pnpm, 'linux', '/usr/bin/node', nothing)).toEqual({
+      command: 'npm',
+      prefix: [],
+    });
+  });
+
+  it('ailleurs, `npm` du PATH, comme la CI l’a toujours fait', () => {
+    expect(npmInvocation({}, 'linux', '/usr/bin/node', nothing)).toEqual({
+      command: 'npm',
+      prefix: [],
+    });
+  });
+});
+
+describe('un npm qui ne démarre pas', () => {
+  it('n’est ni un verdict ni une panne du registre, et ne se réessaie pas', () => {
+    // Le cas exact de Windows : `spawnSync` rend une erreur, pas de statut, pas de sortie.
+    const einval = Object.assign(new Error('spawnSync npm.cmd EINVAL'), { code: 'EINVAL' });
+    expect(outcome({ error: einval, status: null, stdout: '' })).toBe('not-started');
+  });
+
+  it('quand npm a démarré, la réponse du service décide, comme avant', () => {
+    expect(outcome({ status: 0, stdout: CLEAN })).toBe('clean');
+    expect(outcome({ status: 1, stdout: VULNERABLE })).toBe('vulnerable');
+    expect(outcome({ status: 1, stdout: ENDPOINT_ERROR })).toBe('unreachable');
   });
 });
