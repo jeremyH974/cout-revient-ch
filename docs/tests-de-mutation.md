@@ -266,6 +266,38 @@ ne vaut rien.
    tuer — le rendre vert demanderait de tromper l'outil. Un seul mutant de tout le périmètre est
    dans ce cas ; il est laissé tel quel, et compté au dénominateur.
 
+## Vitest 5 attend Stryker (22/09/2026, décision n° 180)
+
+Sous Vitest 5.0.0, la suite passe entière (2 939 tests), mais le relevé tombe de **97,23 % à
+25,17 %** — même code, mêmes tests. `@stryker-mutator/vitest-runner` 10.0.0 lance les tests d'un
+mutant en les filtrant par leur nom, qu'il joint d'une espace ; Vitest 5 compare ce filtre au nom
+joint de « > » (changement documenté de sa migration). Le filtre ne trouve rien, **aucun test ne
+tourne**, et tout mutant couvert est compté survivant : 1 639 des 1 646 survivants avaient des
+tests qui les couvraient et `testsCompleted: 0`. C'est le cinquième piège à grande échelle, et le
+seul symptôme est un score qui s'effondre — le signalement amont est `stryker-js#6210`, son
+correctif `#6214`, ni fusionné ni publié à cette date. Aucune option (`coverageAnalysis: "all"`,
+`related: false`) ne le contourne.
+
+Le dépôt reste donc en Vitest 4 : `.github/dependabot.yml` exclut `vitest` et `@vitest/*` à partir
+de la 5, et `tests/integration/dependabot-policy.test.ts` fait rougir la CI si le verrou contredit
+l'exclusion — un `npm install` à la main passerait sinon, la mutation ne tournant pas en CI.
+
+**Pour lever l'exclusion**, quand le lanceur publie le correctif :
+
+1. monter `vitest` et `@vitest/coverage-v8` **ensemble** (ils s'exigent l'un l'autre à la version
+   exacte ; installés seuls, `npm ci` échoue en ERESOLVE) ;
+2. réécrire `tests/perf/engine-load.bench.ts`, seul fichier que Vitest 5 casse : `bench` n'est plus
+   une fonction globale mais un outil du contexte de test (`test('…', async ({ bench }) => …)`), et
+   les itérations passent de l'appel à `.run(options)` ou `bench.compare(…, options)` ;
+3. relancer `npm run mutation` **sans** `reports/stryker-incremental.json`, et comparer au dernier
+   relevé ; compter dans le rapport JSON les survivants à `testsCompleted: 0` — c'est là que le
+   défaut se voit ;
+4. retirer les deux entrées de l'exclusion.
+
+Un relevé qui échoue laisse `.stryker-tmp/` derrière lui, avec une **jonction** `node_modules` vers
+le dépôt. Retirer la jonction seule (`(Get-Item -Force <jonction>).Delete()`) avant d'effacer le
+reste : effacer récursivement à travers elle viderait le `node_modules` du dépôt.
+
 ## Le périmètre, et pourquoi il est étroit
 
 `stryker.config.json` mute `src/lib/derive` et les **sept moteurs fiscaux** de `src/lib/domain` —

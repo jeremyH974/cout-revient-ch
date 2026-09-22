@@ -19,11 +19,39 @@ updates:
       # À retirer dès que svelte-check publie un pair `^7.0.0` ; la majeure 6 reste, elle, proposée.
       - dependency-name: typescript
         versions: ['>=7']
+      # Vitest 5 casse le test de mutation. `@stryker-mutator/vitest-runner` 10.0.0 filtre les tests
+      # d'un mutant par leur nom joint d'une espace ; Vitest 5 compare ce filtre au nom joint de
+      # « > ». Aucun test ne tourne, et tout mutant couvert « survit » (stryker-js#6210 ; correctif
+      # #6214, non publié au 22/09/2026). Mesuré ici : 25,17 % contre 97,23 %, et 1 639 des 1 646
+      # survivants étaient couverts sans qu'un seul test ait tourné. La suite, elle, passe entière.
+      # À lever quand le lanceur publie le correctif : réécrire `tests/perf/engine-load.bench.ts`
+      # pour le `bench` du contexte de test (seul fichier que Vitest 5 casse), relancer
+      # `npm run mutation` sans cache, comparer au dernier relevé, puis retirer ces deux entrées.
+      # Décision n° 180.
+      - dependency-name: vitest
+        versions: ['>=5']
+      - dependency-name: '@vitest/*'
+        versions: ['>=5']
     groups:
       minor-and-patch:
         update-types:
           - minor
           - patch
+      # Les familles publiées en bloc, dont les paquets s'exigent l'un l'autre à la version EXACTE :
+      # `vitest` et `@vitest/coverage-v8`, `@stryker-mutator/vitest-runner` et
+      # `@stryker-mutator/core`. Dependabot les traite en dépendances distinctes : pour une majeure,
+      # une PR par paquet, et chacune échoue seule en ERESOLVE dès `npm ci` (PR #164 et #165,
+      # septembre 2026 — le piège de `codeql-action`, plus bas). Placés APRÈS `minor-and-patch` :
+      # une dépendance rejoint le premier groupe qui la couvre, si bien que leurs correctifs
+      # voyagent avec les autres, et leurs majeures, que `minor-and-patch` ne prend pas, ici.
+      # `tests/integration/dependabot-policy.test.ts` exige qu'une famille nouvelle y soit ajoutée.
+      vitest:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+      stryker:
+        patterns:
+          - '@stryker-mutator/*'
   - package-ecosystem: github-actions
     directory: /
     schedule:
