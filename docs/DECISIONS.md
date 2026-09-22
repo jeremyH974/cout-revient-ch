@@ -6011,3 +6011,92 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      dans le script, une fois dans une expression de gabarit : les deux font échouer `npm run lint`
      en nommant `no-restricted-syntax` et le message « Formater via src/lib/format », avant d'être
      retirés.
+
+182. **Le téléphone : écran et installation Android** (22/09/2026).
+
+     **Le constat.** L'application n'avait jamais été pensée au doigt sur un petit écran : `100vh`
+     comptait la barre d'adresse de Chrome Android dépliée, laissant un bandeau vide au pied de
+     l'écran une fois repliée ; les interrupteurs de Réglages, d'Alertes et du Marché étaient des
+     cases à cocher nues, sans nom accessible fiable ni cible tactile garantie ; Réglages était une
+     seule page de neuf sections empilées, sans repère ; Marché montrait tout son calendrier à
+     plat ; la fiche actif affichait tout l'historique d'un actif d'un coup, jusqu'à des centaines
+     de lignes ; et le manifeste n'avait ni `screenshots`, ni `shortcuts`, ni bouton d'installation
+     — Chrome proposait sa boîte minimale, sans aperçu.
+
+     **Le sommaire d'ancres ne pouvait pas être un lien `#`, à cause du routeur.** Première version :
+     `<a href="#donnees">`. Le routeur écoute `hashchange` sur TOUTE la fenêtre
+     (`src/lib/router.svelte.ts`), et `parseHash` ne reconnaît que ses propres têtes de route
+     (`invest`, `trading`, `settings`…) ; un hash inconnu comme `#donnees` retombe sur son cas par
+     défaut — la Vue d'ensemble. Cliquer sur le sommaire aurait donc QUITTÉ Réglages. La correction
+     n'est pas dans le routeur (`#donnees` n'a pas à devenir une route) mais dans le lien lui-même :
+     `onclick` fait `preventDefault()` puis ouvre le `<details>` visé et l'amène en vue par script
+     (`el.open = true; el.scrollIntoView(...)`), sans jamais toucher `location.hash`. Le `href="#…"`
+     reste écrit — accessible name, curseur, ouverture dans un nouvel onglet au clic du milieu —
+     mais le clic normal ne le suit jamais.
+
+     **`role="switch"` plutôt qu'un composant qui repeint toutes les cases à cocher.** Les listes à
+     choix multiples (comptes on-chain à cocher pour export, cases de la déclaration fiscale) et les
+     cases de confirmation (« ces deux fichiers portent sur le même périmètre »,
+     `routes/invest/SecondOpinion.svelte`) restent des cases ordinaires : un switch suppose un état
+     BINAIRE qui bascule seul et prend effet immédiatement (APG), pas un choix parmi plusieurs ni un
+     consentement donné une fois. Onze conversions retenues sur ce critère, aucune dans l'espace
+     Trading (lot parallèle). `Switch.svelte` garde `<input type="checkbox" role="switch">` — le nom
+     accessible et le comportement clavier natifs (Espace bascule, pas de rôle à réinventer) — dans
+     un `<label>` qui porte aussi le texte, pour que toute la ligne, pas seulement le rond, réponde
+     au clic. `checked`/`onCheckedChange` plutôt qu'un `bind:checked` : la quasi-totalité des
+     appelants ne détiennent pas la valeur en `$state` local, ils la lisent du store et la modifient
+     par un mutateur (`app.setUi`, `app.setAlertsSettings`…) — recopier ce patron partout coûte moins
+     qu'inventer un binding bidirectionnel que personne n'utilise.
+
+     **`svh` : la contre-épreuve a trouvé un vrai bug, pas un doute théorique.** Première version :
+     `min-height: 100vh; min-height: 100svh;` dans LA MÊME règle — le patron de repli habituel,
+     qu'un navigateur qui ne comprend pas `svh` ignore au parsage, laissant `100vh` en vigueur. Sur
+     le CSS **construit** (`npx vite build`, jamais supposé), une seule ligne survivait :
+     `min-height:100svh`. Le minifieur de Vite élague une déclaration qu'il juge morte — à raison
+     pour un navigateur qui comprend les deux valeurs, à tort pour celui qui ne comprend que la
+     première, exactement le cas que le repli existe pour couvrir. La correction isole les deux
+     dans des règles distinctes (`@supports (height: 100svh) { .app { min-height: 100svh; } }`),
+     qu'aucun minifieur ne fusionne parce qu'il ne peut pas évaluer la condition au moment de la
+     construction. Le test qui l'a trouvé (`tests/e2e/mobile.spec.ts`) lit le CSS servi, pas le
+     style calculé : `getComputedStyle` rend la même valeur en pixels dans les deux versions,
+     Chromium sous Playwright n'ayant pas de barre d'adresse à replier.
+
+     **Marché : l'en-tête de jour reste DANS la carte, pour ne rien casser des specs existantes.**
+     `market.spec.ts` compte des `article.card.day` avant et après le dépli du passé ; restructurer
+     en liste plate aurait cassé ces sélecteurs sans rien gagner d'essentiel. L'en-tête colle donc
+     PAR CARTE (`position: sticky`), fond et bord perdus repris par une marge négative — depuis la
+     décision n° 181, `.card` porte un padding par défaut, qu'un en-tête plein-bord doit annuler
+     avant de reposer le sien. Le décalage vertical (`top: 64px`) approxime la hauteur de la barre
+     d'application à deux lignes (titre + fraîcheur) : à vérifier au doigt, la valeur exacte dépend
+     du rendu des polices du téléphone. Le filtre par défaut sur « à venir » et le bouton qui révèle
+     le passé existaient déjà (décision antérieure, non datée dans ce fichier) ; ce qui manquait
+     était la preuve que rien du passé n'entre dans le DOM avant le clic — pas seulement masqué en
+     CSS —, désormais un test dédié.
+
+     **Fiche actif : vingt opérations, comme les exécutions d'un trade.** Même seuil, même libellé
+     de bouton (« Afficher N de plus (M restante(s)) »), même remise à zéro sur changement de clé
+     (`position.asset` plutôt que `id` de trade) que `trading/TradeDetail.svelte` — un motif qui
+     existait déjà une fois n'avait pas à en inventer un second.
+
+     **Installation Android.** `id` aligné sur `start_url`/`scope` plutôt que laissé implicite : un
+     `id` dérivé du seul `start_url` casserait si celui-ci gagnait un jour une requête
+     (vite-pwa/vite-plugin-pwa#263). Les captures d'écran ne sont ni prises à la main ni dérivées
+     d'un export réel : `scripts/generate-screenshots.ts` construit le build public, le sert par
+     `vite preview` sur un port DÉDIÉ (jamais celui de `npm run e2e`, qu'un autre worktree peut
+     tenir), et rejoue exactement `stubNetwork` + `openDemo` des specs E2E — rejouable, jamais une
+     image qui périme en silence. `beforeinstallprompt` est capté **à l'import du module**
+     (`src/lib/pwa/install.ts`, posé en tête de `main.ts`, avant `app.init()` qui est asynchrone) :
+     un `onMount` de composant l'aurait manqué si l'événement arrivait avant que Réglages ne soit
+     jamais monté. Module framework-agnostic sur le patron de `$lib/net/local-only.ts` (`scope`
+     injectable, état de module, fonction de réinitialisation pour les tests) plutôt qu'un état
+     Svelte : rien ici ne dépend du DOM au-delà d'`addEventListener`, et le composant qui l'affiche
+     porte lui-même son `$state`, abonné par callback.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause, puis restaurée :
+     le filtre « à venir » du Marché (un `{#if showPast}` remplacé par un affichage inconditionnel
+     fait échouer « aucun évènement passé dans le DOM avant le bouton » en comptant les cartes du
+     passé) ; la cible des interrupteurs (`min-height: var(--tap)` retiré du média `(any-pointer:
+coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré) ; le champ `id` du
+     manifeste (retiré de `vite.config.ts`, le test échoue en nommant `json.id` `undefined`) ; et le
+     repli `svh` lui-même (revenu à la déclaration unique dans la même règle : le test qui lit le
+     CSS construit échoue en nommant l'absence de `min-height:100vh`).

@@ -258,6 +258,32 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
+- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 182) : capture de
+  `beforeinstallprompt` **au chargement du module** (posée en tête de `main.ts`, avant
+  `app.init()`, qui est asynchrone et laisserait échapper un événement précoce),
+  `preventDefault()` pour supprimer la mini-infobar native, invite gardée en mémoire de module et
+  rejouable par `promptInstall()`. Module framework-agnostic sur le patron de
+  `$lib/net/local-only.ts` (`scope` injectable, `resetInstallPromptForTests`) : le composant
+  Svelte (bouton « Installer l'application » de `routes/Settings.svelte`) porte l'état réactif
+  lui-même, abonné par `onInstallableChange`. Masqué si l'app tourne déjà en
+  `display-mode: standalone` (`isStandalone`) ou si l'événement n'est jamais venu — jamais en
+  variante privée, qui n'a pas de manifeste (`disable: isPrivate`, aucun `beforeinstallprompt`
+  possible).
+- **Manifeste** (`vite.config.ts`, bloc `VitePWA({ manifest: … })`, P124) — `id` aligné sur
+  `start_url`/`scope` (le sous-chemin GitHub Pages, décision n° 32 ; sans lui, vite-pwa dérive un
+  `id` implicite du seul `start_url`, qui casserait si celui-ci gagnait un jour une requête,
+  vite-pwa/vite-plugin-pwa#263), `screenshots` (deux captures `form_factor: "narrow"`, viewport
+  390×844 à DPR 2 — donc `sizes: "780x1688"`, les pixels physiques du fichier, pas le viewport
+  logique —, écrites par `scripts/generate-screenshots.ts` — `npm run screenshots` — sur les
+  données d'exemple, jamais un export réel ; exclues du précache par `globIgnores`), `shortcuts` (Trading,
+  Trades, Vue d'ensemble, Importer, vers les hashes canoniques de `src/lib/router.svelte.ts`) et
+  `launch_handler: { client_mode: ['navigate-existing', 'auto'] }` (réutilise la fenêtre déjà
+  ouverte). Le générateur de captures construit le build public, sert `dist/` par `vite preview`
+  sur un port dédié (`SCREENSHOTS_PORT`, jamais celui de `npm run e2e`), et rejoue `stubNetwork` +
+  `openDemo` comme les specs E2E.
+- `src/lib/format/bytes.ts` — `fmtBytes`, seul format hors du domaine dans `src/lib/format` :
+  `navigator.storage.estimate()` rend des octets en `number` (une taille de stockage, jamais un
+  montant ni une quantité de l'application), donc hors de la règle « chaînes décimales + `Big` ».
 - `src/routes`, `src/components` — présentation uniquement. Navigation en cinq espaces
   (`src/lib/spaces.ts`, registre `SPACES` — **source de vérité**, croisée avec la liste ci-dessous
   par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et
@@ -352,6 +378,30 @@ affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le m�
   22 px, mais la zone cliquable est agrandie par un pseudo-élément à ≥ 24 px partout et ≥ 44 px
   (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
   grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
+
+  **P124 (décision n° 182)** ajoute deux primitives sur le même principe — un endroit, jamais un
+  style redéfini par écran :
+
+  - **Interrupteur** (`src/components/shared/Switch.svelte`) : `<input type="checkbox"
+role="switch">` dans un `<label>` qui porte aussi le texte — toute la ligne bascule le
+    contrôle, comportement natif, aucun JS de clic à écrire. `checked`/`onCheckedChange` plutôt
+    qu'un `bind:checked` Svelte : la plupart des appelants lisent la valeur du store et la
+    modifient par un mutateur (`app.setUi`…), jamais un `$state` local. Cible ≥ 44 px
+    (`var(--tap)`) sous `(any-pointer: coarse)`, ≥ 24 px sinon, par le `min-height` de la ligne —
+    pas par le glyphe du commutateur, qui reste petit. Réservé aux réglages BINAIRES À EFFET
+    IMMÉDIAT ; les listes à choix multiples et les cases de confirmation (« ces deux fichiers
+    portent sur le même périmètre », `routes/invest/SecondOpinion.svelte`) restent des cases à
+    cocher ordinaires — le rôle switch suppose un état qui bascule seul, pas un consentement donné
+    une fois (APG). Onze conversions hors Trading (Réglages, Comptes, Alertes, Marché, partage).
+  - **Résumé de section repliable** (`src/app.css`, règles globales `summary`/`summary h2`) : le
+    patron déjà utilisé par `routes/wealth/Loans.svelte` (« le titre vit DANS le résumé, pour que
+    le triangle le commande ») — `display` n'est volontairement pas touché, pour garder le
+    marqueur natif, et la cible tactile vient du `padding`, jamais d'une hauteur qui entrerait en
+    conflit avec le contenu. `routes/Settings.svelte` (neuf sections en `<details>`, la première —
+    Données — ouverte, un sommaire d'ancres en tête qui ouvre la section visée par script plutôt
+    que par le hash du routeur — `#coffre` n'est pas une route, et un `hashchange` y renverrait à
+    la Vue d'ensemble) en est le principal appelant.
+
 - **Règle de formatage** (`eslint.config.js`) : `no-restricted-syntax` interdit `.toFixed(` et
   `.toLocaleString(` dans `src/routes/**` et `src/components/**` — le formatage d'affichage
   (arrondi half-up, virgule française) n'a qu'un seul endroit, `src/lib/format`. Les exceptions
