@@ -167,6 +167,23 @@ import {
   writeBackupFile,
   type FolderPermission,
 } from '$lib/storage/backup-folder';
+import {
+  chooseMailboxFolder,
+  forgetMailboxFolder,
+  isMailboxFolderSupported,
+  loadMailboxFolder,
+  loadMailboxPeerSeqs,
+  loadOrCreateMailboxSalt,
+  nextMailboxSeq,
+  queryMailboxFolderPermission,
+  requestMailboxFolderPermission,
+  RealMailboxFolder,
+  saveMailboxPeerSeqs,
+  type MailboxFolderPermission,
+} from '$lib/storage/mailbox-folder';
+import { decryptMailboxEnvelope, readMailboxHeader } from '$lib/storage/mailbox-envelope';
+import { mailboxPassphrase, setMailboxPassphrase } from '$lib/storage/mailbox-session';
+import { buildMailboxDeposit, syncMailbox, type PeerSyncResult } from '$lib/storage/mailbox-sync';
 import { requestPersistentStorage } from '$lib/storage/local-storage';
 
 /**
@@ -225,6 +242,25 @@ export interface FolderBackupStatus {
   error: string | null;
 }
 
+/**
+ * Boîte aux lettres synchronisée (P125) : dossier distinct de `FolderBackupStatus` ci-dessus (clé
+ * IndexedDB propre, `mailbox-folder.ts`) — même dossier physique possible, mais jamais le même
+ * FICHIER, et les deux fonctionnalités s'ignorent totalement l'une l'autre.
+ */
+export interface MailboxSyncStatus {
+  supported: boolean;
+  folderName: string | null;
+  permission: MailboxFolderPermission | null;
+  /** La phrase de synchronisation a été saisie CETTE session (jamais sa valeur — `mailbox-session.ts`). */
+  unlocked: boolean;
+  syncing: boolean;
+  lastSyncAt: string | null;
+  error: string | null;
+  /** Dernier résultat connu par appareil pair, mis à jour au FUR ET À MESURE des cycles (un pair
+   *  absent d'un cycle — dossier momentanément illisible — n'est pas oublié pour autant). */
+  peers: Record<string, PeerSyncResult>;
+}
+
 /** Synchronisation d'un compte Hyperliquid (adresse publique). */
 export interface SyncStatus {
   syncing: boolean;
@@ -243,6 +279,10 @@ export interface SyncStatus {
 export type { QualifiedSummary };
 
 const FOLDER_WRITE_DEBOUNCE_MS = 2_000;
+/** Bien plus long que `FOLDER_WRITE_DEBOUNCE_MS` : un dépôt dans un dossier partagé (Drive,
+ *  OneDrive…) a un coût — bande passante, historique de versions du client cloud — qu'une simple
+ *  réécriture locale n'a pas ; aucune raison d'en déposer un à chaque frappe. */
+const MAILBOX_SYNC_DEBOUNCE_MS = 60_000;
 const PRICE_MAX_AGE_MS = 10 * 60_000;
 const SAVE_DEBOUNCE_MS = 300;
 /** Le planificateur de veille des alertes se réveille souvent mais n'actualise qu'à échéance. */
@@ -311,6 +351,22 @@ export class AppState {
   });
   private folderHandle: FileSystemDirectoryHandle | null = null;
   private folderTimer: ReturnType<typeof setTimeout> | null = null;
+  mailboxSync = $state<MailboxSyncStatus>({
+    supported: false,
+    folderName: null,
+    permission: null,
+    unlocked: false,
+    syncing: false,
+    lastSyncAt: null,
+    error: null,
+    peers: {},
+  });
+  private mailboxHandle: FileSystemDirectoryHandle | null = null;
+  private mailboxTimer: ReturnType<typeof setTimeout> | null = null;
+  private mailboxSalt: Uint8Array<ArrayBuffer> | null = null;
+  /** Dernier `seq` déjà fusionné par appareil PAIR — persisté à part (`mailbox-folder.ts`), tenu
+   *  ici en mémoire pour ne pas relire IndexedDB à chaque cycle. */
+  private mailboxLastMergedSeq: Record<string, number> = {};
   syncStatus = $state<Record<AccountId, SyncStatus>>({});
 
   /**
@@ -1248,6 +1304,9 @@ export class AppState {
         pending = $state.snapshot(this.state);
         if (timer) clearTimeout(timer);
         timer = setTimeout(flush, SAVE_DEBOUNCE_MS);
+        // Même dépendance que ci-dessus (le `snapshot` qui précède l'a déjà enregistrée) : pas de
+        // second parcours profond du proxy pour un second traqueur.
+        this.scheduleMailboxSync();
       });
     });
     // Un rechargement, une fermeture ou un passage en arrière-plan (mobile) juste après une
@@ -1256,14 +1315,20 @@ export class AppState {
       window.addEventListener('pagehide', flushSync);
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'hidden') flushSync();
-        // Retour au premier plan : rapatrier ce que le service worker a déclenché app fermée.
-        else void this.ingestSwFires();
+        else {
+          // Retour au premier plan : rapatrier ce que le service worker a déclenché app fermée, et
+          // relire la boîte aux lettres (no-op silencieux si elle n'est pas configurée cette
+          // session — voir `runMailboxSync`).
+          void this.ingestSwFires();
+          void this.runMailboxSync();
+        }
       });
     }
     this.ensureAlertWatch();
     this.updateAppBadge();
     void this.ingestSwFires();
     void this.initFolderBackup();
+    void this.initMailboxSync();
   }
 
   /**
@@ -1479,6 +1544,217 @@ export class AppState {
       lastWriteAt: null,
       error: null,
     };
+  }
+
+  // --- Boîte aux lettres synchronisée (P125) ------------------------------------------------
+
+  private async initMailboxSync(): Promise<void> {
+    const supported = isMailboxFolderSupported();
+    this.mailboxSync = { ...this.mailboxSync, supported };
+    if (!supported) return;
+    const handle = await loadMailboxFolder();
+    if (!handle) return;
+    this.mailboxHandle = handle;
+    this.mailboxSalt = await loadOrCreateMailboxSalt();
+    this.mailboxLastMergedSeq = await loadMailboxPeerSeqs();
+    this.mailboxSync = {
+      ...this.mailboxSync,
+      folderName: handle.name,
+      permission: await queryMailboxFolderPermission(handle),
+    };
+    // Sans effet tant que la phrase n'a pas été saisie cette session (`runMailboxSync` le vérifie
+    // lui-même) : c'est ce qui rend cet appel inoffensif au démarrage, où elle ne l'est jamais.
+    void this.runMailboxSync();
+  }
+
+  /**
+   * Programme un cycle 60 s après la dernière modification locale — jamais en mode démo, jamais
+   * sans aucune donnée réelle (même garde que `scheduleFolderWrite`, pour la même raison : ne pas
+   * déposer un état fictif ou vide dans le dossier de l'utilisateur). Appelée depuis l'effet de
+   * sauvegarde (`init`), à chaque mutation profonde de `this.state`.
+   */
+  private scheduleMailboxSync(): void {
+    if (this.mailboxTimer) clearTimeout(this.mailboxTimer);
+    this.mailboxTimer = null;
+    if (!this.mailboxHandle || this.state.ui.demoMode || !this.hasData) return;
+    this.mailboxTimer = setTimeout(() => {
+      this.mailboxTimer = null;
+      void this.runMailboxSync();
+    }, MAILBOX_SYNC_DEBOUNCE_MS);
+  }
+
+  /**
+   * UN cycle de synchronisation : lit les pairs, fusionne, dépose son propre fichier, élague.
+   * Silencieux (retour immédiat, jamais d'erreur) tant que le dossier, la permission ou la phrase
+   * de synchronisation manquent — c'est ce qui rend cette méthode appelable sans condition depuis
+   * le démarrage, le retour au premier plan et l'anti-rebond après modification ; l'écran de
+   * synchronisation, lui, l'appelle après avoir vérifié ces trois conditions pour AFFICHER
+   * pourquoi le bouton est désactivé plutôt que de laisser le clic ne rien faire en silence.
+   *
+   * Jamais en mode démo (décision n° 182 : les données d'exemple ne doivent jamais voyager) — seule
+   * garde répétée ici plutôt que dans `scheduleMailboxSync` : un clic MANUEL depuis l'écran doit
+   * lui aussi être bloqué, pas seulement le déclenchement automatique après modification.
+   */
+  async runMailboxSync(): Promise<void> {
+    if (this.state.ui.demoMode) return;
+    if (!this.mailboxHandle || this.mailboxSync.permission !== 'granted') return;
+    const passphrase = mailboxPassphrase();
+    if (passphrase === null) return;
+    if (this.mailboxSync.syncing) return;
+    if (!this.mailboxSalt) this.mailboxSalt = await loadOrCreateMailboxSalt();
+    this.mailboxSync = { ...this.mailboxSync, syncing: true, error: null };
+    try {
+      const seq = await nextMailboxSeq();
+      const result = await syncMailbox({
+        folder: new RealMailboxFolder(this.mailboxHandle),
+        device: this.deviceId,
+        passphrase,
+        salt: this.mailboxSalt,
+        nextSeq: seq,
+        lastMergedSeq: this.mailboxLastMergedSeq,
+        exportJson: () => this.exportBackup(),
+        mergeJson: (json) => {
+          const outcome = this.restoreBackup(json, 'merge');
+          return outcome.ok ? { ok: true, report: outcome.report } : outcome;
+        },
+      });
+      this.mailboxLastMergedSeq = result.lastMergedSeq;
+      void saveMailboxPeerSeqs(result.lastMergedSeq);
+      const peers: Record<string, PeerSyncResult> = { ...this.mailboxSync.peers };
+      for (const peer of result.peers) peers[peer.device] = peer;
+      this.mailboxSync = {
+        ...this.mailboxSync,
+        syncing: false,
+        lastSyncAt: nowIso(),
+        error: result.writeError,
+        peers,
+      };
+      // Un pair a pu apporter un compte, un actif ou un réglage qu'aucun prix n'a encore couvert.
+      if (result.peers.some((peer) => peer.outcome.status === 'merged')) void this.refreshPrices();
+    } catch (error) {
+      this.mailboxSync = {
+        ...this.mailboxSync,
+        syncing: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Depuis un clic : choisit le dossier de synchronisation, ou accepte un handle déjà obtenu
+   * (`handleOverride`, réservé aux tests de bout en bout — voir `mailbox-folder.ts`). Distinct du
+   * dossier de sauvegarde (`chooseBackupFolder` ci-dessus) : clé IndexedDB propre, jamais le même
+   * fichier.
+   */
+  async chooseMailboxFolder(handleOverride?: FileSystemDirectoryHandle): Promise<boolean> {
+    const handle = await chooseMailboxFolder(handleOverride);
+    if (!handle) return false;
+    this.mailboxHandle = handle;
+    this.mailboxSalt = await loadOrCreateMailboxSalt();
+    this.mailboxLastMergedSeq = await loadMailboxPeerSeqs();
+    this.mailboxSync = {
+      ...this.mailboxSync,
+      folderName: handle.name,
+      permission: 'granted',
+      error: null,
+    };
+    void this.runMailboxSync();
+    return true;
+  }
+
+  /** Depuis un clic : redemande la permission après un rechargement du navigateur. */
+  async reconnectMailboxFolder(): Promise<void> {
+    if (!this.mailboxHandle) return;
+    const permission = await requestMailboxFolderPermission(this.mailboxHandle);
+    this.mailboxSync = { ...this.mailboxSync, permission };
+    if (permission === 'granted') void this.runMailboxSync();
+  }
+
+  async stopMailboxFolder(): Promise<void> {
+    if (this.mailboxTimer) clearTimeout(this.mailboxTimer);
+    this.mailboxTimer = null;
+    this.mailboxHandle = null;
+    this.mailboxLastMergedSeq = {};
+    await forgetMailboxFolder();
+    this.mailboxSync = {
+      ...this.mailboxSync,
+      folderName: null,
+      permission: null,
+      unlocked: false,
+      error: null,
+      peers: {},
+    };
+  }
+
+  /**
+   * Depuis l'écran Synchronisation : mémorise la phrase pour LA SESSION SEULEMENT
+   * (`mailbox-session.ts`, jamais sur disque), puis synchronise aussitôt.
+   */
+  unlockMailboxSync(passphrase: string): void {
+    setMailboxPassphrase(passphrase);
+    this.mailboxSync = { ...this.mailboxSync, unlocked: true };
+    void this.runMailboxSync();
+  }
+
+  /**
+   * Construit le fichier `.txt` de CET appareil, SANS dossier — pour Android, qui n'a pas de File
+   * System Access : l'écran l'offre à `navigator.share` (Drive, Quick Share…) ou au téléchargement.
+   * `null` sans phrase de synchronisation connue cette session, ou en mode démo (même garde que
+   * `runMailboxSync`).
+   */
+  async buildMailboxDeposit(): Promise<{ name: string; text: string } | null> {
+    if (this.state.ui.demoMode) return null;
+    const passphrase = mailboxPassphrase();
+    if (passphrase === null) return null;
+    if (!this.mailboxSalt) this.mailboxSalt = await loadOrCreateMailboxSalt();
+    const seq = await nextMailboxSeq();
+    const { name, text } = await buildMailboxDeposit({
+      device: this.deviceId,
+      passphrase,
+      salt: this.mailboxSalt,
+      seq,
+      exportJson: () => this.exportBackup(),
+    });
+    return { name, text };
+  }
+
+  /**
+   * Reçoit un fichier v3 (sélecteur système Android ou Web Share Target, `shared-inbox.ts`) et le
+   * fusionne — chemin symétrique à `buildMailboxDeposit` ci-dessus, jamais par un dossier. Met
+   * aussi à jour `mailboxSync.peers`/`mailboxLastMergedSeq`, pour que ce dépôt ne soit pas relu
+   * comme « nouveau » si le même appareil rejoint un jour un vrai dossier synchronisé.
+   */
+  async ingestMailboxFile(
+    text: string,
+  ): Promise<{ ok: true; report: MergeReport | null } | { ok: false; error: string }> {
+    const header = readMailboxHeader(text);
+    if (!header.ok) return { ok: false, error: 'Fichier de synchronisation illisible.' };
+    const passphrase = mailboxPassphrase();
+    if (passphrase === null) return { ok: false, error: 'Phrase de synchronisation manquante.' };
+    let json: string;
+    try {
+      json = await decryptMailboxEnvelope(header.envelope, passphrase);
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    }
+    const result = this.restoreBackup(json, 'merge');
+    if (!result.ok) return result;
+    const { device: peerDevice, seq, writtenAt } = header.envelope;
+    if (peerDevice !== this.deviceId) {
+      this.mailboxLastMergedSeq = {
+        ...this.mailboxLastMergedSeq,
+        [peerDevice]: Math.max(seq, this.mailboxLastMergedSeq[peerDevice] ?? -1),
+      };
+      void saveMailboxPeerSeqs(this.mailboxLastMergedSeq);
+      const peers: Record<string, PeerSyncResult> = { ...this.mailboxSync.peers };
+      peers[peerDevice] = {
+        device: peerDevice,
+        outcome: { status: 'merged', seq, writtenAt, report: result.report },
+      };
+      this.mailboxSync = { ...this.mailboxSync, peers, lastSyncAt: nowIso() };
+    }
+    void this.refreshPrices();
+    return result;
   }
 
   /**

@@ -15,6 +15,7 @@
   import Privacy from './routes/Privacy.svelte';
   import Reconciliation from './routes/Reconciliation.svelte';
   import Settings from './routes/Settings.svelte';
+  import Synchro from './routes/Synchro.svelte';
   import Trading from './routes/Trading.svelte';
   import Watch from './routes/Watch.svelte';
   import TradeAdd from './routes/trading/TradeAdd.svelte';
@@ -167,6 +168,8 @@
           <Accounts />
         {:else if route.name === 'reconciliation'}
           <Reconciliation />
+        {:else if route.name === 'synchro'}
+          <Synchro />
         {:else if route.name === 'asset'}
           <AssetDetail asset={route.asset} />
         {:else if route.name === 'import'}

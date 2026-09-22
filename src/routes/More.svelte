@@ -50,6 +50,11 @@
       needsData: true,
     },
     {
+      route: { name: 'synchro' },
+      label: 'Synchronisation',
+      detail: 'Fusionner les données de vos appareils, sans compte ni serveur',
+    },
+    {
       route: { name: 'market' },
       label: 'Contexte de marché',
       detail: 'Calendrier des publications américaines, hors ligne',
