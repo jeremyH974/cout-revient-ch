@@ -5,7 +5,11 @@ import {
   type TradingAccountReport,
 } from '../../src/lib/domain/trading/compute';
 import { curveWindow } from '../../src/lib/domain/trading/curve';
-import { fmtMoney, roundsToZero } from '../../src/lib/format/fr';
+import { needsAnnotation } from '../../src/lib/domain/trading/filter';
+import { journaledTrips } from '../../src/lib/domain/trading/journal';
+import { liquidationDistance } from '../../src/lib/domain/trading/liquidation';
+import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
+import { fmtMoney, fmtPct, roundsToZero } from '../../src/lib/format/fr';
 import type { HlPortfolio } from '../../src/lib/import/hyperliquid/api-types';
 import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
 import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
@@ -45,6 +49,29 @@ async function expectedReport(): Promise<{
     report: computeTradingAccount(normalized.trading),
     portfolio: sync.data.portfolio ?? {},
   };
+}
+
+/**
+ * Nombre de trades clos sans entrée de journal, tous comptes confondus (démo : un seul compte,
+ * pas de trade manuel ni de journal) : la même recette que `app.roundTrips` côté application
+ * (`journaledTrips(buildRoundTrips(...), manualTrades, journal)`), jamais un chiffre en dur.
+ */
+async function expectedToAnnotate(): Promise<number> {
+  const fixture = JSON.parse(
+    readFileSync('tests/fixtures/hyperliquid/demo.json', 'utf8'),
+  ) as HlFixture;
+  const sync = await syncAccount(fixtureClient(fixture), null, fixture.address, {
+    now: () => 1_755_900_000_000,
+  });
+  const normalized = normalizeHlAccount(sync.data, {
+    accountId: `hl:${fixture.address}`,
+    spotPairs: sync.spotPairs,
+    spotAsInvestment: false,
+    eurUsdRate: () => EUR_USD,
+  });
+  const { executions, funding } = normalized.trading;
+  const trips = journaledTrips(buildRoundTrips(executions, funding), [], {});
+  return trips.filter(needsAnnotation).length;
 }
 
 /** « 1 234,56 € » → 1234.56, en tolérant les espaces insécables et le signe moins typographique. */
@@ -160,6 +187,75 @@ test('démo : le tableau de bord Trading recoupe le moteur (équité, positions,
   await expect(page.locator('.stat-grid .main dd')).toHaveText(
     normalize(fmtMoney(net.div(EUR_USD), 'EUR', { sign: true })),
   );
+});
+
+/**
+ * P123 : la phrase de chaque position ouverte reprend exactement `liquidationDistance` calculée
+ * ici, sur la même fixture — jamais un pourcentage ou un montant en dur. Les quatre états du
+ * moteur (`value` non atteint, `breached`, `unknown`, `none`) donnent chacun leur propre phrase.
+ */
+test('démo : la distance à la liquidation de chaque position reprend celle du moteur', async ({
+  page,
+}) => {
+  const { report } = await expectedReport();
+  const positions = report.snapshot?.positions ?? [];
+  test.skip(positions.length === 0, 'le jeu de démonstration ne porte aucune position ouverte');
+
+  await openDemo(page);
+  await page.goto('#/trading');
+  const rows = page.getByRole('list', { name: 'Positions ouvertes' }).getByRole('listitem');
+  await expect(rows).toHaveCount(positions.length);
+
+  for (const [i, p] of positions.entries()) {
+    const distance = liquidationDistance(p);
+    let expected: string;
+    if (distance.kind === 'none') {
+      expected = 'Pas de seuil de liquidation au collatéral actuel';
+    } else if (distance.kind === 'unknown') {
+      expected = 'Distance à la liquidation indisponible';
+    } else if (distance.breached) {
+      expected = 'Instantané périmé : actualisez';
+    } else {
+      const verb = p.side === 'long' ? 'Peut baisser de' : 'Peut monter de';
+      const pct = normalize(fmtPct(distance.fraction, { sign: false }));
+      const gap = normalize(fmtMoney(distance.priceGap, 'USD', { sign: true }));
+      expected = `${verb} ${pct} (${gap}) avant liquidation`;
+    }
+    await expect(rows.nth(i), `position ${p.symbol} ${p.side}`).toContainText(expected);
+  }
+});
+
+/**
+ * P124 : le tableau de bord « d'un coup d'œil » place les positions ouvertes juste après la
+ * synthèse, avant la courbe — vérifié sur l'ordre du DOM (`~`), pas seulement la position visuelle.
+ */
+test('démo : le tableau de bord place les positions ouvertes avant la courbe (DOM)', async ({
+  page,
+}) => {
+  await openDemo(page);
+  await page.goto('#/trading');
+  await expect(page.locator('section.summary ~ section.positions-card')).toHaveCount(1);
+  await expect(page.locator('section.positions-card ~ section.evolution')).toHaveCount(1);
+});
+
+/**
+ * Le lien « n trades à annoter » compte exactement les trades clos sans journal du moteur
+ * (`needsAnnotation`) et mène à l'onglet Trades ; absent quand ce compte vaut 0.
+ */
+test('démo : le lien « à annoter » compte les trades clos sans journal du moteur', async ({
+  page,
+}) => {
+  const toAnnotate = await expectedToAnnotate();
+  await openDemo(page);
+  await page.goto('#/trading');
+  const link = page.getByRole('link', { name: /trades? à annoter/ });
+  if (toAnnotate === 0) {
+    await expect(link).toHaveCount(0);
+  } else {
+    await expect(link).toHaveText(`${toAnnotate} trade${toAnnotate > 1 ? 's' : ''} à annoter →`);
+    await link.click();
+    await expect(page).toHaveURL(/#\/trading\/trades$/);
+  }
 });
 
 test('ajouter une adresse : synchronisation réelle (stub), persistance après rechargement', async ({

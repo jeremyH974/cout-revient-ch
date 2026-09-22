@@ -25,6 +25,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   de filtres) permet de renommer un tag — en fusionnant avec un tag existant du même nom — ou de le
   supprimer.
 
+- **La distance à la liquidation, sur chaque position ouverte.** « Peut baisser de 12,4 %
+  (−10,23 $) avant liquidation » (« peut monter » pour un short) plutôt qu'un prix de liquidation
+  nu à décoder soi-même. Un mot — « proche » — signale un écart sous 10 %, jamais la seule
+  couleur ; en marge croisée, une bulle rappelle que ce seuil suppose le reste du compte inchangé.
+  Sans seuil au collatéral actuel, l'écran le dit plutôt que de laisser un tiret muet.
+
+- **Le nombre de trades à annoter, depuis le tableau de bord Trading.** Un lien « n trades à
+  annoter » mène à l'onglet Trades dès qu'un trade clos attend sa note ; absent quand tout est à
+  jour.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui
@@ -271,6 +281,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Changed
 
+- **Le tableau de bord Trading se lit d'un coup d'œil.** Les positions ouvertes remontent juste
+  après la synthèse, avant la courbe : c'était la quatrième carte, et il fallait faire défiler
+  plus de deux écrans à 390 px pour les voir ; elles arrivent maintenant à moins d'un écran. Les
+  paragraphes d'explication (courbe, formule du résultat, avoirs spot) passent dans des bulles
+  « i » ; une seule phrase reste visible par carte, celle qui évite une erreur de lecture.
+
+  Le vocabulaire change aussi : « P&L total » devient « Résultat total », « P&L net » devient
+  « Résultat net », « Dépôts nets » devient « Apports nets » — « Valeur du compte » ne change pas.
+  Les bulles d'aide continuent de nommer « P&L », pour qui cherche ce mot.
+
 - **Sous un an de données, le rapport ne donne plus de rendement « par an ».** Il le donne sur la
   période, dates à l'appui. Prolonger quelques mois sur une année produit un chiffre simulé, que la
   norme de présentation des performances (GIPS) interdit : sur la démonstration, l'ancien rapport
@@ -291,6 +311,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   couverture, les deux paquets de Stryker — arrivent désormais dans une seule PR.
 
 ### Fixed
+
+- **Les cases « Prix en direct » et « Trades en direct » avaient une zone cliquable trop
+  étroite**, sous les 24 px recommandés. Toute la ligne — case et libellé — répond désormais au
+  clic, avec 44 px de haut sur un écran tactile.
 
 - **Les cartes collaient leur contenu au bord.** Sur la plupart des écrans (Vue d'ensemble,
   Trading, Comptes, Statistiques, Trades…), le texte d'une carte touchait sa bordure. Chaque carte
