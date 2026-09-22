@@ -126,19 +126,6 @@
     gap: var(--space-2);
     align-items: center;
   }
-  .secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    color: var(--fg);
-    font-weight: 700;
-    text-decoration: none;
-    cursor: pointer;
-  }
   .link {
     color: var(--accent);
     text-decoration: underline;

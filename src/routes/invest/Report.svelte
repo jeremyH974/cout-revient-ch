@@ -442,29 +442,6 @@
     margin: 0 auto;
     padding: var(--space-3) var(--space-3) 0;
   }
-  .primary,
-  .secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-  }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-  }
-  .secondary {
-    border: 1px solid var(--border);
-    color: var(--fg);
-  }
-  .primary:disabled,
-  .secondary:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
   .small {
     font-size: var(--fs-xs);
   }

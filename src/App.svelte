@@ -282,7 +282,6 @@
   .crash {
     margin: var(--space-4) auto;
     max-width: 640px;
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
     border-color: var(--loss);
@@ -300,23 +299,6 @@
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-2);
-  }
-  .crash .primary,
-  .crash .secondary {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-  }
-  .crash .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-  }
-  .crash .secondary {
-    border: 1px solid var(--border);
-    color: var(--fg);
   }
   @media (min-width: 768px) {
     main {

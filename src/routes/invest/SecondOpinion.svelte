@@ -350,7 +350,6 @@
     margin: 0 auto;
   }
   section.card {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-2);
   }
@@ -474,17 +473,6 @@
   .tool:hover {
     border-color: var(--accent);
     color: var(--accent);
-  }
-  .primary {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
-    text-decoration: none;
   }
   .link {
     display: inline-flex;

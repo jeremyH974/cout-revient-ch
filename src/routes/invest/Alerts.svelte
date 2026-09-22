@@ -386,7 +386,6 @@
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--bg-elev);
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-2);
   }
@@ -404,21 +403,11 @@
     gap: var(--space-2);
     flex-wrap: wrap;
   }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-radius: var(--radius-sm);
-    padding: 0 var(--space-4);
-    font-weight: 700;
-    min-height: var(--tap);
-  }
+  /* Secondaire teinté à l'accent : ce sous-écran des alertes garde ce contraste plus fort que le
+     secondaire neutre pour « Activer les notifications système ». */
   .secondary {
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
+    border-color: var(--accent);
     color: var(--accent);
-    padding: 0 var(--space-3);
-    font-weight: 600;
-    min-height: var(--tap);
     justify-self: start;
   }
   .toggle {

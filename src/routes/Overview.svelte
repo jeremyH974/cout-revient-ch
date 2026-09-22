@@ -23,7 +23,7 @@
   import { onMount } from 'svelte';
   import { nowMs } from '$lib/clock';
   import { D, ZERO, type Big } from '$lib/domain/money';
-  import { displayGap, fmtDate, fmtPeriod } from '$lib/format/fr';
+  import { displayGap, fmtDate, fmtPeriod, fmtRatio } from '$lib/format/fr';
   import { FEAR_GREED_ATTRIBUTION } from '$lib/pricing/fear-greed';
   import { insightsToText, renderInsights } from '$lib/format/insights';
   import { resolveWindow, todayOf, windowSeries, type Period } from '$lib/history';
@@ -161,10 +161,15 @@
   const failing = $derived(selfChecks.actionable.filter((c) => c.level === 'fail'));
   const advisory = $derived(selfChecks.actionable.filter((c) => c.level !== 'fail'));
 
-  /** Part d'un espace dans le patrimoine, en pourcentage affichable ; `null` si le total est nul. */
+  /**
+   * Part d'un espace dans le patrimoine, en pourcentage ; `null` si le total est nul. Un `number`
+   * borné (0-100), utilisé aussi bien pour une largeur CSS que pour l'affichage (via `fmtRatio`,
+   * qui refait l'arrondi — sans effet sur une valeur déjà à une décimale).
+   */
   function shareOf(value: Big): number | null {
     const total = reconciliation?.net ?? null;
     if (total === null || !total.gt(ZERO)) return null;
+    // eslint-disable-next-line no-restricted-syntax -- borne numérique pour une largeur CSS, jamais affichée telle quelle
     return Number(value.div(total).times('100').toFixed(1));
   }
   function changeOf(id: string) {
@@ -392,7 +397,7 @@
             <span class="name">{line.label}</span>
             <span class="amount"><Money value={line.value} /></span>
             <span class="share muted"
-              >{share === null ? '—' : `${share.toLocaleString('fr-FR')} %`}</span
+              >{share === null ? '—' : `${fmtRatio(String(share), 1)} %`}</span
             >
             <span class="moved">
               {#if moved}<Delta
@@ -533,7 +538,6 @@
   /* Rythme commun : chaque bloc de premier niveau respire de la même façon. */
   section,
   .discover {
-    padding: var(--space-4);
     margin-bottom: var(--space-3);
     display: grid;
     gap: var(--space-3);

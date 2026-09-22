@@ -127,14 +127,23 @@ export function fmtSmallPct(
   return signed(PCT_3.format(toNumber(rounded.abs(), 5)), rounded, opts.sign ?? false);
 }
 
-/** Nombre sans unité (ratio de Sortino, multiple…), `dp` décimales, arrondi une seule fois. */
-export function fmtRatio(value: Big | DecimalString | null, dp = 2): string {
+/**
+ * Nombre sans unité (ratio de Sortino, multiple, résultat en R…), `dp` décimales, arrondi une
+ * seule fois. Sans signe par défaut (compatibilité) ; `{ sign: true }` ajoute un « + » pour une
+ * valeur strictement positive — jamais pour un résultat qui s'affiche zéro (même règle que
+ * `fmtPct`/`fmtMoney`, portée par `signed` ci-dessus).
+ */
+export function fmtRatio(
+  value: Big | DecimalString | null,
+  dp = 2,
+  opts: { sign?: boolean } = {},
+): string {
   if (value === null) return '—';
   const rounded = roundHalfUp(D(value), dp);
   const text = intl({ minimumFractionDigits: dp, maximumFractionDigits: dp }).format(
     toNumber(rounded.abs(), dp),
   );
-  return signed(text, rounded, false);
+  return signed(text, rounded, opts.sign ?? false);
 }
 
 /** Nombre de décimales significatives pour un prix ou une quantité. */

@@ -157,7 +157,17 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   référence (`AppState.accounts`, dérivé). `hyperliquid: HlState` (conteneur additif,
   docs/DECISIONS.md n° 22) porte les bruts par compte Hyperliquid ; assaini champ par champ
   (`sanitize.ts`) et fusionné par union de clés (`tid`, clés composites funding/ledger) dans
-  `json-io.ts`, jamais remplacé en bloc.
+  `sync/merge.ts`, jamais remplacé en bloc.
+  `src/lib/storage/sync` (fusion multi-appareils, docs/DECISIONS.md n° 182) porte toute la LOGIQUE,
+  en modules purs testés (mutation ≥ 90 %, hors Stryker par défaut — voir `stryker.config.json`) :
+  `hlc.ts` (horloge logique hybride, chaîne triable), `canon.ts` (JSON canonique pour comparer deux
+  enregistrements), `tracked.ts` (registre des collections SUIVIES — LWW par enregistrement — et
+  accès uniforme, `imports` compris malgré sa forme de tableau), `stamp.ts` (`stampChanges` : date
+  un diff entre deux instantanés, jamais un mutateur), `merge.ts` (`mergeSynced` : LWW + pierres
+  tombales sur les collections suivies, union sur `rawRows`/`pivotRows`/`hyperliquid`/`lending`/
+  `alerts.events`, réglages locaux inchangés sur les autres) et `import-prune.ts` (règle de
+  suppression des lignes d'un lot d'import, partagée par `undoImport` et l'élagage post-fusion).
+  Le seul point d'entrée IMPUR est `src/state/app.svelte.ts` — voir ce fichier ci-dessous.
 - `src/lib/calendar` — calendrier macroéconomique américain **et de la zone euro**, **compilé dans le bundle et jamais
   récupéré au vol** : `events.generated.ts` est engendré et committé par
   `scripts/generate-calendar.ts` (Fed et BEA relus par le cron hebdomadaire ; BLS recopié à la main
@@ -248,6 +258,19 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   **Ne jamais déplacer le `$state.snapshot(this.state)` de l'effet de sauvegarde** : ce clone EST le
   traqueur de dépendances, et l'en sortir ferait cesser silencieusement l'enregistrement des
   mutations profondes (décision n° 81).
+  **Seul point de branchement, impur, de la fusion multi-appareils** (décision n° 182) : trois
+  champs privés HORS de l'état réactif (`deviceId`, `syncMeta`, `baseline` — jamais `$state`, pour
+  la même raison que ci-dessus : les y mêler daterait `sync` lui-même et bouclerait l'effet).
+  `stampSnapshot()` — appelé par `flush`/`flushSync`/`exportBackup`/`installVault`/`removeVault`,
+  jamais l'inverse — date les changements depuis `baseline` (`stampChanges`, pur) et avance
+  `baseline` jusqu'au nouvel instantané ; sauté en mode démo, pour qu'aucune pierre tombale ne naisse
+  de données fictives. `restoreBackup()` appelle `mergeSynced` (« en fusionnant ») et réaligne
+  `baseline` sur le résultat **avant** le prochain `flush` — l'oublier redaterait les valeurs reçues
+  comme des éditions locales fraîches, cassant « le plus récent gagne » à la fusion suivante
+  (contre-épreuve dans le rapport de la PR). `clearAll()` réinitialise `baseline` et `syncMeta` SANS
+  pierre tombale : effacer les données d'un appareil ne doit jamais se propager comme des
+  suppressions aux autres. `deviceId` (UUID, `$lib/storage/device-id.ts`) vit dans le magasin `meta`
+  d'IndexedDB, jamais dans `StoredStateV1` — deux appareils ne partagent jamais d'identifiant.
 - `src/state/history.svelte.ts` — historique des prix et **séries** : `dailySeries`, `flows` (les
   apports, au sens des flux externes) et la courbe consolidée `netWorth`, définie **ici** et non
   dans un composant pour que le bandeau, la réconciliation et le graphique lisent le même objet.
@@ -316,6 +339,48 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   `src/lib/router.svelte.ts` traduit le hash en route (`parseHash`/`toHash`) ; les hashes v1
   (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge comme alias
   pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
+
+## Primitives d'interface partagées
+
+Le constat qui a ouvert la décision n° 181 : `.card` n'avait **aucun padding** — la plupart des
+`<section class="card">` collaient leur texte au bord —, aucun style de bouton n'était partagé
+(24 fichiers redéfinissaient `.primary`/`.secondary`, dont dix sans aucune définition locale,
+affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le même markup.
+
+- **Cartes** (`src/app.css`) : `.card` porte `padding: var(--space-4)` par défaut ; `.card.flush`
+  (padding 0) sert aux cartes pleine largeur dont les enfants gèrent leur propre padding — une
+  liste à séparateurs (`routes/More.svelte`, la carte des positions ouvertes de
+  `routes/Trading.svelte`) où le padding de la carte empêcherait les séparateurs d'atteindre son
+  bord.
+- **Boutons** (`src/app.css`) : `.primary` et `.secondary` partagent un même gabarit (hauteur
+  tactile, rayon, texte non souligné), et ne différent que par la couleur et la bordure — valable
+  sur `<button>` ET `<a>`. `.large` (52 px, rayon plus large) sert aux deux CTA pleine largeur de
+  l'accueil et de la saisie manuelle. Un écran garde une couleur locale (teintée à l'accent, sous-
+  écrans des alertes) ou une taille locale (confirmation de fiche, 48 px) quand la variante est
+  volontaire ; le reste — mise en page seule (marges, `justify-self`) — demeure dans le composant.
+- **Grille de chiffres** (`dl.stat-grid`, modificateur `.cols-3`) : le patron dt/dd commun à un
+  tableau de résultat (deux colonnes sur téléphone, trois à partir du gabarit tablette, un premier
+  chiffre `.main` qui s'étend sur toute la largeur et se lit plus grand). `.trio` et `.bridge` (Vue
+  d'ensemble, tableau de bord Trading) restent des styles « héros » propres à un seul écran, jamais
+  dupliqués ailleurs : ils ne migrent pas.
+- **Onglets d'espace** (`src/components/layout/SpaceTabs.svelte`) : une seule ligne, toujours
+  (recommandation Material 3 pour les onglets), qui défile horizontalement plutôt que de passer à
+  la ligne ou de déborder — l'ancien comportement de la barre Trading à 390 px (décision n° 158).
+  Ce sont des LIENS entre pages (`nav` + `a[aria-current="page"]`), jamais le motif ARIA tablist,
+  réservé aux panneaux d'une même page. `InvestTabs` et `TradingTabs` calculent chacun leur `href`
+  et leur `current` ; le composant partagé ne porte que la présentation, dont les ombres de
+  débordement en CSS pur (`background-attachment: local`) et le rappel de l'onglet courant en vue
+  au montage.
+- **Bouton d'aide** (`src/components/shared/Info.svelte`) : le glyphe visuel reste un cercle de
+  22 px, mais la zone cliquable est agrandie par un pseudo-élément à ≥ 24 px partout et ≥ 44 px
+  (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
+  grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
+- **Règle de formatage** (`eslint.config.js`) : `no-restricted-syntax` interdit `.toFixed(` et
+  `.toLocaleString(` dans `src/routes/**` et `src/components/**` — le formatage d'affichage
+  (arrondi half-up, virgule française) n'a qu'un seul endroit, `src/lib/format`. Les exceptions
+  légitimes (précision interne d'un `ChartPoint`, largeur CSS en pourcentage, presse-papiers vers
+  un champ officiel qui n'accepte pas l'espace insécable de groupement d'`Intl`) portent un
+  commentaire `eslint-disable-next-line` qui dit pourquoi.
 
 ## Invariants testés
 

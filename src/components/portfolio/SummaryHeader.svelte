@@ -166,7 +166,6 @@
 
 <style>
   .summary {
-    padding: var(--space-4);
     margin: var(--space-3);
   }
   .trio {
