@@ -1274,7 +1274,7 @@ export class AppState {
    * de porter `sync` — jamais dans `this.state` (voir le champ `syncMeta` plus haut), toujours
    * recomposé au moment d'écrire.
    *
-   * Mode démo excepté (décision de ce chantier) : les données d'exemple ne sont jamais datées —
+   * Mode démo excepté (décision n° 182) : les données d'exemple ne sont jamais datées —
    * `baseline` avance quand même (rien à rattraper au prochain enregistrement réel), mais
    * `syncMeta` reste inchangé, pour qu'aucune pierre tombale ne naisse de données fictives.
    */

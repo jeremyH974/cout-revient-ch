@@ -1,5 +1,5 @@
 /**
- * `mergeSynced` — voir `docs/DECISIONS.md` (décision de ce chantier) pour les choix de conception.
+ * `mergeSynced` — voir `docs/DECISIONS.md` (décision n° 182) pour les choix de conception.
  * Contre-épreuves (décision n° 75) : voir le rapport final, elles ne sont pas dans ce fichier —
  * elles faussent volontairement le CODE puis restaurent, ce qu'un test ne peut pas faire de lui-même.
  */

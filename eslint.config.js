@@ -60,4 +60,30 @@ export default ts.config(
       },
     },
   },
+  {
+    // Le formatage d'affichage (arrondi, séparateur français) a un seul endroit : src/lib/format.
+    // Un `.toFixed(`/`.toLocaleString(` direct dans l'écran ou le composant refait ce travail —
+    // souvent sans l'arrondi half-up ni la virgule française — et diverge tôt ou tard (décision
+    // n° 181). Restreint aux dossiers de présentation : `src/lib` garde le droit d'en avoir besoin
+    // (précision interne, formateurs eux-mêmes).
+    files: [
+      'src/routes/**/*.svelte',
+      'src/routes/**/*.ts',
+      'src/components/**/*.svelte',
+      'src/components/**/*.ts',
+    ],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='toFixed']",
+          message: 'Formater via src/lib/format',
+        },
+        {
+          selector: "CallExpression[callee.property.name='toLocaleString']",
+          message: 'Formater via src/lib/format',
+        },
+      ],
+    },
+  },
 );

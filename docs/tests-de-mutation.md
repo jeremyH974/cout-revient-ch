@@ -305,7 +305,7 @@ les modules **purs**, sans DOM, sans horloge, sans navigateur, et ceux qui produ
 qu'un utilisateur recopiera dans une déclaration. S'y ajoute `src/lib/history/window.ts` (P118) :
 pur lui aussi, il produit les flux, le gain et les rendements de la fenêtre d'analyse du Rapport,
 et il vit dans `history` parce qu'il lit la série quotidienne. Et `src/lib/storage/sync` (décision
-n° 180) : pur aussi, mais un plancher SÉPARÉ (≥ 90 %, mesuré seul avec `--mutate`) — il ne produit
+n° 182) : pur aussi, mais un plancher SÉPARÉ (≥ 90 %, mesuré seul avec `--mutate`) — il ne produit
 pas des montants mais des décisions de fusion, et son plancher est délibérément plus bas que celui,
 déjà durci au fil des relevés, du reste du périmètre ci-dessous.
 

@@ -261,7 +261,7 @@ export default defineConfig(({ mode }) => {
            * (décision n° 94), où le seuil est de 95 % et où Stryker passe.
            *
            * `lines`/`statements` REDESCENDUS (2,6/2,4 → 2,5/2,3) à la fusion multi-appareils
-           * (décision de ce chantier, `docs/DECISIONS.md`) : `app.svelte.ts` gagne le branchement
+           * (décision n° 182, `docs/DECISIONS.md`) : `app.svelte.ts` gagne le branchement
            * de `stampChanges`/`mergeSynced`/`restoreBackup` — de la CIRCUITERIE, conforme à la voie
            * ci-dessus, mais qui dilue mécaniquement le ratio tant qu'elle n'est exercée que par les
            * specs Playwright (hors de cette mesure). La LOGIQUE, elle, vit dans `src/lib/storage/

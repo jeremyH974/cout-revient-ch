@@ -4,7 +4,7 @@ Documente l'enveloppe de sauvegarde JSON et chaque conteneur de `StoredStateV1`
 (`src/lib/storage/schema.ts`), la politique de version, la fusion multi-appareils, et ce qui
 survit — ou non — de l'export portable Koinly/Waltio. S'appuie sur des décisions déjà prises :
 n° 21 (sauvegarde robuste, IndexedDB, chiffrement optionnel), n° 24 (import « format pivot »
-Koinly/Waltio), n° 26 (convertisseurs natifs) et n° 180 (fusion multi-appareils, § Fusion
+Koinly/Waltio), n° 26 (convertisseurs natifs) et n° 182 (fusion multi-appareils, § Fusion
 ci-dessous). Le § « Pourquoi pas de schéma publié » plus bas explique pourquoi ce document en
 prose, et non un schéma séparé, reste la référence pour l'enveloppe elle-même.
 
