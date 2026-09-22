@@ -5,9 +5,16 @@
   import { canShareFiles, downloadText, shareTextFile } from '$lib/export/download';
   import { eventsToKoinlyCsv } from '$lib/export/koinly-csv';
   import { koinlyPortabilityPreview } from '$lib/export/koinly-preview';
+  import { fmtBytes } from '$lib/format/bytes';
   import { fmtDate, fmtPrice, fmtRelative, localDay } from '$lib/format/fr';
   import { fmtPortabilityGap } from '$lib/format/koinly-preview';
   import { FLAVOR_LABELS, KEYED_FLAVORS } from '$lib/import/onchain/etherscan';
+  import {
+    isInstallable,
+    isStandalone,
+    onInstallableChange,
+    promptInstall,
+  } from '$lib/pwa/install';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
   import AiSection from '../components/settings/AiSection.svelte';
@@ -24,16 +31,54 @@
     type EncryptedBackup,
   } from '$lib/storage/encryption';
   import Sheet from '../components/shared/Sheet.svelte';
+  import Switch from '../components/shared/Switch.svelte';
   import type { UiSettings } from '$lib/storage/schema';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
 
+  /** Sommaire d'ancres en tête (P124) : ouvre la section visée sans passer par le routeur à
+   *  hash — `#donnees` n'est pas une route, et le laisser filer changerait de page. */
+  const SECTIONS: { id: string; label: string }[] = [
+    { id: 'donnees', label: 'Données' },
+    { id: 'prix', label: 'Prix' },
+    { id: 'affichage', label: 'Affichage' },
+    { id: 'methode-calcul', label: 'Méthode de calcul' },
+    ...(__PRIVATE_BUILD__ ? [{ id: 'reseau', label: 'Sortie réseau' }] : []),
+    { id: 'coffre', label: 'Coffre' },
+    { id: 'ia', label: 'Récit par IA' },
+    { id: 'verifications', label: 'Vérifications automatiques' },
+    { id: 'aide', label: 'Aide et retours' },
+    { id: 'sources', label: 'Sources des données' },
+    { id: 'danger', label: 'Zone dangereuse' },
+  ];
+  function openAndScroll(id: string): void {
+    const el = document.getElementById(id);
+    if (el instanceof HTMLDetailsElement) el.open = true;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /** État du stockage (P124) : jamais de rappel à `persist()` en boucle, une seule lecture. */
+  let persistedStorage = $state<boolean | null>(null);
+  let storageEstimate = $state<{ usage: number; quota: number } | null>(null);
+  $effect(() => {
+    void navigator.storage?.persisted?.().then((v) => (persistedStorage = v));
+    void navigator.storage
+      ?.estimate?.()
+      .then((e) => (storageEstimate = { usage: e.usage ?? 0, quota: e.quota ?? 0 }));
+  });
+
+  /** Installation Android (P124) : masqué en variante privée (jamais de manifeste) et en
+   *  standalone — rien à proposer dans les deux cas. */
+  let installable = $state(isInstallable() && !isStandalone());
+  $effect(() => onInstallableChange((v) => (installable = v && !isStandalone())));
+  async function install(): Promise<void> {
+    const outcome = await promptInstall();
+    installable = false;
+    if (outcome === 'accepted') toasts.push('Application installée.', 'success');
+  }
+
   let restoreMode = $state<'replace' | 'merge'>('merge');
   let confirmClear = $state(false);
-  let persisted = $state<boolean | null>(null);
-  $effect(() => {
-    void navigator.storage?.persisted?.().then((v) => (persisted = v));
-  });
   // Date locale dans les noms de fichiers (le jour UTC diffère le soir).
   const stamp = (): string => localDay(nowMs());
   const manualPrices = $derived(
@@ -154,18 +199,39 @@
 
 <AppBar title="Réglages" back={app.hasData} />
 
+<nav class="toc" aria-label="Sommaire des réglages">
+  {#each SECTIONS as s (s.id)}
+    <a
+      href="#{s.id}"
+      onclick={(e) => {
+        e.preventDefault();
+        openAndScroll(s.id);
+      }}>{s.label}</a
+    >
+  {/each}
+</nav>
+
 <div class="settings">
-  <section class="card group">
-    <h2>Données</h2>
+  <details class="card group" id="donnees" open>
+    <summary><h2>Données</h2></summary>
     <p class="muted small">
       Vos données ne sont que dans ce navigateur. Dernière sauvegarde : {app.state.ui.lastBackupAt
         ? fmtRelative(app.state.ui.lastBackupAt, nowMs())
-        : 'jamais'}. Stockage persistant : {persisted === null
+        : 'jamais'}. Stockage persistant : {persistedStorage === null
         ? '?'
-        : persisted
+        : persistedStorage
           ? 'oui'
-          : 'non garanti'}.
+          : 'non garanti'}{#if storageEstimate}
+        · {fmtBytes(storageEstimate.usage)} utilisés sur {fmtBytes(storageEstimate.quota)}
+        disponibles{/if}.
     </p>
+    {#if installable}
+      <div class="row">
+        <button class="secondary" type="button" onclick={() => void install()}
+          >Installer l'application</button
+        >
+      </div>
+    {/if}
     <div class="row">
       <button class="primary" type="button" onclick={() => void backup()}
         >Télécharger une sauvegarde (JSON)</button
@@ -177,9 +243,11 @@
       {/if}
     </div>
     <div class="row encrypt">
-      <label class="check"
-        ><input type="checkbox" bind:checked={encrypt} /> Chiffrer la sauvegarde avec une phrase secrète</label
-      >
+      <Switch
+        checked={encrypt}
+        onCheckedChange={(v) => (encrypt = v)}
+        label="Chiffrer la sauvegarde avec une phrase secrète"
+      />
       {#if encrypt}
         <input
           type="password"
@@ -314,10 +382,10 @@
         disabled={!app.hasData}>Rapport PDF (imprimable)</button
       >
     </div>
-  </section>
+  </details>
 
-  <section class="card group">
-    <h2>Prix</h2>
+  <details class="card group" id="prix">
+    <summary><h2>Prix</h2></summary>
     <label class="field"
       >Source des prix
       <select
@@ -422,10 +490,10 @@
         >
       </p>
     {/each}
-  </section>
+  </details>
 
-  <section class="card group">
-    <h2>Affichage</h2>
+  <details class="card group" id="affichage">
+    <summary><h2>Affichage</h2></summary>
     <label class="field"
       >Thème
       <select
@@ -458,36 +526,30 @@
           jusqu'au {fmtDate(app.fxLookup.latestDay)}{/if}.
       </p>
     {/if}
-    <label class="check"
-      ><input
-        type="checkbox"
-        checked={app.state.ui.discreet}
-        onchange={(e) => app.setUi({ discreet: e.currentTarget.checked })}
-      /> Mode discret (masquer les montants)</label
-    >
-    <label class="check"
-      ><input
-        type="checkbox"
-        checked={app.state.ui.hideClosed}
-        onchange={(e) => app.setUi({ hideClosed: e.currentTarget.checked })}
-      /> Masquer les positions clôturées</label
-    >
-    <label class="check"
-      ><input
-        type="checkbox"
-        checked={app.state.ui.marketContext}
-        onchange={(e) => {
-          app.setUi({ marketContext: e.currentTarget.checked });
-          if (e.currentTarget.checked) void app.refreshMarketContext();
-        }}
-      /> Contexte de marché (indice Fear &amp; Greed)</label
-    >
+    <Switch
+      checked={app.state.ui.discreet}
+      onCheckedChange={(v) => app.setUi({ discreet: v })}
+      label="Mode discret (masquer les montants)"
+    />
+    <Switch
+      checked={app.state.ui.hideClosed}
+      onCheckedChange={(v) => app.setUi({ hideClosed: v })}
+      label="Masquer les positions clôturées"
+    />
+    <Switch
+      checked={app.state.ui.marketContext}
+      onCheckedChange={(v) => {
+        app.setUi({ marketContext: v });
+        if (v) void app.refreshMarketContext();
+      }}
+      label="Contexte de marché (indice Fear & Greed)"
+    />
     <p class="muted small">
       Ajoute un appel à <strong>alternative.me</strong> pour afficher l'indice de sentiment du marché
       sur la Vue d'ensemble. Aucune de vos données n'est envoyée : la requête ne contient rien d'autre
       que la demande de l'indice du jour, identique pour tout le monde.
     </p>
-  </section>
+  </details>
 
   <EngineSettings />
 
@@ -499,30 +561,30 @@
 
   <AiSection />
 
-  <section class="card group">
-    <h2>Vérifications automatiques</h2>
+  <details class="card group" id="verifications">
+    <summary><h2>Vérifications automatiques</h2></summary>
     <p class="muted small">
       L’application contrôle ses propres chiffres à chaque affichage : cohérence comptable, lots,
       soldes de votre export, prix, sauvegarde. Un voyant rouge est une anomalie à signaler.
     </p>
     <SelfChecks />
-  </section>
+  </details>
 
-  <section class="card group">
-    <h2>Aide et retours</h2>
+  <details class="card group" id="aide">
+    <summary><h2>Aide et retours</h2></summary>
     <SupportSection
       intro="Un fichier refusé, un chiffre douteux, une idée ? Copiez le diagnostic (il ne contient ni montant ni quantité) et collez-le dans votre message."
     />
-  </section>
+  </details>
 
   <SourcesSection />
 
-  <section class="card group danger">
-    <h2>Zone dangereuse</h2>
+  <details class="card group danger" id="danger">
+    <summary><h2>Zone dangereuse</h2></summary>
     <button class="secondary" type="button" onclick={() => (confirmClear = true)}
       >Effacer toutes les données</button
     >
-  </section>
+  </details>
 
   <p class="muted small center">
     <a href={router.href({ name: 'help' })}>Aide</a> ·
@@ -563,6 +625,24 @@
 </Sheet>
 
 <style>
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
+    max-width: 640px;
+    margin: 0 auto;
+    font-size: var(--fs-xs);
+  }
+  /* Cible ≥ 24 px de zone (WCAG 2.2 SC 2.5.8) : à `--fs-xs` sans padding, chaque lien ne mesurait
+     que 17 px de haut — trouvé par la mesure avant/après de P124, pas par une intuition. */
+  .toc a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 2px 0;
+    color: var(--fg-muted);
+  }
   .settings {
     padding: var(--space-3);
     display: grid;
@@ -586,13 +666,6 @@
     gap: 4px;
     font-size: var(--fs-sm);
     color: var(--fg-muted);
-  }
-  .check {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    min-height: var(--tap);
-    font-size: var(--fs-sm);
   }
   select {
     min-height: var(--tap);
@@ -640,12 +713,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--space-2);
-  }
-  .check {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: var(--tap);
   }
   .folder code {
     font-size: var(--fs-xs);

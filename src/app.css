@@ -214,6 +214,23 @@ svg {
   padding: 0;
 }
 
+/* Résumé natif d'une section repliable (P124) : le triangle commande tout le titre, jamais le
+   glyphe seul — `display` n'est volontairement pas touché, pour garder le marqueur natif. Cible
+   tactile ≥ 44 px (var(--tap)) au doigt, ≥ 24 px sinon (WCAG 2.2 SC 2.5.8), par le padding plutôt
+   que par la hauteur : un padding n'entre jamais en conflit avec le contenu du résumé. */
+summary {
+  cursor: pointer;
+  padding: var(--space-2) 0;
+}
+summary h2 {
+  display: inline;
+}
+@media (any-pointer: coarse) {
+  summary {
+    padding: var(--space-3) 0;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
