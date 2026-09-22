@@ -39,8 +39,9 @@
   // du manifeste (même fichier) si `BASE` change un jour.
   var SHARE_TARGET_PATH = '/cout-revient-ch/share-target';
   var FILE_FIELD = 'file';
-  // Provisoire : l'écran de synchronisation arrive dans la PR suivante (P125, session 2).
-  var REDIRECT_HASH = '#/settings';
+  // Écran de synchronisation (P125, session 2) : `src/lib/storage/shared-inbox.ts` y restitue le
+  // fichier reçu (`takeSharedFile()`, appelé au montage de `routes/Synchro.svelte`).
+  var REDIRECT_HASH = '#/synchro';
 
   // Mêmes constantes que src/lib/storage/shared-inbox.ts : les deux côtés doivent rester alignés
   // (même patron que sw-alert-sync.js / idb-state-store.ts).
@@ -75,8 +76,9 @@
       return new Promise(function (resolve, reject) {
         var tx = db.transaction(STORE, 'readwrite');
         // Emplacement UNIQUE (« pending ») : un second partage avant que le premier soit consommé
-        // remplace le premier plutôt que de constituer une file — suffisant pour ces fondations,
-        // l'écran de synchronisation (PR suivante) pourra faire mieux si le besoin se confirme.
+        // remplace le premier plutôt que de constituer une file — suffisant en pratique (l'écran
+        // de synchronisation consomme le fichier au montage, `routes/Synchro.svelte`) ; une vraie
+        // file resterait à faire si le besoin de plusieurs partages non lus à la fois se confirme.
         tx.objectStore(STORE).put(entry, KEY);
         tx.oncomplete = function () {
           db.close();
