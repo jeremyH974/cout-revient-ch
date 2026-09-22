@@ -21,13 +21,21 @@ test('fiche actif : historique avec PRU après chaque ligne, courbe PRU vs prix'
     tabs.getByRole('button', { name: `Historique (${btc.history.length})` }),
   ).toBeVisible();
   const operations = page.locator('article.op');
-  await expect(operations).toHaveCount(btc.history.length);
+  // Pagination (décision n° 182, P124) : 20 opérations d'abord, même motif que les exécutions de
+  // trading/TradeDetail.svelte.
+  const OPS_PAGE = 20;
+  await expect(operations).toHaveCount(Math.min(OPS_PAGE, btc.history.length));
 
   // La ligne la plus récente (affichée en premier) porte le PRU courant.
   const newest = btc.history[0]!;
   const firstOp = operations.first().locator('p.after');
   await expect(firstOp).toContainText(newest.realized === null ? 'PRU après :' : 'PRU inchangé :');
   await expect(firstOp).toContainText(pruText(btc));
+
+  // « Afficher plus » jusqu'à l'historique complet.
+  const more = page.getByRole('button', { name: /Afficher .* de plus/ });
+  while (await more.isVisible()) await more.click();
+  await expect(operations).toHaveCount(btc.history.length);
 
   // Les ventes affichent le réalisé de l'opération, les achats non.
   const sales = btc.history.filter((h) => h.realized !== null).length;
