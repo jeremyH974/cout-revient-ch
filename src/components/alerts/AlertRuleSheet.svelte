@@ -644,23 +644,10 @@
     flex-wrap: wrap;
     gap: var(--space-2);
   }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-radius: var(--radius-sm);
-    padding: 0 var(--space-4);
-    font-weight: 700;
-    min-height: var(--tap);
-  }
+  /* Secondaire teinté à l'accent : même variante que invest/Alerts.svelte, dont cette feuille
+     partage le sous-écran. */
   .secondary {
-    border: 1px solid var(--accent);
-    border-radius: var(--radius-sm);
+    border-color: var(--accent);
     color: var(--accent);
-    padding: 0 var(--space-3);
-    font-weight: 600;
-    min-height: var(--tap);
-  }
-  .secondary:disabled {
-    opacity: 0.5;
   }
 </style>

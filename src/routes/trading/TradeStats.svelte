@@ -18,7 +18,7 @@
     MIN_SAMPLE,
     type StatsDimension,
   } from '$lib/domain/trading/stats';
-  import { fmtPct, fmtPeriod } from '$lib/format/fr';
+  import { fmtPct, fmtPeriod, fmtRatio } from '$lib/format/fr';
   import { resolveWindow, todayOf, type Period } from '$lib/history';
   import RangePicker from '../../components/charts/RangePicker.svelte';
   import AppBar from '../../components/layout/AppBar.svelte';
@@ -57,8 +57,7 @@
     statsBuckets(scoped, dimension, toDisplay, (key) => app.accountLabels[key] ?? key),
   );
 
-  const ratio = (value: Big | null): string =>
-    value === null ? '—' : value.toFixed(2).replace('.', ',');
+  const ratio = (value: Big | null): string => fmtRatio(value, 2);
 
   /**
    * P27 : résumé anonymisé à coller dans l'IA de son choix — ratios, R et compteurs seulement,
@@ -103,7 +102,7 @@
     if (seconds === null) return '—';
     if (seconds < 3_600) return `${Math.round(seconds / 60)} min`;
     if (seconds < 86_400) return `${Math.round(seconds / 3_600)} h`;
-    return `${(seconds / 86_400).toFixed(1).replace('.', ',')} j`;
+    return `${fmtRatio(String(seconds / 86_400), 1)} j`;
   }
 </script>
 
@@ -146,7 +145,7 @@
           ? ''
           : ` ${periodLabel}`})
       </h2>
-      <dl class="kpis">
+      <dl class="stat-grid cols-3">
         <div class="main">
           <dt>Espérance par trade</dt>
           <dd>
@@ -319,42 +318,9 @@
     flex-wrap: wrap;
     margin-bottom: var(--space-3);
   }
-  .secondary {
-    min-height: var(--tap);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--fg);
-    font-weight: 600;
-  }
   h2 {
     margin: 0 0 var(--space-3);
     font-size: var(--fs-md);
-  }
-  .kpis {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2) var(--space-3);
-    margin: 0;
-  }
-  .kpis div {
-    display: grid;
-    gap: 2px;
-  }
-  .kpis .main {
-    grid-column: 1 / -1;
-  }
-  .kpis dt {
-    font-size: var(--fs-xs);
-    color: var(--fg-muted);
-  }
-  .kpis dd {
-    margin: 0;
-    font-size: var(--fs-md);
-  }
-  .kpis .main dd {
-    font-size: var(--fs-lg);
   }
   .head {
     display: flex;
@@ -395,10 +361,5 @@
     color: var(--fg-muted);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-  }
-  @media (min-width: 768px) {
-    .kpis {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 </style>

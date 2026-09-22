@@ -223,7 +223,6 @@
 
 <style>
   section.card {
-    padding: var(--space-4);
     margin-bottom: var(--space-3);
     display: grid;
     gap: var(--space-3);
@@ -307,14 +306,6 @@
   .tool:hover {
     border-color: var(--accent);
     color: var(--accent);
-  }
-  .primary {
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
   }
   .link {
     display: inline-flex;
