@@ -158,6 +158,28 @@ export default defineConfig(({ mode }) => {
               purpose: 'maskable',
             },
           ],
+          /**
+           * Boîte aux lettres chiffrée (P125) : reçoit un fichier partagé depuis Drive, Quick
+           * Share ou tout autre expéditeur Android. `enctype: multipart/form-data` est requis dès
+           * qu'un champ fichier existe (developer.chrome.com/docs/capabilities/web-apis/web-share-target,
+           * vérifié le 22/09/2026). `accept` liste MIME **et** extension pour chaque type : les
+           * fichiers de la boîte aux lettres sont en `.txt` (`navigator.share()` refuse les
+           * `.json` côté émission — MDN, `Navigator.share()`, vérifié le 22/09/2026), mais un
+           * expéditeur peut annoncer `application/json` selon comment l'OS a sniffé le fichier ;
+           * mieux vaut accepter les deux que perdre un partage sur un type trop strict. Traité par
+           * `public/sw-share-target.js` (voir ce fichier pour l'interaction avec Workbox) ; absent
+           * de la variante privée, qui n'a ni manifeste ni service worker (`disable` ci-dessus).
+           */
+          share_target: {
+            action: `${BASE}share-target`,
+            method: 'POST',
+            enctype: 'multipart/form-data',
+            params: {
+              files: [
+                { name: 'file', accept: ['text/plain', '.txt', 'application/json', '.json'] },
+              ],
+            },
+          },
         },
         workbox: {
           // Seuls les assets de l'app sont mis en cache ; jamais les données ni les API de prix.
@@ -188,8 +210,16 @@ export default defineConfig(({ mode }) => {
           ],
           // Clic sur une notification d'alerte (sw-notifications.js) + vérification opportuniste
           // des alertes app fermée : noyau pur (sw-alerts-core.js, testé via node:vm) puis
-          // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte.
-          importScripts: ['sw-notifications.js', 'sw-alerts-core.js', 'sw-alert-sync.js'],
+          // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte. Ajouté en
+          // dernier : réception Web Share Target (sw-share-target.js, boîte aux lettres P125) —
+          // son écouteur `fetch` doit être posé avant que `precacheAndRoute` (plus bas) pose celui
+          // de Workbox, voir le commentaire en tête de ce fichier.
+          importScripts: [
+            'sw-notifications.js',
+            'sw-alerts-core.js',
+            'sw-alert-sync.js',
+            'sw-share-target.js',
+          ],
         },
       }),
     ],
