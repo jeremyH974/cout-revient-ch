@@ -249,8 +249,8 @@
     {#if restoreMode === 'merge'}
       <p class="muted small">
         En fusionnant : la version la plus récente de chaque élément l'emporte, quel que soit
-        l'appareil qui l'a écrite ; les suppressions sont reportées. Réglages, prix et alertes
-        restent ceux de cet appareil.
+        l'appareil qui l'a écrite ; les suppressions sont reportées. Les réglages et les cours en
+        cache restent ceux de cet appareil ; les règles d'alerte, elles, sont fusionnées.
       </p>
     {/if}
     <p class="muted small">
