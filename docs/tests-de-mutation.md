@@ -304,7 +304,12 @@ reste : effacer récursivement à travers elle viderait le `node_modules` du dé
 les modules **purs**, sans DOM, sans horloge, sans navigateur, et ceux qui produisent les montants
 qu'un utilisateur recopiera dans une déclaration. S'y ajoute `src/lib/history/window.ts` (P118) :
 pur lui aussi, il produit les flux, le gain et les rendements de la fenêtre d'analyse du Rapport,
-et il vit dans `history` parce qu'il lit la série quotidienne. Puis, à P121-P123 (décision n° 182),
+et il vit dans `history` parce qu'il lit la série quotidienne. Et `src/lib/storage/sync` (décision
+n° 182) : pur aussi, mais un plancher SÉPARÉ (≥ 90 %, mesuré seul avec `--mutate`) — il ne produit
+pas des montants mais des décisions de fusion, et son plancher est délibérément plus bas que celui,
+déjà durci au fil des relevés, du reste du périmètre ci-dessous.
+
+À P121-P123 (décision n° 183) s'ajoutent
 `src/lib/domain/trading/filter.ts`, `tags.ts` et `liquidation.ts` : mêmes contraintes (purs, big.js
 seul), et mêmes chiffres qu'un utilisateur peut recopier ou suivre — le sous-ensemble filtré de ses
 trades, ses tags, la distance à la liquidation d'une position ouverte.

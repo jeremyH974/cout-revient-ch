@@ -102,8 +102,6 @@ import {
   type ManualEvent,
   type OnchainChain,
   type Qualification,
-  type RawCoinhouseRow,
-  type RawPivotRow,
   type RowKey,
   type StoredColumnMapping,
 } from '$lib/domain/types';
@@ -153,7 +151,13 @@ import {
 } from '$lib/import/hyperliquid/live-fills';
 import { hlSpotMeta, hlSpotMidKey, type HlMidsMeta } from '$lib/pricing/providers/hyperliquid';
 import { defaultFetch } from '$lib/history/providers/shared';
-import { mergeStates, parseBackup, serializeBackup } from '$lib/storage/json-io';
+import { parseBackup, serializeBackup } from '$lib/storage/json-io';
+import { loadOrCreateDeviceId } from '$lib/storage/device-id';
+import { pruneRowsForImports } from '$lib/storage/sync/import-prune';
+import { mergeSynced, type MergeReport } from '$lib/storage/sync/merge';
+import { stampChanges } from '$lib/storage/sync/stamp';
+import { hlcMax } from '$lib/storage/sync/hlc';
+import { emptySyncMeta, type SyncMeta } from '$lib/storage/sync/types';
 import {
   chooseBackupFolder,
   forgetBackupFolder,
@@ -309,6 +313,17 @@ export class AppState {
   private folderHandle: FileSystemDirectoryHandle | null = null;
   private folderTimer: ReturnType<typeof setTimeout> | null = null;
   syncStatus = $state<Record<AccountId, SyncStatus>>({});
+
+  /**
+   * Fusion multi-appareils (`$lib/storage/sync/`) : identité de cet appareil, métadonnées de
+   * synchronisation et dernier instantané ENREGISTRÉ (`baseline`). Hors de l'état réactif à
+   * dessein — jamais `$state` — car `stampChanges` compare `baseline` au nouvel instantané à
+   * chaque enregistrement ; les y mêler ferait dater `sync` lui-même et boucler l'effet de
+   * sauvegarde (décision n° 81 : ce même effet ne doit JAMAIS changer de forme pour cette raison).
+   */
+  private deviceId = '';
+  private syncMeta: SyncMeta = emptySyncMeta();
+  private baseline: StoredStateV1 = emptyState();
 
   /** Prix « live » Hyperliquid (P26) : statut du WebSocket opt-in. */
   liveStatus = $state<LiveStatus>('off');
@@ -1163,8 +1178,15 @@ export class AppState {
       this.loadStatus = 'locked';
       return;
     }
+    this.deviceId = await loadOrCreateDeviceId();
     const loaded = await loadPersistedState();
-    this.state = loaded.state;
+    // `sync` voyage DANS `StoredStateV1` (sauvegarde, IndexedDB) mais reste HORS de l'état réactif
+    // une fois chargé (voir le champ `syncMeta` ci-dessus) : on l'en extrait ici, une fois pour
+    // toutes, plutôt que de le porter dans `this.state` où chaque lecture le re-daterait.
+    const { sync: loadedSync, ...loadedState } = loaded.state;
+    this.state = loadedState;
+    this.syncMeta = loadedSync ?? emptySyncMeta();
+    this.baseline = loadedState;
     /*
      * La porte ne s'efface qu'ICI, une fois l'état en place — jamais avant.
      *
@@ -1193,12 +1215,12 @@ export class AppState {
       if (timer) clearTimeout(timer);
       timer = null;
       if (!pending) return;
-      const snapshot = pending;
+      const stamped = this.stampSnapshot(pending);
       pending = null;
-      void savePersistedState(snapshot, nowIso()).then((result) => {
+      void savePersistedState(stamped, nowIso()).then((result) => {
         this.saveError = result.ok ? null : result.error;
         this.mirrorError = result.mirrorError;
-        if (result.ok) this.scheduleFolderWrite(snapshot);
+        if (result.ok) this.scheduleFolderWrite(stamped);
       });
     };
     // Fermeture ou arrière-plan : une écriture IndexedDB asynchrone peut ne jamais aboutir (onglet
@@ -1207,11 +1229,11 @@ export class AppState {
       if (timer) clearTimeout(timer);
       timer = null;
       if (!pending) return;
-      const snapshot = pending;
+      const stamped = this.stampSnapshot(pending);
       pending = null;
       const savedAt = nowIso();
-      mirrorStateSync(snapshot, savedAt);
-      void savePersistedState(snapshot, savedAt).then((result) => {
+      mirrorStateSync(stamped, savedAt);
+      void savePersistedState(stamped, savedAt).then((result) => {
         if (!result.ok) this.saveError = result.error;
         this.mirrorError = result.mirrorError;
       });
@@ -1254,6 +1276,26 @@ export class AppState {
     void this.initFolderBackup();
   }
 
+  /**
+   * Date ce qui a changé depuis `baseline` (`stampChanges`, pur), avance `baseline` jusqu'à
+   * `snapshot`, et renvoie l'état PRÊT À PERSISTER — `sync` compris. Point de passage UNIQUE avant
+   * tout enregistrement complet (`flush`, `flushSync`, `exportBackup`, `installVault`,
+   * `removeVault`) : c'est ce qui garantit qu'aucune écriture n'oublie de dater ses changements ni
+   * de porter `sync` — jamais dans `this.state` (voir le champ `syncMeta` plus haut), toujours
+   * recomposé au moment d'écrire.
+   *
+   * Mode démo excepté (décision n° 182) : les données d'exemple ne sont jamais datées —
+   * `baseline` avance quand même (rien à rattraper au prochain enregistrement réel), mais
+   * `syncMeta` reste inchangé, pour qu'aucune pierre tombale ne naisse de données fictives.
+   */
+  private stampSnapshot(snapshot: StoredStateV1): StoredStateV1 {
+    if (!snapshot.ui.demoMode) {
+      this.syncMeta = stampChanges(this.baseline, snapshot, this.syncMeta, this.deviceId, nowMs());
+    }
+    this.baseline = snapshot;
+    return { ...snapshot, sync: this.syncMeta };
+  }
+
   // --- Coffre : chiffrement au repos -----------------------------------------------------------
 
   /**
@@ -1267,7 +1309,10 @@ export class AppState {
     const { meta, key } = await createVault(passphrase);
     await writeVaultMeta(meta);
     armVault(meta, key);
-    const result = await savePersistedState($state.snapshot(this.state), nowIso());
+    const result = await savePersistedState(
+      this.stampSnapshot($state.snapshot(this.state)),
+      nowIso(),
+    );
     if (!result.ok) {
       await deleteVaultMeta();
       disarmVault();
@@ -1331,7 +1376,7 @@ export class AppState {
       return;
     }
     await unlockVault(meta, passphrase);
-    const snapshot = $state.snapshot(this.state);
+    const snapshot = this.stampSnapshot($state.snapshot(this.state));
     await deleteVaultMeta();
     disarmVault();
     this.vaultInstalled = false;
@@ -1948,34 +1993,23 @@ export class AppState {
   undoImport(importId: string): { removed: number } | null {
     const batch = this.state.imports.find((i) => i.id === importId);
     if (!batch) return null;
-    let removed = 0;
-    const pivotRows: Record<RowKey, RawPivotRow> = {};
-    const qualifications = { ...this.state.qualifications };
-    for (const [key, row] of Object.entries(this.state.pivotRows)) {
-      if (row.importId === importId) {
-        removed += 1;
-        delete qualifications[key];
-        continue;
-      }
-      pivotRows[key] = row;
-    }
-    const rawRows: Record<RowKey, RawCoinhouseRow> = {};
-    for (const [key, row] of Object.entries(this.state.rawRows)) {
-      if (row.importId === importId) {
-        removed += 1;
-        delete qualifications[key];
-        continue;
-      }
-      rawRows[key] = row;
-    }
-    this.state.pivotRows = pivotRows;
-    this.state.rawRows = rawRows;
-    this.state.qualifications = qualifications;
+    // Règle partagée avec l'élagage post-fusion (`sync/merge.ts`) : un lot d'import devenu pierre
+    // tombale sur un autre appareil doit retirer EXACTEMENT les mêmes lignes qu'une annulation
+    // manuelle ici — une seule fonction pure décide, jamais deux implémentations à tenir en phase.
+    const pruned = pruneRowsForImports(
+      this.state.rawRows,
+      this.state.pivotRows,
+      this.state.qualifications,
+      [importId],
+    );
+    this.state.pivotRows = pruned.pivotRows;
+    this.state.rawRows = pruned.rawRows;
+    this.state.qualifications = pruned.qualifications;
     this.state.imports = this.state.imports.filter((i) => i.id !== importId);
     // L'appariement mémorisé n'est pas retiré : l'utilisateur annule un import, pas forcément le
     // travail d'appariement qu'il vient de faire. L'écran lui propose de le corriger et de
     // recommencer, ce qui serait impossible s'il disparaissait avec les lignes.
-    return { removed };
+    return { removed: pruned.removed };
   }
 
   /** Importe un export JSON Ghostfolio dans un compte (même pipeline que le pivot). */
@@ -2806,21 +2840,58 @@ export class AppState {
 
   exportBackup(now = nowMs()): string {
     this.state.ui = { ...this.state.ui, lastBackupAt: nowIso(now) };
-    return serializeBackup($state.snapshot(this.state), nowIso(now));
+    const stamped = this.stampSnapshot($state.snapshot(this.state));
+    return serializeBackup(stamped, nowIso(now));
   }
 
+  /**
+   * Restaure une sauvegarde. « En remplaçant » écrase tout ; « en fusionnant » applique
+   * `mergeSynced` (LWW par enregistrement, décrit dans `docs/DECISIONS.md`) et renvoie son rapport
+   * — l'écran l'affiche (« N ajoutés, N mis à jour, N supprimés », et les conflits hérités s'il y
+   * en a).
+   *
+   * Dans les deux cas, `baseline` est réalignée sur le résultat AVANT le prochain `flush` : sans
+   * cela, le prochain diff daterait les valeurs reçues comme des éditions locales fraîches, ce qui
+   * casserait « le plus récent gagne » à la fusion suivante.
+   */
   restoreBackup(
     text: string,
     mode: 'replace' | 'merge',
-  ): { ok: true } | { ok: false; error: string } {
+  ): { ok: true; report: MergeReport | null } | { ok: false; error: string } {
     const parsed = parseBackup(text);
     if (!parsed.ok) return parsed;
     this.exitDemo();
-    this.state =
-      mode === 'replace' ? parsed.state : mergeStates($state.snapshot(this.state), parsed.state);
+    const { sync: remoteSync, ...remoteState } = parsed.state;
+    let report: MergeReport | null = null;
+    if (mode === 'replace') {
+      this.state = remoteState;
+      this.syncMeta = {
+        v: 1,
+        clock: hlcMax(this.syncMeta.clock, remoteSync?.clock ?? ''),
+        versions: remoteSync?.versions ?? {},
+      };
+      this.baseline = remoteState;
+    } else {
+      const result = mergeSynced(
+        { state: $state.snapshot(this.state), sync: this.syncMeta },
+        { state: remoteState, sync: remoteSync ?? emptySyncMeta() },
+        this.deviceId,
+        nowMs(),
+      );
+      this.state = result.state;
+      this.syncMeta = result.sync;
+      this.baseline = result.state;
+      report = result.report;
+    }
+    // Un compte disparu à la restauration (remplacé, ou supprimé ailleurs et tombstoné ici) laisse
+    // sa synchronisation Hyperliquid en mémoire orpheline — même cascade que `removeAccount`.
+    const syncStatus: typeof this.syncStatus = {};
+    for (const [id, status] of Object.entries(this.syncStatus))
+      if (id in this.state.accounts) syncStatus[id] = status;
+    this.syncStatus = syncStatus;
     this.ensureAlertWatch();
     this.updateAppBadge();
-    return { ok: true };
+    return { ok: true, report };
   }
 
   /**
@@ -2838,9 +2909,17 @@ export class AppState {
     await eraseHistoryCache();
   }
 
+  /**
+   * Efface l'état LOCAL — et rien d'autre. `baseline` et `syncMeta` repartent à vide SANS pierre
+   * tombale : effacer les données d'un appareil ne doit jamais se propager comme des suppressions
+   * aux autres appareils à la prochaine fusion. `deviceId`, lui, ne bouge jamais : c'est l'identité
+   * de CET appareil, pas une donnée qu'« Effacer toutes les données » promet de vider.
+   */
   clearAll(): void {
     void clearPersistedState();
     this.state = emptyState();
+    this.syncMeta = emptySyncMeta();
+    this.baseline = emptyState();
     this.liveQuotes = {};
     this.syncStatus = {};
     this.hlClient = null;

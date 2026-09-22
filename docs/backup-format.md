@@ -1,11 +1,12 @@
 # Format de sauvegarde — anti-verrouillage (P72)
 
 Documente l'enveloppe de sauvegarde JSON et chaque conteneur de `StoredStateV1`
-(`src/lib/storage/schema.ts`), la politique de version, et ce qui survit — ou non — de l'export
-portable Koinly/Waltio. S'appuie sur des décisions déjà prises : n° 21 (sauvegarde robuste,
-IndexedDB, chiffrement optionnel), n° 24 (import « format pivot » Koinly/Waltio) et n° 26
-(convertisseurs natifs). **Aucune entrée dédiée dans `docs/DECISIONS.md`** : l'arbitrage qui
-l'explique est au § « Pourquoi pas de schéma publié » plus bas.
+(`src/lib/storage/schema.ts`), la politique de version, la fusion multi-appareils, et ce qui
+survit — ou non — de l'export portable Koinly/Waltio. S'appuie sur des décisions déjà prises :
+n° 21 (sauvegarde robuste, IndexedDB, chiffrement optionnel), n° 24 (import « format pivot »
+Koinly/Waltio), n° 26 (convertisseurs natifs) et n° 182 (fusion multi-appareils, § Fusion
+ci-dessous). Le § « Pourquoi pas de schéma publié » plus bas explique pourquoi ce document en
+prose, et non un schéma séparé, reste la référence pour l'enveloppe elle-même.
 
 ## Ce que ça garantit
 
@@ -194,6 +195,13 @@ d'autre n'est persisté sur les virements : la paire elle-même est **recalculé
 chargement** (`docs/pivot-import.md` § Virements internes, décision n° 25) — ce conteneur ne porte
 que les exceptions à la règle automatique.
 
+### `duplicateOverrides` — doublons candidats déjà tranchés
+
+`Record<string, DuplicateReview>` (P68) : clé = `duplicatePairKey(a, b)` (deux identifiants
+d'événement joints par `~`), valeur = `'confirmed' | 'dismissed'`. Même forme que
+`transferOverrides` : un doublon confirmé ou écarté n'est plus reproposé, mais rien n'est jamais
+supprimé automatiquement des données (`src/lib/domain/reconciliation.ts`).
+
 ### `taxAnnotations` — réservé (mode fiscal futur)
 
 `Record<EventId, { portfolioValueEur: DecimalString | null }>` : conteneur additif posé pour un
@@ -230,6 +238,15 @@ tags, erreurs, note, plan entrée/stop/objectif/risque) — **donnée première,
 (décision n° 23). `Record<string, ManualTrade>` : trades saisis à la main sur une plateforme sans
 API (`qty` / `entryPrice` / `exitPrice` en `DecimalString`, `fees`, devise de cotation
 `'USD' | 'EUR'`) — le P&L n'est **jamais stocké**, toujours recalculé.
+
+### `lending` — prêts de financement participatif
+
+`LendingState` (proposition du 06/09/2026) : `loans` (`Record<LoanId, Loan>`, le contrat — plateforme,
+emprunteur, capital, taux, convention de décompte des jours, amortissement, échéance), `events`
+(`Record<string, LoanEvent>`, append-only — remboursements, retards, défaut — jamais modifié après
+coup) et `wallet` (`Record<string, WalletMovement>`, trésorerie de la plateforme — dépôts, retraits,
+intérêts). Rien de dérivé n'y est stocké : encours, statut et TRI se recalculent à chaque
+chargement, jamais persistés.
 
 ### `engineSettings` — réglages du moteur
 
@@ -300,15 +317,54 @@ test la prouve sur le **texte** d'une sauvegarde issue d'un état renseigné, se
 gratuites, elles, y sont bien : les deux moitiés de la règle sont vérifiées, pas seulement celle
 qui rassure.
 
+### `sync` — métadonnées de fusion multi-appareils
+
+`SyncMeta | undefined` (décision de ce chantier, `docs/DECISIONS.md`) : `v` (`1`), `clock`
+(horloge logique hybride la plus avancée jamais vue par cet appareil, chaîne triable
+lexicographiquement — voir `src/lib/storage/sync/hlc.ts`) et `versions` (par collection SUIVIE,
+par clé d'enregistrement : `{ t: string, del?: true }`). Champ **additif** : absent d'une
+sauvegarde antérieure à ce chantier, ce qui se relit comme « tout hérité » (§ Fusion). Jamais posé
+par `emptyState()` — un état neuf n'a rien à dater — et jamais copié tel quel par `sanitizeState()`
+sans validation de forme (chaînes HLC bien formées, collections connues ; un champ malformé est
+écarté plutôt que de faire planter la restauration). Vit dans `StoredStateV1` pour voyager avec la
+sauvegarde, mais **jamais dans l'état réactif de l'application** une fois chargé — voir
+`docs/ARCHITECTURE.md` § stockage.
+
 ## Fusion
 
-`mergeStates()` (`src/lib/storage/json-io.ts`) fait l'union par identifiant de tous les conteneurs
-de DONNÉES (lignes, saisies, comptes, Hyperliquid, journal, alertes…) ; les conteneurs de RÉGLAGES
-(`engineSettings`, `priceCache`, `fx`, `ui`) restent ceux de l'état courant lors d'une fusion — un
-fichier restauré « en fusionnant » depuis un autre appareil ne réécrit jamais les préférences de
-celui-ci, `coingeckoDemoKey`/`explorerKey` compris. `src/lib/storage/storage.test.ts`
-(§ « complétude du schéma ») fait échouer la CI si un conteneur futur est ajouté sans décision de
-fusion explicite.
+Deux mécanismes coexistent, sur des conteneurs différents.
+
+**Conteneurs SUIVIS** (LWW — _last write wins_ — par enregistrement, avec pierres tombales) :
+`imports`, `manualEvents`, `qualifications`, `transferOverrides`, `duplicateOverrides`,
+`taxAnnotations`, `assetSettings`, `accounts`, `journal`, `manualTrades`, `alerts.rules`,
+`alerts.states` — la liste exacte est `TRACKED_COLLECTIONS`, `src/lib/storage/sync/tracked.ts`.
+`mergeSynced()` (`src/lib/storage/sync/merge.ts`) compare, **par clé d'enregistrement**, la version
+de chaque côté (`sync.versions`, horloge logique hybride) : la plus récente gagne, qu'il s'agisse
+d'une valeur ou d'une suppression — une pierre tombale ne ressuscite donc jamais face à une version
+plus ancienne, seulement face à une écriture strictement postérieure. Une clé sans version connue
+d'un côté (sauvegarde antérieure à ce chantier, ou jamais modifiée depuis) est dite « héritée » :
+héritée des deux côtés à contenu identique, elle est conservée sans version ; héritée des deux
+côtés à contenu **différent**, c'est un **conflit hérité** — la valeur de l'appareil **courant**
+l'emporte et reçoit une date fraîche (décision explicite, qui se propage ensuite normalement à tous
+les appareils) ; le rapport de fusion le signale. Trois élagages déterministes suivent
+automatiquement un enregistrement devenu pierre tombale : les lignes brutes et pivot d'un lot
+d'import supprimé, les bruts Hyperliquid d'un compte supprimé, et l'état d'armement d'une règle
+d'alerte supprimée.
+
+**Conteneurs d'UNION** (faits immuables, comme avant ce chantier) : `rawRows`, `pivotRows`,
+`hyperliquid`, `lending`, `alerts.events` — l'entrant est simplement ajouté par identifiant, jamais
+remplacé ni daté (une ligne brute ou un fill Hyperliquid ne change pas après coup).
+
+**Conteneurs LOCAUX** (réglages de l'appareil courant, jamais fusionnés) : `engineSettings`,
+`priceCache`, `fx`, `ui`, `alerts.settings` — un fichier restauré « en fusionnant » depuis un autre
+appareil ne réécrit jamais les préférences de celui-ci, `coingeckoDemoKey`/`explorerKey` compris.
+
+Une restauration « en remplaçant » ignore tout ceci : l'état devient exactement celui du fichier,
+`sync` compris (horloge portée au plus grand des deux, pour qu'un appareil qui revient à une
+sauvegarde plus ancienne ne fasse pas reculer sa propre horloge).
+
+`src/lib/storage/storage.test.ts` (§ « complétude du schéma ») fait échouer la CI si un conteneur
+futur est ajouté sans décision de fusion explicite (suivi, union ou local).
 
 ## Export portable (Koinly / Waltio) : ce qui survit, ce qui ne survit pas
 
@@ -349,9 +405,12 @@ et aucun chiffre ne doit changer de sens sans un avertissement écrit en face.
 
 ## Vérification
 
-| Quoi                                               | Où                                                                                          |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Fixture v1 gelée, aller-retour identique           | `tests/fixtures/storage/backup-v1.json` + `src/lib/storage/storage.test.ts`                 |
-| Aller-retour Koinly, propriété (150 tirages)       | `tests/integration/koinly-roundtrip.property.test.ts`                                       |
-| Pertes connues, figées par deux cas nommés         | `tests/integration/koinly-roundtrip-gaps.test.ts`                                           |
-| Décompte avant export, codes purs + rendu français | `src/lib/export/koinly-preview.ts`, `src/lib/format/koinly-preview.ts` (+ leurs `.test.ts`) |
+| Quoi                                                                                                             | Où                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Fixture v1 gelée, aller-retour identique                                                                         | `tests/fixtures/storage/backup-v1.json` + `src/lib/storage/storage.test.ts`                 |
+| Aller-retour Koinly, propriété (150 tirages)                                                                     | `tests/integration/koinly-roundtrip.property.test.ts`                                       |
+| Pertes connues, figées par deux cas nommés                                                                       | `tests/integration/koinly-roundtrip-gaps.test.ts`                                           |
+| Décompte avant export, codes purs + rendu français                                                               | `src/lib/export/koinly-preview.ts`, `src/lib/format/koinly-preview.ts` (+ leurs `.test.ts`) |
+| Fusion : LWW, pierres tombales, propriétés algébriques (commutative, associative, idempotente), horloge, élagage | `src/lib/storage/sync/*.test.ts` (mutation ≥ 90 %, `npm run mutation:survivants`)           |
+| Fusion : fichier hérité sans `sync`, non-régression                                                              | `src/lib/storage/storage.test.ts` § « fixture gelée v1 »                                    |
+| Fusion : bout en bout, deux appareils réels (import, note, suppression, ré-fusion d'un fichier périmé)           | `tests/e2e/multi-device.spec.ts`                                                            |

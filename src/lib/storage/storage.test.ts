@@ -23,6 +23,9 @@ import {
   type ImportBatchMeta,
   type StoredStateV1,
 } from './schema';
+import { mergeSynced } from './sync/merge';
+import { TRACKED_COLLECTIONS } from './sync/tracked';
+import { emptySyncMeta, type SyncMeta } from './sync/types';
 
 function memoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -191,7 +194,7 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         breakevenSizes: {},
         twelveDataApiKey: null,
         alphaVantageApiKey: null,
-        // Le filtre de la liste des trades (P121, décision n° 182) : encore un réglage partagé
+        // Le filtre de la liste des trades (P121, décision n° 183) : encore un réglage partagé
         // additif, vide tant qu'une sauvegarde d'avant n'en connaissait pas la forme.
         tradeFilter: { ...EMPTY_FILTER },
       },
@@ -237,6 +240,134 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
     const again = sanitizeState(migrated.state);
     expect(again.dropped).toBe(0);
     expect(again.state).toEqual(migrated.state);
+  });
+
+  /**
+   * Non-régression : un fichier hérité (sans `sync`, comme cette fixture gelée) doit se fusionner
+   * correctement avec un appareil qui, lui, connaît des versions — c'est le scénario du tout
+   * premier appareil d'un utilisateur qui restaure sa toute première sauvegarde synchronisée.
+   */
+  it('fusion : un fichier hérité (sans sync) se fusionne correctement avec un état versionné', () => {
+    const migrated = migrateState(envelope.state);
+    if (!migrated.ok) throw new Error(migrated.error);
+    const legacy = migrated.state;
+    expect(legacy.sync, 'la fixture gelée ne porte pas de sync').toBeUndefined();
+
+    // Un second appareil : mêmes données de départ (même sauvegarde restaurée plus tôt), puis trois
+    // éditions RÉELLES, datées — l'exact scénario qu'une fusion doit démêler.
+    const other = structuredClone(legacy);
+    other.manualEvents['m2'] = {
+      id: 'm2',
+      at: '2026-01-20T10:00:00',
+      kind: 'buy',
+      asset: 'eth',
+      qty: '1',
+      amountEur: '2000',
+      scope: 'coinhouse',
+      note: 'ajouté sur le second appareil',
+    };
+    delete other.accounts['man:demo'];
+    other.journal['man:t1'] = {
+      ...other.journal['man:t1']!,
+      thesis: 'révisée sur le second appareil',
+    };
+    const remoteSync: SyncMeta = {
+      v: 1,
+      clock: '1758500000000.0002.device-b',
+      versions: {
+        manualEvents: { m2: { t: '1758500000000.0000.device-b' } },
+        accounts: { 'man:demo': { t: '1758500000000.0001.device-b', del: true } },
+        journal: { 'man:t1': { t: '1758500000000.0002.device-b' } },
+      },
+    };
+
+    const result = mergeSynced(
+      { state: legacy, sync: emptySyncMeta() },
+      { state: other, sync: remoteSync },
+      'device-a',
+      1_758_600_000_000,
+    );
+
+    // Inchangé des deux côtés : survit, sans version (toujours « hérité »).
+    expect(result.state.manualEvents['m1']).toBeDefined();
+    expect(result.sync.versions.manualEvents?.['m1']).toBeUndefined();
+    // Le second appareil a l'exclusivité de sa propre addition : elle gagne, sans ambiguïté.
+    expect(result.state.manualEvents['m2']?.note).toBe('ajouté sur le second appareil');
+    // Sa suppression, réellement datée, l'emporte sur la version héritée (donc perdante) du fichier.
+    expect(result.state.accounts['man:demo']).toBeUndefined();
+    expect(result.state.accounts['csv:demo']).toBeDefined();
+    // Sa modification, réellement datée, l'emporte de même.
+    expect(result.state.journal['man:t1']?.thesis).toBe('révisée sur le second appareil');
+    expect(result.report.accounts.removed).toBe(1);
+    expect(result.report.manualEvents.added).toBe(1);
+    expect(result.report.journal.updated).toBe(1);
+  });
+});
+
+describe('sanitizeState : un `sync` malformé est écarté sans perdre le reste de l’état', () => {
+  it('forme grossièrement invalide (ni objet, `v` inconnu, horloge illisible) → `sync` absent, tout le reste intact', () => {
+    const base = emptyState();
+    base.manualEvents['m1'] = {
+      id: 'm1',
+      at: '2026-01-01T10:00:00',
+      kind: 'buy',
+      asset: 'btc',
+      qty: '1',
+      amountEur: '100',
+      scope: 'coinhouse',
+      note: '',
+    };
+    const badSyncs: unknown[] = [
+      'pas un objet',
+      42,
+      null,
+      { v: 2, clock: '', versions: {} }, // version inconnue
+      { v: 1, clock: 'pas une horloge', versions: {} },
+      { v: 1, clock: '', versions: 'pas un objet' },
+    ];
+    for (const badSync of badSyncs) {
+      const input = { ...base, sync: badSync } as unknown as StoredStateV1;
+      const { state, dropped } = sanitizeState(input);
+      expect(state.sync, JSON.stringify(badSync)).toBeUndefined();
+      expect(state.manualEvents['m1'], 'le reste des données doit survivre').toBeDefined();
+      expect(dropped).toBe(0); // `sync` n'est pas une entrée « utilisateur » comptée ici
+    }
+  });
+
+  it('collection inconnue dans `versions` : ignorée, le reste de `sync` reste lisible', () => {
+    const input: StoredStateV1 = {
+      ...emptyState(),
+      sync: {
+        v: 1,
+        clock: '1700000000000.0000.d1',
+        versions: {
+          manualEvents: { m1: { t: '1700000000000.0000.d1' } },
+          uneCollectionQuiNexistePasEncore: { x: { t: '1700000000000.0000.d1' } },
+        } as unknown as SyncMeta['versions'],
+      },
+    };
+    const { state } = sanitizeState(input);
+    expect(state.sync?.versions.manualEvents).toEqual({ m1: { t: '1700000000000.0000.d1' } });
+    expect(state.sync?.versions['uneCollectionQuiNexistePasEncore']).toBeUndefined();
+  });
+
+  it('une seule version malformée dans une collection par ailleurs valide : écartée seule', () => {
+    const input: StoredStateV1 = {
+      ...emptyState(),
+      sync: {
+        v: 1,
+        clock: '1700000000000.0000.d1',
+        versions: {
+          manualEvents: {
+            good: { t: '1700000000000.0000.d1' },
+            badTick: { t: 'pas une horloge' },
+            badDel: { t: '1700000000000.0000.d1', del: 'oui' } as unknown as { t: string },
+          },
+        },
+      },
+    };
+    const { state } = sanitizeState(input);
+    expect(state.sync?.versions.manualEvents).toEqual({ good: { t: '1700000000000.0000.d1' } });
   });
 });
 
@@ -827,6 +958,15 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
     s.alerts.events.push(event);
     s.alerts.settings.watch = true;
     s.ui.theme = 'light';
+    s.sync = {
+      v: 1,
+      clock: '1700000000000.0001.device-a',
+      versions: {
+        manualEvents: { [manual.id]: { t: '1700000000000.0000.device-a' } },
+        qualifications: { 'ch:r1:0': { t: '1700000000000.0001.device-a' } },
+        accounts: { 'man:trading': { t: '1699999999999.0000.device-b', del: true } },
+      },
+    };
     return s;
   }
 
@@ -857,30 +997,19 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
     expect(after).toEqual(before);
   });
 
-  it('fusion : chaque conteneur a un sort explicite — union des données, réglages locaux gardés', () => {
-    // Conteneurs de DONNÉES : l'entrant doit survivre à la fusion (union par identifiant).
-    const UNIONED = [
-      'imports',
-      'rawRows',
-      'pivotRows',
-      'manualEvents',
-      'qualifications',
-      'transferOverrides',
-      'duplicateOverrides',
-      'taxAnnotations',
-      'assetSettings',
-      'accounts',
-      'hyperliquid',
-      'journal',
-      'manualTrades',
-      'lending',
-      'alerts',
-    ] as const;
+  it('fusion : chaque conteneur a un sort explicite — suivi daté, union de faits, réglages locaux', () => {
+    // Conteneurs SUIVIS (LWW + pierres tombales, `sync/tracked.ts` fait foi) : le plus récent
+    // gagne, par enregistrement. `alerts.rules`/`alerts.states` (imbriqués) en sont exclus ici :
+    // `alerts` est un conteneur COMPOSITE, vérifié à part plus bas.
+    const TRACKED = TRACKED_COLLECTIONS.filter((c) => !c.includes('.')) as readonly string[];
+    // Conteneurs d'UNION (faits immuables, comme avant ce chantier) : l'entrant survit toujours.
+    const UNIONED = ['rawRows', 'pivotRows', 'hyperliquid', 'lending'] as const;
     // Conteneurs LOCAUX : l'état courant l'emporte (docstring de `mergeStates`).
     const KEPT = ['schemaVersion', 'engineSettings', 'priceCache', 'fx', 'ui'] as const;
+    const COMPOSITE = ['alerts'] as const;
 
     const keys = Object.keys(emptyState()) as string[];
-    const decided = [...UNIONED, ...KEPT] as readonly string[];
+    const decided = [...TRACKED, ...UNIONED, ...KEPT, ...COMPOSITE] as readonly string[];
     // Un conteneur ajouté sans décision de fusion tombe ici, plutôt que de se perdre en silence.
     expect(
       keys.filter((k) => !decided.includes(k)),
@@ -892,11 +1021,25 @@ describe('complétude du schéma (aucun conteneur ni champ ne doit être oublié
     ).toEqual([]);
 
     const merged = mergeStates(emptyState(), populated());
+    for (const key of TRACKED)
+      expect(filled(merged, key as keyof StoredStateV1), `${key} perdu à la fusion`).toBe(true);
     for (const key of UNIONED) expect(filled(merged, key), `${key} perdu à la fusion`).toBe(true);
     for (const key of KEPT)
       expect(merged[key], `${key} aurait dû rester celui de l'état courant`).toEqual(
         emptyState()[key],
       );
+    // `alerts` composite : rules/states suivis (seul l'entrant en porte, ils doivent survivre),
+    // events uni (borné), settings local (celui de l'état courant, jamais l'entrant).
+    expect(
+      Object.keys(merged.alerts.rules).length,
+      'alerts.rules perdu à la fusion',
+    ).toBeGreaterThan(0);
+    expect(
+      Object.keys(merged.alerts.states).length,
+      'alerts.states perdu à la fusion',
+    ).toBeGreaterThan(0);
+    expect(merged.alerts.events.length, 'alerts.events perdu à la fusion').toBeGreaterThan(0);
+    expect(merged.alerts.settings).toEqual(emptyState().alerts.settings);
   });
 });
 

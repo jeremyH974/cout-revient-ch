@@ -18,10 +18,19 @@
  *   échoue tout de suite. Rejouer un verdict ne ferait que retarder le constat, et une alerte de
  *   sécurité qu'on absorbe est pire que pas d'alerte du tout.
  *
+ * **Et un troisième cas, qui se faisait passer pour le premier** (22/09/2026) : npm qui ne démarre
+ * même pas. Sous Windows, ce script lançait `npm.cmd` sans shell, ce que Node refuse depuis avril
+ * 2024 (`EINVAL`) — aucune sortie, donc « registre muet », trois essais, puis « panne de service ».
+ * Sous Windows, `npm run audit:prod` n'a ainsi **jamais** rendu de verdict, en accusant le registre
+ * à chaque fois ; la CI, sous Linux, n'était pas touchée. Un outil qui ne démarre pas n'est ni un
+ * verdict ni une panne : on le dit tel quel, sans réessayer (voir `npmInvocation` et `outcome`).
+ *
  * L'alternative — `continue-on-error` sur l'étape — rendrait l'audit décoratif : il passerait au
  * vert le jour où il aurait dû crier. Elle est écartée pour cette seule raison.
  */
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { win32 } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** Trois essais : deux pauses courtes suffisent à passer un `503` de quelques secondes. */
@@ -87,6 +96,50 @@ export function summarize(stdout: string): string {
   }
 }
 
+/**
+ * Comment lancer npm **sans shell**, sous tous les systèmes.
+ *
+ * Sous Windows, `npm` est un `npm.cmd`, et depuis le correctif de CVE-2024-27980 (Node 18.20.2,
+ * 20.12.2, 21.7.3) `spawnSync` refuse de lancer un `.cmd` sans `shell: true`. `shell: true`, lui,
+ * concatène les arguments sans les échapper (Node DEP0190) : écarté. Reste le point d'entrée
+ * JavaScript de npm, exécuté par le Node courant — `npm_execpath`, que `npm run` fournit, ou à
+ * défaut `npm-cli.js` à côté de `node`, où l'installeur de Node le pose. Ailleurs, `npm` du PATH.
+ *
+ * Fonction pure : le système, l'environnement et le disque sont passés, jamais lus ici.
+ */
+export function npmInvocation(
+  env: Readonly<Record<string, string | undefined>>,
+  platform: string,
+  execPath: string,
+  exists: (path: string) => boolean,
+): { command: string; prefix: string[] } {
+  const declared = env.npm_execpath;
+  // `npm_execpath` peut désigner pnpm ou yarn quand eux lancent le script : seul npm convient.
+  if (declared !== undefined && /npm-cli\.c?js$/i.test(declared))
+    return { command: execPath, prefix: [declared] };
+  if (platform === 'win32') {
+    const beside = win32.join(win32.dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    if (exists(beside)) return { command: execPath, prefix: [beside] };
+  }
+  return { command: 'npm', prefix: [] };
+}
+
+/** Ce qu'une exécution a donné : un verdict du service, ou un npm qui n'a pas démarré. */
+export type AuditOutcome = AuditVerdict | 'not-started';
+
+/**
+ * `not-started` : npm n'a pas démarré (`EINVAL`, `ENOENT`…). Ce n'est ni un verdict ni une panne
+ * du registre, et réessayer n'y changerait rien. Sinon, la réponse du service décide (`classify`).
+ */
+export function outcome(run: {
+  error?: Error | undefined;
+  status: number | null;
+  stdout: string | null;
+}): AuditOutcome {
+  if (run.error !== undefined) return 'not-started';
+  return classify(run.status ?? 1, run.stdout ?? '');
+}
+
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function main(): Promise<number> {
@@ -101,13 +154,19 @@ async function main(): Promise<number> {
       console.log(`Registre npm muet : nouvel essai dans ${pause / 1000} s…`);
       await sleep(pause);
     }
-    // `npm.cmd` sous Windows, jamais `shell: true` : passer des arguments à un shell les
-    // concatène sans les échapper (Node DEP0190), et un audit n'a aucune raison de le demander.
-    const run = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', AUDIT_ARGS, {
-      encoding: 'utf8',
-    });
+    // Jamais `shell: true` : voir `npmInvocation`.
+    const npm = npmInvocation(process.env, process.platform, process.execPath, existsSync);
+    const run = spawnSync(npm.command, [...npm.prefix, ...AUDIT_ARGS], { encoding: 'utf8' });
     const stdout = run.stdout ?? '';
-    const verdict = classify(run.status ?? 1, stdout);
+    const verdict = outcome(run);
+    if (verdict === 'not-started') {
+      const code = (run.error as NodeJS.ErrnoException | undefined)?.code ?? run.error?.message;
+      console.error(
+        `npm n'a pas pu être lancé (${code}) : ce n'est ni un verdict de sécurité ni une panne ` +
+          `du registre, c'est l'outil lui-même. Commande tentée : ${npm.command} ${npm.prefix.join(' ')}`,
+      );
+      return 1;
+    }
     last = { verdict, stdout, stderr: run.stderr ?? '' };
     if (verdict === 'clean') {
       console.log('Audit des dépendances de production : aucune vulnérabilité au niveau « high ».');

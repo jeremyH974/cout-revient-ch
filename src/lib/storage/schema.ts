@@ -37,6 +37,8 @@ import {
 import type { CorporateAction, PivotAmount } from '../domain/types';
 import type { TransferOverride } from '../domain/transfers';
 import type { DuplicateReview } from '../domain/reconciliation';
+import { TRACKED_COLLECTIONS } from './sync/tracked';
+import type { EntryVersion, SyncMeta } from './sync/types';
 
 export const SCHEMA_VERSION = 1 as const;
 export const APP_ID = 'cout-revient-ch';
@@ -108,10 +110,10 @@ export interface UiSettings {
    */
   customRange: CustomRange | null;
   /**
-   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 182) : même choix que
+   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 183) : même choix que
    * `period` ci-dessus, et pour la même raison — le routeur est à hash sans modèle de requête,
    * aucune donnée ne voyage dans l'URL, et le seul bénéfice restant (le bouton retour) est déjà
-   * couvert autrement (`JournalSheet`, décision n° 182). Vivre ici, plutôt que dans un état de
+   * couvert autrement (`JournalSheet`, décision n° 183). Vivre ici, plutôt que dans un état de
    * route perdu à la navigation, est justement ce qui le fait **survivre** à l'aller-retour vers
    * la fiche d'un trade.
    */
@@ -305,6 +307,14 @@ export interface StoredStateV1 {
   /** Alertes de prix relatives au PRU (règles, états, journal, réglages). */
   alerts: AlertsState;
   ui: UiSettings;
+  /**
+   * Métadonnées de fusion multi-appareils (`src/lib/storage/sync/`) : horloge logique hybride et
+   * version par enregistrement de chaque collection SUIVIE. Champ **additif** — absent d'une
+   * sauvegarde antérieure à ce chantier, qui se relit alors comme « tout hérité »
+   * (`docs/backup-format.md` § Fusion). Jamais posé par `emptyState()` : un état neuf n'a encore
+   * rien à dater.
+   */
+  sync?: SyncMeta;
 }
 
 export const DEFAULT_UI_SETTINGS: UiSettings = {
@@ -945,10 +955,58 @@ function sanitizeImport(raw: unknown): ImportBatchMeta | null {
   return meta;
 }
 
+// --- Métadonnées de synchronisation (`sync/`) ---------------------------------------------------
+
+/** `''` (hérité) ou `<13 chiffres>.<4 chiffres>.<deviceId>` (`sync/hlc.ts`). */
+const HLC_STRING = /^(|\d{13}\.\d{4}\..+)$/;
+const TRACKED_COLLECTION_SET = new Set<string>(TRACKED_COLLECTIONS);
+
+function sanitizeEntryVersion(raw: unknown): EntryVersion | null {
+  if (!isRecord(raw)) return null;
+  // Une version ENREGISTRÉE n'est jamais héritée : `t: ''` n'a pas sa place ici, l'héritage se
+  // traduit par l'ABSENCE de version (voir `mergeSynced`), jamais par une chaîne vide stockée.
+  if (typeof raw['t'] !== 'string' || raw['t'] === '' || !HLC_STRING.test(raw['t'])) return null;
+  // `del` présent mais ni `true` ni absent (ex. la CHAÎNE "true", un fichier édité à la main) :
+  // l'entrée ENTIÈRE est écartée plutôt que de deviner. Coercer silencieusement vers « non
+  // supprimée » serait le pire des deux mondes — une suppression réelle redeviendrait une valeur
+  // vivante affirmée avec confiance ; l'écarter la fait retomber sur « héritée », qui perd contre
+  // toute version réelle des deux côtés à la prochaine fusion plutôt que d'en affirmer une fausse.
+  if ('del' in raw && raw['del'] !== true) return null;
+  return raw['del'] === true ? { t: raw['t'], del: true } : { t: raw['t'] };
+}
+
+/**
+ * Valide la forme de `sync` plutôt que de laisser planter une fusion sur un fichier édité à la
+ * main ou écrit par une version future : `undefined` en l'absence du champ (sauvegarde héritée,
+ * silencieusement acceptée) ou en cas de forme illisible (écarté plutôt que de faire échouer toute
+ * la restauration — `docs/backup-format.md:130-139`). Une collection inconnue (sauvegarde d'une
+ * version future qui suit une collection que celle-ci ne connaît pas encore) est simplement
+ * ignorée, jamais un motif de refus.
+ */
+function sanitizeSyncMeta(raw: unknown): SyncMeta | undefined {
+  if (raw === undefined) return undefined;
+  if (!isRecord(raw)) return undefined;
+  if (raw['v'] !== 1) return undefined;
+  if (typeof raw['clock'] !== 'string' || !HLC_STRING.test(raw['clock'])) return undefined;
+  if (!isRecord(raw['versions'])) return undefined;
+  const versions: SyncMeta['versions'] = {};
+  for (const [collection, entries] of Object.entries(raw['versions'])) {
+    if (!TRACKED_COLLECTION_SET.has(collection) || !isRecord(entries)) continue;
+    const clean: Record<string, EntryVersion> = {};
+    for (const [key, value] of Object.entries(entries)) {
+      const version = sanitizeEntryVersion(value);
+      if (version) clean[key] = version;
+    }
+    if (Object.keys(clean).length > 0) versions[collection] = clean;
+  }
+  return { v: 1, clock: raw['clock'], versions };
+}
+
 /** Écarte les entrées invalides plutôt que de laisser le moteur planter ; renvoie le nombre écarté. */
 export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dropped: number } {
   let state = input;
   let dropped = 0;
+  const sync = sanitizeSyncMeta(input.sync);
   const imports: ImportBatchMeta[] = [];
   for (const raw of state.imports) {
     const meta = sanitizeImport(raw);
@@ -1187,9 +1245,14 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
         : 'etherscan',
     },
   };
+  // `exactOptionalPropertyTypes` distingue « absent » de « présent et `undefined` » : `sync` ne
+  // doit apparaître dans l'objet final QUE quand `sanitizeSyncMeta` a rendu une valeur, jamais
+  // comme une clé valant `undefined` — et jamais recopié tel quel (non assaini) via `...state`.
+  const { sync: _rawSync, ...stateWithoutSync } = state;
+  void _rawSync;
   return {
     state: {
-      ...state,
+      ...stateWithoutSync,
       imports,
       rawRows,
       pivotRows,
@@ -1208,6 +1271,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
       engineSettings,
       fx,
       alerts,
+      ...(sync !== undefined ? { sync } : {}),
     },
     dropped,
   };

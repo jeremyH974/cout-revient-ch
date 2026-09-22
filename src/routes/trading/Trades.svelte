@@ -7,7 +7,7 @@
    * P121 : recherche + facettes en puces (`domain/trading/filter.ts`, sous test de mutation —
    * rien n'est réimplémenté ici), synthèse du sous-ensemble filtré par la MÊME recette que
    * `TradeStats.svelte` (`summarizeFiltered` appelle `computeStats`). L'état du filtre vit dans
-   * `ui.tradeFilter` (réglages de l'appareil), pas dans l'URL — décisions n° 156-157 et n° 182 —
+   * `ui.tradeFilter` (réglages de l'appareil), pas dans l'URL — décisions n° 156-157 et n° 183 —
    * ce qui le fait survivre à l'aller-retour vers la fiche d'un trade.
    *
    * P122 : bouton « Annoter » par ligne (jamais imbriqué dans le lien de la ligne), qui ouvre

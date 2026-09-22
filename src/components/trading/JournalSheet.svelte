@@ -12,7 +12,7 @@
   }
 
   /**
-   * Brouillons en mémoire, un par trade (P122, décision n° 182) : une carte NON réactive côté
+   * Brouillons en mémoire, un par trade (P122, décision n° 183) : une carte NON réactive côté
    * app — jamais dans `app.state` (donc jamais dans la sauvegarde ni synchronisée entre
    * appareils), perdue au rechargement de la page. C'est délibéré : un brouillon n'est pas une
    * donnée, c'est un filet entre deux gestes.
