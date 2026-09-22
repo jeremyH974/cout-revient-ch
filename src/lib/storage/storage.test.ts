@@ -300,6 +300,73 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
   });
 });
 
+describe('sanitizeState : un `sync` malformé est écarté sans perdre le reste de l’état', () => {
+  it('forme grossièrement invalide (ni objet, `v` inconnu, horloge illisible) → `sync` absent, tout le reste intact', () => {
+    const base = emptyState();
+    base.manualEvents['m1'] = {
+      id: 'm1',
+      at: '2026-01-01T10:00:00',
+      kind: 'buy',
+      asset: 'btc',
+      qty: '1',
+      amountEur: '100',
+      scope: 'coinhouse',
+      note: '',
+    };
+    const badSyncs: unknown[] = [
+      'pas un objet',
+      42,
+      null,
+      { v: 2, clock: '', versions: {} }, // version inconnue
+      { v: 1, clock: 'pas une horloge', versions: {} },
+      { v: 1, clock: '', versions: 'pas un objet' },
+    ];
+    for (const badSync of badSyncs) {
+      const input = { ...base, sync: badSync } as unknown as StoredStateV1;
+      const { state, dropped } = sanitizeState(input);
+      expect(state.sync, JSON.stringify(badSync)).toBeUndefined();
+      expect(state.manualEvents['m1'], 'le reste des données doit survivre').toBeDefined();
+      expect(dropped).toBe(0); // `sync` n'est pas une entrée « utilisateur » comptée ici
+    }
+  });
+
+  it('collection inconnue dans `versions` : ignorée, le reste de `sync` reste lisible', () => {
+    const input: StoredStateV1 = {
+      ...emptyState(),
+      sync: {
+        v: 1,
+        clock: '1700000000000.0000.d1',
+        versions: {
+          manualEvents: { m1: { t: '1700000000000.0000.d1' } },
+          uneCollectionQuiNexistePasEncore: { x: { t: '1700000000000.0000.d1' } },
+        } as unknown as SyncMeta['versions'],
+      },
+    };
+    const { state } = sanitizeState(input);
+    expect(state.sync?.versions.manualEvents).toEqual({ m1: { t: '1700000000000.0000.d1' } });
+    expect(state.sync?.versions['uneCollectionQuiNexistePasEncore']).toBeUndefined();
+  });
+
+  it('une seule version malformée dans une collection par ailleurs valide : écartée seule', () => {
+    const input: StoredStateV1 = {
+      ...emptyState(),
+      sync: {
+        v: 1,
+        clock: '1700000000000.0000.d1',
+        versions: {
+          manualEvents: {
+            good: { t: '1700000000000.0000.d1' },
+            badTick: { t: 'pas une horloge' },
+            badDel: { t: '1700000000000.0000.d1', del: 'oui' } as unknown as { t: string },
+          },
+        },
+      },
+    };
+    const { state } = sanitizeState(input);
+    expect(state.sync?.versions.manualEvents).toEqual({ good: { t: '1700000000000.0000.d1' } });
+  });
+});
+
 describe('appariement de colonnes mémorisé (P64)', () => {
   const account = (columnMapping: unknown) => ({
     id: 'csv:demo',

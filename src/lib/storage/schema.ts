@@ -918,6 +918,12 @@ function sanitizeEntryVersion(raw: unknown): EntryVersion | null {
   // Une version ENREGISTRÉE n'est jamais héritée : `t: ''` n'a pas sa place ici, l'héritage se
   // traduit par l'ABSENCE de version (voir `mergeSynced`), jamais par une chaîne vide stockée.
   if (typeof raw['t'] !== 'string' || raw['t'] === '' || !HLC_STRING.test(raw['t'])) return null;
+  // `del` présent mais ni `true` ni absent (ex. la CHAÎNE "true", un fichier édité à la main) :
+  // l'entrée ENTIÈRE est écartée plutôt que de deviner. Coercer silencieusement vers « non
+  // supprimée » serait le pire des deux mondes — une suppression réelle redeviendrait une valeur
+  // vivante affirmée avec confiance ; l'écarter la fait retomber sur « héritée », qui perd contre
+  // toute version réelle des deux côtés à la prochaine fusion plutôt que d'en affirmer une fausse.
+  if ('del' in raw && raw['del'] !== true) return null;
   return raw['del'] === true ? { t: raw['t'], del: true } : { t: raw['t'] };
 }
 
