@@ -43,7 +43,7 @@
  * lisible seul et que la v2 ait un `git diff` strictement vide.
  */
 import { base64 } from '@scure/base';
-import { deriveAesKey, KDF_PARAMS, type KdfParams } from './kdf';
+import { deriveAesKey, isAcceptableKdfParams, KDF_PARAMS, type KdfParams } from './kdf';
 
 /** En-tête en clair d'une enveloppe v3, avant chiffrement (tout, sauf `ciphertext`). */
 export interface MailboxHeaderV3 {
@@ -164,24 +164,30 @@ async function gunzip(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayB
  * cache, sans jamais vérifier la phrase fournie. La table est donc indexée par (sel, phrase) : le
  * cas normal (une seule phrase par session) garde exactement la même propriété qu'annoncé
  * ci-dessus, et une phrase différente sur un sel déjà vu redérive — et échoue, comme il se doit.
+ *
+ * La table n'indexe pas la phrase elle-même mais son **empreinte SHA-256** : une `Map` vit toute la
+ * session, et garder la phrase en clair comme clé la laisserait lisible en mémoire bien après son
+ * usage. L'empreinte suffit à distinguer deux phrases ; la clé AES, elle, reste non exportable.
+ * Les paramètres entrent aussi dans l'index : la même phrase et le même sel sous d'autres
+ * paramètres donnent une autre clé.
  */
-const keyCache = new Map<string, Map<string, CryptoKey>>();
+const keyCache = new Map<string, CryptoKey>();
+
+async function cacheIndex(passphrase: string, saltKey: string, params: KdfParams): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(passphrase));
+  return `${saltKey}|${params.m}.${params.t}.${params.p}|${toBase64(new Uint8Array(digest))}`;
+}
 
 async function keyForSalt(
   passphrase: string,
   salt: Uint8Array<ArrayBuffer>,
   params: KdfParams,
 ): Promise<CryptoKey> {
-  const saltKey = base64.encode(salt);
-  let byPassphrase = keyCache.get(saltKey);
-  if (!byPassphrase) {
-    byPassphrase = new Map();
-    keyCache.set(saltKey, byPassphrase);
-  }
-  const cached = byPassphrase.get(passphrase);
+  const index = await cacheIndex(passphrase, base64.encode(salt), params);
+  const cached = keyCache.get(index);
   if (cached) return cached;
   const key = await deriveAesKey(passphrase, salt, params);
-  byPassphrase.set(passphrase, key);
+  keyCache.set(index, key);
   return key;
 }
 
@@ -302,13 +308,9 @@ export function readMailboxHeader(text: string): ReadMailboxHeaderResult {
   if (v['kind'] !== 'mailbox') return { ok: false, error: { code: 'malformed' } };
   if (v['version'] !== 3)
     return { ok: false, error: { code: 'unsupported-version', version: v['version'] } };
-  const params = v['params'];
-  const paramsOk =
-    typeof params === 'object' &&
-    params !== null &&
-    typeof (params as Record<string, unknown>)['m'] === 'number' &&
-    typeof (params as Record<string, unknown>)['t'] === 'number' &&
-    typeof (params as Record<string, unknown>)['p'] === 'number';
+  // Bornés, pas seulement typés : le PC relit ces fichiers à chaque ouverture, et des paramètres
+  // démesurés figeraient l'onglet avant même la demande de phrase secrète (`KDF_PARAMS_LIMITS`).
+  const paramsOk = isAcceptableKdfParams(v['params']);
   const wellFormed =
     typeof v['device'] === 'string' &&
     v['device'] !== '' &&

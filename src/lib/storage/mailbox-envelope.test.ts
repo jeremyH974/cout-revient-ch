@@ -121,6 +121,21 @@ describe('cache de clés par sel (mémoire de session)', () => {
     }
   });
 
+  it('même sel et même phrase sous d’autres paramètres : redérive, jamais la clé d’avant', async () => {
+    const spy = vi.spyOn(kdf, 'deriveAesKey');
+    try {
+      const s = salt();
+      await encryptMailboxEnvelope('{"a":1}', 'phrase', 'device-a', 1, s, FAST);
+      const other = await encryptMailboxEnvelope('{"a":2}', 'phrase', 'device-a', 2, s, {
+        params: { m: 128, t: 1, p: 1 },
+      });
+      expect(spy).toHaveBeenCalledTimes(2);
+      expect(await decryptMailboxEnvelope(other, 'phrase')).toBe('{"a":2}');
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it('resetMailboxKeyCacheForTests() vide bien le cache : un sel déjà vu redérive', async () => {
     const spy = vi.spyOn(kdf, 'deriveAesKey');
     try {
@@ -142,6 +157,20 @@ describe('readMailboxHeader : valide la forme, sans déchiffrer', () => {
     const result = readMailboxHeader(JSON.stringify(envelope));
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.envelope).toEqual(envelope);
+  });
+
+  it('paramètres Argon2id démesurés : refusés avant toute dérivation (le PC relit ces fichiers)', async () => {
+    const envelope = await encryptMailboxEnvelope('{"a":1}', 'phrase', 'device-a', 7, salt(), FAST);
+    for (const params of [
+      { m: 4_194_304, t: 1, p: 1 }, // 4 Gio : figerait l'onglet
+      { m: 64, t: 1_000, p: 1 },
+      { m: 64, t: 1, p: 64 },
+      { m: 64, t: 1.5, p: 1 },
+      { m: 4, t: 1, p: 1 }, // sous le minimum d'Argon2
+    ]) {
+      const result = readMailboxHeader(JSON.stringify({ ...envelope, params }));
+      expect(result, JSON.stringify(params)).toEqual({ ok: false, error: { code: 'malformed' } });
+    }
   });
 
   it('JSON invalide', () => {

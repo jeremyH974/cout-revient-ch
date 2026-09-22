@@ -56,6 +56,45 @@ export interface KdfParams {
  */
 export const KDF_PARAMS: KdfParams = { m: 47_104, t: 1, p: 1 };
 
+/**
+ * Bornes des paramètres Argon2id **lus dans un fichier** (sauvegarde v2, boîte aux lettres v3).
+ *
+ * Les paramètres voyagent en clair avec le fichier et pilotent la dérivation : sans borne, un
+ * fichier corrompu — ou déposé par un tiers dans le dossier synchronisé, que le PC relit à chaque
+ * ouverture — pourrait réclamer des gigaoctets de mémoire et figer l'onglet à chaque démarrage.
+ *
+ * Seul le **plafond** protège celui qui lit : 256 Mio, 10 itérations, 4 voies — plus de cinq fois
+ * ce que l'application écrit (`KDF_PARAMS`), et encore tenable sur un téléphone. Un plancher, lui,
+ * ne protégerait rien à la lecture : des paramètres faibles sont un choix de l'écrivain, et
+ * l'application écrit toujours `KDF_PARAMS`. Le plancher retenu est donc celui de la spécification
+ * d'Argon2 (RFC 9106 : mémoire ≥ 8 Kio par voie, au moins une itération et une voie), ce qui laisse
+ * aux tests leurs paramètres volontairement minuscules.
+ */
+export const KDF_PARAMS_LIMITS = {
+  m: { min: 8, max: 262_144 },
+  t: { min: 1, max: 10 },
+  p: { min: 1, max: 4 },
+} as const;
+
+/**
+ * Vrai si les paramètres lus dans un fichier sont des entiers dans les bornes ci-dessus, et si la
+ * mémoire couvre au moins 8 Kio par voie (RFC 9106).
+ */
+export function isAcceptableKdfParams(params: unknown): params is KdfParams {
+  if (typeof params !== 'object' || params === null) return false;
+  const p = params as Record<string, unknown>;
+  const inBounds = (['m', 't', 'p'] as const).every((k) => {
+    const v = p[k];
+    return (
+      typeof v === 'number' &&
+      Number.isInteger(v) &&
+      v >= KDF_PARAMS_LIMITS[k].min &&
+      v <= KDF_PARAMS_LIMITS[k].max
+    );
+  });
+  return inBounds && (p['m'] as number) >= 8 * (p['p'] as number);
+}
+
 /** 128 bits, comme la RFC 9106 le demande — et non les 32 bits minimaux du NIST. */
 export const KDF_SALT_BYTES = 16;
 
