@@ -10,7 +10,7 @@
  * **Aucune requête ici** : la logique de décision est pure, et c'est exactement pourquoi elle a été
  * séparée de l'appel au registre.
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   BLOCKED,
@@ -109,22 +109,36 @@ describe('le résumé porté dans l’issue de surveillance', () => {
     expect(text).toContain('muet');
     expect(text).toContain('ce n’est pas un verdict');
   });
+
+  it('une table vide dit qu’il n’y a rien à guetter, et non que rien n’a bougé', () => {
+    // La nuance compte : « rien n'a bougé » laisserait croire qu'une surveillance tourne.
+    const text = summarise([], {}, []);
+    expect(text).toContain('Aucun avis n’est laissé ouvert');
+    expect(text).not.toContain('Rien n’a bougé');
+  });
 });
 
 /**
- * **La table réelle, adossée à l'arbre installé** (règle n° 90). Si quelqu'un monte `extract-zip`
- * sans toucher au veilleur, celui-ci surveillerait un plancher périmé et se tairait pour toujours
- * — la panne la plus silencieuse possible pour une sonnerie de réveil.
+ * **La table réelle, adossée à l'arbre installé** (règle n° 90). Si quelqu'un monte un paquet
+ * surveillé sans toucher au veilleur, celui-ci guetterait un plancher périmé et se tairait pour
+ * toujours — la panne la plus silencieuse possible pour une sonnerie de réveil.
+ *
+ * La table est **vide** depuis le 22/09/2026 (décision n° 183), `extract-zip` étant sorti de
+ * l'arbre. Ces contrôles ne dorment pas pour autant : ils décrivent ce qu'une ligne devra tenir le
+ * jour où l'on en réécrira une, et le premier d'entre eux refuse désormais une ligne qui
+ * surveillerait un paquet que plus rien n'installe — l'autre façon de ne plus rien surveiller.
  */
 describe('la table réelle reste accrochée à ce qui est installé', () => {
-  it('surveille chaque avis au-dessus de la version réellement présente', () => {
-    expect(BLOCKED.length).toBeGreaterThan(0);
+  it('ne surveille que des paquets installés, à la version réellement présente', () => {
     for (const advisory of BLOCKED) {
       const watched = advisory.watch.find((w) => w.name === advisory.packageName);
       expect(watched, `${advisory.packageName} doit être surveillé lui-même`).toBeDefined();
-      const installed = JSON.parse(
-        readFileSync(`node_modules/${advisory.packageName}/package.json`, 'utf8'),
-      ).version;
+      const manifest = `node_modules/${advisory.packageName}/package.json`;
+      expect(
+        existsSync(manifest),
+        `${advisory.packageName} n’est plus installé : cette ligne ne surveille plus rien, la retirer`,
+      ).toBe(true);
+      const installed = JSON.parse(readFileSync(manifest, 'utf8')).version;
       expect(watched?.above, `${advisory.packageName} installé en ${installed}`).toBe(installed);
     }
   });

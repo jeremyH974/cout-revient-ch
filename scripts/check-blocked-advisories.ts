@@ -47,30 +47,12 @@ export interface BlockedAdvisory {
  * laisse une surveillance qui ne surveille plus rien ; la décision n° 154 porte le raisonnement.
  */
 export const BLOCKED: readonly BlockedAdvisory[] = [
-  {
-    packageName: 'extract-zip',
-    advisories: ['CVE-2026-19693', 'CVE-2026-56876'],
-    because:
-      "aucune version corrigée n'existe — le correctif amont a consisté à s'en débarrasser, " +
-      "`@puppeteer/browsers` 3.x l'ayant remplacé par `modern-tar`. Mais `puppeteer-core@24.43.1` " +
-      "l'épingle à 2.13.2 exactement, et `lighthouse@12.6.1` demande `^24.10.0`.",
-    watch: [
-      {
-        name: 'extract-zip',
-        above: '2.0.1',
-        means:
-          'un correctif est publié. `@puppeteer/browsers` demande `^2.0.1`, donc une résolution ' +
-          'neuve suffit : effacer son entrée du verrou et réinstaller.',
-      },
-      {
-        name: '@lhci/cli',
-        above: '0.15.1',
-        means:
-          "l'outil est republié après quinze mois de gel. La chaîne `lighthouse` → " +
-          "`puppeteer-core` peut enfin bouger, et avec elle la sortie d'`extract-zip`.",
-      },
-    ],
-  },
+  // Vide depuis le 22/09/2026 (décision n° 183) : le seul avis qu'on avait laissé ouvert,
+  // `extract-zip` (CVE-2026-19693, CVE-2026-56876), n'a toujours pas de version corrigée — mais il
+  // est SORTI de l'arbre, un `override` scopé imposant `@puppeteer/browsers` 3.x, qui décompresse
+  // avec `modern-tar`. Il n'y a donc plus rien à guetter ; `tests/integration/blocked-advisories`
+  // refuse d'ailleurs une ligne dont le paquet n'est plus installé. La machinerie, elle, reste :
+  // c'est ici qu'on écrira le prochain avis sans correctif, avec ce qui le rouvrirait.
 ];
 
 /** Compare deux versions `a.b.c`. Les préversions ne nous intéressent pas : elles ne débloquent rien. */
@@ -118,6 +100,10 @@ export function summarise(
 ): string {
   const moved = unblocked(blocked, latest);
   const lines = ['### Avis de sécurité laissés ouverts', ''];
+  // Une table vide n'est pas « rien n'a bougé » : c'est « il n'y a rien à guetter ». Le dire
+  // autrement laisserait croire qu'une surveillance tourne alors qu'elle n'a plus d'objet.
+  if (blocked.length === 0)
+    return `${lines.join('\n')}\nAucun avis n’est laissé ouvert : rien à guetter aujourd’hui.\n`;
   if (moved.length === 0)
     lines.push('Rien n’a bougé : chaque avis reste bloqué pour la raison écrite.');
   for (const { advisory, watched, published } of moved)
