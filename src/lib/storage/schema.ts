@@ -6,6 +6,12 @@ import { METRICS, type Metric } from '../history/metrics';
 import { isDayString } from '../history/days';
 import { DEFAULT_PERIOD, PERIODS, type CustomRange, type Period } from '../history/series';
 import { KEYED_FLAVORS, type ExplorerFlavor } from '../import/onchain/etherscan';
+import {
+  EMPTY_FILTER,
+  type TradeFilter,
+  type TradeOutcome,
+  type TradeSide,
+} from '../domain/trading/filter';
 import type { JournalEntry, ManualTrade, TradePlan } from '../domain/trading/journal';
 import { emptyHlState, type HlState } from '../import/hyperliquid/data';
 import { emptyLendingState, type LendingState } from '../domain/lending/types';
@@ -101,6 +107,15 @@ export interface UiSettings {
    * reprendre la forme de l'état au premier ajout.
    */
   customRange: CustomRange | null;
+  /**
+   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 182) : même choix que
+   * `period` ci-dessus, et pour la même raison — le routeur est à hash sans modèle de requête,
+   * aucune donnée ne voyage dans l'URL, et le seul bénéfice restant (le bouton retour) est déjà
+   * couvert autrement (`JournalSheet`, décision n° 182). Vivre ici, plutôt que dans un état de
+   * route perdu à la navigation, est justement ce qui le fait **survivre** à l'aller-retour vers
+   * la fiche d'un trade.
+   */
+  tradeFilter: TradeFilter;
   /**
    * Tailles saisies dans l'onglet « Seuil » de l'espace Trading, **par actif** (`BTC` → « 10 20 30 »),
    * telles que tapées (décision n° 158). Des quantités hypothétiques, jamais une position : le texte
@@ -300,6 +315,7 @@ export const DEFAULT_UI_SETTINGS: UiSettings = {
   displayCurrency: 'EUR',
   period: DEFAULT_PERIOD,
   customRange: null,
+  tradeFilter: { ...EMPTY_FILTER },
   breakevenSizes: {},
   chartMetric: 'value',
   assetChartMetric: 'pru',
@@ -636,6 +652,36 @@ function sanitizeManualTrade(id: string, raw: unknown): ManualTrade | null {
     closedAt,
     fees: decOrNull(raw['fees']) ?? '0',
     quote: QUOTES.has(raw['quote'] as string) ? (raw['quote'] as ManualTrade['quote']) : 'USD',
+  };
+}
+
+const TRADE_OUTCOMES = new Set(['win', 'loss', 'open', 'unannotated']);
+
+/**
+ * Assainit `ui.tradeFilter` (P121) : listes de chaînes plafonnées (même plafond que le journal,
+ * `textList`), `sides`/`outcomes` en LISTE BLANCHE (jamais une chaîne arbitraire réinjectée dans
+ * `applyFilter`), un identifiant de compte mal formé simplement écarté — jamais tout le filtre.
+ * Totale : un `raw` qui n'est pas un objet rend le filtre vide plutôt que d'échouer.
+ */
+function sanitizeTradeFilter(raw: unknown): TradeFilter {
+  if (!isRecord(raw)) return { ...EMPTY_FILTER };
+  const whitelisted = <T extends string>(value: unknown, allowed: ReadonlySet<string>): T[] =>
+    Array.isArray(value)
+      ? [...new Set(value.filter((v): v is T => typeof v === 'string' && allowed.has(v)))]
+      : [];
+  const accounts = Array.isArray(raw['accounts'])
+    ? raw['accounts']
+        .filter((a): a is string => typeof a === 'string' && ACCOUNT_ID.test(a))
+        .slice(0, MAX_LIST)
+    : [];
+  return {
+    query: textOrEmpty(raw['query'], 200),
+    sides: whitelisted<TradeSide>(raw['sides'], DIRECTIONS),
+    outcomes: whitelisted<TradeOutcome>(raw['outcomes'], TRADE_OUTCOMES),
+    setups: textList(raw['setups']) ?? [],
+    mistakes: textList(raw['mistakes']) ?? [],
+    tags: textList(raw['tags']) ?? [],
+    accounts,
   };
 }
 // --- Alertes de prix (P29) --------------------------------------------------------------------
@@ -1131,6 +1177,7 @@ export function sanitizeState(input: StoredStateV1): { state: StoredStateV1; dro
     ...state,
     ui: {
       ...state.ui,
+      tradeFilter: sanitizeTradeFilter(state.ui.tradeFilter),
       coingeckoDemoKey: sanitizeApiKey(state.ui.coingeckoDemoKey),
       explorerKey: sanitizeApiKey(state.ui.explorerKey),
       twelveDataApiKey: sanitizeApiKey(state.ui.twelveDataApiKey),
