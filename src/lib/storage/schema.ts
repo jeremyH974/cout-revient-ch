@@ -861,8 +861,10 @@ function validQualification(raw: unknown): raw is Qualification {
   return required === undefined || isDecimal(raw[required]);
 }
 
-const MAX_LIST = 40;
-const MAX_TEXT = 120;
+// Exportées (seulement) pour que `domain/trading/tags.ts` — qui n'importe jamais ce module —
+// fasse vérifier par un test que ses propres plafonds valent ceux, persistés, du schéma.
+export const MAX_LIST = 40;
+export const MAX_TEXT = 120;
 /** Clé d'API CoinGecko : jeton court sans espace ; tout le reste est écarté. */
 const API_KEY = /^[A-Za-z0-9_-]{8,64}$/;
 const sanitizeApiKey = (v: unknown): string | null =>
