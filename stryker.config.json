@@ -19,6 +19,9 @@
     "src/lib/domain/lending/tax-fr.ts",
     "src/lib/domain/declarations-fr.ts",
     "src/lib/history/window.ts",
+    "src/lib/domain/trading/filter.ts",
+    "src/lib/domain/trading/tags.ts",
+    "src/lib/domain/trading/liquidation.ts",
     "!**/*.test.ts"
   ],
   "_comment_sandbox": "Le bac à sable est une COPIE du projet. Sans ces exclusions il embarque le cache de pré-bundling de Vite (`.vite`), et deux exécutions qui se chevauchent se disputent le même renommage : `EPERM (rename)` sous Windows, sur un chemin qui n'accuse ni le code ni les tests (décision n° 149). Les autres entrées ne sont que du poids mort recopié à chaque exécution.",
