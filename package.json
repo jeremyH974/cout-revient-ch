@@ -80,7 +80,7 @@
     "@types/big.js": "7.0.0",
     "@types/node": "26.5.1",
     "@types/papaparse": "5.5.2",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "5.0.0",
     "eslint": "10.10.0",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-svelte": "3.23.0",
