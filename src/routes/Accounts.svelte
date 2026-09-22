@@ -14,6 +14,7 @@
   import { EXTENDED_PUBLIC_RE } from '$lib/import/onchain/xpub-detect';
   import { router } from '$lib/router.svelte';
   import AppBar from '../components/layout/AppBar.svelte';
+  import Switch from '../components/shared/Switch.svelte';
   import { app } from '../state/app.svelte';
   import { toasts } from '../state/ui.svelte';
 
@@ -225,13 +226,11 @@
             {/if}
             {#if a.kind === 'hyperliquid'}
               <span class="muted small mono">{a.address}</span>
-              <label class="check small"
-                ><input
-                  type="checkbox"
-                  checked={a.spotAsInvestment === true}
-                  onchange={(e) => app.setSpotAsInvestment(a.id, e.currentTarget.checked)}
-                /> Traiter le spot de ce compte comme de l'investissement (PRU)</label
-              >
+              <Switch
+                checked={a.spotAsInvestment === true}
+                onCheckedChange={(v) => app.setSpotAsInvestment(a.id, v)}
+                label="Traiter le spot de ce compte comme de l'investissement (PRU)"
+              />
             {/if}
           </div>
           {#if declared(a)}
@@ -397,10 +396,11 @@
         maxlength="60"
       />
     </label>
-    <label class="check"
-      ><input type="checkbox" bind:checked={hlSpotAsInvestment} /> Traiter le spot de ce compte comme
-      de l'investissement (PRU et plus-values dans l'espace Investissement)</label
-    >
+    <Switch
+      checked={hlSpotAsInvestment}
+      onCheckedChange={(v) => (hlSpotAsInvestment = v)}
+      label="Traiter le spot de ce compte comme de l'investissement (PRU et plus-values dans l'espace Investissement)"
+    />
     <button class="primary" type="submit" disabled={!hlAddressValid}>Ajouter et synchroniser</button
     >
   </form>
@@ -502,15 +502,6 @@
     display: grid;
     gap: var(--space-1);
     font-weight: 600;
-  }
-  .check {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-2);
-    min-height: var(--tap);
-  }
-  .check input {
-    margin-top: 4px;
   }
   .mono {
     font-family: var(--font-mono);
