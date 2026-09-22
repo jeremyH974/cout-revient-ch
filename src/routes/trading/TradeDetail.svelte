@@ -32,6 +32,8 @@
   import AppBar from '../../components/layout/AppBar.svelte';
   import Money from '../../components/shared/Money.svelte';
   import Qty from '../../components/shared/Qty.svelte';
+  import JournalSheet from '../../components/trading/JournalSheet.svelte';
+  import TagField from '../../components/trading/TagField.svelte';
   import TradingTabs from '../../components/trading/TradingTabs.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
@@ -41,6 +43,12 @@
   const found = $derived(app.tripOf(id));
   const money = (value: Big): Big | null =>
     found ? app.quoteToDisplay(found.trip.quote, value) : null;
+
+  // Feuille rapide (P122) : même composant que la liste des trades, ouverte depuis le haut de la
+  // fiche. Elle fusionne son brouillon dans le journal via `app.saveJournal` ; le formulaire
+  // complet ci-dessous se recharge tout seul (l'`$effect` d'initialisation relit `app.journalOf`,
+  // qui redevient réactif dès que la feuille enregistre).
+  let annotateOpen = $state(false);
 
   // Brouillon local du journal, rechargé (via l'$effect) quand on change de trade.
   let draft = $state<JournalEntry>(emptyJournalEntry(''));
@@ -224,6 +232,11 @@
       {#if t.liquidated}<span class="badge liq">liquidation</span>{/if}
       {#if t.incomplete}<span class="badge">historique partiel</span>{/if}
     </p>
+    <div class="head-actions">
+      <button class="secondary" type="button" onclick={() => (annotateOpen = true)}>
+        Annoter
+      </button>
+    </div>
     <dl class="stat-grid cols-3">
       <div>
         <dt>P&L net</dt>
@@ -269,6 +282,110 @@
       <button class="link" type="button" onclick={removeManual}>Supprimer ce trade manuel</button>
     {/if}
   </section>
+
+  {#if annotateOpen}
+    <JournalSheet tradeId={id} onClose={() => (annotateOpen = false)} />
+  {/if}
+
+  <form
+    class="card journal"
+    onsubmit={(e) => {
+      e.preventDefault();
+      save();
+    }}
+  >
+    <h2>Journal</h2>
+    <label class="field"
+      >Pourquoi j'ai pris ce trade
+      <textarea
+        rows="3"
+        bind:value={draft.thesis}
+        placeholder="Thèse, contexte, signal… (écrit avant, relu après)"></textarea>
+    </label>
+    <fieldset>
+      <legend>Setup</legend>
+      <div class="chips">
+        {#each DEFAULT_SETUPS as setup (setup)}
+          <button
+            type="button"
+            class="chip"
+            aria-pressed={draft.setup === setup}
+            onclick={() => (draft.setup = draft.setup === setup ? null : setup)}>{setup}</button
+          >
+        {/each}
+      </div>
+    </fieldset>
+    <TagField bind:tags={draft.tags} journal={app.state.journal} id="trade-detail-tags" />
+    <fieldset class="plan">
+      <legend>Plan (facultatif) — pour obtenir un résultat en R</legend>
+      <div class="grid">
+        <label class="field"
+          >Entrée prévue
+          <input type="text" inputmode="decimal" bind:value={planEntry} placeholder="ex. 105" />
+        </label>
+        <label class="field"
+          >Stop
+          <input type="text" inputmode="decimal" bind:value={planStop} placeholder="ex. 100" />
+        </label>
+        <label class="field"
+          >Objectif
+          <input type="text" inputmode="decimal" bind:value={planTarget} placeholder="ex. 120" />
+        </label>
+        <label class="field"
+          >Risque ({t.quote})
+          <input
+            type="text"
+            inputmode="decimal"
+            bind:value={planRisk}
+            placeholder="sinon |entrée − stop| × taille"
+          />
+        </label>
+      </div>
+      {#if previewRisk}
+        <p class="muted small">
+          Risque retenu : <Money value={money(previewRisk)} />{#if previewR}
+            → <strong class="num">{fmtRatio(previewR, 2)} R</strong>{/if}
+        </p>
+      {/if}
+    </fieldset>
+    <label class="field"
+      >Revue (après)
+      <textarea
+        rows="3"
+        bind:value={draft.review}
+        placeholder="Ce qui a marché, ce qui n'a pas marché, ce que j'en retire"></textarea>
+    </label>
+    <fieldset>
+      <legend>Erreurs relevées</legend>
+      <div class="chips">
+        {#each DEFAULT_MISTAKES as mistake (mistake)}
+          <button
+            type="button"
+            class="chip"
+            aria-pressed={draft.mistakes.includes(mistake)}
+            onclick={() => (draft.mistakes = toggle(draft.mistakes, mistake))}>{mistake}</button
+          >
+        {/each}
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Note d'exécution</legend>
+      <div class="chips" role="radiogroup" aria-label="Note d'exécution sur 5">
+        {#each [1, 2, 3, 4, 5] as n (n)}
+          <button
+            type="button"
+            class="chip"
+            role="radio"
+            aria-checked={draft.rating === n}
+            aria-label="{n} sur 5"
+            onclick={() => (draft.rating = draft.rating === n ? null : (n as 1 | 2 | 3 | 4 | 5))}
+            >{'★'.repeat(n)}</button
+          >
+        {/each}
+      </div>
+    </fieldset>
+    <button class="primary" type="submit">Enregistrer le journal</button>
+  </form>
 
   {#if costs}
     <section class="card costs" aria-labelledby="costs-title">
@@ -376,105 +493,6 @@
       </p>
     </section>
   {/if}
-
-  <form
-    class="card journal"
-    onsubmit={(e) => {
-      e.preventDefault();
-      save();
-    }}
-  >
-    <h2>Journal</h2>
-    <label class="field"
-      >Pourquoi j'ai pris ce trade
-      <textarea
-        rows="3"
-        bind:value={draft.thesis}
-        placeholder="Thèse, contexte, signal… (écrit avant, relu après)"></textarea>
-    </label>
-    <fieldset>
-      <legend>Setup</legend>
-      <div class="chips">
-        {#each DEFAULT_SETUPS as setup (setup)}
-          <button
-            type="button"
-            class="chip"
-            aria-pressed={draft.setup === setup}
-            onclick={() => (draft.setup = draft.setup === setup ? null : setup)}>{setup}</button
-          >
-        {/each}
-      </div>
-    </fieldset>
-    <fieldset class="plan">
-      <legend>Plan (facultatif) — pour obtenir un résultat en R</legend>
-      <div class="grid">
-        <label class="field"
-          >Entrée prévue
-          <input type="text" inputmode="decimal" bind:value={planEntry} placeholder="ex. 105" />
-        </label>
-        <label class="field"
-          >Stop
-          <input type="text" inputmode="decimal" bind:value={planStop} placeholder="ex. 100" />
-        </label>
-        <label class="field"
-          >Objectif
-          <input type="text" inputmode="decimal" bind:value={planTarget} placeholder="ex. 120" />
-        </label>
-        <label class="field"
-          >Risque ({t.quote})
-          <input
-            type="text"
-            inputmode="decimal"
-            bind:value={planRisk}
-            placeholder="sinon |entrée − stop| × taille"
-          />
-        </label>
-      </div>
-      {#if previewRisk}
-        <p class="muted small">
-          Risque retenu : <Money value={money(previewRisk)} />{#if previewR}
-            → <strong class="num">{fmtRatio(previewR, 2)} R</strong>{/if}
-        </p>
-      {/if}
-    </fieldset>
-    <label class="field"
-      >Revue (après)
-      <textarea
-        rows="3"
-        bind:value={draft.review}
-        placeholder="Ce qui a marché, ce qui n'a pas marché, ce que j'en retire"></textarea>
-    </label>
-    <fieldset>
-      <legend>Erreurs relevées</legend>
-      <div class="chips">
-        {#each DEFAULT_MISTAKES as mistake (mistake)}
-          <button
-            type="button"
-            class="chip"
-            aria-pressed={draft.mistakes.includes(mistake)}
-            onclick={() => (draft.mistakes = toggle(draft.mistakes, mistake))}>{mistake}</button
-          >
-        {/each}
-      </div>
-    </fieldset>
-    <fieldset>
-      <legend>Note d'exécution</legend>
-      <div class="chips" role="radiogroup" aria-label="Note d'exécution sur 5">
-        {#each [1, 2, 3, 4, 5] as n (n)}
-          <button
-            type="button"
-            class="chip"
-            role="radio"
-            aria-checked={draft.rating === n}
-            aria-label="{n} sur 5"
-            onclick={() => (draft.rating = draft.rating === n ? null : (n as 1 | 2 | 3 | 4 | 5))}
-            >{'★'.repeat(n)}</button
-          >
-        {/each}
-      </div>
-    </fieldset>
-    <button class="primary" type="submit">Enregistrer le journal</button>
-  </form>
 {/if}
 
 <style>
@@ -502,6 +520,9 @@
     gap: var(--space-2);
     margin: 0;
     font-size: var(--fs-lg);
+  }
+  .head-actions {
+    display: flex;
   }
   .dir {
     font-size: var(--fs-xs);

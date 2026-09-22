@@ -21,6 +21,7 @@
   import { aiKey } from '../../state/ai-key.svelte';
   import { toasts } from '../../state/ui.svelte';
   import ConsentSheet from '../ai/ConsentSheet.svelte';
+  import Switch from '../shared/Switch.svelte';
 
   let consentOpen = $state(false);
   let busy = $state(false);
@@ -54,21 +55,19 @@
   }
 </script>
 
-<section class="card group">
-  <h2>Récit par intelligence artificielle</h2>
+<details class="card group" id="ia">
+  <summary><h2>Récit par intelligence artificielle</h2></summary>
   <p class="muted small">
     Facultatif, décoché par défaut. Une fois activé, le rapport propose un court récit rédigé par un
     modèle de langage <strong>à partir des constats déjà calculés</strong> : le modèle ne calcule rien,
     et tout chiffre qu'il écrirait sans le retrouver dans ces constats fait rejeter le texte entier.
   </p>
 
-  <label class="check"
-    ><input
-      type="checkbox"
-      checked={app.state.ui.aiEnabled}
-      onchange={(e) => app.setUi({ aiEnabled: e.currentTarget.checked })}
-    /> Proposer le récit dans le rapport</label
-  >
+  <Switch
+    checked={app.state.ui.aiEnabled}
+    onCheckedChange={(v) => app.setUi({ aiEnabled: v })}
+    label="Proposer le récit dans le rapport"
+  />
 
   <label class="field"
     >Votre clé d'API Anthropic
@@ -97,7 +96,7 @@
     Envoie deux mots à <code>{ANTHROPIC_HOST}</code> — aucun montant, aucun actif, aucune date — pour
     vérifier que la clé et le chemin réseau fonctionnent.
   </p>
-</section>
+</details>
 
 <ConsentSheet
   bind:open={consentOpen}

@@ -142,6 +142,10 @@ export default defineConfig(({ mode }) => {
           description:
             'PRU et plus/moins-values par crypto à partir de votre export Coinhouse, calculés dans votre navigateur.',
           lang: 'fr',
+          // Identité stable de l'app (P124) : sous le même sous-chemin que `start_url`/`scope`,
+          // sans quoi vite-plugin-pwa la laisse dériver un `id` implicite du seul `start_url` — qui
+          // casserait si celui-ci gagnait un jour une requête (vite-pwa/vite-plugin-pwa#263).
+          id: BASE,
           start_url: BASE,
           scope: BASE,
           display: 'standalone',
@@ -180,6 +184,43 @@ export default defineConfig(({ mode }) => {
               ],
             },
           },
+          /*
+           * Boîte d'installation enrichie (web.dev/articles/web-apps/richer-install-ui) : deux
+           * captures `form_factor: "narrow"` des données d'exemple, écrites par
+           * `scripts/generate-screenshots.ts` (`npm run screenshots`) — jamais un export réel,
+           * jamais à la main. Exclues du précache ci-dessous (`globIgnores`) : ce sont des images
+           * d'installation, jamais affichées dans l'app elle-même. `sizes` porte les pixels
+           * PHYSIQUES du fichier (780×1688 = 390×844 à DPR 2), pas le viewport logique : c'est ce
+           * que Chrome compare au fichier réel, comme pour `icons`.
+           */
+          screenshots: [
+            {
+              src: 'screenshots/overview-narrow.png',
+              sizes: '780x1688',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: "Vue d'ensemble du patrimoine",
+            },
+            {
+              src: 'screenshots/trading-narrow.png',
+              sizes: '780x1688',
+              type: 'image/png',
+              form_factor: 'narrow',
+              label: 'Tableau de bord Trading',
+            },
+          ],
+          // Raccourcis d'appui long sur l'icône (Android) : les quatre gestes les plus fréquents,
+          // vers les hashes canoniques du routeur (`src/lib/router.svelte.ts`).
+          shortcuts: [
+            { name: 'Trading', url: `${BASE}#/trading` },
+            { name: 'Trades', url: `${BASE}#/trading/trades` },
+            { name: "Vue d'ensemble", url: `${BASE}#/` },
+            { name: 'Importer', url: `${BASE}#/invest/import` },
+          ],
+          // Une seconde ouverture réutilise la fenêtre déjà lancée plutôt que d'en empiler une
+          // nouvelle (raccourcis, liens partagés) ; `auto` en repli sur les navigateurs qui ne
+          // connaissent que certaines valeurs de `client_mode` (tableau : la première valable gagne).
+          launch_handler: { client_mode: ['navigate-existing', 'auto'] },
         },
         workbox: {
           // Seuls les assets de l'app sont mis en cache ; jamais les données ni les API de prix.
@@ -192,7 +233,7 @@ export default defineConfig(({ mode }) => {
            * Contrepartie assumée : hors ligne, un actif jamais affiché montre ses initiales, ce que
            * `CoinBadge` sait déjà faire.
            */
-          globIgnores: ['**/icons/*.svg'],
+          globIgnores: ['**/icons/*.svg', '**/screenshots/*.png'],
           navigateFallback: `${BASE}index.html`,
           runtimeCaching: [
             {
@@ -298,7 +339,7 @@ export default defineConfig(({ mode }) => {
            * sync/`, mesurée à 99,14 % de lignes juste à côté. `functions`/`branches` n'ont pas eu
            * besoin de baisser (4,43 % et 0,38 % mesurés, planchers inchangés).
            *
-           * Même geste à la boîte aux lettres synchronisée (décision n° 183, `docs/DECISIONS.md`,
+           * Même geste à la boîte aux lettres synchronisée (décision n° 185, `docs/DECISIONS.md`,
            * 22/09/2026) : `app.svelte.ts` gagne le câblage de `syncMailbox`/`buildMailboxDeposit`
            * (démarrage, retour au premier plan, anti-rebond 60 s, écran `Synchro.svelte`) — encore
            * de la circuiterie, la LOGIQUE restant dans `src/lib/storage/mailbox-sync.ts`, mesurée à

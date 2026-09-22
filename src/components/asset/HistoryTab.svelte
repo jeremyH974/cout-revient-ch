@@ -9,6 +9,22 @@
   const price = (v: Parameters<typeof fmtPriceBase>[0]): string => fmtPriceBase(v, app.currency);
 
   let { position }: { position: PositionReport } = $props();
+
+  // Un historique actif peut porter des centaines d'opérations : affichage progressif, remis à
+  // zéro quand on change d'actif (même motif que les exécutions de trading/TradeDetail.svelte).
+  const OPS_PAGE = 20;
+  let shownOps = $state(OPS_PAGE);
+  $effect(() => {
+    void position.asset;
+    shownOps = OPS_PAGE;
+  });
+  const visibleHistory = $derived(position.history.slice(0, shownOps));
+  const remainingOps = $derived(position.history.length - shownOps);
+  const moreOps = $derived(
+    `Afficher ${Math.min(OPS_PAGE, remainingOps)} de plus ` +
+      `(${remainingOps} restante${remainingOps > 1 ? 's' : ''})`,
+  );
+
   const labels: Record<string, string> = {
     buy: 'ACHAT',
     sell: 'VENTE',
@@ -35,7 +51,7 @@
   const zeroCost = (h: HistoryEntry): boolean => h.valueEur !== null && h.valueEur.eq(ZERO);
 </script>
 
-{#each position.history as h (h.eventId + h.kind)}
+{#each visibleHistory as h (h.eventId + h.kind)}
   <article
     class="op"
     class:sell={h.kind === 'sell' || h.kind === 'withdrawal' || h.kind === 'migration-out'}
@@ -95,6 +111,11 @@
 {:else}
   <p class="muted empty">Aucune opération.</p>
 {/each}
+{#if remainingOps > 0}
+  <button class="secondary more" type="button" onclick={() => (shownOps += OPS_PAGE)}>
+    {moreOps}
+  </button>
+{/if}
 
 <style>
   .op {
@@ -131,5 +152,8 @@
   }
   .empty {
     padding: var(--space-3) var(--space-4);
+  }
+  .more {
+    margin: var(--space-3) var(--space-4);
   }
 </style>

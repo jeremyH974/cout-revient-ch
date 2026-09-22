@@ -5,6 +5,7 @@
   import { WINDOWS, correlate, type PairCorrelation } from '$lib/macro/correlation';
   import { firstCommonDay, overlayGeometry, rebase } from '$lib/macro/overlay';
   import { fromCompact, type DayValue } from '$lib/macro/stats';
+  import Switch from '../shared/Switch.svelte';
   import { app } from '../../state/app.svelte';
   import { history } from '../../state/history.svelte';
 
@@ -169,10 +170,11 @@
       </p>
     {/if}
 
-    <label class="toggle">
-      <input type="checkbox" bind:checked={showOverlay} />
-      Superposer ma courbe de rendement à un indicateur
-    </label>
+    <Switch
+      checked={showOverlay}
+      onCheckedChange={(v) => (showOverlay = v)}
+      label="Superposer ma courbe de rendement à un indicateur"
+    />
 
     {#if showOverlay}
       <div class="overlay">
@@ -280,13 +282,6 @@
   }
   .coefficient {
     font-size: var(--fs-sm);
-  }
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--fs-sm);
-    min-height: var(--tap);
   }
   .overlay {
     display: grid;

@@ -281,6 +281,32 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
+- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 184) : capture de
+  `beforeinstallprompt` **au chargement du module** (posée en tête de `main.ts`, avant
+  `app.init()`, qui est asynchrone et laisserait échapper un événement précoce),
+  `preventDefault()` pour supprimer la mini-infobar native, invite gardée en mémoire de module et
+  rejouable par `promptInstall()`. Module framework-agnostic sur le patron de
+  `$lib/net/local-only.ts` (`scope` injectable, `resetInstallPromptForTests`) : le composant
+  Svelte (bouton « Installer l'application » de `routes/Settings.svelte`) porte l'état réactif
+  lui-même, abonné par `onInstallableChange`. Masqué si l'app tourne déjà en
+  `display-mode: standalone` (`isStandalone`) ou si l'événement n'est jamais venu — jamais en
+  variante privée, qui n'a pas de manifeste (`disable: isPrivate`, aucun `beforeinstallprompt`
+  possible).
+- **Manifeste** (`vite.config.ts`, bloc `VitePWA({ manifest: … })`, P124) — `id` aligné sur
+  `start_url`/`scope` (le sous-chemin GitHub Pages, décision n° 32 ; sans lui, vite-pwa dérive un
+  `id` implicite du seul `start_url`, qui casserait si celui-ci gagnait un jour une requête,
+  vite-pwa/vite-plugin-pwa#263), `screenshots` (deux captures `form_factor: "narrow"`, viewport
+  390×844 à DPR 2 — donc `sizes: "780x1688"`, les pixels physiques du fichier, pas le viewport
+  logique —, écrites par `scripts/generate-screenshots.ts` — `npm run screenshots` — sur les
+  données d'exemple, jamais un export réel ; exclues du précache par `globIgnores`), `shortcuts` (Trading,
+  Trades, Vue d'ensemble, Importer, vers les hashes canoniques de `src/lib/router.svelte.ts`) et
+  `launch_handler: { client_mode: ['navigate-existing', 'auto'] }` (réutilise la fenêtre déjà
+  ouverte). Le générateur de captures construit le build public, sert `dist/` par `vite preview`
+  sur un port dédié (`SCREENSHOTS_PORT`, jamais celui de `npm run e2e`), et rejoue `stubNetwork` +
+  `openDemo` comme les specs E2E.
+- `src/lib/format/bytes.ts` — `fmtBytes`, seul format hors du domaine dans `src/lib/format` :
+  `navigator.storage.estimate()` rend des octets en `number` (une taille de stockage, jamais un
+  montant ni une quantité de l'application), donc hors de la règle « chaînes décimales + `Big` ».
 - `src/routes`, `src/components` — présentation uniquement. Navigation en cinq espaces
   (`src/lib/spaces.ts`, registre `SPACES` — **source de vérité**, croisée avec la liste ci-dessous
   par `tests/integration/architecture-doc.test.ts`), chacun avec son libellé, sa couleur d'accent et
@@ -312,6 +338,29 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     État vide tant qu'aucun compte Hyperliquid n'est déclaré, puis tableau de bord — équité, P&L par
     période, positions ouvertes, avoirs spot, derniers fills, réconciliation permanente, et
     l'interrupteur « Prix en direct », opt-in (`pricing/live.ts`).
+
+    **La liste des trades filtre et synthétise (P121), et s'annote en trois gestes (P122).**
+    `routes/trading/Trades.svelte` applique `domain/trading/filter.ts` (recherche + facettes en
+    puces — sens, issue, setup, erreur, tag, compte — dont quatre visibles et le reste dans une
+    feuille « Filtres (n) ») et affiche `summarizeFiltered` au-dessus de la liste : exactement la
+    recette de `TradeStats.svelte`, pour que les deux écrans ne puissent pas se contredire sur le
+    même sous-ensemble. L'état du filtre vit dans `ui.tradeFilter` (réglages de l'appareil), comme
+    `ui.period` et pour la même raison (décisions n° 156-157 et n° 183) : il survit ainsi à
+    l'aller-retour vers la fiche d'un trade. `components/trading/JournalSheet.svelte` (sur
+    `Sheet.svelte`) ouvre une annotation rapide — setup, erreurs, tags, note, une ligne de revue —
+    depuis chaque ligne et depuis le haut de `TradeDetail.svelte` ; « Enregistrer » fusionne ce
+    patch dans l'entrée existante (`app.saveJournal`), jamais ne la remplace, et un brouillon non
+    enregistré vit en mémoire (une carte hors de `app.state`, perdue au rechargement) pour être
+    restitué à la réouverture. Le retour Android (et le bouton retour du navigateur) referme la
+    feuille sans quitter l'écran (`history.pushState`/`popstate`, jamais de `hashchange` sur la
+    même URL) ; une fermeture par la croix consomme l'entrée d'historique posée.
+    `components/trading/TagField.svelte` est le champ de saisie des tags (motif APG « combobox
+    with list autocomplete », suggestions par fréquence via `tagSuggestions`, normalisation à
+    l'écriture par `domain/trading/tags.ts` — jamais réécrite dans le composant).
+    `components/trading/TagManageSheet.svelte` liste l'usage des tags, renomme (fusionne si la
+    cible existe déjà, `renameTag`, une seule mutation de l'état via `app.renameJournalTag`) et
+    supprime avec confirmation ; ouverte depuis la feuille de filtres, sans route à elle.
+
   - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
     `reconciliation`, `synchro`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
     déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM
@@ -328,7 +377,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
     l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
     (`derive/tax-forecast.ts`, décision n° 171). `routes/Synchro.svelte` (`#/synchro`, décision
-    n° 183) est l'écran de la boîte aux lettres chiffrée (P125) : dossier synchronisé côté PC
+    n° 185) est l'écran de la boîte aux lettres chiffrée (P125) : dossier synchronisé côté PC
     (File System Access), réception/partage côté Android, état par appareil pair et dernier rapport
     de fusion — voir `docs/backup-format.md` § Enveloppe v3.
 
@@ -378,6 +427,30 @@ affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le m�
   22 px, mais la zone cliquable est agrandie par un pseudo-élément à ≥ 24 px partout et ≥ 44 px
   (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
   grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
+
+  **P124 (décision n° 184)** ajoute deux primitives sur le même principe — un endroit, jamais un
+  style redéfini par écran :
+
+  - **Interrupteur** (`src/components/shared/Switch.svelte`) : `<input type="checkbox"
+role="switch">` dans un `<label>` qui porte aussi le texte — toute la ligne bascule le
+    contrôle, comportement natif, aucun JS de clic à écrire. `checked`/`onCheckedChange` plutôt
+    qu'un `bind:checked` Svelte : la plupart des appelants lisent la valeur du store et la
+    modifient par un mutateur (`app.setUi`…), jamais un `$state` local. Cible ≥ 44 px
+    (`var(--tap)`) sous `(any-pointer: coarse)`, ≥ 24 px sinon, par le `min-height` de la ligne —
+    pas par le glyphe du commutateur, qui reste petit. Réservé aux réglages BINAIRES À EFFET
+    IMMÉDIAT ; les listes à choix multiples et les cases de confirmation (« ces deux fichiers
+    portent sur le même périmètre », `routes/invest/SecondOpinion.svelte`) restent des cases à
+    cocher ordinaires — le rôle switch suppose un état qui bascule seul, pas un consentement donné
+    une fois (APG). Onze conversions hors Trading (Réglages, Comptes, Alertes, Marché, partage).
+  - **Résumé de section repliable** (`src/app.css`, règles globales `summary`/`summary h2`) : le
+    patron déjà utilisé par `routes/wealth/Loans.svelte` (« le titre vit DANS le résumé, pour que
+    le triangle le commande ») — `display` n'est volontairement pas touché, pour garder le
+    marqueur natif, et la cible tactile vient du `padding`, jamais d'une hauteur qui entrerait en
+    conflit avec le contenu. `routes/Settings.svelte` (neuf sections en `<details>`, la première —
+    Données — ouverte, un sommaire d'ancres en tête qui ouvre la section visée par script plutôt
+    que par le hash du routeur — `#coffre` n'est pas une route, et un `hashchange` y renverrait à
+    la Vue d'ensemble) en est le principal appelant.
+
 - **Règle de formatage** (`eslint.config.js`) : `no-restricted-syntax` interdit `.toFixed(` et
   `.toLocaleString(` dans `src/routes/**` et `src/components/**` — le formatage d'affichage
   (arrondi half-up, virgule française) n'a qu'un seul endroit, `src/lib/format`. Les exceptions

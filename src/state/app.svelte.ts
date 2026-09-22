@@ -91,6 +91,7 @@ import {
   type ManualTrade,
 } from '$lib/domain/trading/journal';
 import { buildRoundTrips } from '$lib/domain/trading/round-trips';
+import { renameTag } from '$lib/domain/trading/tags';
 import {
   type Account,
   type AccountId,
@@ -583,6 +584,15 @@ export class AppState {
     if (isEmptyJournalEntry(entry)) delete next[entry.tradeId];
     else next[entry.tradeId] = entry;
     this.state.journal = next;
+  }
+
+  /**
+   * Renomme (ou, `newLabel` vide, supprime) un tag PARTOUT dans le journal — une seule mutation
+   * de l'état, jamais une par entrée touchée (`renameTag`, P122). Fusionne silencieusement si le
+   * nom cible existe déjà.
+   */
+  renameJournalTag(sourceKey: string, newLabel: string): void {
+    this.state.journal = renameTag(this.state.journal, sourceKey, newLabel);
   }
 
   addManualTrade(input: Omit<ManualTrade, 'id'>): ManualTrade {

@@ -6174,7 +6174,190 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      conserver l'historique complet des instantanés, alors que l'objectif ici est de converger, pas
      de proposer une résolution manuelle de conflit à l'écran.
 
-183. **La boîte aux lettres synchronisée : un orchestrateur pur au-dessus d'un dossier abstrait,
+183. **Des trades qu'on retrouve, et qu'on annote en trois gestes : filtres, synthèse du filtre et
+     tags vivants** (P121-P122, 22/09/2026).
+
+     **Le filtre vit dans les réglages de l'appareil, pas dans l'URL.** Même choix que la plage
+     d'analyse et pour la même raison (décisions n° 156-157) : le routeur est à hash sans modèle de
+     requête, aucune donnée ne voyage dans une URL partagée, et le seul bénéfice qu'une URL
+     apporterait — le bouton retour — est couvert autrement ici, par le piège d'historique de la
+     feuille d'annotation (ci-dessous). `ui.tradeFilter` est un champ additif de plus dans
+     `UiSettings`, assaini champ par champ dans `sanitizeState` : listes de chaînes plafonnées au
+     même plafond que le journal (`textList`, 40 entrées), `sides`/`outcomes` en LISTE BLANCHE —
+     jamais une chaîne arbitraire réinjectée dans `applyFilter` —, un identifiant de compte mal
+     formé écarté seul plutôt que d'invalider tout le filtre. Vivre dans les réglages plutôt que
+     dans un état de route est justement ce qui le fait **survivre** à l'aller-retour vers la fiche
+     d'un trade — le vrai besoin derrière la demande initiale d'un bouton retour.
+
+     **Sémantique des facettes, standard des praticiens (TradeZella, TradesViz, Edgewonk) : ET
+     entre facettes, OU à l'intérieur d'une facette.** Cocher « Long » et « Perdant » retient les
+     longs perdants ; cocher « Long » et « Short » retient tout. `domain/trading/filter.ts` (déjà
+     posé et sous test de mutation, décision antérieure de cette même session) porte ce prédicat,
+     `facetOptions` peuple les puces à partir de l'ensemble NON filtré — les options ne
+     disparaissent pas à mesure qu'on filtre, un choix de lisibilité plutôt que de narrowing
+     progressif — et `summarizeFiltered` applique la fenêtre de période **seulement** au sous-
+     ensemble déjà filtré, exactement la recette de `TradeStats.svelte:31-42`. La liste elle-même
+     n'est PAS bornée par la période : un trade ouvert plus ancien que la fenêtre reste visible
+     dans un journal, quand un rapport, lui, a raison de le taire.
+
+     **La feuille d'annotation fusionne un patch, jamais toute l'entrée.** `JournalSheet.svelte`
+     n'édite que setup, erreurs, tags, note et une ligne de revue — la thèse et le plan restent la
+     part du formulaire complet de la fiche, qui gagne simplement le champ de tags. « Enregistrer »
+     recompose `{ ...app.journalOf(id), ...patch }` avant `app.saveJournal` : sans ce mélange, la
+     feuille rapide effacerait silencieusement la thèse déjà écrite depuis la fiche.
+
+     **Brouillon en mémoire, hors de `app.state` (décision n° 45 : brouillon automatique ET action
+     explicite).** Une carte `Map` tenue au niveau du module (`<script module>`), jamais un champ
+     réactif de l'application : elle ne doit ni se sauvegarder, ni se synchroniser entre appareils
+     (P120), ni survivre à un rechargement — un brouillon n'est pas une donnée, c'est un filet entre
+     deux gestes. `eslint-disable` explicite sur le `Map` (la règle `svelte/prefer-svelte-reactivity`
+     suppose par défaut qu'une carte mutable veut être réactive ; celle-ci ne le veut justement pas).
+
+     **Le piège d'historique, vérifié sur les sources primaires du jour** (MDN, « Window: popstate
+     event » et « History: pushState() », consultées le 22/09/2026). `pushState()` ne déclenche
+     jamais lui-même `popstate` ni `hashchange` ; `popstate` ne se déclenche qu'à une navigation
+     réelle (retour, `history.back()`). À l'ouverture, la feuille pousse une entrée sur la MÊME URL
+     (aucun `hashchange`, donc le routeur ne bouge pas) ; le retour Android ou navigateur déclenche
+     `popstate`, que la feuille intercepte pour se refermer sans quitter l'écran. Une fermeture
+     DEPUIS la feuille (croix, fond — sauf `dismissible={false}`, ajouté à `Sheet.svelte` pour
+     cette seule feuille, décision ci-dessous —, Échap natif du `<dialog>`) consomme au contraire
+     l'entrée posée via `history.back()`, pour ne pas en laisser traîner une qui ne fermerait plus
+     rien au retour suivant — sauf si l'URL a déjà changé entre-temps (l'utilisateur a quitté
+     l'écran par un autre lien pendant que la feuille était ouverte) : revenir en arrière romprait
+     ALORS cette navigation-là, donc l'entrée orpheline est acceptée plutôt que corrigée à l'aveugle.
+     **Deux fermetures, pas trois** (NN/g, fermetures accidentelles de superpositions, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) :
+     `Sheet.svelte` gagne une prop `dismissible` (`true` par défaut, inchangé pour ses six autres
+     usages) que seule `JournalSheet` met à `false` — un tapotement à côté ne doit pas faire perdre
+     une saisie que le brouillon, de toute façon, aurait déjà mise à l'abri, mais autant ne pas
+     entraîner l'habitude.
+
+     **Un dialogue qui se nomme.** `Sheet.svelte` ne portait ni `aria-label` ni `aria-labelledby` :
+     un lecteur d'écran qui y entrait n'annonçait rien qui la distingue d'une autre feuille du même
+     écran — le motif APG « Dialog (Modal) » l'exige. `$props.id()` pose un identifiant stable,
+     `aria-labelledby` le relie au `<h2>{title}</h2>` déjà présent : un correctif transverse à ses
+     sept usages, jamais un ajout propre à cette seule feuille.
+
+     **Les tags se normalisent à l'ÉCRITURE, jamais à la lecture.** `domain/trading/tags.ts` (posé
+     plus tôt dans cette session, sous test de mutation) distingue le libellé affiché (espaces
+     réduits, casse conservée) de la clé de comparaison (NFKD sans diacritiques, minuscules
+     françaises) : « Breakout », « breakout » et « bréakout » partagent une clé, jamais deux
+     entrées. `TagField.svelte` est le seul point de saisie (motif APG combobox with list
+     autocomplete — `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`,
+     `aria-autocomplete="list"`, popup `role="listbox"`/`role="option"` ; W3C ARIA Authoring
+     Practices Guide, motif combobox, consulté le 22/09/2026, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) ; un premier brouillon posait un
+     `<button>` DANS chaque `role="option"` — deux
+     éléments interactifs imbriqués, que le motif proscrit — corrigé en rendant l'option elle-même
+     cliquable. Renommer (`TagManageSheet.svelte`) fusionne s'il cible un nom déjà pris, en UNE
+     mutation de l'état (`app.renameJournalTag`, qui n'existait pas : `saveJournal` ne referait
+     qu'une entrée à la fois).
+
+     **Hors périmètre, à dessein.** La distance à la liquidation (P123) a son module pur
+     (`domain/trading/liquidation.ts`, posé et testé plus tôt dans cette session) ; son affichage
+     sur les positions ouvertes appartient à `PositionRow.svelte`/`Trading.svelte`, travaillés EN
+     PARALLÈLE par un autre agent sur cette même branche — n'y pas toucher était la consigne, pas
+     un oubli.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause puis restaurée à
+     l'octet près : le bandeau de `Trades.svelte` bricolé pour résumer `trips` (non filtré) plutôt
+     que `filtered` — la spec attendait 1 trade clos, en a reçu 4 ; `collapseSpaces` de
+     `domain/trading/tags.ts` bricolée pour ne plus réduire les espaces internes (`tags.test.ts`
+     rougit sur `'Breakout    Range'` reçu là où `'Breakout Range'` était attendu) ; le gestionnaire
+     `popstate` de `JournalSheet.svelte` bricolé pour ne plus fermer la feuille (`closedByBack =
+true` posé, `sheetOpen = false` retiré) — la spec `page.goBack()` rougit en constatant le
+     dialogue toujours visible au lieu de fermé.
+
+184. **Le téléphone : écran et installation Android** (22/09/2026).
+
+     **Le constat.** L'application n'avait jamais été pensée au doigt sur un petit écran : `100vh`
+     comptait la barre d'adresse de Chrome Android dépliée, laissant un bandeau vide au pied de
+     l'écran une fois repliée ; les interrupteurs de Réglages, d'Alertes et du Marché étaient des
+     cases à cocher nues, sans nom accessible fiable ni cible tactile garantie ; Réglages était une
+     seule page de neuf sections empilées, sans repère ; Marché montrait tout son calendrier à
+     plat ; la fiche actif affichait tout l'historique d'un actif d'un coup, jusqu'à des centaines
+     de lignes ; et le manifeste n'avait ni `screenshots`, ni `shortcuts`, ni bouton d'installation
+     — Chrome proposait sa boîte minimale, sans aperçu.
+
+     **Le sommaire d'ancres ne pouvait pas être un lien `#`, à cause du routeur.** Première version :
+     `<a href="#donnees">`. Le routeur écoute `hashchange` sur TOUTE la fenêtre
+     (`src/lib/router.svelte.ts`), et `parseHash` ne reconnaît que ses propres têtes de route
+     (`invest`, `trading`, `settings`…) ; un hash inconnu comme `#donnees` retombe sur son cas par
+     défaut — la Vue d'ensemble. Cliquer sur le sommaire aurait donc QUITTÉ Réglages. La correction
+     n'est pas dans le routeur (`#donnees` n'a pas à devenir une route) mais dans le lien lui-même :
+     `onclick` fait `preventDefault()` puis ouvre le `<details>` visé et l'amène en vue par script
+     (`el.open = true; el.scrollIntoView(...)`), sans jamais toucher `location.hash`. Le `href="#…"`
+     reste écrit — accessible name, curseur, ouverture dans un nouvel onglet au clic du milieu —
+     mais le clic normal ne le suit jamais.
+
+     **`role="switch"` plutôt qu'un composant qui repeint toutes les cases à cocher.** Les listes à
+     choix multiples (comptes on-chain à cocher pour export, cases de la déclaration fiscale) et les
+     cases de confirmation (« ces deux fichiers portent sur le même périmètre »,
+     `routes/invest/SecondOpinion.svelte`) restent des cases ordinaires : un switch suppose un état
+     BINAIRE qui bascule seul et prend effet immédiatement (APG), pas un choix parmi plusieurs ni un
+     consentement donné une fois. Onze conversions retenues sur ce critère, aucune dans l'espace
+     Trading (lot parallèle). `Switch.svelte` garde `<input type="checkbox" role="switch">` — le nom
+     accessible et le comportement clavier natifs (Espace bascule, pas de rôle à réinventer) — dans
+     un `<label>` qui porte aussi le texte, pour que toute la ligne, pas seulement le rond, réponde
+     au clic. `checked`/`onCheckedChange` plutôt qu'un `bind:checked` : la quasi-totalité des
+     appelants ne détiennent pas la valeur en `$state` local, ils la lisent du store et la modifient
+     par un mutateur (`app.setUi`, `app.setAlertsSettings`…) — recopier ce patron partout coûte moins
+     qu'inventer un binding bidirectionnel que personne n'utilise.
+
+     **`svh` : la contre-épreuve a trouvé un vrai bug, pas un doute théorique.** Première version :
+     `min-height: 100vh; min-height: 100svh;` dans LA MÊME règle — le patron de repli habituel,
+     qu'un navigateur qui ne comprend pas `svh` ignore au parsage, laissant `100vh` en vigueur. Sur
+     le CSS **construit** (`npx vite build`, jamais supposé), une seule ligne survivait :
+     `min-height:100svh`. Le minifieur de Vite élague une déclaration qu'il juge morte — à raison
+     pour un navigateur qui comprend les deux valeurs, à tort pour celui qui ne comprend que la
+     première, exactement le cas que le repli existe pour couvrir. La correction isole les deux
+     dans des règles distinctes (`@supports (height: 100svh) { .app { min-height: 100svh; } }`),
+     qu'aucun minifieur ne fusionne parce qu'il ne peut pas évaluer la condition au moment de la
+     construction. Le test qui l'a trouvé (`tests/e2e/mobile.spec.ts`) lit le CSS servi, pas le
+     style calculé : `getComputedStyle` rend la même valeur en pixels dans les deux versions,
+     Chromium sous Playwright n'ayant pas de barre d'adresse à replier.
+
+     **Marché : l'en-tête de jour reste DANS la carte, pour ne rien casser des specs existantes.**
+     `market.spec.ts` compte des `article.card.day` avant et après le dépli du passé ; restructurer
+     en liste plate aurait cassé ces sélecteurs sans rien gagner d'essentiel. L'en-tête colle donc
+     PAR CARTE (`position: sticky`), fond et bord perdus repris par une marge négative — depuis la
+     décision n° 181, `.card` porte un padding par défaut, qu'un en-tête plein-bord doit annuler
+     avant de reposer le sien. Le décalage vertical (`top: 64px`) approxime la hauteur de la barre
+     d'application à deux lignes (titre + fraîcheur) : à vérifier au doigt, la valeur exacte dépend
+     du rendu des polices du téléphone. Le filtre par défaut sur « à venir » et le bouton qui révèle
+     le passé existaient déjà (décision antérieure, non datée dans ce fichier) ; ce qui manquait
+     était la preuve que rien du passé n'entre dans le DOM avant le clic — pas seulement masqué en
+     CSS —, désormais un test dédié.
+
+     **Fiche actif : vingt opérations, comme les exécutions d'un trade.** Même seuil, même libellé
+     de bouton (« Afficher N de plus (M restante(s)) »), même remise à zéro sur changement de clé
+     (`position.asset` plutôt que `id` de trade) que `trading/TradeDetail.svelte` — un motif qui
+     existait déjà une fois n'avait pas à en inventer un second.
+
+     **Installation Android.** `id` aligné sur `start_url`/`scope` plutôt que laissé implicite : un
+     `id` dérivé du seul `start_url` casserait si celui-ci gagnait un jour une requête
+     (vite-pwa/vite-plugin-pwa#263). Les captures d'écran ne sont ni prises à la main ni dérivées
+     d'un export réel : `scripts/generate-screenshots.ts` construit le build public, le sert par
+     `vite preview` sur un port DÉDIÉ (jamais celui de `npm run e2e`, qu'un autre worktree peut
+     tenir), et rejoue exactement `stubNetwork` + `openDemo` des specs E2E — rejouable, jamais une
+     image qui périme en silence. `beforeinstallprompt` est capté **à l'import du module**
+     (`src/lib/pwa/install.ts`, posé en tête de `main.ts`, avant `app.init()` qui est asynchrone) :
+     un `onMount` de composant l'aurait manqué si l'événement arrivait avant que Réglages ne soit
+     jamais monté. Module framework-agnostic sur le patron de `$lib/net/local-only.ts` (`scope`
+     injectable, état de module, fonction de réinitialisation pour les tests) plutôt qu'un état
+     Svelte : rien ici ne dépend du DOM au-delà d'`addEventListener`, et le composant qui l'affiche
+     porte lui-même son `$state`, abonné par callback.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause, puis restaurée :
+     le filtre « à venir » du Marché (un `{#if showPast}` remplacé par un affichage inconditionnel
+     fait échouer « aucun évènement passé dans le DOM avant le bouton » en comptant les cartes du
+     passé) ; la cible des interrupteurs (`min-height: var(--tap)` retiré du média `(any-pointer:
+coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré) ; le champ `id` du
+     manifeste (retiré de `vite.config.ts`, le test échoue en nommant `json.id` `undefined`) ; et le
+     repli `svh` lui-même (revenu à la déclaration unique dans la même règle : le test qui lit le
+     CSS construit échoue en nommant l'absence de `min-height:100vh`).
+
+185. **La boîte aux lettres synchronisée : un orchestrateur pur au-dessus d'un dossier abstrait,
      jamais l'inverse** (22/09/2026).
 
      ## Ce que ce chantier ajoute à P125

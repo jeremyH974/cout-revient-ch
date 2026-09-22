@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { emptyLendingState } from '../domain/lending/types';
+import { EMPTY_FILTER } from '../domain/trading/filter';
 import type {
   Account,
   AccountId,
@@ -193,6 +194,9 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         breakevenSizes: {},
         twelveDataApiKey: null,
         alphaVantageApiKey: null,
+        // Le filtre de la liste des trades (P121, décision n° 183) : encore un réglage partagé
+        // additif, vide tant qu'une sauvegarde d'avant n'en connaissait pas la forme.
+        tradeFilter: { ...EMPTY_FILTER },
       },
       // Un quatrième champ additif (décision n° 109) : le nom commercial d’un actif, que le
       // relevé d'un courtier fournit et qu'une sauvegarde de 2026 ne pouvait pas connaître.

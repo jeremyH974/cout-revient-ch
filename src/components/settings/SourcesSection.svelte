@@ -4,8 +4,8 @@
   const required = requiredAttributions();
 </script>
 
-<section class="card group" aria-labelledby="sources-title">
-  <h2 id="sources-title">Sources des données</h2>
+<details class="card group" id="sources" aria-labelledby="sources-title">
+  <summary><h2 id="sources-title">Sources des données</h2></summary>
   <p class="lead">
     L'application n'a pas de serveur : elle interroge directement ces services depuis votre
     navigateur. Les trois premières mentions ci-dessous sont exigées par leurs conditions
@@ -31,7 +31,7 @@
       </li>
     {/each}
   </ul>
-</section>
+</details>
 
 <style>
   .group {
@@ -58,7 +58,16 @@
     font-size: var(--fs-sm);
     font-weight: 600;
   }
+  /*
+   * Cible ≥ 24 px de zone (WCAG 2.2 SC 2.5.8, P124) : un texte seul à `--fs-sm` tient sur une
+   * ligne d'environ 20 px, sous le plancher. Trouvé par les tests de Réglages dépliés
+   * (`tests/e2e/a11y.spec.ts`), qui sont les seuls à rendre ces liens visibles pour axe — repliés
+   * par défaut, ils n'atteignaient jamais l'arbre d'accessibilité vérifié.
+   */
   .notices a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
     color: var(--fg);
   }
   .sources {
@@ -74,6 +83,9 @@
     min-width: 0;
   }
   .sources a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
     font-size: var(--fs-sm);
     color: var(--fg);
   }

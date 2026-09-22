@@ -71,8 +71,8 @@
   }
 </script>
 
-<section class="card group">
-  <h2>Coffre : chiffrer les données de cet appareil</h2>
+<details class="card group" id="coffre">
+  <summary><h2>Coffre : chiffrer les données de cet appareil</h2></summary>
 
   {#if app.vaultInstalled}
     <p class="muted small">
@@ -216,7 +216,7 @@
     ne protège pas un écran déjà déverrouillé : à ce moment-là, vos données sont en mémoire, en clair,
     par nécessité.
   </p>
-</section>
+</details>
 
 <style>
   .group {

@@ -238,7 +238,19 @@
   .app {
     display: flex;
     flex-direction: column;
+    /* Repli avant le support de `svh` (P124) : Chrome Android compte `vh` la barre d'adresse
+       DÉPLIÉE, laissant un bandeau vide sous le pied de page une fois la barre repliée. `svh`
+       (« small viewport height », toujours la plus petite des deux) corrige ça sans jamais
+       provoquer le contraire — un manque d'espace quand la barre se déploie.
+       `@supports` plutôt que deux déclarations dans la même règle : le minifieur de Vite élague
+       la première comme « morte », qui ne l'est que pour un navigateur qui comprend `svh` —
+       constaté sur le CSS construit, pas supposé. */
     min-height: 100vh;
+  }
+  @supports (height: 100svh) {
+    .app {
+      min-height: 100svh;
+    }
   }
   main {
     flex: 1;

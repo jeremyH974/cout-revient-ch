@@ -2,7 +2,16 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <!--
+      `interactive-widget=resizes-content` (P124) : sur Chrome Android, le clavier virtuel
+      redimensionne la mise en page au lieu de la recouvrir (défaut depuis Chrome 108,
+      `resizes-visual` — la Visual Viewport bouge, pas la Layout Viewport, donc un champ tenu par
+      `position: fixed` reste sous le clavier). `viewport-fit=cover` reste posé pour les encoches.
+    -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>Coût de revient CH — PRU et plus-values crypto (export Coinhouse)</title>
     <meta
       name="description"
