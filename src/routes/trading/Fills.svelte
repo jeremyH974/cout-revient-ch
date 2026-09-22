@@ -131,12 +131,5 @@
   }
   .secondary {
     margin-top: var(--space-3);
-    min-height: var(--tap);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--fg);
-    font-weight: 600;
   }
 </style>

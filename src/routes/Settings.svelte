@@ -23,6 +23,8 @@
     isEncryptedBackup,
     type EncryptedBackup,
   } from '$lib/storage/encryption';
+  import { summarizeMergeReport } from '$lib/storage/sync/merge';
+  import { fmtMergeSummary } from '$lib/format/sync';
   import Sheet from '../components/shared/Sheet.svelte';
   import type { UiSettings } from '$lib/storage/schema';
   import { app } from '../state/app.svelte';
@@ -127,7 +129,9 @@
     const result = app.restoreBackup(text, restoreMode);
     if (!result.ok) return toasts.push(result.error, 'error');
     toasts.push(
-      restoreMode === 'replace' ? 'Sauvegarde restaurée.' : 'Sauvegarde fusionnée.',
+      result.report
+        ? fmtMergeSummary(summarizeMergeReport(result.report))
+        : 'Sauvegarde restaurée.',
       'success',
     );
     void app.refreshPrices();
@@ -242,6 +246,13 @@
         ></select
       >
     </div>
+    {#if restoreMode === 'merge'}
+      <p class="muted small">
+        En fusionnant : la version la plus récente de chaque élément l'emporte, quel que soit
+        l'appareil qui l'a écrite ; les suppressions sont reportées. Les réglages et les cours en
+        cache restent ceux de cet appareil ; les règles d'alerte, elles, sont fusionnées.
+      </p>
+    {/if}
     <p class="muted small">
       <strong>Sauvegarde JSON</strong> — tout, pour revenir ici. Comptes, réglages, alertes, journal.
       Le fichier qui vous fait retrouver exactement où vous en étiez, dans cette app.
@@ -571,7 +582,6 @@
     margin: 0 auto;
   }
   .group {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }
@@ -622,31 +632,9 @@
     height: 1px;
     opacity: 0;
   }
-  .primary,
-  .secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-  }
   .primary.danger {
     background: var(--loss);
     color: #fff;
-  }
-  .secondary {
-    border: 1px solid var(--border);
-    color: var(--fg);
-  }
-  .secondary:disabled {
-    opacity: 0.5;
   }
   .danger h2 {
     color: var(--loss);

@@ -66,17 +66,23 @@
   </ol>
 
   <div class="actions">
-    <a class="primary" href={router.href({ name: 'import' })}>Importer mon export CSV</a>
+    <a class="primary large" href={router.href({ name: 'import' })}>Importer mon export CSV</a>
     {#if app.hasLending}
       <!-- Depuis que les prêts comptent dans le patrimoine, un compte qui n'a qu'eux ouvre la Vue
            d'ensemble et ne passe plus par ici. Le raccourci sert les retours en arrière — démo
            quittée, notamment — où des prêts existent alors que l'écran d'accueil s'affiche. -->
-      <a class="secondary" href={router.href({ name: 'loans' })}
+      <a class="secondary large" href={router.href({ name: 'loans' })}
         >Voir mes {app.lendingReport.loans.length} prêts</a
       >
     {/if}
-    <a class="secondary" href={router.href({ name: 'add' })}>Saisir mes opérations à la main</a>
-    <button class="secondary" type="button" disabled={loadingDemo} onclick={() => void tryDemo()}
+    <a class="secondary large" href={router.href({ name: 'add' })}
+      >Saisir mes opérations à la main</a
+    >
+    <button
+      class="secondary large"
+      type="button"
+      disabled={loadingDemo}
+      onclick={() => void tryDemo()}
       >{loadingDemo ? 'Chargement…' : 'Essayer avec des données d’exemple'}</button
     >
   </div>
@@ -134,32 +140,6 @@
   .actions {
     display: grid;
     gap: var(--space-2);
-  }
-  .primary,
-  .secondary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 52px;
-    border-radius: var(--radius);
-    font-weight: 700;
-    text-decoration: none;
-  }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-  }
-  .secondary {
-    border: 1px solid var(--border);
-    color: var(--fg);
-    background: transparent;
-    cursor: pointer;
-    font-size: inherit;
-    width: 100%;
-  }
-  .secondary:disabled {
-    opacity: 0.6;
-    cursor: wait;
   }
   .legal {
     font-size: var(--fs-xs);

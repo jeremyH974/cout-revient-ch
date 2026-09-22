@@ -126,7 +126,12 @@
         ? 'Case à cocher'
         : 'Case à montant';
 
-  /** Ce qui part au presse-papiers : le nombre nu, tel qu'il s'affiche, sans symbole ni espace. */
+  /**
+   * Ce qui part au presse-papiers : le nombre nu, tel qu'il s'affiche, sans symbole ni espace —
+   * et surtout sans l'espace insécable de groupement des milliers qu'`Intl` (donc `fmtRatio`)
+   * ajoute : collé dans un champ de la déclaration en ligne, il romprait la saisie.
+   */
+  // eslint-disable-next-line no-restricted-syntax -- presse-papiers vers un champ officiel, jamais un affichage
   const copyText = (value: string): string => roundHalfUp(D(value), 2).toFixed(2).replace('.', ',');
 
   async function copy(code: string, value: string): Promise<void> {

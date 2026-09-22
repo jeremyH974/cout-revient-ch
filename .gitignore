@@ -4,6 +4,9 @@ dist/
 dev-dist/
 coverage/
 reports/
+# Le bac à sable de Stryker : effacé après un relevé réussi, LAISSÉ après un échec — et il porte
+# une jonction `node_modules` vers le dépôt. Retirer la jonction seule avant d'effacer le reste.
+.stryker-tmp/
 .vite/
 *.log
 .env

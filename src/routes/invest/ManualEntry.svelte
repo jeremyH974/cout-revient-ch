@@ -143,7 +143,7 @@
     </select>
   </label>
   <label>Note <input type="text" bind:value={note} placeholder="optionnel" /></label>
-  <button class="primary" type="submit">Ajouter</button>
+  <button class="primary large" type="submit">Ajouter</button>
 </form>
 
 {#if manualList.length > 0}
@@ -213,13 +213,6 @@
   }
   .small {
     font-size: var(--fs-xs);
-  }
-  .primary {
-    min-height: 52px;
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-radius: var(--radius);
-    font-weight: 700;
   }
   .list {
     max-width: 560px;

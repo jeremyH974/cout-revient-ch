@@ -220,7 +220,6 @@
 
 <style>
   .group {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }
@@ -257,36 +256,12 @@
     gap: var(--space-2);
     align-items: center;
   }
-  .primary,
-  .secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-  }
   .primary.danger {
     background: var(--loss);
     color: #fff;
   }
-  .secondary {
-    border: 1px solid var(--border);
-    color: var(--fg);
-  }
   .secondary.danger {
     color: var(--loss);
-  }
-  .primary:disabled,
-  .secondary:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
   .small {
     font-size: var(--fs-xs);

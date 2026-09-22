@@ -523,12 +523,4 @@
     background: var(--bg);
     padding: 0 var(--space-3);
   }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-radius: var(--radius-sm);
-    padding: 0 var(--space-4);
-    font-weight: 700;
-    min-height: var(--tap);
-  }
 </style>

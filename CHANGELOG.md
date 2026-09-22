@@ -7,6 +7,17 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 
 ### Added
 
+- **La fusion entre appareils tient enfin compte du temps.** Restaurer une sauvegarde « en
+  fusionnant » depuis un autre navigateur (variante privée, site public, téléphone…) ne fait plus
+  gagner systématiquement l'appareil courant : pour chaque compte, trade, note de journal, alerte,
+  saisie ou import, c'est désormais la modification la plus récente qui l'emporte — d'où qu'elle
+  vienne — et une suppression reste supprimée tant qu'aucun appareil n'a écrit dessus depuis. Le
+  message affiché après une fusion détaille ce qui a changé (ajouts, mises à jour, suppressions) et
+  signale les rares cas où deux appareils avaient modifié la même chose sans qu'aucun ne le sache
+  encore, auquel cas celui sur lequel vous fusionnez tranche et la décision se propage ensuite
+  normalement. Une sauvegarde plus ancienne, écrite avant cette mise à jour, se fusionne toujours
+  correctement. Voir `docs/backup-format.md` § Fusion et `docs/DECISIONS.md` n° 182.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui
@@ -267,8 +278,31 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   prendre avec réserve ». Les recommandations — copie de secours, prix, opérations à qualifier… —
   tiennent en **une ligne** qui les compte, les nomme et mène à l'écran où les traiter ; leur liste
   complète reste dans les réglages.
+- Dependabot ne propose plus Vitest 5 : sous cette version, le test de mutation ne lance plus aucun
+  test par mutant (97 % → 25 %, défaut connu de Stryker, correctif non publié). L'exclusion tombe
+  dès que Stryker le publie. Les paquets qui s'exigent à la version exacte — Vitest et sa
+  couverture, les deux paquets de Stryker — arrivent désormais dans une seule PR.
 
 ### Fixed
+
+- **Les cartes collaient leur contenu au bord.** Sur la plupart des écrans (Vue d'ensemble,
+  Trading, Comptes, Statistiques, Trades…), le texte d'une carte touchait sa bordure. Chaque carte
+  respire désormais du même espace ; les listes à séparateurs pleine largeur (positions ouvertes,
+  écran « Plus »…) gardent leur bord à bord voulu, séparateurs compris.
+
+- **Dix boutons s'affichaient en texte nu, sans fond ni bordure.** Sur les rapports (prêts,
+  trading, patrimoine), les alertes, les réglages IA et le récit de l'année : un bouton
+  « secondaire » qui se lisait comme un lien perdu au milieu du texte. Tous les boutons de
+  l'application partagent maintenant le même style, avec un contour visible au clavier et une fois
+  désactivés.
+
+- **La barre d'onglets Trading passait sur deux lignes à 390 px**, « Seuil » seul sur la seconde.
+  Les barres d'onglets d'Investissement et de Trading tiennent désormais toujours sur une seule
+  ligne et défilent horizontalement si besoin, l'onglet en cours restant visible.
+
+- **Certaines cibles tactiles étaient sous le plancher recommandé (24 px).** Le bouton d'aide
+  « i » et plusieurs boutons secondaires (« Tester la clé », par exemple) l'atteignent désormais,
+  sans grossir le rond du bouton d'aide.
 
 - **Une plage de dates comptait mal ses bornes.** Choisie à la main, elle oubliait la variation de
   son premier jour sur la Vue d'ensemble ; choisie parmi les présélections, elle comptait un jour

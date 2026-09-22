@@ -106,31 +106,6 @@
     gap: var(--space-2);
     justify-items: start;
   }
-  .primary,
-  .secondary,
-  .empty :global(a.secondary) {
-    border-radius: var(--radius-2);
-    border: 1px solid var(--border);
-    padding: var(--space-2) var(--space-3);
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    text-decoration: none;
-  }
-  .primary {
-    background: var(--accent);
-    color: var(--accent-fg);
-    border-color: transparent;
-  }
-  .secondary,
-  .empty :global(a.secondary) {
-    background: var(--bg-raised);
-    color: var(--fg);
-  }
-  .primary:disabled {
-    opacity: 0.6;
-    cursor: progress;
-  }
   .small {
     font-size: 0.85rem;
   }

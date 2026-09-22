@@ -428,8 +428,10 @@ registre `REPORTS`, les routes par espace) est intact.
 
 **Deux garde-fous manquants ont été posés en chemin**, trouvés en inventoriant les sept points
 de couplage qu'une route neuve oblige à toucher : `App.svelte` ne vérifiait pas qu'une route
-déclarée a bien sa branche, et les deux listes de `a11y.spec.ts` restent tenues à la main. Le
-premier est gardé ; le second ne l’est toujours pas, et le reste de P116 devra le traiter.
+déclarée a bien sa branche, et les deux listes de `a11y.spec.ts` étaient tenues à la main. Le
+premier a été gardé tout de suite ; le second l'a été par P116 (décision n° 178) : les deux listes
+vivent dans `tests/e2e/a11y-routes.ts`, et `tests/integration/a11y-routes.test.ts` fait rougir la
+CI devant une route qui n'y figure pas, ni dans un test dédié.
 
 **Ordre retenu** : P115 → P117 → P116 → P118. Il n'est pas celui du ROI brut : **P115 conditionne
 les trois autres** — tant que `ReportModel` impose quatre tableaux d'investissement, ni le global ni
