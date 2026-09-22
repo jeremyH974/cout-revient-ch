@@ -132,9 +132,55 @@ reviendrait à ne plus rien prouver.
 
 Troisième format, **distinct** de la sauvegarde ci-dessus : celui des fichiers qu'un appareil dépose
 dans un dossier synchronisé (Drive, OneDrive…) pour que les autres appareils du même propriétaire
-les lisent — fondations posées par ce chantier (P125), sans écran de synchronisation ni fusion
-d'état, qui viennent dans une PR suivante. Code : `src/lib/storage/mailbox-envelope.ts` (format,
-chiffrement) et `src/lib/storage/mailbox.ts` (nommage, sélection — pur, sans chiffrement).
+les lisent. Code : `src/lib/storage/mailbox-envelope.ts` (format, chiffrement),
+`src/lib/storage/mailbox.ts` (nommage, sélection — pur, sans chiffrement),
+`src/lib/storage/mailbox-sync.ts` (orchestre UN cycle : lit les pairs, fusionne, dépose, élague —
+pur lui aussi, un dossier abstrait en paramètre), `src/lib/storage/mailbox-folder.ts` (le dossier
+réel, File System Access, et ce que cet appareil retient entre deux sessions), écran
+`src/routes/Synchro.svelte` (`#/synchro`, espace « Plus »).
+
+### Le cycle d'écriture et de lecture
+
+Un cycle (`syncMailbox`) fait toujours les trois dans cet ordre, sur le dossier ENTIER relu à
+chaque fois (jamais un delta) :
+
+1. **Lire.** Lister le dossier, lire chaque fichier, ne garder que ceux dont l'en-tête se lit
+   (`readMailboxHeader` — un fichier vide, tronqué ou d'un autre format est silencieusement écarté,
+   jamais une erreur). Parmi ce qui reste, `selectPeerFiles` garde le plus récent (`seq`) de CHAQUE
+   appareil PAIR — jamais le sien — trié par identifiant d'appareil pour que l'ordre de découverte du
+   système de fichiers ne change rien.
+2. **Fusionner.** Pour chaque pair dont le `seq` dépasse le dernier déjà fusionné (persisté en méta
+   IndexedDB, par appareil pair) : déchiffrer (phrase de synchronisation de la session,
+   `mailbox-session.ts` — jamais enregistrée) puis fusionner via `AppState.restoreBackup(json,
+'merge')`, donc `mergeSynced` (§ Fusion ci-dessous), exactement comme une restauration de
+   sauvegarde classique. Une mauvaise phrase ou un texte chiffré altéré (message indistinguable,
+   voir plus bas) rapporte un statut nommé pour CE pair et n'avance pas son `seq` connu — il sera
+   retenté au cycle suivant — sans jamais bloquer la lecture des autres pairs.
+3. **Déposer, puis élaguer.** Chiffrer l'état COURANT (post-fusion, donc incluant ce qui vient
+   d'être appris à l'étape 2 — la propagation entre pairs qui ne partagent pas le même dossier
+   passe ainsi par un appareil intermédiaire) sous un **nouveau** nom numéroté
+   (`mailboxFileName(device, seq)`, `seq` réservé et persisté AVANT l'écriture — voir plus bas
+   pourquoi), jamais une réécriture. Puis supprimer ses propres fichiers au-delà des deux plus
+   récents (`ownFilesToPrune`, qui ne touche jamais un fichier dont l'en-tête porte un autre
+   appareil) ; une suppression qui échoue (fichier verrouillé par le client cloud en plein envoi)
+   est silencieusement retentée au cycle suivant.
+
+**Pourquoi `seq` est réservé avant l'écriture, pas après son succès.** Le nom d'un fichier ne dépend
+que de l'appareil et de `seq` : réutiliser un `seq` après une écriture ratée risquerait d'écrire
+sous un nom déjà PRIS (par exemple par un envoi du client cloud encore en cours), donc de corrompre
+ou de retarder ce dépôt-là. Un `seq` sauté à la place est inoffensif : ni la sélection ni l'élagage
+ne supposent une suite sans trou.
+
+**Quand un cycle a lieu.** Au démarrage (si un dossier et sa permission sont déjà là), au retour au
+premier plan de l'onglet, 60 secondes après la dernière modification locale (jamais en mode démo,
+jamais sans aucune donnée réelle), et à la demande depuis l'écran. Toujours silencieux (jamais
+d'erreur, jamais de blocage de l'interface) tant que le dossier, sa permission ou la phrase de
+synchronisation manquent — c'est ce qui permet de l'appeler sans condition depuis ces quatre points.
+
+**Android, sans dossier.** `navigator.share`/le sélecteur de fichiers remplacent le dossier :
+`buildMailboxDeposit` construit le MÊME fichier (chiffrement, nom) sans jamais toucher à un
+`MailboxFolder`, et `AppState.ingestMailboxFile` en reçoit un (sélecteur ou Web Share Target,
+`shared-inbox.ts`) en appliquant exactement les étapes 1-2 ci-dessus à ce seul fichier.
 
 ### Pourquoi `.txt`, et pas `.json`
 
