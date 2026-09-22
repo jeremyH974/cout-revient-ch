@@ -217,9 +217,10 @@ coûté une demi-heure et une fausse piste donnée à un agent, le 15/09/2026.
 Un mutant non tué se lit comme une question : _quel test aurait dû rougir ici ?_ La réponse est
 presque toujours une **assertion** manquante, pas un test manquant.
 
-`thresholds.break` vaut **94**, posé **sous** le score mesuré (96,51 %) : c'est un cliquet contre la
-régression, jamais une cible. Un score qu'on atteint en écrivant des tests pour le chiffre ne vaut
-rien.
+`thresholds.break` vaut **96**, posé **sous** le score mesuré : il a été resserré de 94 à 96 le
+20/09/2026, quand l'ensemble est passé de 96,51 % à 97,03 % (décision n° 173). C'est un cliquet
+contre la régression, jamais une cible. Un score qu'on atteint en écrivant des tests pour le chiffre
+ne vaut rien.
 
 ## Cinq pièges, tous vécus
 
