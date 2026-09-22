@@ -264,11 +264,6 @@
     color: var(--fg-muted);
     margin-bottom: var(--space-2);
   }
-  .intro,
-  .notes,
-  .day {
-    padding: var(--space-4);
-  }
   .intro h2 {
     margin-bottom: var(--space-2);
   }

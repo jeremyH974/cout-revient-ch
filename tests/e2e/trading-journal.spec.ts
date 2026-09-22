@@ -64,7 +64,7 @@ test('démo : la liste des trades recoupe le moteur, le journal se sauvegarde et
   await rows.first().getByRole('link').click();
   await expect(page).toHaveURL(new RegExp(`#/trading/trade/`));
   if (first.trip.status === 'closed') {
-    await expect(page.locator('.kpis .num, .kpis dd').first()).toContainText(
+    await expect(page.locator('.stat-grid .num, .stat-grid dd').first()).toContainText(
       normalize(fmtMoney(first.trip.netPnl.div(EUR_USD), 'EUR', { sign: true })),
     );
   }
@@ -211,7 +211,7 @@ test('trade manuel : saisie, P&L calculé, journal, statistiques avec garde-fou,
 
   // Détail : net = (120 − 110) × 10 − 4 = 96 USD → 96 ÷ 1,1 € une fois le taux stubé chargé.
   await expect(page).toHaveURL(/#\/trading\/trade\/man%3A/);
-  await expect(page.locator('.kpis dd').first()).toHaveText(
+  await expect(page.locator('.stat-grid dd').first()).toHaveText(
     normalize(fmtMoney(D('96').div(EUR_USD), 'EUR', { sign: true })),
   );
 

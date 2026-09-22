@@ -5902,3 +5902,112 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      `npm run test:coverage` avant de pousser dans une zone à seuil) n'avait pas été suivi. La
      règle a rejoint `derive/report-window.ts`, avec ses tests et sous Stryker ; le seuil n'a pas
      bougé — le baisser aurait fait taire le seul contrôle qui avait vu juste.
+
+180. **Vitest 5 attendra Stryker, et les familles de paquets voyagent ensemble** (22/09/2026).
+
+     **Le constat.** Dependabot a ouvert deux PR pour une seule montée : #164 (`vitest` 5.0.0) et
+     #165 (`@vitest/coverage-v8` 5.0.0). Chacune échouait seule en ERESOLVE dès `npm ci` : les deux
+     paquets s'exigent l'un l'autre à la version EXACTE. C'est le piège de `codeql-action` (#83 et
+     #85, restées ouvertes cinq semaines), sur l'écosystème npm cette fois.
+
+     **La mesure, avant toute décision.** Installés ensemble dans un worktree, la suite passe entière
+     sous Vitest 5 (2 939 tests) ; seul `tests/perf/engine-load.bench.ts` casse, `bench` étant devenu
+     un outil du contexte de test. Mais le test de mutation tombe de **97,23 % à 25,17 %**, même code,
+     mêmes tests : `@stryker-mutator/vitest-runner` 10.0.0 filtre les tests d'un mutant par un nom
+     joint d'une espace, Vitest 5 le compare au nom joint de « > », et **aucun test ne tourne** —
+     1 639 des 1 646 survivants étaient couverts, à `testsCompleted: 0`. Le signalement amont
+     (`stryker-js#6210`) le décrivait déjà ; son correctif (`#6214`) n'est ni fusionné ni publié.
+
+     **La décision : rester en Vitest 4.** Vitest ne livre rien à l'application ; le test de
+     mutation est l'un de ses garde-fous centraux. Échanger l'un contre l'autre serait perdre à coup
+     sûr pour ne rien gagner. `.github/dependabot.yml` exclut `vitest` et `@vitest/*` à partir de la
+     5, avec la marche à suivre pour lever l'exclusion (`docs/tests-de-mutation.md`) : monter la
+     paire ensemble, réécrire le banc d'essai, relancer la mutation sans cache et la comparer. La
+     version 5.0.1 n'y change rien — le défaut y est reproduit en amont — et la politique d'attente
+     du dépôt (14 jours pour une majeure) ne l'aurait de toute façon pas encore proposée.
+
+     **Les familles, pour que ça ne se reproduise pas.** Deux groupes rejoignent `minor-and-patch`,
+     après lui : `vitest` (`vitest`, `@vitest/*`) et `stryker` (`@stryker-mutator/*`) — le lanceur
+     exige lui aussi `@stryker-mutator/core` à la version exacte, si bien que le correctif attendu
+     serait arrivé en deux PR vouées à l'échec. La documentation de Dependabot range une dépendance
+     dans « le premier groupe qui la couvre » : placés après, ces groupes laissent les correctifs
+     voyager avec les autres et ne reçoivent que les majeures.
+     `tests/integration/dependabot-policy.test.ts` **dérive** les familles du verrou (composantes
+     « exige à la version exacte » entre dépendances directes) et exige que chacune tombe dans un
+     seul groupe, pour chaque type de mise à jour ; il exige aussi que le verrou respecte chaque
+     exclusion — la mutation ne tournant pas en CI, un `npm install` à la main passerait sinon.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause, puis restaurée à
+     l'octet près : le groupe `stryker` retiré ; `@vitest/*` retiré du groupe `vitest` ; une famille
+     NOUVELLE simulée dans le verrou (`@sveltejs/vite-plugin-svelte` exigeant `vite` à l'identique),
+     trouvée sans qu'aucune liste ne la nomme ; `vitest` 5.0.0 inscrit au verrou ; une exclusion qui
+     ne vise plus rien ; une clé YAML que l'analyseur ne connaît pas, qui fait échouer au lieu de
+     passer.
+
+     **Les deux autres PR, vérifiées avant fusion.** #163 (Vite 8.3.0, fast-check 4.10.0,
+     `@types/node` 26.5.1) : 22 versions nouvelles, toutes servies par `registry.npmjs.org` avec
+     empreinte d'intégrité, publiées depuis 11 à 29 jours ; `npm audit signatures` vérifie la
+     signature du registre des 948 paquets et 277 attestations de provenance ; les deux sans
+     provenance (`picomatch`, `@types/node`) ont le même éditeur que la version précédente, et
+     `picomatch` 4.0.7 suit de deux minutes sa publication sur le dépôt officiel. #166
+     (`codeql-action` 4.38.0) : l'empreinte épinglée est bien le commit de l'étiquette annotée
+     officielle `v4.38.0` — un commit de fork peut être cité par le chemin du dépôt amont.
+
+     **En chemin.** Un relevé qui échoue laisse `.stryker-tmp/` — non ignoré jusqu'ici, un `git add
+-A` l'aurait embarqué — et ce bac à sable porte une jonction `node_modules` vers le dépôt :
+     effacé récursivement, il viderait le dépôt. `.gitignore` l'exclut désormais, et le piège est
+     écrit là où l'on efface.
+
+181. **Un socle de cohérence d'interface : classes globales pour les cartes et les boutons, un
+     composant pour les onglets** (22/09/2026).
+
+     **Le constat.** `.card` n'avait aucun padding — la plupart des `<section class="card">`
+     collaient leur texte au bord —, et vingt-quatre fichiers redéfinissaient localement
+     `.primary`/`.secondary`, dont dix sans aucune définition, affichés en texte nu. Les deux
+     barres d'onglets d'espace (Investissement, Trading) dupliquaient le même markup et le même
+     CSS sans qu'aucune ne défile : à 390 px, la barre Trading passait sur deux lignes, « Seuil »
+     seul sur la seconde — la décision n° 158 avait posé le repli (passer à la ligne plutôt que
+     déborder) sans jamais revenir sur le fond, une seule ligne étant ce que demande Material 3
+     pour des onglets.
+
+     **Classes globales plutôt qu'un composant par bouton.** Un `<Button variant="primary">`
+     encapsulerait la logique, mais chaque appelant garde une raison d'exister en `<a>` ou en
+     `<button>`, avec ou sans `type="submit"`, avec ou sans gestionnaire propre — un composant
+     n'aurait fait qu'ajouter une couche de props pour retrouver ce que l'élément natif offre
+     déjà. `.primary`/`.secondary`, posées en classes globales dans `app.css`, gardent cette
+     liberté et se lisent d'un coup d'œil dans le markup existant ; ne reste localement que ce qui
+     varie vraiment — une couleur teintée à l'accent sur les sous-écrans des alertes, une taille de
+     CTA, `justify-self` dans une grille. Même raisonnement pour `.card`/`.card.flush` et
+     `dl.stat-grid` : une classe, pas un wrapper.
+
+     **Un composant pour les onglets, parce que le comportement se dupliquait, pas seulement le
+     style.** Contrairement aux boutons, `InvestTabs` et `TradingTabs` partageaient une LOGIQUE —
+     défilement horizontal, ombres de débordement, rappel de l'onglet courant en vue au montage —
+     qu'une classe CSS ne porte pas : `onMount` et `scrollIntoView` n'ont pas d'équivalent
+     déclaratif. Le nouveau `SpaceTabs.svelte` ne connaît ni route ni règle d'onglet actif ; chaque
+     appelant lui passe une liste déjà résolue (`{ href, label, current }`) et garde sa propre
+     logique — `TradingTabs` garde ainsi son tableau `covers`, propre à ses cinq destinations.
+     `nav` + `aria-current`, jamais le motif ARIA tablist : celui-ci suppose des panneaux
+     affichés/masqués sur UNE MÊME page, alors que chaque onglet mène ici à une route différente —
+     un lecteur d'écran qui annoncerait « onglet 2 sur 5 » mentirait sur ce que fait le clic.
+
+     **La règle ESLint, pas seulement les remplacements ponctuels.** Remplacer les doublons
+     recensés sans empêcher le suivant n'aurait rien clos : `no-restricted-syntax` interdit
+     `.toFixed(` et `.toLocaleString(` dans `src/routes` et `src/components`, où `src/lib/format`
+     n'est jamais qu'à une importation de distance. Le balayage du dépôt qu'elle a forcé a
+     confirmé la liste examinée au clavier, plus une occurrence de plus qu'elle n'avait pas
+     nommée (`LensSection.svelte`, l'écart de corrélation d'une carte macro) — la règle les aurait
+     de toute façon tous fait échouer d'un coup en CI, plutôt qu'un à un au hasard des relectures.
+     Neuf occurrences restent, chacune avec un motif écrit en commentaire, pour trois raisons : la
+     précision interne d'un `ChartPoint`/`ChartLevel` n'est jamais affichée telle quelle (six
+     occurrences, trois écrans) ; une largeur CSS exige un point décimal, jamais une virgule
+     (`CostBar.svelte`, la largeur bornée de `Overview.svelte`) ; le presse-papiers vers un champ
+     de la déclaration en ligne ne doit pas porter l'espace insécable de groupement des milliers
+     qu'`Intl` — donc `fmtRatio` — ajoute au-delà de mille (`Declaration.svelte`). Un
+     `no-restricted-syntax` structurel plutôt que trois messages ad hoc, pour que la prochaine
+     exception légitime s'écrive de la même façon et reste visible dans la revue.
+
+     **Contre-épreuve** (décision n° 75). Un `.toFixed(` introduit dans `Info.svelte`, une fois
+     dans le script, une fois dans une expression de gabarit : les deux font échouer `npm run lint`
+     en nommant `no-restricted-syntax` et le message « Formater via src/lib/format », avant d'être
+     retirés.

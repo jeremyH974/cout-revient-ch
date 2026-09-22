@@ -96,7 +96,6 @@
   .card {
     display: grid;
     gap: var(--space-3);
-    padding: var(--space-4);
     max-width: 30rem;
     width: 100%;
   }
@@ -124,22 +123,6 @@
     padding: 0 var(--space-3);
     width: 100%;
     min-width: 0;
-  }
-  .primary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .primary:disabled {
-    opacity: 0.5;
-    cursor: default;
   }
   .small {
     font-size: var(--fs-xs);

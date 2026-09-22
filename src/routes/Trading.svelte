@@ -175,6 +175,7 @@
     const naive = msToParisNaive(ms);
     const rate = app.currency === 'USD' ? '1' : usdRates.rate(naive.slice(0, 10));
     if (rate === null || !D(rate).gt(ZERO)) return null;
+    // eslint-disable-next-line no-restricted-syntax -- précision interne d'un ChartPoint, jamais affiché tel quel
     return { day: naive, primary: Number(value.div(rate).toFixed(6)) };
   };
   /** Points de la plateforme, avec leur instant réel : la courbe détaillée s'y insère. */
@@ -641,7 +642,7 @@
       <h2>Résultat</h2>
       <RangePicker id="trading" available={['1w', '1m', '3m', '1y', 'all', 'custom']} />
     </div>
-    <dl class="kpis">
+    <dl class="stat-grid cols-3">
       <div class="main">
         <dt>P&L net</dt>
         <dd><Money value={money(totals.net)} sign colored strong /></dd>
@@ -674,7 +675,7 @@
     </p>
   </section>
 
-  <section class="card positions-card">
+  <section class="card flush positions-card">
     <h2>Positions ouvertes</h2>
     {#if positions.length === 0}
       <p class="muted">Aucune position ouverte à la dernière synchronisation.</p>
@@ -796,15 +797,6 @@
   }
   .primary {
     justify-self: start;
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
-    text-decoration: none;
   }
   .summary,
   .evolution {
@@ -900,38 +892,10 @@
     border-color: var(--accent-trading);
     color: var(--accent-fg);
   }
-  .kpis {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2) var(--space-3);
-    margin: 0;
-  }
-  .kpis div {
-    display: grid;
-    gap: 2px;
-  }
-  .kpis .main {
-    grid-column: 1 / -1;
-  }
-  .kpis dt {
-    font-size: var(--fs-xs);
-    color: var(--fg-muted);
-  }
-  .kpis dd {
-    margin: 0;
-    font-size: var(--fs-md);
-  }
-  .kpis .main dd {
-    font-size: var(--fs-lg);
-  }
   .rows,
   .positions {
     list-style: none;
     display: grid;
-  }
-  .positions-card {
-    padding-left: 0;
-    padding-right: 0;
   }
   .positions-card h2,
   .positions-card p {
@@ -1009,11 +973,6 @@
   @media (max-width: 480px) {
     .trio {
       grid-template-columns: 1fr;
-    }
-  }
-  @media (min-width: 768px) {
-    .kpis {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
   /* Le rapport se rejoint au pied de la carte qui montre ce qu'il consolide, et non depuis un

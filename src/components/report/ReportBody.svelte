@@ -187,10 +187,6 @@
   .details th {
     overflow-wrap: anywhere;
   }
-  .cover,
-  section {
-    padding: var(--space-4);
-  }
   .brand {
     font-size: var(--fs-xs);
     text-transform: uppercase;

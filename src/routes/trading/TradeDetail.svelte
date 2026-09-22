@@ -15,7 +15,7 @@
     type JournalEntry,
     type TradePlan,
   } from '$lib/domain/trading/journal';
-  import { fmtDateTime, fmtPct, fmtPrice, fmtQty, fmtSmallPct } from '$lib/format/fr';
+  import { fmtDateTime, fmtPct, fmtPrice, fmtQty, fmtRatio, fmtSmallPct } from '$lib/format/fr';
   import {
     breakevenSentence,
     fmtBreakevenPrice,
@@ -136,6 +136,7 @@
       if (rate === null || !D(rate).gt(ZERO)) continue;
       points.push({
         day: point.day,
+        // eslint-disable-next-line no-restricted-syntax -- précision interne d'un ChartPoint, jamais affiché tel quel
         primary: Number(D(point.priceEur).times(rate).toFixed(8)),
         secondary: null,
       });
@@ -178,6 +179,7 @@
         typeof raw === 'string' ? D(raw) : raw,
       );
       if (converted !== null && converted.gt(ZERO))
+        // eslint-disable-next-line no-restricted-syntax -- précision interne d'un ChartLevel, jamais affiché tel quel
         out.push({ value: Number(converted.toFixed(8)), label, tone });
     };
     add(found.trip.avgEntry, 'entrée', 'info');
@@ -222,7 +224,7 @@
       {#if t.liquidated}<span class="badge liq">liquidation</span>{/if}
       {#if t.incomplete}<span class="badge">historique partiel</span>{/if}
     </p>
-    <dl class="kpis">
+    <dl class="stat-grid cols-3">
       <div>
         <dt>P&L net</dt>
         <dd><Money value={money(t.netPnl)} sign colored strong /></dd>
@@ -242,7 +244,7 @@
       {#if found.r}
         <div>
           <dt>R</dt>
-          <dd class="num">{found.r.toFixed(2).replace('.', ',')}</dd>
+          <dd class="num">{fmtRatio(found.r, 2)}</dd>
         </div>
       {/if}
       {#if found.entrySlippage}
@@ -274,7 +276,7 @@
       {#if costs.unavailable}
         <p class="muted small">{unavailableSentence(costs.unavailable)}</p>
       {:else}
-        <dl class="cost-kpis">
+        <dl class="stat-grid cols-3">
           {#if costs.feeShareOfGross}
             <div>
               <dt>Part du brut en frais</dt>
@@ -431,7 +433,7 @@
       {#if previewRisk}
         <p class="muted small">
           Risque retenu : <Money value={money(previewRisk)} />{#if previewR}
-            → <strong class="num">{previewR.toFixed(2).replace('.', ',')} R</strong>{/if}
+            → <strong class="num">{fmtRatio(previewR, 2)} R</strong>{/if}
         </p>
       {/if}
     </fieldset>
@@ -527,28 +529,6 @@
     border-color: var(--warn);
     color: var(--warn);
   }
-  .kpis,
-  .cost-kpis {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-2) var(--space-3);
-    margin: 0;
-  }
-  .kpis div,
-  .cost-kpis div {
-    display: grid;
-    gap: 2px;
-  }
-  .kpis dt,
-  .cost-kpis dt {
-    font-size: var(--fs-xs);
-    color: var(--fg-muted);
-  }
-  .kpis dd,
-  .cost-kpis dd {
-    margin: 0;
-    font-size: var(--fs-md);
-  }
   .rows {
     list-style: none;
     margin: 0;
@@ -597,13 +577,6 @@
   }
   .secondary {
     justify-self: start;
-    min-height: var(--tap);
-    padding: 0 var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
-    color: var(--fg);
-    font-weight: 600;
   }
   .journal {
     display: grid;
@@ -663,12 +636,6 @@
   }
   .primary {
     justify-self: start;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
   }
   .link {
     justify-self: start;
@@ -680,8 +647,6 @@
     font-size: var(--fs-sm);
   }
   @media (min-width: 768px) {
-    .kpis,
-    .cost-kpis,
     .plan .grid {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
