@@ -131,11 +131,6 @@
     font-size: var(--fs-sm);
     margin: 0;
   }
-  .intro,
-  .notes,
-  .entry {
-    padding: var(--space-4);
-  }
   .intro h2 {
     margin-bottom: var(--space-2);
   }

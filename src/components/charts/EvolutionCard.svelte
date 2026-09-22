@@ -288,7 +288,6 @@
 <style>
   .evolution {
     margin: var(--space-3);
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }

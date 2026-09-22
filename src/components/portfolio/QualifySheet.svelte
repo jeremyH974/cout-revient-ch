@@ -296,12 +296,11 @@
     color: var(--loss);
     margin: 0 0 var(--space-2);
   }
+  /* Confirmation de fiche : 48 px pleine largeur, entre .primary (44 px) et .large (52 px) — sans
+     modificateur global pour un cas unique. */
   .primary {
     width: 100%;
     min-height: 48px;
     border-radius: var(--radius);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
   }
 </style>

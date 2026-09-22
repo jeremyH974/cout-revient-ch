@@ -157,7 +157,7 @@ test('démo : le tableau de bord Trading recoupe le moteur (équité, positions,
     .getByRole('radio', { name: 'Tout' })
     .click();
   const net = report.totals.realized.minus(report.totals.perpFees).plus(report.totals.funding);
-  await expect(page.locator('.kpis .main dd')).toHaveText(
+  await expect(page.locator('.stat-grid .main dd')).toHaveText(
     normalize(fmtMoney(net.div(EUR_USD), 'EUR', { sign: true })),
   );
 });

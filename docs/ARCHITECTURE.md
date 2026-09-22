@@ -317,6 +317,48 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (`#/portfolio`, `#/asset/btc`, `#/import`, `#/add`, `#/report`) restent pris en charge comme alias
   pour ne pas casser liens partagés, favoris et écrans d'accueil déjà installés.
 
+## Primitives d'interface partagées
+
+Le constat qui a ouvert la décision n° 181 : `.card` n'avait **aucun padding** — la plupart des
+`<section class="card">` collaient leur texte au bord —, aucun style de bouton n'était partagé
+(24 fichiers redéfinissaient `.primary`/`.secondary`, dont dix sans aucune définition locale,
+affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le même markup.
+
+- **Cartes** (`src/app.css`) : `.card` porte `padding: var(--space-4)` par défaut ; `.card.flush`
+  (padding 0) sert aux cartes pleine largeur dont les enfants gèrent leur propre padding — une
+  liste à séparateurs (`routes/More.svelte`, la carte des positions ouvertes de
+  `routes/Trading.svelte`) où le padding de la carte empêcherait les séparateurs d'atteindre son
+  bord.
+- **Boutons** (`src/app.css`) : `.primary` et `.secondary` partagent un même gabarit (hauteur
+  tactile, rayon, texte non souligné), et ne différent que par la couleur et la bordure — valable
+  sur `<button>` ET `<a>`. `.large` (52 px, rayon plus large) sert aux deux CTA pleine largeur de
+  l'accueil et de la saisie manuelle. Un écran garde une couleur locale (teintée à l'accent, sous-
+  écrans des alertes) ou une taille locale (confirmation de fiche, 48 px) quand la variante est
+  volontaire ; le reste — mise en page seule (marges, `justify-self`) — demeure dans le composant.
+- **Grille de chiffres** (`dl.stat-grid`, modificateur `.cols-3`) : le patron dt/dd commun à un
+  tableau de résultat (deux colonnes sur téléphone, trois à partir du gabarit tablette, un premier
+  chiffre `.main` qui s'étend sur toute la largeur et se lit plus grand). `.trio` et `.bridge` (Vue
+  d'ensemble, tableau de bord Trading) restent des styles « héros » propres à un seul écran, jamais
+  dupliqués ailleurs : ils ne migrent pas.
+- **Onglets d'espace** (`src/components/layout/SpaceTabs.svelte`) : une seule ligne, toujours
+  (recommandation Material 3 pour les onglets), qui défile horizontalement plutôt que de passer à
+  la ligne ou de déborder — l'ancien comportement de la barre Trading à 390 px (décision n° 158).
+  Ce sont des LIENS entre pages (`nav` + `a[aria-current="page"]`), jamais le motif ARIA tablist,
+  réservé aux panneaux d'une même page. `InvestTabs` et `TradingTabs` calculent chacun leur `href`
+  et leur `current` ; le composant partagé ne porte que la présentation, dont les ombres de
+  débordement en CSS pur (`background-attachment: local`) et le rappel de l'onglet courant en vue
+  au montage.
+- **Bouton d'aide** (`src/components/shared/Info.svelte`) : le glyphe visuel reste un cercle de
+  22 px, mais la zone cliquable est agrandie par un pseudo-élément à ≥ 24 px partout et ≥ 44 px
+  (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
+  grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
+- **Règle de formatage** (`eslint.config.js`) : `no-restricted-syntax` interdit `.toFixed(` et
+  `.toLocaleString(` dans `src/routes/**` et `src/components/**` — le formatage d'affichage
+  (arrondi half-up, virgule française) n'a qu'un seul endroit, `src/lib/format`. Les exceptions
+  légitimes (précision interne d'un `ChartPoint`, largeur CSS en pourcentage, presse-papiers vers
+  un champ officiel qui n'accepte pas l'espace insécable de groupement d'`Intl`) portent un
+  commentaire `eslint-disable-next-line` qui dit pourquoi.
+
 ## Invariants testés
 
 - Exemple canonique (1@100, 1@200, vente 1@300, 1@150, cours 250 → PRU 150, réalisé +150,

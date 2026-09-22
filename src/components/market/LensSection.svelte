@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fmtRatio } from '$lib/format/fr';
   import { orderedIndicators } from '$lib/macro';
   import type { MacroIndicator } from '$lib/macro';
   import { WINDOWS, correlate, type PairCorrelation } from '$lib/macro/correlation';
@@ -151,7 +152,7 @@
           </p>
           <p class="muted small">
             {stabilityLabel(pair.result.spread)}{pair.result.spread !== null
-              ? ` (écart ${pair.result.spread.toFixed(2)})`
+              ? ` (écart ${fmtRatio(String(pair.result.spread), 2)})`
               : ''}.
             {pair.result.correlations[0]?.observations ?? 0} jours communs sur la fenêtre la plus courte
             ;
@@ -226,7 +227,6 @@
 
 <style>
   .lens {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }

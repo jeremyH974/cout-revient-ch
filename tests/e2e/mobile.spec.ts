@@ -81,32 +81,42 @@ test('mobile : aucune page ne déborde horizontalement (pas de dézoom du naviga
 });
 
 /**
- * La barre d'onglets Trading à 320 px, la largeur du critère WCAG 1.4.10 (décision n° 158).
+ * La barre d'onglets Trading tient sur UNE SEULE ligne, à 320 px (largeur du critère WCAG 1.4.10)
+ * comme à 390 px (décision n° 158, puis n° 181 : plus de retour à la ligne, elle défile).
  *
- * Le test précédent ne voit un débordement qu'avec les polices du poste qui le lance : le cinquième
- * onglet débordait de 12 px sur la CI Linux et tenait sous Windows. À 320 px, la barre déborde
- * partout si elle ne passe pas à la ligne — la régression se voit donc aussi en local.
+ * Le test précédent ne voyait un débordement qu'avec les polices du poste qui le lance : le
+ * cinquième onglet débordait de 12 px sur la CI Linux et tenait sous Windows. Vérifier que tous les
+ * onglets partagent le même sommet (une seule ligne) plutôt que la seule largeur de la barre couvre
+ * aussi ce cas, sans dépendre des polices installées.
  */
-test('mobile étroit (320 px) : la barre d’onglets Trading passe à la ligne au lieu de déborder', async ({
-  page,
-  isMobile,
-}) => {
-  test.skip(!isMobile, 'projet mobile uniquement');
-  await openDemo(page);
-  await page.setViewportSize({ width: 320, height: 720 });
-  await page.goto('#/trading/seuil');
-  const tabs = page.getByRole('navigation', { name: 'Espace Trading' });
-  await expect(tabs.getByRole('link', { name: 'Seuil' })).toBeVisible();
-  const overflow = await tabs.evaluate((nav) => ({
-    right: Math.round(nav.getBoundingClientRect().right),
-    viewport: document.documentElement.clientWidth,
-    links: [...nav.querySelectorAll('a')].map((a) => Math.round(a.getBoundingClientRect().right)),
-  }));
-  expect(
-    Math.max(overflow.right, ...overflow.links),
-    `barre d'onglets : ${JSON.stringify(overflow)}`,
-  ).toBeLessThanOrEqual(overflow.viewport);
-});
+for (const width of [320, 390]) {
+  test(`mobile étroit (${width} px) : la barre d’onglets Trading tient sur une ligne et défile`, async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(!isMobile, 'projet mobile uniquement');
+    await openDemo(page);
+    await page.setViewportSize({ width, height: 720 });
+    await page.goto('#/trading/seuil');
+    const tabs = page.getByRole('navigation', { name: 'Espace Trading' });
+    // L'onglet courant (le dernier, « Seuil ») est ramené en vue au montage.
+    await expect(tabs.getByRole('link', { name: 'Seuil' })).toBeVisible();
+    const geometry = await tabs.evaluate((nav) => {
+      const links = [...nav.querySelectorAll('a')];
+      const tops = new Set(links.map((a) => Math.round(a.getBoundingClientRect().top)));
+      return {
+        oneLine: tops.size === 1,
+        navRight: Math.round(nav.getBoundingClientRect().right),
+        viewport: document.documentElement.clientWidth,
+      };
+    });
+    expect(geometry.oneLine, "la barre d'onglets passe à la ligne").toBe(true);
+    expect(
+      geometry.navRight,
+      "la barre d'onglets déborde du viewport au lieu de défiler",
+    ).toBeLessThanOrEqual(geometry.viewport);
+  });
+}
 
 /**
  * Les mailles du calendrier de P&L à 320 px (décision n° 165) : avec la semaine, quatre boutons et

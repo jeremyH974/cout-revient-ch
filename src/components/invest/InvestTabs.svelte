@@ -10,6 +10,7 @@
    * l'utilisateur au portefeuille crypto.
    */
   import { router } from '$lib/router.svelte';
+  import SpaceTabs from '../layout/SpaceTabs.svelte';
 
   export type InvestTab = 'portfolio' | 'titles';
   let { active }: { active: InvestTab } = $props();
@@ -17,41 +18,13 @@
     { name: 'portfolio', label: 'Crypto' },
     { name: 'titles', label: 'Actions et ETF' },
   ];
+  const tabs = $derived(
+    TABS.map((t) => ({
+      href: router.href({ name: t.name }),
+      label: t.label,
+      current: active === t.name,
+    })),
+  );
 </script>
 
-<nav class="tabs" aria-label="Espace Investissement">
-  {#each TABS as tab (tab.name)}
-    <a
-      href={router.href({ name: tab.name })}
-      aria-current={active === tab.name ? 'page' : undefined}>{tab.label}</a
-    >
-  {/each}
-</nav>
-
-<style>
-  .tabs {
-    display: flex;
-    gap: var(--space-1);
-    padding: var(--space-1);
-    margin-bottom: var(--space-3);
-    background: var(--bg-sunken);
-    border-radius: var(--radius-sm);
-    width: fit-content;
-  }
-  a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 36px;
-    padding: 0 var(--space-3);
-    border-radius: calc(var(--radius-sm) - 2px);
-    color: var(--fg-muted);
-    font-size: var(--fs-sm);
-    font-weight: 600;
-    text-decoration: none;
-  }
-  a[aria-current='page'] {
-    background: var(--bg-elev);
-    color: var(--fg);
-    box-shadow: var(--shadow);
-  }
-</style>
+<SpaceTabs ariaLabel="Espace Investissement" {tabs} />

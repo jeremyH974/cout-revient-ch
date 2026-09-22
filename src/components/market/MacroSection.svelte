@@ -161,7 +161,6 @@
 
 <style>
   .regime {
-    padding: var(--space-4);
     display: grid;
     gap: var(--space-3);
   }

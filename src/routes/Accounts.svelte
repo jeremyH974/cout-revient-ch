@@ -615,12 +615,6 @@
   }
   .primary {
     justify-self: start;
-    min-height: var(--tap);
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-sm);
-    background: var(--accent);
-    color: var(--accent-fg);
-    font-weight: 700;
   }
   @media (min-width: 768px) {
     .add {
