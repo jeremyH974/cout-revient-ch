@@ -6560,5 +6560,21 @@ coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré)
      en la laissant entière partout ailleurs. Les valeurs par défaut appartiennent au chargement, à
      un seul endroit.
 
+     **Ce que la nouvelle porte ne doit pas emporter.** `sanitizeState` écarte ce qu'il ne connaît
+     pas : la question s'est donc posée pour les métadonnées de fusion multi-appareils (décision
+     n° 182), qu'un instantané porte désormais à travers lui. Elles survivent — `sanitizeSyncMeta`
+     en tête de fonction, réattachement conditionnel en fin — et **un test l'exige maintenant**.
+     Sans lui, un remaniement futur de l'assainissement remettrait toutes les entrées à « héritée »
+     en silence, et les fusions entre appareils se dégraderaient sans que rien ne rougisse : la
+     classe de défaut que cette décision corrige, répétée un cran plus loin. Contre-épreuve : le
+     réattachement retiré, le test rougit (« expected undefined to deeply equal { v: 1, …(2) } »).
+
+     **Un chemin devient visible pour l'utilisateur, et c'est assumé.** Un instantané sans
+     `schemaVersion` — très ancien, ou modifié à la main — se chargeait tel quel ; il reçoit
+     désormais le refus explicite de `migrateState` (« Données illisibles. »), donc l'écran d'erreur
+     et ses issues. Le miroir `localStorage` n'est **pas** pris en repli dans ce cas : on n'atteint
+     cette branche que lorsqu'il est plus ancien ou inutilisable, et charger silencieusement un état
+     plus vieux masquerait la perte au lieu de la dire.
+
      **Les données de l'utilisateur n'ont jamais été en cause** — l'écran d'erreur le disait déjà,
      et c'était vrai : il manquait une valeur par défaut en mémoire, rien de plus.

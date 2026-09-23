@@ -5,6 +5,7 @@ import type { RawCoinhouseRow } from '../domain/types';
 import { idbLoadSnapshot, idbSaveSnapshot, resetIdbStateStoreForTests } from './idb-state-store';
 import { STORAGE_KEY, saveState } from './local-storage';
 import { DEFAULT_UI_SETTINGS, emptyState, type StoredStateV1 } from './schema';
+import type { SyncMeta } from './sync/types';
 import {
   SAVED_AT_KEY,
   clearPersistedState,
@@ -182,6 +183,25 @@ describe('state-store', () => {
       expect(loaded.status).toBe('ok');
       const missing = Object.keys(DEFAULT_UI_SETTINGS).filter((key) => !(key in loaded.state.ui));
       expect(missing, 'clés de réglages perdues au chargement').toEqual([]);
+    });
+
+    /**
+     * La porte qu'on ajoute **écarte ce qu'elle ne connaît pas** : il fallait donc vérifier ce que
+     * la fusion multi-appareils dépose dans l'état (décision n° 182). Sans cette assertion, un
+     * remaniement de l'assainissement remettrait toutes les entrées à « héritée » en silence, et
+     * les fusions entre appareils se dégraderaient sans que rien ne rougisse.
+     */
+    it('les métadonnées de synchronisation traversent la nouvelle porte', async () => {
+      const storage = memoryStorage();
+      const state = emptyState();
+      const clock = '1758636000000.0001.appareil-a';
+      const meta: SyncMeta = { v: 1, clock, versions: { manualEvents: { evt: { t: clock } } } };
+      state.sync = meta;
+      await idbSaveSnapshot({ state, savedAt: '2026-09-23T10:00:00.000Z' });
+
+      const loaded = await loadPersistedState(storage);
+      expect(loaded.status).toBe('ok');
+      expect(loaded.state.sync).toEqual(meta);
     });
 
     /**
