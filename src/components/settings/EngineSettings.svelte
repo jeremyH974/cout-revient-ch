@@ -1,13 +1,18 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   import { app } from '../../state/app.svelte';
+  import Switch from '../shared/Switch.svelte';
 
   const set = (patch: Partial<typeof app.state.engineSettings>): void => {
     app.state.engineSettings = { ...app.state.engineSettings, ...patch };
   };
 </script>
 
-<section class="card group">
-  <h2>Méthode de calcul</h2>
+<details class="card group" id="methode-calcul" open={!collapsed}>
+  <summary><h2>Méthode de calcul</h2></summary>
   <label class="field"
     >Migration d'un actif (ex. MKR → SKY)
     <select
@@ -28,14 +33,12 @@
       <option value="fair-value">Valeur du jour à la réception (revenu)</option>
     </select>
   </label>
-  <label class="check"
-    ><input
-      type="checkbox"
-      checked={app.state.engineSettings.includeSubscriptionsInPnl}
-      onchange={(e) => set({ includeSubscriptionsInPnl: e.currentTarget.checked })}
-    /> Déduire les abonnements Coinhouse du P&L total</label
-  >
-</section>
+  <Switch
+    checked={app.state.engineSettings.includeSubscriptionsInPnl}
+    onCheckedChange={(v) => set({ includeSubscriptionsInPnl: v })}
+    label="Déduire les abonnements Coinhouse du P&L total"
+  />
+</details>
 
 <style>
   .group {
@@ -47,14 +50,6 @@
     gap: 4px;
     font-size: var(--fs-sm);
     color: var(--fg-muted);
-  }
-  .check {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    min-height: var(--tap);
-    font-size: var(--fs-sm);
-    color: var(--fg);
   }
   select {
     width: 100%;

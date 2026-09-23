@@ -8,6 +8,7 @@
   import { history } from '../../state/history.svelte';
   import { toasts } from '../../state/ui.svelte';
   import Sheet from './Sheet.svelte';
+  import Switch from './Switch.svelte';
 
   let {
     open = $bindable(false),
@@ -126,18 +127,17 @@
   {/if}
 
   <div class="options">
-    <label class="check">
-      <input type="checkbox" bind:checked={showAmounts} disabled={netWorth === null} />
-      Afficher mes montants
-    </label>
-    <label class="check">
-      <input
-        type="checkbox"
-        checked={theme === 'light'}
-        onchange={(e) => (theme = e.currentTarget.checked ? 'light' : 'dark')}
-      />
-      Thème clair
-    </label>
+    <Switch
+      checked={showAmounts}
+      onCheckedChange={(v) => (showAmounts = v)}
+      disabled={netWorth === null}
+      label="Afficher mes montants"
+    />
+    <Switch
+      checked={theme === 'light'}
+      onCheckedChange={(v) => (theme = v ? 'light' : 'dark')}
+      label="Thème clair"
+    />
   </div>
 
   {#if card.hasAmounts}
@@ -185,13 +185,6 @@
     flex-wrap: wrap;
     gap: var(--space-3);
     margin: var(--space-3) 0;
-  }
-  .check {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    min-height: var(--tap);
-    font-size: var(--fs-sm);
   }
   .warn {
     margin: 0 0 var(--space-3);

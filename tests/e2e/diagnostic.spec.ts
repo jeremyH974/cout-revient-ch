@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { BASE_URL } from '../../playwright.config';
 import { openDemo } from './helpers/demo';
 import { fixtureReport } from './helpers/expected';
@@ -20,6 +21,7 @@ test('« Copier le diagnostic » met un texte sans montant dans le presse-papier
   const { rows } = fixtureReport();
   await openDemo(page);
   await page.goto('#/settings');
+  await openSettingsSection(page, 'aide');
   await page.getByRole('button', { name: 'Copier le diagnostic' }).click();
   await expect(page.getByText('Diagnostic copié')).toBeVisible();
 

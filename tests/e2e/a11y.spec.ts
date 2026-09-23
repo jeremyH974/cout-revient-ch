@@ -144,6 +144,28 @@ test.describe('accessibilité (axe, WCAG 2.2 AA)', () => {
   });
 
   /**
+   * Réglages, sections `<details>` (P124) : `EMPTY_ROUTES`/`DEMO_ROUTES` ne passent l'écran QUE
+   * replié (seule « Données » ouverte). Une section dépliée révèle du markup que le premier passage
+   * ne voit jamais — formulaires, listes, le coffre entier.
+   */
+  test('avec la démo : #/settings, sections dépliées', async ({ page }) => {
+    await openDemo(page);
+    await page.goto('#/settings');
+    await page.evaluate(() => {
+      for (const d of document.querySelectorAll('details')) d.open = true;
+    });
+    await expectNoViolations(page, '#/settings (sections dépliées)');
+  });
+
+  test('sans données : #/settings, sections dépliées', async ({ page }) => {
+    await page.goto('#/settings');
+    await page.evaluate(() => {
+      for (const d of document.querySelectorAll('details')) d.open = true;
+    });
+    await expectNoViolations(page, '#/settings sans données (sections dépliées)');
+  });
+
+  /**
    * P121 : la feuille de filtres, avec ses six facettes dépliées (`<fieldset>`, puces
    * `aria-pressed`) — elle ne peut pas figurer dans la liste ci-dessus, il faut l'ouvrir.
    */

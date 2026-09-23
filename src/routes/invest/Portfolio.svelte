@@ -69,7 +69,7 @@
   const lastImport = $derived(app.state.imports[app.state.imports.length - 1] ?? null);
 </script>
 
-<AppBar />
+<AppBar title="Portefeuille" />
 <InvestTabs active="portfolio" />
 <SummaryHeader />
 <EvolutionCard scope="crypto" />

@@ -6,6 +6,7 @@
   import AppBar from '../components/layout/AppBar.svelte';
   import LensSection from '../components/market/LensSection.svelte';
   import MacroSection from '../components/market/MacroSection.svelte';
+  import Switch from '../components/shared/Switch.svelte';
   import { app } from '../state/app.svelte';
 
   /**
@@ -129,10 +130,11 @@
   <h2 class="section-title">Calendrier des publications</h2>
 
   <div class="controls">
-    <label class="toggle">
-      <input type="checkbox" bind:checked={onlyMajor} />
-      Ne montrer que les publications majeures
-    </label>
+    <Switch
+      checked={onlyMajor}
+      onCheckedChange={(v) => (onlyMajor = v)}
+      label="Ne montrer que les publications majeures"
+    />
   </div>
 
   <section aria-labelledby="upcoming-heading">
@@ -280,16 +282,25 @@
     display: flex;
     justify-content: flex-end;
   }
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: var(--fs-sm);
-    min-height: var(--tap);
-  }
   section {
     display: grid;
     gap: var(--space-3);
+  }
+  /*
+   * En-tête de jour collant (P124) : `.card` porte désormais un padding par défaut (décision
+   * n° 181), donc un fond + une marge négative pour revenir aux bords, plutôt qu'une bordure qui
+   * flotterait au milieu du padding. `top` approxime la hauteur de l'AppBar (titre + fraîcheur,
+   * deux lignes) : à vérifier sur un vrai téléphone, la valeur exacte dépend du rendu des polices.
+   */
+  .day h3 {
+    position: sticky;
+    top: 64px;
+    z-index: 1;
+    margin: calc(var(--space-4) * -1) calc(var(--space-4) * -1) var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) 0 0;
   }
   .day ul {
     list-style: none;
@@ -326,8 +337,12 @@
   .detail {
     margin-top: 2px;
   }
+  /* Cible ≥ 24 px de zone (WCAG 2.2 SC 2.5.8), pas seulement de glyphe : le texte est court et sa
+     seule hauteur de ligne (~17 px à --fs-xs) n'atteignait pas le plancher. */
   .what a {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
     margin-top: var(--space-1);
     font-size: var(--fs-xs);
   }

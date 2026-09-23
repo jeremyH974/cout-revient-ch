@@ -22,6 +22,7 @@
   import AppBar from '../../components/layout/AppBar.svelte';
   import CoinBadge from '../../components/shared/CoinBadge.svelte';
   import PriceFreshness from '../../components/shared/PriceFreshness.svelte';
+  import Switch from '../../components/shared/Switch.svelte';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -166,14 +167,11 @@
         ? 's'
         : ''} · les seuils relatifs suivent votre PRU : un nouvel achat les déplace d’eux-mêmes.
     </p>
-    <label class="toggle">
-      <input
-        type="checkbox"
-        checked={settings.watch}
-        onchange={(e) => app.setAlertsSettings({ watch: e.currentTarget.checked })}
-      />
-      <span>Veille automatique des prix (app ouverte)</span>
-    </label>
+    <Switch
+      checked={settings.watch}
+      onCheckedChange={(v) => app.setAlertsSettings({ watch: v })}
+      label="Veille automatique des prix (app ouverte)"
+    />
     <label class="field-inline">
       <span>Cadence</span>
       <select
@@ -409,13 +407,6 @@
     border-color: var(--accent);
     color: var(--accent);
     justify-self: start;
-  }
-  .toggle {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: var(--tap);
-    font-size: var(--fs-sm);
   }
   .field-inline {
     display: flex;

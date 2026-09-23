@@ -76,7 +76,7 @@ test('l’équivalent textuel porte les chiffres, pas une description de l’ima
 test('aucun montant par défaut, et la bascule ne survit pas à la fermeture', async ({ page }) => {
   await openShare(page);
   const preview = page.locator('dialog[open] img.preview');
-  const amounts = page.getByRole('checkbox', { name: 'Afficher mes montants' });
+  const amounts = page.getByRole('switch', { name: 'Afficher mes montants' });
 
   expect(await preview.getAttribute('alt')).not.toContain('€');
   await expect(page.locator('dialog[open] .warn')).toHaveCount(0);

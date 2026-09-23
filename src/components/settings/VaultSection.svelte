@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   /**
    * Gestion du coffre : l'installer, changer son mot de passe, verrouiller, le retirer.
    *
@@ -71,8 +75,8 @@
   }
 </script>
 
-<section class="card group">
-  <h2>Coffre : chiffrer les données de cet appareil</h2>
+<details class="card group" id="coffre" open={!collapsed}>
+  <summary><h2>Coffre : chiffrer les données de cet appareil</h2></summary>
 
   {#if app.vaultInstalled}
     <p class="muted small">
@@ -216,7 +220,7 @@
     ne protège pas un écran déjà déverrouillé : à ce moment-là, vos données sont en mémoire, en clair,
     par nécessité.
   </p>
-</section>
+</details>
 
 <style>
   .group {

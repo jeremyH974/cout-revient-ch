@@ -60,7 +60,7 @@
   const interest = $derived(app.interestTax);
 </script>
 
-<AppBar />
+<AppBar title="Titres" />
 <InvestTabs active="titles" />
 
 <section class="card summary">

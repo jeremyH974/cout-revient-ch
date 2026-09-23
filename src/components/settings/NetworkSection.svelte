@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   /**
    * La sortie réseau, dans la variante personnelle : coupée au démarrage, ouverte seulement si on
    * le demande — **et pour cette session seulement**.
@@ -21,6 +25,7 @@
    * donc jamais rien de plus que ce que le site public s'autorise déjà.
    */
   import { isLocalOnly, setLocalOnly } from '$lib/net/local-only';
+  import Switch from '../shared/Switch.svelte';
   import { app } from '../../state/app.svelte';
   import { toasts } from '../../state/ui.svelte';
 
@@ -38,8 +43,8 @@
   }
 </script>
 
-<section class="card group">
-  <h2>Sortie réseau</h2>
+<details class="card group" id="reseau" open={!collapsed}>
+  <summary><h2>Sortie réseau</h2></summary>
 
   {#if localOnly}
     <p class="ok small">
@@ -53,10 +58,11 @@
     </p>
   {/if}
 
-  <label class="check">
-    <input type="checkbox" checked={!localOnly} onchange={(e) => toggle(e.currentTarget.checked)} />
-    Autoriser les appels sortants pendant cette session
-  </label>
+  <Switch
+    checked={!localOnly}
+    onCheckedChange={(v) => toggle(v)}
+    label="Autoriser les appels sortants pendant cette session"
+  />
 
   <p class="muted small">
     Sans sortie réseau, l'application ne peut pas coter vos actifs : les montants latents reposent
@@ -85,7 +91,7 @@
       </li>
     </ul>
   </details>
-</section>
+</details>
 
 <style>
   .group {
@@ -98,13 +104,6 @@
   }
   p {
     margin: 0;
-  }
-  .check {
-    display: flex;
-    gap: var(--space-2);
-    align-items: center;
-    min-height: var(--tap);
-    font-size: var(--fs-sm);
   }
   .small {
     font-size: var(--fs-xs);

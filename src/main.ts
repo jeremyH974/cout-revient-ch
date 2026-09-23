@@ -4,6 +4,7 @@ import App from './App.svelte';
 import './app.css';
 import { installGlobalErrorCapture } from './lib/support/errors';
 import { installNetworkGuard, setLocalOnly } from './lib/net/local-only';
+import { installPromptCapture } from './lib/pwa/install';
 import { installServiceWorkerUrlPolicy } from './lib/support/trusted-types';
 import { app } from './state/app.svelte';
 import { update } from './state/ui.svelte';
@@ -13,6 +14,13 @@ if (!target) throw new Error('Élément #app introuvable');
 
 // Les erreurs non interceptées alimentent le diagnostic copiable (jamais envoyées nulle part).
 installGlobalErrorCapture();
+
+/*
+ * `beforeinstallprompt` peut arriver à tout moment après ce point, souvent avant que `app.init()`
+ * (asynchrone) n'ait fini — la capture précède donc tout le reste. Sans effet en variante privée
+ * (pas de manifeste, `disable: isPrivate`) : l'événement n'y est jamais déclenché.
+ */
+installPromptCapture();
 
 /*
  * Le verrou de sortie réseau, posé AVANT tout le reste.

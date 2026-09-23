@@ -7,6 +7,7 @@
  * calculés par le convertisseur lui-même, jamais écrits en dur (helpers/expected.ts).
  */
 import { expect, test } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { DIVIDEND_TAX_BOXES } from '../../src/lib/domain/equity-income-fr';
 import { INTEREST_TAX_BOXES } from '../../src/lib/domain/interest-income-fr';
 import { EQUITY_TAX_BOXES } from '../../src/lib/domain/equity-tax-fr';
@@ -131,6 +132,7 @@ test('avec une clé, les titres reçoivent un cours et une valeur', async ({ pag
 
   // La clé se saisit comme l'utilisateur le ferait : c'est elle qui arme le fournisseur.
   await page.goto('#/settings');
+  await openSettingsSection(page, 'prix');
   const key = page.getByLabel('Clé Twelve Data (facultative)');
   await key.fill('clef-de-test-e2e');
   await key.blur();
@@ -202,6 +204,7 @@ test('le volet Actions a sa courbe et sa répartition, sur ses seuls titres', as
   await expect(page.getByRole('heading', { name: 'Import réussi' })).toBeVisible();
 
   await page.goto('#/settings');
+  await openSettingsSection(page, 'prix');
   const key = page.getByLabel('Clé Twelve Data (facultative)');
   await key.fill('clef-de-test-e2e');
   await key.blur();

@@ -46,6 +46,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   normalement. Une sauvegarde plus ancienne, écrite avant cette mise à jour, se fusionne toujours
   correctement. Voir `docs/backup-format.md` § Fusion et `docs/DECISIONS.md` n° 182.
 
+- **L'application s'installe sur Android, avec un aperçu.** Un bouton « Installer l'application »
+  apparaît dans les réglages dès que Chrome le permet (masqué si l'app tourne déjà en application
+  installée). L'icône, maintenue enfoncée, propose désormais quatre raccourcis — Trading, Trades,
+  Vue d'ensemble, Importer — et la boîte d'installation montre deux aperçus de l'application avant
+  d'installer.
+- **Les réglages se lisent enfin d'un coup d'œil.** Neuf sections repliables au lieu d'une longue
+  page, la première (Données) ouverte, un sommaire en tête qui saute directement à la section
+  voulue. La zone dangereuse reste toujours repliée. Le même endroit affiche maintenant si le
+  stockage de ce navigateur est protégé contre l'effacement automatique, et l'espace utilisé.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui
@@ -302,6 +312,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   « Résultat net », « Dépôts nets » devient « Apports nets » — « Valeur du compte » ne change pas.
   Les bulles d'aide continuent de nommer « P&L », pour qui cherche ce mot.
 
+- **Le calendrier du Marché se lit par jour, avec un en-tête qui reste visible en défilant.**
+  Chaque jour de publications garde son titre à l'écran tant qu'on n'est pas passé au suivant. Les
+  liens vers les publications officielles sont plus faciles à toucher au doigt.
+- **La fiche d'un actif affiche vingt opérations, puis « Afficher plus ».** Un historique de
+  plusieurs centaines de lignes ne charge plus tout d'un coup — même principe que les exécutions
+  d'un trade.
+- **Les cases à cocher des réglages, des alertes et du Marché sont devenues des interrupteurs.**
+  Toute la ligne réagit au toucher, pas seulement le petit carré, et chacun a désormais un nom que
+  votre lecteur d'écran annonce correctement.
+
 - **Sous un an de données, le rapport ne donne plus de rendement « par an ».** Il le donne sur la
   période, dates à l'appui. Prolonger quelques mois sur une année produit un chiffre simulé, que la
   norme de présentation des performances (GIPS) interdit : sur la démonstration, l'ancien rapport
@@ -326,6 +346,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
 - **Les cases « Prix en direct » et « Trades en direct » avaient une zone cliquable trop
   étroite**, sous les 24 px recommandés. Toute la ligne — case et libellé — répond désormais au
   clic, avec 44 px de haut sur un écran tactile.
+
+- **Sur certains téléphones Android, le bas de l'écran restait vide une fois la barre d'adresse de
+  Chrome repliée.** La hauteur de la page suit maintenant la plus petite des deux tailles possibles
+  de l'écran, plutôt que la plus grande.
+- **Le clavier pouvait recouvrir le champ que vous étiez en train de remplir**, sur Chrome Android.
+  La page se redimensionne désormais pour rester au-dessus.
+- **Les onglets « Titres » et « Portefeuille » affichaient tous deux le nom de l'application** comme
+  titre de page, au lieu de dire lequel des deux on regardait.
 
 - **Les cartes collaient leur contenu au bord.** Sur la plupart des écrans (Vue d'ensemble,
   Trading, Comptes, Statistiques, Trades…), le texte d'une carte touchait sa bordure. Chaque carte
