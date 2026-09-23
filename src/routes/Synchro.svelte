@@ -295,13 +295,13 @@
       unlock();
     }}
   >
-    <input
-      type="password"
-      autocomplete="off"
-      placeholder="Phrase de synchronisation"
-      aria-label="Phrase de synchronisation"
-      bind:value={passphraseInput}
-    />
+    <!--
+      Étiquette VISIBLE et distincte du titre de la feuille : celle-ci porte déjà le nom
+      « Phrase de synchronisation » (`Sheet` nomme son dialogue par son titre), et deux éléments
+      du même nom sur un écran sont ambigus — pour un lecteur d'écran comme pour un test.
+    -->
+    <label for="sync-passphrase">Votre phrase</label>
+    <input id="sync-passphrase" type="password" autocomplete="off" bind:value={passphraseInput} />
     <button class="primary" type="submit" disabled={passphraseInput === ''}>Déverrouiller</button>
   </form>
 </Sheet>

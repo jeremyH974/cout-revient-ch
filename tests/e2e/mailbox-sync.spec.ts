@@ -70,8 +70,8 @@ async function opfsFiles(page: Page, dirName: string): Promise<Record<string, st
 
 /** La feuille « Phrase de synchronisation » est déjà ouverte (ou s'ouvre au prochain effet) : la remplit. */
 async function unlockPassphrase(page: Page): Promise<void> {
-  await expect(page.getByLabel('Phrase de synchronisation')).toBeVisible();
-  await page.getByLabel('Phrase de synchronisation').fill(PASSPHRASE);
+  await expect(page.getByLabel('Votre phrase')).toBeVisible();
+  await page.getByLabel('Votre phrase').fill(PASSPHRASE);
   await page.getByRole('button', { name: 'Déverrouiller' }).click();
 }
 
@@ -196,8 +196,8 @@ test('mauvaise phrase de synchronisation sur le téléphone : erreur nommée, ri
     mimeType: 'text/plain',
     buffer: Buffer.from(JSON.stringify(envelope), 'utf-8'),
   });
-  await expect(page.getByLabel('Phrase de synchronisation')).toBeVisible();
-  await page.getByLabel('Phrase de synchronisation').fill('mauvaise-phrase');
+  await expect(page.getByLabel('Votre phrase')).toBeVisible();
+  await page.getByLabel('Votre phrase').fill('mauvaise-phrase');
   await page.getByRole('button', { name: 'Déverrouiller' }).click();
 
   await expect(page.getByText('Phrase secrète incorrecte ou fichier altéré.')).toBeVisible();
