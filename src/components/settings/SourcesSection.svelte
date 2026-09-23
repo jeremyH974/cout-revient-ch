@@ -1,10 +1,14 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   import { DATA_SOURCES, requiredAttributions } from '$lib/support/sources';
 
   const required = requiredAttributions();
 </script>
 
-<details class="card group" id="sources" aria-labelledby="sources-title">
+<details class="card group" id="sources" open={!collapsed} aria-labelledby="sources-title">
   <summary><h2 id="sources-title">Sources des données</h2></summary>
   <p class="lead">
     L'application n'a pas de serveur : elle interroge directement ces services depuis votre

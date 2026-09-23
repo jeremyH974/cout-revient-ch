@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   /**
    * Gestion du coffre : l'installer, changer son mot de passe, verrouiller, le retirer.
    *
@@ -71,7 +75,7 @@
   }
 </script>
 
-<details class="card group" id="coffre">
+<details class="card group" id="coffre" open={!collapsed}>
   <summary><h2>Coffre : chiffrer les données de cet appareil</h2></summary>
 
   {#if app.vaultInstalled}

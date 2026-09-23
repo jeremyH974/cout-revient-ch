@@ -204,7 +204,7 @@ test('veille + notifications : l’instantané du service worker reflète les se
   await sheet.getByRole('button', { name: 'Créer l’alerte' }).click();
   await expect(page.locator('li.rule').getByText('armée', { exact: true })).toBeVisible();
 
-  await page.getByRole('checkbox', { name: 'Veille automatique des prix (app ouverte)' }).check();
+  await page.getByRole('switch', { name: 'Veille automatique des prix (app ouverte)' }).check();
   await page.getByRole('button', { name: 'Activer les notifications système' }).click();
   await expect(page.getByText('Notifications système :')).toBeVisible();
 

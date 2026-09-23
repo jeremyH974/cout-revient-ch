@@ -6330,6 +6330,17 @@ true` posé, `sheetOpen = false` retiré) — la spec `page.goBack()` rougit en 
      reste écrit — accessible name, curseur, ouverture dans un nouvel onglet au clic du milieu —
      mais le clic normal ne le suit jamais.
 
+     **Replier, mais seulement sur un petit écran.** Le premier jet repliait les sections sur tous
+     les écrans, et la suite de bout en bout l'a dit d'un coup : une douzaine de parcours passent
+     par les Réglages — coffre, sauvegarde, chiffrement, exports, sources de prix, méthode de
+     calcul — et chacun venait de gagner un geste. Le défaut mesuré (huit hauteurs d'écran) est un
+     défaut de TÉLÉPHONE ; sur un écran large, replier coûte plus qu'il ne rapporte. L'état initial
+     se décide donc à l'ouverture de la page (`$lib/ui/narrow.ts`, `(max-width: 767px)`), **lu une
+     seule fois** : une section qu'on vient d'ouvrir ne doit pas se refermer parce qu'on a tourné
+     son téléphone. Seule exception, à toutes les tailles : la **zone dangereuse** reste repliée —
+     effacer toutes ses données ne tient pas en un geste —, et les quatre parcours de test qui
+     l'empruntent l'ouvrent explicitement, comme l'utilisateur (`tests/e2e/helpers/settings.ts`).
+
      **`role="switch"` plutôt qu'un composant qui repeint toutes les cases à cocher.** Les listes à
      choix multiples (comptes on-chain à cocher pour export, cases de la déclaration fiscale) et les
      cases de confirmation (« ces deux fichiers portent sur le même périmètre »,

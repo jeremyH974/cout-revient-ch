@@ -1,4 +1,5 @@
 import { readFileSync, statSync } from 'node:fs';
+import { openSettingsSection } from './helpers/settings';
 import { expect, test } from '@playwright/test';
 import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
@@ -57,6 +58,7 @@ test('sauvegarde JSON → effacement → restauration : mêmes totaux', async ({
   );
   const backupPath = await file.path();
 
+  await openSettingsSection(page, 'danger');
   await page.getByRole('button', { name: 'Effacer toutes les données' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Effacer', exact: true }).click();
   await expect(page).toHaveURL(/#\/welcome$/);

@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   /**
    * Réglages du récit narratif (P65) : l'opt-in, la clé — **en mémoire vive uniquement** — et le
    * bouton « Tester la clé ».
@@ -55,7 +59,7 @@
   }
 </script>
 
-<details class="card group" id="ia">
+<details class="card group" id="ia" open={!collapsed}>
   <summary><h2>Récit par intelligence artificielle</h2></summary>
   <p class="muted small">
     Facultatif, décoché par défaut. Une fois activé, le rapport propose un court récit rédigé par un

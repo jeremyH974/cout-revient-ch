@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { openSettingsSection } from './helpers/settings';
 import { expect, test } from '@playwright/test';
 import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
@@ -32,6 +33,7 @@ test('sauvegarde chiffrée → effacement → restauration avec la phrase secrè
   expect(envelope['params']).toMatchObject({ m: expect.any(Number), t: expect.any(Number) });
   expect(JSON.stringify(envelope)).not.toContain('rawRows');
 
+  await openSettingsSection(page, 'danger');
   await page.getByRole('button', { name: 'Effacer toutes les données' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Effacer', exact: true }).click();
   await expect(page).toHaveURL(/#\/welcome$/);
