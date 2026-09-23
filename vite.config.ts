@@ -162,6 +162,28 @@ export default defineConfig(({ mode }) => {
               purpose: 'maskable',
             },
           ],
+          /**
+           * Boîte aux lettres chiffrée (P125) : reçoit un fichier partagé depuis Drive, Quick
+           * Share ou tout autre expéditeur Android. `enctype: multipart/form-data` est requis dès
+           * qu'un champ fichier existe (developer.chrome.com/docs/capabilities/web-apis/web-share-target,
+           * vérifié le 22/09/2026). `accept` liste MIME **et** extension pour chaque type : les
+           * fichiers de la boîte aux lettres sont en `.txt` (`navigator.share()` refuse les
+           * `.json` côté émission — MDN, `Navigator.share()`, vérifié le 22/09/2026), mais un
+           * expéditeur peut annoncer `application/json` selon comment l'OS a sniffé le fichier ;
+           * mieux vaut accepter les deux que perdre un partage sur un type trop strict. Traité par
+           * `public/sw-share-target.js` (voir ce fichier pour l'interaction avec Workbox) ; absent
+           * de la variante privée, qui n'a ni manifeste ni service worker (`disable` ci-dessus).
+           */
+          share_target: {
+            action: `${BASE}share-target`,
+            method: 'POST',
+            enctype: 'multipart/form-data',
+            params: {
+              files: [
+                { name: 'file', accept: ['text/plain', '.txt', 'application/json', '.json'] },
+              ],
+            },
+          },
           /*
            * Boîte d'installation enrichie (web.dev/articles/web-apps/richer-install-ui) : deux
            * captures `form_factor: "narrow"` des données d'exemple, écrites par
@@ -229,8 +251,16 @@ export default defineConfig(({ mode }) => {
           ],
           // Clic sur une notification d'alerte (sw-notifications.js) + vérification opportuniste
           // des alertes app fermée : noyau pur (sw-alerts-core.js, testé via node:vm) puis
-          // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte.
-          importScripts: ['sw-notifications.js', 'sw-alerts-core.js', 'sw-alert-sync.js'],
+          // handler Periodic Background Sync (sw-alert-sync.js) — l'ordre compte. Ajouté en
+          // dernier : réception Web Share Target (sw-share-target.js, boîte aux lettres P125) —
+          // son écouteur `fetch` doit être posé avant que `precacheAndRoute` (plus bas) pose celui
+          // de Workbox, voir le commentaire en tête de ce fichier.
+          importScripts: [
+            'sw-notifications.js',
+            'sw-alerts-core.js',
+            'sw-alert-sync.js',
+            'sw-share-target.js',
+          ],
         },
       }),
     ],
@@ -308,8 +338,16 @@ export default defineConfig(({ mode }) => {
            * specs Playwright (hors de cette mesure). La LOGIQUE, elle, vit dans `src/lib/storage/
            * sync/`, mesurée à 99,14 % de lignes juste à côté. `functions`/`branches` n'ont pas eu
            * besoin de baisser (4,43 % et 0,38 % mesurés, planchers inchangés).
+           *
+           * Même geste à la boîte aux lettres synchronisée (décision n° 186, `docs/DECISIONS.md`,
+           * 22/09/2026) : `app.svelte.ts` gagne le câblage de `syncMailbox`/`buildMailboxDeposit`
+           * (démarrage, retour au premier plan, anti-rebond 60 s, écran `Synchro.svelte`) — encore
+           * de la circuiterie, la LOGIQUE restant dans `src/lib/storage/mailbox-sync.ts`, mesurée à
+           * 96,36 % de lignes. `lines`/`statements`/`functions` redescendus sous leur valeur
+           * MESURÉE (2,38 %/2,19 %/4,28 %) ; `branches` n'a pas eu besoin de baisser (0,36 % mesuré,
+           * plancher inchangé).
            */
-          'src/state/**/*.ts': { lines: 2.5, statements: 2.3, functions: 4.4, branches: 0.3 },
+          'src/state/**/*.ts': { lines: 2.3, statements: 2.1, functions: 4.2, branches: 0.3 },
         },
       },
     },

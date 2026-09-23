@@ -160,6 +160,16 @@
     ouvre un flux WebSocket vers Hyperliquid pour rafraîchir en continu le prix des actifs que vous détenez
     ; il se coupe dès que l'onglet passe en arrière-plan.
   </p>
+  <h2>Synchroniser plusieurs appareils</h2>
+  <p>
+    <strong>Menu Plus → Synchronisation</strong> fait retrouver les mêmes données sur votre ordinateur,
+    votre téléphone ou la variante personnelle, sans compte ni serveur : chaque appareil dépose son propre
+    fichier chiffré dans un dossier que vous synchronisez déjà (Google Drive, OneDrive…) et lit ceux des
+    autres. Sur ordinateur, choisissez le dossier une fois ; sur téléphone, recevez un dépôt par le sélecteur
+    de fichiers ou en le partageant depuis Drive, et envoyez le vôtre par la feuille de partage. Une phrase
+    de synchronisation déverrouille la boîte aux lettres pour la session ; elle n'est jamais enregistrée,
+    donc jamais récupérable si vous l'oubliez.
+  </p>
   <h2>Un problème, une idée ?</h2>
   <p>
     Dans <strong>Réglages → Aide et retours</strong>, copiez le diagnostic (il ne contient ni

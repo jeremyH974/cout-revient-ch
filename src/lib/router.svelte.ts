@@ -28,6 +28,7 @@ export type Route =
   | { name: 'watch' }
   | { name: 'accounts' }
   | { name: 'reconciliation' }
+  | { name: 'synchro' }
   | { name: 'settings' }
   | { name: 'privacy' }
   | { name: 'help' }
@@ -149,6 +150,8 @@ export function parseHash(hash: string): Route {
       return { name: 'accounts' };
     case 'reconciliation':
       return { name: 'reconciliation' };
+    case 'synchro':
+      return { name: 'synchro' };
     case 'welcome':
       return { name: 'welcome' };
     case 'settings':

@@ -128,6 +128,146 @@ suite. C'est le seul moyen de garantir ce qui compte vraiment ici : **une sauveg
 assurance, elle ne vaut que si elle s'ouvre le jour où tout le reste a disparu.** Le régénérer
 reviendrait à ne plus rien prouver.
 
+## Enveloppe v3 de la boîte aux lettres
+
+Troisième format, **distinct** de la sauvegarde ci-dessus : celui des fichiers qu'un appareil dépose
+dans un dossier synchronisé (Drive, OneDrive…) pour que les autres appareils du même propriétaire
+les lisent. Code : `src/lib/storage/mailbox-envelope.ts` (format, chiffrement),
+`src/lib/storage/mailbox.ts` (nommage, sélection — pur, sans chiffrement),
+`src/lib/storage/mailbox-sync.ts` (orchestre UN cycle : lit les pairs, fusionne, dépose, élague —
+pur lui aussi, un dossier abstrait en paramètre), `src/lib/storage/mailbox-folder.ts` (le dossier
+réel, File System Access, et ce que cet appareil retient entre deux sessions), écran
+`src/routes/Synchro.svelte` (`#/synchro`, espace « Plus »).
+
+### Le cycle d'écriture et de lecture
+
+Un cycle (`syncMailbox`) fait toujours les trois dans cet ordre, sur le dossier ENTIER relu à
+chaque fois (jamais un delta) :
+
+1. **Lire.** Lister le dossier, lire chaque fichier, ne garder que ceux dont l'en-tête se lit
+   (`readMailboxHeader` — un fichier vide, tronqué ou d'un autre format est silencieusement écarté,
+   jamais une erreur). Parmi ce qui reste, `selectPeerFiles` garde le plus récent (`seq`) de CHAQUE
+   appareil PAIR — jamais le sien — trié par identifiant d'appareil pour que l'ordre de découverte du
+   système de fichiers ne change rien.
+2. **Fusionner.** Pour chaque pair dont le `seq` dépasse le dernier déjà fusionné (persisté en méta
+   IndexedDB, par appareil pair) : déchiffrer (phrase de synchronisation de la session,
+   `mailbox-session.ts` — jamais enregistrée) puis fusionner via `AppState.restoreBackup(json,
+'merge')`, donc `mergeSynced` (§ Fusion ci-dessous), exactement comme une restauration de
+   sauvegarde classique. Une mauvaise phrase ou un texte chiffré altéré (message indistinguable,
+   voir plus bas) rapporte un statut nommé pour CE pair et n'avance pas son `seq` connu — il sera
+   retenté au cycle suivant — sans jamais bloquer la lecture des autres pairs.
+3. **Déposer, puis élaguer.** Chiffrer l'état COURANT (post-fusion, donc incluant ce qui vient
+   d'être appris à l'étape 2 — la propagation entre pairs qui ne partagent pas le même dossier
+   passe ainsi par un appareil intermédiaire) sous un **nouveau** nom numéroté
+   (`mailboxFileName(device, seq)`, `seq` réservé et persisté AVANT l'écriture — voir plus bas
+   pourquoi), jamais une réécriture. Puis supprimer ses propres fichiers au-delà des deux plus
+   récents (`ownFilesToPrune`, qui ne touche jamais un fichier dont l'en-tête porte un autre
+   appareil) ; une suppression qui échoue (fichier verrouillé par le client cloud en plein envoi)
+   est silencieusement retentée au cycle suivant.
+
+**Pourquoi `seq` est réservé avant l'écriture, pas après son succès.** Le nom d'un fichier ne dépend
+que de l'appareil et de `seq` : réutiliser un `seq` après une écriture ratée risquerait d'écrire
+sous un nom déjà PRIS (par exemple par un envoi du client cloud encore en cours), donc de corrompre
+ou de retarder ce dépôt-là. Un `seq` sauté à la place est inoffensif : ni la sélection ni l'élagage
+ne supposent une suite sans trou.
+
+**Quand un cycle a lieu.** Au démarrage (si un dossier et sa permission sont déjà là), au retour au
+premier plan de l'onglet, 60 secondes après la dernière modification locale (jamais en mode démo,
+jamais sans aucune donnée réelle), et à la demande depuis l'écran. Toujours silencieux (jamais
+d'erreur, jamais de blocage de l'interface) tant que le dossier, sa permission ou la phrase de
+synchronisation manquent — c'est ce qui permet de l'appeler sans condition depuis ces quatre points.
+
+**Android, sans dossier.** `navigator.share`/le sélecteur de fichiers remplacent le dossier :
+`buildMailboxDeposit` construit le MÊME fichier (chiffrement, nom) sans jamais toucher à un
+`MailboxFolder`, et `AppState.ingestMailboxFile` en reçoit un (sélecteur ou Web Share Target,
+`shared-inbox.ts`) en appliquant exactement les étapes 1-2 ci-dessus à ce seul fichier.
+
+### Pourquoi `.txt`, et pas `.json`
+
+Sur Android, un fichier s'envoie vers la boîte aux lettres par la feuille de partage du système
+(`navigator.share()`), qui refuse certains types de fichiers : `.json` / `application/json` n'est
+**pas** sur la liste blanche de Chromium, `.txt` / `text/plain` l'est (MDN, `Navigator.share()`,
+vérifié le 22/09/2026). Les fichiers de la boîte aux lettres sont donc du JSON **dans un fichier
+`.txt`** — la réception (`share_target` du manifeste), elle, accepte les deux (`text/plain`, `.txt`,
+`application/json`, `.json`) : mieux vaut être large en lecture que perdre un partage sur un type
+que l'expéditeur a étiqueté différemment.
+
+### L'en-tête
+
+En clair, à la différence du texte chiffré :
+
+| Champ         | Sens                                                                      |
+| ------------- | ------------------------------------------------------------------------- |
+| `app`         | `'cout-revient-ch'`, comme la sauvegarde                                  |
+| `kind`        | `'mailbox'` — distingue une enveloppe v3 d'une sauvegarde v1/v2           |
+| `version`     | `3`                                                                       |
+| `device`      | UUID de l'appareil écrivain (fourni par l'appelant — pas de ce module)    |
+| `seq`         | Entier croissant, propre à CET appareil (pas un compteur global)          |
+| `writtenAt`   | ISO 8601, instant d'écriture                                              |
+| `kdf`         | `'argon2id'`, seul KDF que la v3 écrit                                    |
+| `params`      | `{ m, t, p }` d'Argon2id, comme la sauvegarde v2                          |
+| `salt`        | Base64. **Stable par appareil** (voir plus bas), pas régénéré par fichier |
+| `iv`          | Base64, 96 bits. Aléatoire à CHAQUE écriture                              |
+| `compression` | `'gzip'`, seule valeur que la v3 écrit                                    |
+| `ciphertext`  | Base64. Le seul champ qui n'est PAS en clair                              |
+
+`readMailboxHeader(text)` lit et valide cette forme SANS déchiffrer — c'est ce qui permet de trier
+des dizaines de fichiers d'un dossier sans payer une dérivation Argon2id par fichier avant d'avoir
+choisi lesquels valent la peine d'être déchiffrés.
+
+### Pourquoi l'AAD couvre l'en-tête ENTIER
+
+AES-GCM authentifie toujours le texte chiffré : l'altérer fait déjà échouer le déchiffrement, en v3
+comme en v2. Mais un en-tête en clair reste, par nature, modifiable sans toucher au texte chiffré —
+et `seq`/`device`/`writtenAt` ne participent à aucune dérivation de clé, donc les modifier ne casse
+rien côté clé. `additionalData` (AAD) d'AES-GCM ferme ce trou : MDN (`AesGcmParams`, vérifié le
+22/09/2026) — « This contains additional data that will not be encrypted but will be authenticated
+along with the encrypted data. […] If the data given to the decrypt() call does not match the
+original data, the decryption will throw an exception. » L'AAD utilisée ici est le JSON canonique
+(clés triées, récursivement) de l'enveloppe entière SAUF `ciphertext` : changer un seul caractère
+d'un seul champ d'en-tête change l'AAD, donc fait échouer le déchiffrement — jamais produire un
+contenu associé à des métadonnées fausses. Contre-épreuve (décision n° 75) dans
+`mailbox-envelope.test.ts` : voir le rapport de ce chantier pour le détail de ce qui a été vu rougir.
+
+### Compression avant chiffrement
+
+Le JSON (état complet ou sous-ensemble synchronisé) compresse bien : texte répétitif, mêmes clés
+partout. `CompressionStream`/`DecompressionStream('gzip')` sont natifs du navigateur — Chrome 80,
+Firefox 113, Safari 16.4 (web.dev/blog/compressionstreams, vérifié le 22/09/2026) — aucune
+dépendance ajoutée. Ordre : JSON → gzip → AES-GCM ; l'inverse au déchiffrement.
+
+### Le cache de clés par sel, et pourquoi un sel stable par appareil
+
+`deriveAesKey` (`kdf.ts`, décision n° 151, seul point de dérivation) coûte ~250 ms : lire les
+fichiers de plusieurs appareils sur plusieurs synchronisations ne doit pas re-payer ce coût à chaque
+fichier. Un cache EN MÉMOIRE DE SESSION (jamais persisté, vidé au rechargement de l'onglet) associe
+chaque (SEL, phrase secrète) déjà rencontré à sa clé dérivée. Cela suppose que l'écrivain d'un
+appareil donné utilise toujours le MÊME sel (fourni par l'appelant, pas régénéré par ce module à
+chaque écriture) : pour l'usage normal — une seule phrase déverrouille toute la boîte aux lettres,
+le temps d'une session — c'est ce qui fait qu'un lecteur ne dérive qu'une fois par appareil pair,
+pas une fois par fichier.
+
+**Piège trouvé par le test, pas anticipé au premier jet** : indexer le cache par le sel SEUL (sans
+la phrase) déchiffrait avec succès une enveloppe sur une phrase secrète FAUSSE, dès lors que la
+bonne phrase avait déjà été dérivée pour ce même sel plus tôt dans la session — la clé mise en cache
+répondait à la place de la vérification. Le test « mauvaise phrase secrète » l'a fait rougir
+immédiatement. La clé du cache est donc la PAIRE (sel, phrase), jamais le sel seul : le cas normal
+garde la même propriété (une dérivation par sel, la phrase ne changeant pas en cours de session),
+et une phrase différente sur un sel déjà vu redérive, puis échoue comme elle le doit.
+
+Limite connue et acceptée : NIST SP 800-38D borne un IV aléatoire de 96 bits à 2^32 chiffrements
+sous une même clé. Un sel stable par appareil implique une clé stable par appareil (via le cache) ;
+au rythme d'une synchronisation manuelle, cette limite reste hors d'atteinte de plusieurs ordres de
+grandeur — nommée ici pour ne pas être oubliée, pas parce qu'elle est proche.
+
+### Ce qui ne change PAS
+
+`encryption.ts` (sauvegarde v1 PBKDF2, v2 Argon2id) reste inchangé : la v3 ne l'importe pas, ne le
+modifie pas, et le message d'erreur générique « phrase secrète incorrecte » qu'elle réutilise pour
+un mot de passe faux ou une enveloppe altérée est dupliqué à l'identique plutôt qu'importé — pour
+que ce fichier se lise seul, et que `encryption.ts` ait un historique de modifications qui n'inclut
+jamais ce chantier.
+
 ## Pourquoi pas de schéma publié
 
 Pas de JSON Schema en regard de ce document : aucun consommateur externe connu ne lit

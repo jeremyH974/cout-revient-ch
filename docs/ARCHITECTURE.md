@@ -362,7 +362,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     supprime avec confirmation ; ouverte depuis la feuille de filtres, sans route à elle.
 
   - **Plus** (`#/more`) : `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
-    `reconciliation`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
+    `reconciliation`, `synchro`, `settings`, `help`, `news`, `privacy`. `routes/Accounts.svelte` y liste les comptes implicites et
     déclarés, permet d'ajouter ou de supprimer un compte déclaré ou une adresse on-chain BTC/EVM
     suivie en lecture seule, et porte le bouton « Synchroniser ». `routes/Declaration.svelte`
     (`#/declaration`) réunit les cinq moteurs fiscaux pour **une** année, case par case et dans
@@ -376,12 +376,15 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'arbitrage écarte parce qu'ils se déduisent des deux côtés, reviennent dans le calcul. Sur
     l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
     l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
-    (`derive/tax-forecast.ts`, décision n° 171).
+    (`derive/tax-forecast.ts`, décision n° 171). `routes/Synchro.svelte` (`#/synchro`, décision
+    n° 186) est l'écran de la boîte aux lettres chiffrée (P125) : dossier synchronisé côté PC
+    (File System Access), réception/partage côté Android, état par appareil pair et dernier rapport
+    de fusion — voir `docs/backup-format.md` § Enveloppe v3.
 
   Routes déclarées, **Liste vérifiée** : `overview`, `welcome`, `netWorthReport`, `portfolio`,
   `asset`, `import`, `add`, `report`, `secondOpinion`, `alerts`, `loans`, `loansReport`, `titles`, `trading`, `trades`, `trade`, `tradeAdd`,
   `tradeStats`, `tradeBreakeven`, `fills`, `tradingReport`, `more`, `market`, `watch`, `declaration`, `taxes`, `accounts`,
-  `reconciliation`, `settings`, `help`, `news`, `privacy`.
+  `reconciliation`, `synchro`, `settings`, `help`, `news`, `privacy`.
 
   L'import, la saisie manuelle et le rapport appartiennent à l'**Investissement**, pas au menu
   « Plus » — ce document affirmait le contraire jusqu'au 01/09/2026 (décision n° 90).

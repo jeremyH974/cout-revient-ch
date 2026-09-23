@@ -102,6 +102,9 @@ describe('encryption', () => {
     expect(isEncryptedBackup(missingSalt)).toBe(false);
     expect(isEncryptedBackup({ ...backup, app: 'autre-app' })).toBe(false);
     expect(isEncryptedBackup({ ...backup, encrypted: false })).toBe(false);
+    // Paramètres Argon2id démesurés : refusés avant toute dérivation (`KDF_PARAMS_LIMITS`).
+    expect(isEncryptedBackup({ ...backup, params: { m: 4_194_304, t: 1, p: 1 } })).toBe(false);
+    expect(isEncryptedBackup({ ...backup, params: { m: 64, t: 1_000, p: 1 } })).toBe(false);
     expect(isEncryptedBackup({ ...backup, version: 3 })).toBe(false);
     expect(isEncryptedBackup({ ...backup, kdf: 'PBKDF2' })).toBe(false);
     const { params: _params, ...missingParams } = backup;

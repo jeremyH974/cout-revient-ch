@@ -38,6 +38,21 @@ await app.init();
 // Crochet de développement (absent du build) : pilotage depuis les outils de test.
 if (import.meta.env.DEV) Object.assign(window, { __crch: app });
 
+/**
+ * Point d'injection RÉSERVÉ AUX TESTS DE BOUT EN BOUT (Playwright) — contrairement à `__crch`
+ * ci-dessus, TOUJOURS présent, y compris dans le build de PRODUCTION que `npm run e2e` sert via
+ * `vite preview` (`import.meta.env.DEV` y est déjà faux à ce moment-là). Une seule responsabilité :
+ * accepter un `FileSystemDirectoryHandle` déjà obtenu par la PAGE ELLE-MÊME — la racine (ou un
+ * sous-dossier) d'OPFS, `navigator.storage.getDirectory()`, dans un test « PC » de la boîte aux
+ * lettres (P125), faute de sélecteur natif pilotable par l'automatisation — à la place de
+ * `showDirectoryPicker()`. Aucun risque au-delà de l'appel normal : obtenir un tel handle exige
+ * déjà d'être un script de CETTE origine, capable d'appeler lui-même `getDirectory()`.
+ */
+Object.assign(window, {
+  __crchSetMailboxFolderForTests: (handle: FileSystemDirectoryHandle) =>
+    app.chooseMailboxFolder(handle),
+});
+
 /*
  * Pas de service worker dans la variante personnelle. Deux raisons, et la seconde suffit :
  *

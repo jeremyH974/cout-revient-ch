@@ -32,6 +32,7 @@ describe('parseHash — hashes canoniques (v2)', () => {
     // Le consolidé garde son hash de premier niveau : il additionne les espaces.
     ['#/patrimoine', { name: 'netWorthReport' }],
     ['#/more', { name: 'more' }],
+    ['#/synchro', { name: 'synchro' }],
     ['#/welcome', { name: 'welcome' }],
     ['#/settings', { name: 'settings' }],
     ['#/privacy', { name: 'privacy' }],
@@ -95,6 +96,7 @@ describe('toHash — hash canonique par route', () => {
     [{ name: 'tradingReport' }, '#/trading/report'],
     [{ name: 'loansReport' }, '#/wealth/report'],
     [{ name: 'more' }, '#/more'],
+    [{ name: 'synchro' }, '#/synchro'],
     [{ name: 'welcome' }, '#/welcome'],
     [{ name: 'settings' }, '#/settings'],
     [{ name: 'privacy' }, '#/privacy'],
@@ -125,6 +127,7 @@ describe('toHash / parseHash — aller-retour', () => {
     { name: 'loansReport' },
     { name: 'netWorthReport' },
     { name: 'more' },
+    { name: 'synchro' },
     { name: 'taxes' },
     { name: 'settings' },
     { name: 'privacy' },

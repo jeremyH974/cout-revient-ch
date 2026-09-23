@@ -47,6 +47,7 @@ const ROUTE_TITLES: Readonly<Record<RouteName, string>> = {
   watch: 'Veille réglementaire',
   accounts: 'Comptes',
   reconciliation: 'Réconciliation',
+  synchro: 'Synchronisation',
   settings: 'Réglages',
   privacy: 'Confidentialité',
   help: 'Aide',

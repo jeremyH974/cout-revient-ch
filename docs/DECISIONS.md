@@ -6407,3 +6407,123 @@ coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré)
      manifeste (retiré de `vite.config.ts`, le test échoue en nommant `json.id` `undefined`) ; et le
      repli `svh` lui-même (revenu à la déclaration unique dans la même règle : le test qui lit le
      CSS construit échoue en nommant l'absence de `min-height:100vh`).
+
+186. **La boîte aux lettres synchronisée : un orchestrateur pur au-dessus d'un dossier abstrait,
+     jamais l'inverse** (22/09/2026).
+
+     ## Ce que ce chantier ajoute à P125
+
+     La session précédente (§ Enveloppe v3 de `docs/backup-format.md`) posait le format d'un fichier
+     — chiffrement, en-tête authentifié en AAD, nommage, sélection du plus récent par appareil pair
+     — sans écran ni cycle de synchronisation. Celui-ci les ajoute : `src/lib/storage/mailbox-sync.ts`
+     (lire les pairs, fusionner, déposer, élaguer — UN cycle), `src/lib/storage/mailbox-folder.ts`
+     (le dossier réel, File System Access, ce qu'un appareil retient d'une session à l'autre),
+     `src/lib/storage/mailbox-session.ts` (la phrase de synchronisation, en mémoire seulement, comme
+     la clé du coffre), `src/routes/Synchro.svelte` (`#/synchro`), et le câblage dans
+     `src/state/app.svelte.ts` (démarrage, retour au premier plan, anti-rebond 60 s après une
+     modification, à la demande).
+
+     ## Un dossier ABSTRAIT, pour que la logique reste testable sans navigateur
+
+     `MailboxFolder` (`list`/`read`/`write`/`remove`) est le SEUL point de contact entre
+     `syncMailbox` et l'extérieur — une interface à quatre méthodes, définie dans le module PUR et
+     implémentée par `RealMailboxFolder` (au-dessus d'un `FileSystemDirectoryHandle`) côté
+     `mailbox-folder.ts`. Composition, pas réécriture : la sélection (`mailbox.ts`,
+     `selectPeerFiles`/`ownFilesToPrune`, décision antérieure), le chiffrement
+     (`mailbox-envelope.ts`) et la fusion (`sync/merge.ts`, décision n° 182, via les callbacks
+     `exportJson`/`mergeJson` que l'appelant fournit — `AppState.exportBackup`/
+     `restoreBackup('merge')` en pratique) existaient déjà ; `syncMailbox` les ORDONNANCE. Douze
+     tests de `mailbox-sync.test.ts` tournent contre un `FakeFolder` en mémoire (`Map`), y compris
+     deux scénarios à deux appareils simulés (harnais bâti sur les mêmes fonctions pures
+     qu'`AppState`, sans importer la classe) qui convergent après un aller-retour de fichiers.
+
+     **`RealMailboxFolder` fonctionne identiquement au-dessus d'OPFS.**
+     `navigator.storage.getDirectory()` renvoie un `FileSystemDirectoryHandle` — LA MÊME interface
+     que File System Access, sans sélecteur natif. C'est ce qui permet à
+     `tests/e2e/mailbox-sync.spec.ts` d'injecter
+     un sous-dossier OPFS à la place du sélecteur (que Playwright ne peut piloter, faute de geste
+     utilisateur réel), par un point dédié plutôt que par un crochet générique : `main.ts` expose
+     `window.__crchSetMailboxFolderForTests`, TOUJOURS présent — contrairement à `__crch`
+     (`import.meta.env.DEV` seulement) — parce que `npm run e2e` teste le BUILD DE PRODUCTION, où
+     `DEV` est déjà faux. Sans risque au-delà de l'appel normal : obtenir un
+     `FileSystemDirectoryHandle` exige déjà d'être un script de cette origine. Ceci ne fait pas de
+     l'application un usage d'OPFS pour ses propres données — `docs/variante-personnelle.md`
+     (« Pas d'OPFS ») parle du stockage applicatif, pas d'un dossier de test qui implémente la même
+     interface.
+
+     ## `seq` réservé AVANT l'écriture, jamais après son succès
+
+     `mailboxFileName` ne dépend que de l'appareil et de `seq` : réutiliser un `seq` après une
+     écriture ratée risquerait d'écrire sous un nom déjà pris (le client cloud peut être en train
+     d'envoyer l'ancien), donc de corrompre ou de retarder CE dépôt — la règle « jamais de
+     réécriture d'un fichier existant » l'interdit. `nextMailboxSeq()`
+     (`mailbox-folder.ts`) persiste donc le compteur en IndexedDB **avant** toute tentative d'écriture.
+     Un `seq` sauté (écriture ratée, ou simplement jamais consommé) est inoffensif : ni
+     `selectPeerFiles` ni `ownFilesToPrune` ne supposent une suite sans trou — propriété déjà vérifiée
+     par les tests de `mailbox.ts`.
+
+     ## Une erreur NOMMÉE par pair, jamais un échec de tout le cycle
+
+     `PeerOutcome` distingue `merged` / `up-to-date` / `wrong-passphrase` / `invalid` : une mauvaise
+     phrase ou un contenu que `mergeJson` refuse (autre application, schéma futur) est rapportée pour
+     CE pair, sans jamais interrompre la lecture des autres ni faire échouer le dépôt du sien.
+     `lastMergedSeq` n'avance QUE sur un succès — un échec sera retenté au cycle suivant, y compris
+     après que l'utilisateur a corrigé sa phrase. `wrong-passphrase` reprend le nom du message unique
+     de `mailbox-envelope.ts` (une phrase fausse et un texte altéré sont indistinguables) sans
+     prétendre trancher ce que ce module lui-même ne tranche pas.
+
+     ## Android : le même dépôt, sans jamais toucher un dossier
+
+     `buildMailboxDeposit` (exporté de `mailbox-sync.ts`) construit EXACTEMENT le fichier que
+     `syncMailbox` aurait écrit pour un `seq` donné — chiffrement, nom — sans jamais référencer
+     `MailboxFolder`. `AppState.buildMailboxDeposit`/`ingestMailboxFile` s'en servent pour le
+     chemin Android (`navigator.share`, repli téléchargement ; sélecteur de fichiers et Web Share
+     Target en réception, `shared-inbox.ts`), avec le MÊME compteur `seq` et le même sel que le
+     chemin PC — un appareil qui n'a jamais de dossier reste un pair de plein droit pour tous les
+     autres. `tests/e2e/mailbox-sync.spec.ts` le prouve de bout en bout : un dossier OPFS « PC »
+     dépose, un contexte « téléphone » (File System Access retiré par `addInitScript`, AVANT le
+     premier chargement) le reçoit par le sélecteur, fusionne, et la fiche Positions affiche le même
+     nombre de lignes que le moteur — puis, séparément, le chemin Web Share Target complet (POST →
+     service worker → IndexedDB dédiée → `#/synchro` → fusion).
+
+     ## La phrase de synchronisation : un module à part, pas un champ d'`AppState`
+
+     `mailbox-session.ts` (un `let` de module, comme `vault-session.ts`) plutôt qu'un champ
+     `$state` : la synchronisation automatique (démarrage, retour au premier plan, anti-rebond après
+     modification) doit pouvoir la relire sans dépendre du montage de l'écran qui l'a demandée. Elle
+     n'est JAMAIS persistée ; `Synchro.svelte` la redemande dès que le dossier est prêt (effet réactif
+     sur `folderName`/`permission`/`unlocked`) et, côté Android, dès qu'un fichier arrive (réception ou
+     partage) sans qu'elle soit encore connue — mis de côté, puis fusionné dès la saisie.
+
+     ## Le plancher de couverture de `src/state` redescend, encore
+
+     Même geste qu'à la décision n° 182, pour la même raison : `app.svelte.ts` gagne le câblage de
+     `syncMailbox`/`buildMailboxDeposit` (démarrage, premier plan, anti-rebond, écran), de la
+     CIRCUITERIE non exercée par `vitest run --coverage` (seuls les specs Playwright la touchent).
+     `vite.config.ts`, seuil `src/state/**/*.ts` : `lines`/`statements`/`functions` redescendus sous
+     leur valeur MESURÉE (2,38 %/2,19 %/4,28 %) ; `branches` inchangé (0,36 % mesuré, au-dessus du
+     plancher existant). La LOGIQUE, elle, vit dans `mailbox-sync.ts`, mesuré à 96,36 % de lignes.
+
+     ## Contre-épreuves (décision n° 75)
+
+     Deux, sur `mailbox-sync.ts`, chacune faussant le code puis constatant qu'un test rougit en le
+     nommant, puis restaurant : (1) la condition qui ignore un fichier déjà fusionné neutralisée
+     (`seq <= …` remplacée par une condition toujours fausse) — le test « déjà fusionné » rougit en
+     nommant l'écart (`up-to-date` attendu, `merged` reçu) ; (2) l'appel à `ownFilesToPrune`
+     court-circuité (élagage de TOUS les fichiers du dossier, siens compris comme ceux des pairs) —
+     le test « ne touche jamais un fichier d'un appareil pair » rougit en constatant les trois
+     fichiers du pair disparus. Une troisième garantie, « coffre fermé ⇒ aucune écriture », reste
+     **sans contre-épreuve automatisée** : comme pour la sauvegarde automatique dans un dossier
+     (`initFolderBackup`, précédent), elle tient à l'EMPLACEMENT du câblage (`initMailboxSync`
+     appelée seulement après le retour anticipé d'`AppState.init()` sur coffre verrouillé), pas à un
+     `if` qu'on pourrait commenter pour l'éprouver — consigné ici plutôt que simulé par un test qui
+     ne prouverait rien de plus que l'architecture elle-même.
+
+     ## Ce qui reste à vérifier hors de cette session
+
+     Un vrai téléphone Android (sélecteur système listant Drive, feuille de partage réelle vers
+     Drive/Quick Share, Web Share Target déclenché par l'OS plutôt que simulé par un POST direct) et
+     un vrai dossier Drive/OneDrive (copies de conflit réelles, hydratation « à la demande » d'un
+     fichier OneDrive) : `tests/e2e` prouve le CONTRAT (le format, l'ordre des opérations, la
+     tolérance aux fichiers vides/verrouillés), pas le comportement d'un client cloud propriétaire
+     sur un vrai appareil.

@@ -115,6 +115,17 @@ Le même écran détaille ce que chaque famille d'origines apprendrait de vous. 
 l'historique qui y sont attachés. C'est, de très loin, ce qui en dit le plus long sur vous — bien
 plus que la liste de vos tickers envoyée aux fournisseurs de cours.
 
+### La boîte aux lettres marche verrou fermé
+
+Réglages → « Plus » → **Synchronisation** (`#/synchro`) fonctionne intégralement dans cette
+variante, réseau coupé : le dossier synchronisé (File System Access), le chiffrement
+(`crypto.subtle`) et la fusion (`sync/merge.ts`) n'appellent ni `fetch` ni `WebSocket` — le verrou
+ci-dessus n'emballe que ces deux API (`src/lib/net/local-only.ts`), jamais File System Access,
+IndexedDB ou le partage. C'est le DOSSIER lui-même (synchronisé par Google Drive ou OneDrive,
+installés côté système) qui transporte les fichiers ; l'application n'y touche jamais par le
+réseau. Vérifié par `npx vite build --mode prive` : aucun avertissement, aucun appel réseau observé
+pendant un cycle de synchronisation complet.
+
 ---
 
 ## Ce qui change, et ce qui ne change pas

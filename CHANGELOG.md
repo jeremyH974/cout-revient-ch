@@ -56,6 +56,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   voulue. La zone dangereuse reste toujours repliée. Le même endroit affiche maintenant si le
   stockage de ce navigateur est protégé contre l'effacement automatique, et l'espace utilisé.
 
+- **Synchroniser vos appareils sans compte ni serveur.** Nouvel écran « Synchronisation »
+  (menu Plus) : sur ordinateur (Chrome, Edge), choisissez un dossier que Google Drive ou OneDrive
+  synchronise déjà — chaque appareil y dépose son propre fichier chiffré et lit ceux des autres,
+  automatiquement au démarrage, au retour sur l'onglet et après vos modifications. Sur téléphone
+  (Android), recevez un dépôt par le sélecteur de fichiers ou en le partageant depuis Drive, et
+  envoyez le vôtre par la feuille de partage. Une seule phrase de synchronisation déverrouille la
+  boîte aux lettres pour la session en cours ; elle n'est jamais enregistrée. Fonctionne aussi dans
+  la variante personnelle, réseau coupé. Voir `docs/backup-format.md` § Enveloppe v3 et
+  `docs/DECISIONS.md` n° 186.
+
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses
   rendements et son risque portent sur la plage choisie, et sa page de garde dit laquelle. Ce qui

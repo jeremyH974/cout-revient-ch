@@ -29,7 +29,13 @@
  * ni service capable de la réinitialiser. La perdre revient à perdre la sauvegarde ; c'est le prix
  * du tout-local, sans compte.
  */
-import { KDF_PARAMS, KDF_SALT_BYTES, deriveAesKey, type KdfParams } from './kdf';
+import {
+  KDF_PARAMS,
+  KDF_SALT_BYTES,
+  deriveAesKey,
+  isAcceptableKdfParams,
+  type KdfParams,
+} from './kdf';
 
 /**
  * Version 1 : PBKDF2-HMAC-SHA-256. **Toujours lue, jamais plus écrite.** Ses itérations voyagent
@@ -141,12 +147,9 @@ export function isEncryptedBackup(value: unknown): value is EncryptedBackup {
   if (!envelope) return false;
   if (v['version'] === 1)
     return v['kdf'] === 'PBKDF2' && v['hash'] === 'SHA-256' && typeof v['iterations'] === 'number';
-  if (v['version'] === 2) {
-    const params = v['params'];
-    if (v['kdf'] !== 'argon2id' || typeof params !== 'object' || params === null) return false;
-    const p = params as Record<string, unknown>;
-    return typeof p['m'] === 'number' && typeof p['t'] === 'number' && typeof p['p'] === 'number';
-  }
+  if (v['version'] === 2)
+    // Bornés, pas seulement typés : ils pilotent la dérivation (voir `KDF_PARAMS_LIMITS`).
+    return v['kdf'] === 'argon2id' && isAcceptableKdfParams(v['params']);
   return false;
 }
 

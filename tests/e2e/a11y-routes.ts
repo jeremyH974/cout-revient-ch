@@ -13,6 +13,7 @@ export const EMPTY_ROUTES: readonly string[] = [
   '#/add',
   '#/accounts',
   '#/reconciliation',
+  '#/synchro',
   '#/invest/second-opinion',
   '#/help',
   '#/privacy',
