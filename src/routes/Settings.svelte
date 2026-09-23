@@ -16,6 +16,7 @@
     promptInstall,
   } from '$lib/pwa/install';
   import { router } from '$lib/router.svelte';
+  import { collapsedByDefault } from '$lib/ui/narrow';
   import AppBar from '../components/layout/AppBar.svelte';
   import AiSection from '../components/settings/AiSection.svelte';
   import EngineSettings from '../components/settings/EngineSettings.svelte';
@@ -53,6 +54,9 @@
     { id: 'sources', label: 'Sources des données' },
     { id: 'danger', label: 'Zone dangereuse' },
   ];
+  /** Replié à l'ouverture seulement sur petit écran (décision n° 185, `$lib/ui/narrow`). */
+  const collapsed = collapsedByDefault();
+
   function openAndScroll(id: string): void {
     const el = document.getElementById(id);
     if (el instanceof HTMLDetailsElement) el.open = true;
@@ -395,7 +399,7 @@
     </div>
   </details>
 
-  <details class="card group" id="prix">
+  <details class="card group" id="prix" open={!collapsed}>
     <summary><h2>Prix</h2></summary>
     <label class="field"
       >Source des prix
@@ -503,7 +507,7 @@
     {/each}
   </details>
 
-  <details class="card group" id="affichage">
+  <details class="card group" id="affichage" open={!collapsed}>
     <summary><h2>Affichage</h2></summary>
     <label class="field"
       >Thème
@@ -572,7 +576,7 @@
 
   <AiSection />
 
-  <details class="card group" id="verifications">
+  <details class="card group" id="verifications" open={!collapsed}>
     <summary><h2>Vérifications automatiques</h2></summary>
     <p class="muted small">
       L’application contrôle ses propres chiffres à chaque affichage : cohérence comptable, lots,
@@ -581,7 +585,7 @@
     <SelfChecks />
   </details>
 
-  <details class="card group" id="aide">
+  <details class="card group" id="aide" open={!collapsed}>
     <summary><h2>Aide et retours</h2></summary>
     <SupportSection
       intro="Un fichier refusé, un chiffre douteux, une idée ? Copiez le diagnostic (il ne contient ni montant ni quantité) et collez-le dans votre message."

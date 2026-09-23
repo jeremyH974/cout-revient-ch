@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
 
@@ -70,6 +71,7 @@ test('effacer toutes les données vide aussi IndexedDB', async ({ page }) => {
   await openDemo(page);
   await expect.poll(() => idbSnapshot(page), { timeout: 10_000 }).not.toBeNull();
   await page.goto('#/settings');
+  await openSettingsSection(page, 'danger');
   await page.getByRole('button', { name: 'Effacer toutes les données' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Effacer', exact: true }).click();
   await expect(page).toHaveURL(/#\/welcome$/);
@@ -153,6 +155,7 @@ test('effacer toutes les données efface aussi l’historique de prix', async ({
   );
 
   await page.goto('#/settings');
+  await openSettingsSection(page, 'danger');
   await page.getByRole('button', { name: 'Effacer toutes les données' }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Effacer', exact: true }).click();
   await expect(page).toHaveURL(/#\/welcome$/);

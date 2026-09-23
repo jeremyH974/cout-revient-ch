@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   import { app } from '../../state/app.svelte';
   import Switch from '../shared/Switch.svelte';
 
@@ -7,7 +11,7 @@
   };
 </script>
 
-<details class="card group" id="methode-calcul">
+<details class="card group" id="methode-calcul" open={!collapsed}>
   <summary><h2>Méthode de calcul</h2></summary>
   <label class="field"
     >Migration d'un actif (ex. MKR → SKY)

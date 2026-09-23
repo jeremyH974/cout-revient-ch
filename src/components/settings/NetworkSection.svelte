@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { collapsedByDefault } from '$lib/ui/narrow';
+
+  /** Replié seulement sur petit écran (décision n° 185). */
+  const collapsed = collapsedByDefault();
   /**
    * La sortie réseau, dans la variante personnelle : coupée au démarrage, ouverte seulement si on
    * le demande — **et pour cette session seulement**.
@@ -39,7 +43,7 @@
   }
 </script>
 
-<details class="card group" id="reseau">
+<details class="card group" id="reseau" open={!collapsed}>
   <summary><h2>Sortie réseau</h2></summary>
 
   {#if localOnly}

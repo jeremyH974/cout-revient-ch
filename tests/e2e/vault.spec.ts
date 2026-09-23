@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { openSettingsSection } from './helpers/settings';
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { openDemo } from './helpers/demo';
@@ -101,6 +102,7 @@ test('installer, verrouiller, rouvrir, retirer', async ({ page }) => {
 
   // — Installation —
   await page.goto('#/settings');
+  await openSettingsSection(page, 'coffre');
   // Par le VRAI téléchargement : l'étape 1 doit produire un fichier, pas seulement une phrase.
   await installVault(page, MOT_DE_PASSE, 'download');
   await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
@@ -154,6 +156,7 @@ test('installer, verrouiller, rouvrir, retirer', async ({ page }) => {
 
   // — Retrait : les données redeviennent lisibles, et seulement sur mot de passe —
   await page.goto('#/settings');
+  await openSettingsSection(page, 'coffre');
   await page.getByRole('button', { name: 'Retirer le coffre' }).click();
   await page.getByLabel('Mot de passe actuel').fill(MOT_DE_PASSE);
   await page.getByRole('button', { name: 'Retirer le coffre' }).click();
@@ -169,6 +172,7 @@ test('changer de mot de passe ne rend pas les données illisibles', async ({ pag
   await waitForPersisted(page);
 
   await page.goto('#/settings');
+  await openSettingsSection(page, 'coffre');
   await installVault(page, MOT_DE_PASSE, 'already');
   await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
 
@@ -233,6 +237,7 @@ test('le coffre est proposé après un import réel, et se tait une fois posé',
 
   // — Coffre posé : l'invite se tait, alors que l'import, lui, a bien eu lieu —
   await page.goto('#/settings');
+  await openSettingsSection(page, 'coffre');
   await installVault(page, MOT_DE_PASSE, 'already');
   await expect(page.getByRole('button', { name: COFFRE_POSE })).toBeVisible();
 
