@@ -44,7 +44,7 @@ async function evolution(page: Page) {
   const chart = card.locator('svg[role="img"]').first();
   // La courbe doit être DANS la vue avant qu'on lise sa boîte englobante : les gestes à la souris
   // de ce fichier (molette, glisser) visent des coordonnées absolues, et Playwright ne fait défiler
-  // que pour un clic. Depuis que les positions ouvertes sont remontées au-dessus (décision n° 183),
+  // que pour un clic. Depuis que les positions ouvertes sont remontées au-dessus (décision n° 184),
   // la carte Évolution démarre sous la ligne de flottaison : sans ce défilement, la molette tombait
   // à côté de la courbe et le zoom ne se produisait jamais — vert sous Windows, rouge en CI.
   await chart.scrollIntoViewIfNeeded();

@@ -566,6 +566,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   npm d'une façon que Node refuse depuis avril 2024 ; faute de réponse, il concluait à une panne du
   registre npm — à chaque fois, sans avoir jamais rien vérifié. La CI, sous Linux, n'était pas
   touchée. Un npm qui ne démarre pas est désormais nommé comme tel, sans accuser le registre.
+- **Plus aucune vulnérabilité connue dans les dépendances, développement compris.** La dernière —
+  sans correctif publié depuis 2020 — venait de l'outil de mesure Lighthouse, qui décompressait le
+  navigateur téléchargé avec un paquet abandonné. Elle est sortie de l'arbre en imposant la version
+  du téléchargeur qui ne l'utilise plus : `npm audit` affiche désormais **zéro**, et 35 paquets de
+  moins sont installés. Rien de tout cela n'était livré au navigateur ; c'est l'outillage qui est
+  assaini.
 
 ## [2.17.0] - 2026-09-05
 
