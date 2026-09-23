@@ -1,4 +1,5 @@
 import { expect, test, type Locator } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { fmtQty } from '../../src/lib/format/fr';
 import { openDemo } from './helpers/demo';
 import { fixtureReport, moneyText, normalize, position, pruText } from './helpers/expected';
@@ -53,6 +54,7 @@ test('mode discret : montants et quantités masqués partout, PRU, prix et % con
   expect(report.totals.subscriptionsEur.gt('0')).toBe(true);
   await expect(summary).toContainText('hors P&L');
   await page.goto('#/settings');
+  await openSettingsSection(page, 'methode-calcul');
   await page.getByRole('switch', { name: /Déduire les abonnements/ }).check();
   await page.goto('#/invest'); // la synthèse (section.summary) vit dans l'espace Investissement
   await expect(summary).toContainText('déduits du P&L');

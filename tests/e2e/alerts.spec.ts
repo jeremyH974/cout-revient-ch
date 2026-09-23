@@ -6,6 +6,7 @@
  * formulaire est ancré sur `dialog[open]`.
  */
 import { expect, test } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { alertThresholdEur, type AlertRule } from '../../src/lib/domain/alerts';
 import { COINHOUSE_FEES } from '../../src/lib/domain/fees';
 import { D, toDecimalString } from '../../src/lib/domain/money';
@@ -133,6 +134,7 @@ test('affichage en dollars : alerte ancrée en $, aperçu bi-devise, simulateur 
 
   await openDemo(page);
   await page.goto('#/settings');
+  await openSettingsSection(page, 'affichage');
   // Rôle explicite : l'app-bar porte aussi un BOUTON « Devise d'affichage » (bascule rapide).
   await page.getByRole('combobox', { name: /Devise d'affichage/ }).selectOption('USD');
   // Les taux BCE stub sont chargés par ce geste : attendre qu'un montant s'affiche en dollars.

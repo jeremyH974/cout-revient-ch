@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { openSettingsSection } from './helpers/settings';
 import { openDemo } from './helpers/demo';
 import { stubNetwork } from './helpers/network';
 
@@ -15,6 +16,7 @@ test('auto-vérifications : voyants verts sur la démo, rappel en pied de portef
   await expect(badge).toContainText(/Contrôles \d+\/\d+|point.*à voir/);
 
   await page.goto('#/settings');
+  await openSettingsSection(page, 'verifications');
   const list = page.getByRole('list', { name: 'Vérifications automatiques' });
   // Le nombre de contrôles grandit avec l'application (virements, flux datés…) : ce qui compte est
   // qu'aucun ne soit en échec sur la démo, pas leur compte exact.
@@ -38,6 +40,7 @@ test('auto-vérifications : voyants verts sur la démo, rappel en pied de portef
 test('signalement pré-rempli et diagnostic sans montant', async ({ page }) => {
   await openDemo(page);
   await page.goto('#/settings');
+  await openSettingsSection(page, 'aide');
   const report = page.getByRole('link', { name: 'Signaler (formulaire pré-rempli)' });
   const url = new URL((await report.getAttribute('href')) ?? '');
   expect(url.pathname).toBe('/jeremyH974/cout-revient-ch/issues/new');
