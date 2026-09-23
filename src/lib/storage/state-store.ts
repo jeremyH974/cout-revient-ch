@@ -155,7 +155,24 @@ export async function loadPersistedState(storage: Storage = localStorage): Promi
   if (snapshot.kind === 'sealed') {
     return (await openSealedState(snapshot.sealed, 'indexeddb')) ?? fromLocal(local, storage);
   }
-  return { status: 'ok', state: snapshot.state, source: 'indexeddb' };
+  /*
+   * **La même porte que les deux autres voies** (décision n° 187). Cet instantané était rendu TEL
+   * QUEL, sans `migrateState` — donc sans échelons de schéma, sans `withDefaults` et sans
+   * `sanitizeState`, que le miroir `localStorage` et l'état scellé reçoivent, eux. Un état écrit
+   * avant l'ajout d'une clé entrait alors dans l'application sans elle : le 23/09/2026,
+   * `ui.tradeFilter` manquait et la liste des trades plantait à l'ouverture. Et comme IndexedDB est
+   * la voie PRINCIPALE, la première migration de schéma réelle aurait été sautée pour tout le monde.
+   */
+  const migrated = migrateState(snapshot.state);
+  return migrated.ok
+    ? { status: 'ok', state: migrated.state, source: 'indexeddb' }
+    : {
+        status: 'corrupt',
+        state: emptyState(),
+        error: migrated.error,
+        raw: '',
+        source: 'indexeddb',
+      };
 }
 
 export interface PersistResult {

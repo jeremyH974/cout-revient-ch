@@ -582,6 +582,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   du téléchargeur qui ne l'utilise plus : `npm audit` affiche désormais **zéro**, et 35 paquets de
   moins sont installés. Rien de tout cela n'était livré au navigateur ; c'est l'outillage qui est
   assaini.
+- **La liste des trades pouvait afficher « une erreur inattendue » après une mise à jour.** Vos
+  données n'étaient pas en cause : un réglage ajouté par une version récente manquait à l'état relu
+  depuis le navigateur, parce que cette lecture-là ne recevait pas les valeurs par défaut — au
+  contraire de la restauration d'une sauvegarde. C'est corrigé à la source : l'état relu passe
+  désormais par le même contrôle que les deux autres, quels que soient les réglages ajoutés depuis.
 
 ## [2.17.0] - 2026-09-05
 

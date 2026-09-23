@@ -1,9 +1,10 @@
 import { IDBFactory } from 'fake-indexeddb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EMPTY_FILTER } from '../domain/trading/filter';
 import type { RawCoinhouseRow } from '../domain/types';
 import { idbLoadSnapshot, idbSaveSnapshot, resetIdbStateStoreForTests } from './idb-state-store';
 import { STORAGE_KEY, saveState } from './local-storage';
-import { emptyState } from './schema';
+import { DEFAULT_UI_SETTINGS, emptyState, type StoredStateV1 } from './schema';
 import {
   SAVED_AT_KEY,
   clearPersistedState,
@@ -142,6 +143,60 @@ describe('state-store', () => {
       expect(loaded.source).toBe('localstorage');
       expect(loaded.status).toBe('ok');
       expect(loaded.state).toEqual(local);
+    });
+
+    /**
+     * **Le plantage du 23/09/2026 en production**, sur la liste des trades : `ui.tradeFilter`
+     * manquait à l'état chargé, et l'écran lisait `.query` dessus. L'instantané IndexedDB — la voie
+     * PRINCIPALE — était rendu tel quel, sans les valeurs par défaut ni l'assainissement que le
+     * miroir `localStorage` et l'état scellé recevaient, eux, par `migrateState`.
+     */
+    it('instantané d’une version antérieure : les clés ajoutées depuis sont complétées', async () => {
+      const storage = memoryStorage();
+      const older = emptyState();
+      // Un état écrit avant que ces réglages n'existent : la forme exacte d'une sauvegarde d'hier.
+      const ui = older.ui as unknown as Record<string, unknown>;
+      delete ui['tradeFilter'];
+      delete ui['breakevenSizes'];
+      await idbSaveSnapshot({ state: older, savedAt: '2026-09-23T10:00:00.000Z' });
+
+      const loaded = await loadPersistedState(storage);
+      expect(loaded.source).toBe('indexeddb');
+      expect(loaded.status).toBe('ok');
+      expect(loaded.state.ui.tradeFilter).toEqual(EMPTY_FILTER);
+      expect(loaded.state.ui.breakevenSizes).toEqual({});
+    });
+
+    /**
+     * Le même oubli, généralisé : demain une autre clé sera ajoutée aux réglages. Ce test n'en
+     * nomme aucune — il les DÉRIVE des valeurs par défaut — pour que l'oubli du 23/09 ne puisse
+     * pas revenir sous un autre nom.
+     */
+    it('un ui vidé de toutes ses clés les retrouve toutes', async () => {
+      const storage = memoryStorage();
+      const older = emptyState();
+      (older as unknown as Record<string, unknown>)['ui'] = {};
+      await idbSaveSnapshot({ state: older, savedAt: '2026-09-23T10:00:00.000Z' });
+
+      const loaded = await loadPersistedState(storage);
+      expect(loaded.status).toBe('ok');
+      const missing = Object.keys(DEFAULT_UI_SETTINGS).filter((key) => !(key in loaded.state.ui));
+      expect(missing, 'clés de réglages perdues au chargement').toEqual([]);
+    });
+
+    /**
+     * L'autre moitié du même oubli : sans `migrateState`, un instantané venu d'une version plus
+     * récente était chargé **tel quel**, avec des formes que le programme ne connaît pas. Les deux
+     * autres portes le refusent depuis toujours, avec le message que les écrans savent afficher.
+     */
+    it('instantané d’une version plus récente : refusé ici comme partout ailleurs', async () => {
+      const storage = memoryStorage();
+      const future = { ...emptyState(), schemaVersion: 99 } as unknown as StoredStateV1;
+      await idbSaveSnapshot({ state: future, savedAt: '2026-09-23T10:00:00.000Z' });
+
+      const loaded = await loadPersistedState(storage);
+      expect(loaded.status).toBe('corrupt');
+      expect((loaded as { error?: string }).error).toContain('99');
     });
   });
 

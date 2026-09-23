@@ -6527,3 +6527,38 @@ coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré)
      fichier OneDrive) : `tests/e2e` prouve le CONTRAT (le format, l'ordre des opérations, la
      tolérance aux fichiers vides/verrouillés), pas le comportement d'un client cloud propriétaire
      sur un vrai appareil.
+
+187. **L'état relu d'IndexedDB passe par la même porte que les deux autres** (23/09/2026).
+
+     **Le plantage.** En production, sur la liste des trades : « Une erreur inattendue s'est
+     produite sur cette page — `TypeError: Cannot read properties of undefined (reading 'query')` ».
+     Le paquet déployé nomme le coupable sans ambiguïté : `Q.state.ui.tradeFilter.query`, soit
+     `Trades.svelte` lisant un réglage **absent** de l'état chargé.
+
+     **La cause, et elle est plus large que ce réglage.** `loadPersistedState` rendait l'instantané
+     IndexedDB **tel quel** — `return { status: 'ok', state: snapshot.state, … }` — là où le miroir
+     `localStorage` et l'état scellé passent, eux, par `migrateState`, c'est-à-dire par les échelons
+     de schéma, `withDefaults` et `sanitizeState`. Un état écrit avant l'ajout d'une clé entrait
+     donc dans l'application sans elle. Et comme IndexedDB est la voie **principale**, la première
+     migration de schéma réelle aurait été sautée pour tout le monde : `MIGRATIONS` étant encore
+     vide, rien ne pouvait le révéler.
+
+     **Le correctif** est d'une ligne de raisonnement : la même porte pour les trois voies. Un
+     instantané venu d'une version plus récente est désormais refusé ici comme ailleurs, avec le
+     message que les écrans savent afficher, au lieu d'être chargé avec des formes inconnues.
+
+     **Les garde-fous.** Trois tests sur la voie IndexedDB : un état privé de clés récentes les
+     retrouve ; un état venu d'une version plus récente est refusé ; et un troisième, **dérivé**,
+     qui ne nomme aucune clé — il les lit dans `DEFAULT_UI_SETTINGS` — pour que le même oubli ne
+     revienne pas sous un autre nom. **Contre-épreuve** (décision n° 75) : en remettant la ligne de
+     `main`, les trois rougissent, et le dérivé chiffre l'ampleur réelle du défaut — « clés de
+     réglages perdues au chargement : `[ 'theme', 'discreet', …(29) ]` ». Ce n'était pas un réglage
+     manquant, c'étaient les **trente et un**, dont un seul était lu sans précaution.
+
+     **Ce qu'on n'a pas fait.** Une garde côté écran (`Trades.svelte` repliant sur un filtre vide) a
+     été proposée et écartée : elle aurait masqué la classe de défaut à l'endroit où elle s'est vue,
+     en la laissant entière partout ailleurs. Les valeurs par défaut appartiennent au chargement, à
+     un seul endroit.
+
+     **Les données de l'utilisateur n'ont jamais été en cause** — l'écran d'erreur le disait déjà,
+     et c'était vrai : il manquait une valeur par défaut en mémoire, rien de plus.
