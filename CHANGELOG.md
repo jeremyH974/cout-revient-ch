@@ -64,7 +64,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ; versions : [
   envoyez le vôtre par la feuille de partage. Une seule phrase de synchronisation déverrouille la
   boîte aux lettres pour la session en cours ; elle n'est jamais enregistrée. Fonctionne aussi dans
   la variante personnelle, réseau coupé. Voir `docs/backup-format.md` § Enveloppe v3 et
-  `docs/DECISIONS.md` n° 185.
+  `docs/DECISIONS.md` n° 186.
 
 - **Le rapport suit la plage d'analyse.** Le sélecteur de période — le même que sur la Vue
   d'ensemble — gouverne maintenant le rapport de portefeuille : sa synthèse, son résultat, ses

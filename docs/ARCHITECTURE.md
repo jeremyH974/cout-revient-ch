@@ -377,7 +377,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     l'année en cours seulement, `components/tax/SaleForecast.svelte` y ajoute le **prévisionnel** :
     l'année rejouée avec une vente de plus, seuil de 305 € et poche d'imputation compris
     (`derive/tax-forecast.ts`, décision n° 171). `routes/Synchro.svelte` (`#/synchro`, décision
-    n° 185) est l'écran de la boîte aux lettres chiffrée (P125) : dossier synchronisé côté PC
+    n° 186) est l'écran de la boîte aux lettres chiffrée (P125) : dossier synchronisé côté PC
     (File System Access), réception/partage côté Android, état par appareil pair et dernier rapport
     de fusion — voir `docs/backup-format.md` § Enveloppe v3.
 

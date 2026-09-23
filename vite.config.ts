@@ -339,7 +339,7 @@ export default defineConfig(({ mode }) => {
            * sync/`, mesurée à 99,14 % de lignes juste à côté. `functions`/`branches` n'ont pas eu
            * besoin de baisser (4,43 % et 0,38 % mesurés, planchers inchangés).
            *
-           * Même geste à la boîte aux lettres synchronisée (décision n° 185, `docs/DECISIONS.md`,
+           * Même geste à la boîte aux lettres synchronisée (décision n° 186, `docs/DECISIONS.md`,
            * 22/09/2026) : `app.svelte.ts` gagne le câblage de `syncMailbox`/`buildMailboxDeposit`
            * (démarrage, retour au premier plan, anti-rebond 60 s, écran `Synchro.svelte`) — encore
            * de la circuiterie, la LOGIQUE restant dans `src/lib/storage/mailbox-sync.ts`, mesurée à

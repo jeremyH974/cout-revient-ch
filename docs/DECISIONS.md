@@ -6397,7 +6397,7 @@ coarse)` fait échouer le test de hauteur ≥ 44 px, qui nomme le pixel mesuré)
      repli `svh` lui-même (revenu à la déclaration unique dans la même règle : le test qui lit le
      CSS construit échoue en nommant l'absence de `min-height:100vh`).
 
-185. **La boîte aux lettres synchronisée : un orchestrateur pur au-dessus d'un dossier abstrait,
+186. **La boîte aux lettres synchronisée : un orchestrateur pur au-dessus d'un dossier abstrait,
      jamais l'inverse** (22/09/2026).
 
      ## Ce que ce chantier ajoute à P125
