@@ -281,7 +281,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
-- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 184) : capture de
+- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 185) : capture de
   `beforeinstallprompt` **au chargement du module** (posée en tête de `main.ts`, avant
   `app.init()`, qui est asynchrone et laisserait échapper un événement précoce),
   `preventDefault()` pour supprimer la mini-infobar native, invite gardée en mémoire de module et
@@ -345,7 +345,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     feuille « Filtres (n) ») et affiche `summarizeFiltered` au-dessus de la liste : exactement la
     recette de `TradeStats.svelte`, pour que les deux écrans ne puissent pas se contredire sur le
     même sous-ensemble. L'état du filtre vit dans `ui.tradeFilter` (réglages de l'appareil), comme
-    `ui.period` et pour la même raison (décisions n° 156-157 et n° 183) : il survit ainsi à
+    `ui.period` et pour la même raison (décisions n° 156-157 et n° 184) : il survit ainsi à
     l'aller-retour vers la fiche d'un trade. `components/trading/JournalSheet.svelte` (sur
     `Sheet.svelte`) ouvre une annotation rapide — setup, erreurs, tags, note, une ligne de revue —
     depuis chaque ligne et depuis le haut de `TradeDetail.svelte` ; « Enregistrer » fusionne ce
@@ -428,7 +428,7 @@ affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le m�
   (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
   grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
 
-  **P124 (décision n° 184)** ajoute deux primitives sur le même principe — un endroit, jamais un
+  **P124 (décision n° 185)** ajoute deux primitives sur le même principe — un endroit, jamais un
   style redéfini par écran :
 
   - **Interrupteur** (`src/components/shared/Switch.svelte`) : `<input type="checkbox"

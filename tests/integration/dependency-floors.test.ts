@@ -33,7 +33,8 @@
  * décision n° 99 a posée.
  */
 import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { createRequire } from 'node:module';
+import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /** Compare deux versions `a.b.c` numériquement. Aucune préversion dans cet arbre. */
@@ -49,7 +50,12 @@ function compare(a: string, b: string): number {
  * dédouble les autres sous leur consommateur dès qu'il y a conflit : ne regarder que la copie
  * hissée laisserait passer précisément celle qu'un `override` imbriqué a manquée.
  */
-function installedCopies(name: string, dir = 'node_modules', found: string[] = []): string[] {
+function installedCopies(
+  name: string,
+  dir = 'node_modules',
+  found: string[] = [],
+  scope = '',
+): string[] {
   let entries;
   try {
     entries = readdirSync(dir, { withFileTypes: true });
@@ -60,10 +66,11 @@ function installedCopies(name: string, dir = 'node_modules', found: string[] = [
     if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
     const path = join(dir, entry.name);
     if (entry.name.startsWith('@')) {
-      installedCopies(name, path, found);
+      // Un dossier de portée n'est pas un paquet : le nom logique se lit un cran plus bas.
+      installedCopies(name, path, found, entry.name);
       continue;
     }
-    if (entry.name === name) {
+    if ((scope === '' ? entry.name : `${scope}/${entry.name}`) === name) {
       try {
         found.push(`${JSON.parse(readFileSync(join(path, 'package.json'), 'utf8')).version}`);
       } catch {
@@ -73,6 +80,71 @@ function installedCopies(name: string, dir = 'node_modules', found: string[] = [
     if (entry.name !== 'node_modules') installedCopies(name, join(path, 'node_modules'), found);
   }
   return found;
+}
+
+/** Le dossier d'un paquet installé, à n'importe quelle profondeur ; `null` s'il est absent. */
+function packageDir(name: string, dir = 'node_modules', scope = ''): string | null {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+    const path = join(dir, entry.name);
+    if (entry.name.startsWith('@')) {
+      const scoped = packageDir(name, path, entry.name);
+      if (scoped !== null) return scoped;
+      continue;
+    }
+    if ((scope === '' ? entry.name : `${scope}/${entry.name}`) === name) return path;
+    if (entry.name !== 'node_modules') {
+      const nested = packageDir(name, join(path, 'node_modules'));
+      if (nested !== null) return nested;
+    }
+  }
+  return null;
+}
+
+const requireHere = createRequire(import.meta.url);
+
+/**
+ * Charge un paquet par son CHEMIN. `require('<nom>')` remonterait l'arbre des dossiers jusqu'au
+ * `node_modules` du dépôt parent quand on travaille dans un worktree, et mesurerait une AUTRE
+ * installation que celle qu'on croit éprouver.
+ */
+function requireFrom(dir: string | null): Record<string, unknown> {
+  expect(dir, 'paquet introuvable dans node_modules').not.toBeNull();
+  const manifest = JSON.parse(readFileSync(join(dir!, 'package.json'), 'utf8')) as {
+    main?: string;
+  };
+  return requireHere(resolve(dir!, manifest.main ?? 'index.js')) as Record<string, unknown>;
+}
+
+/** Tous les fichiers d'un dossier, récursivement. */
+function filesUnder(dir: string, found: string[] = []): string[] {
+  let entries;
+  try {
+    entries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return found;
+  }
+  for (const entry of entries)
+    if (entry.isDirectory()) filesUnder(join(dir, entry.name), found);
+    else found.push(join(dir, entry.name));
+  return found;
+}
+
+/** Les symboles de `@puppeteer/browsers` que le code compilé de `puppeteer-core` appelle. */
+function symbolsUsedByPuppeteerCore(): Set<string> {
+  const used = new Set<string>();
+  const root = packageDir('puppeteer-core');
+  if (root === null) return used;
+  for (const file of filesUnder(join(root, 'lib', 'cjs')).filter((f) => f.endsWith('.js')))
+    for (const call of readFileSync(file, 'utf8').matchAll(/browsers_\d+\.([A-Za-z_0-9]+)/g))
+      used.add(call[1]!);
+  return used;
 }
 
 /**
@@ -123,31 +195,51 @@ describe('les planchers de version tenus par les overrides', () => {
 });
 
 /**
- * **L'exception assumée, et elle est adossée elle aussi.**
+ * **L'exception assumée a été levée** (22/09/2026, décision n° 183).
  *
- * `extract-zip` porte deux failles hautes (CVE-2026-19693 et CVE-2026-56876, écriture arbitraire
- * par entrées de lien symbolique) et **aucune version corrigée n'existe** : 2.0.1 est la dernière
- * publiée. Le correctif amont a consisté à s'en débarrasser — `@puppeteer/browsers` 3.x l'a
- * remplacé par `modern-tar`. Mais `puppeteer-core@24.43.1` épingle `@puppeteer/browsers` à
- * **exactement** 2.13.2, et `lighthouse@12.6.1` demande `puppeteer-core@^24.10.0` : il faudrait
- * forcer une majeure sur le pilote de Chrome, à l'intérieur d'un outil que plus personne ne
- * publie, sans aucun test pour rattraper la casse.
+ * `extract-zip` portait deux failles hautes (CVE-2026-19693 et CVE-2026-56876, écriture arbitraire
+ * par entrées de lien symbolique) et **aucune version corrigée n'existe** : 2.0.1 date de 2020. Le
+ * correctif amont a consisté à s'en débarrasser — `@puppeteer/browsers` 3.x décompresse avec
+ * `modern-tar`. La décision n° 154 écartait cette voie : forcer une majeure sur le téléchargeur de
+ * navigateurs, à l'intérieur d'un `@lhci/cli` que plus personne ne publie depuis juin 2025, « sans
+ * aucun test pour rattraper la casse ». Deux choses ont changé : `puppeteer-core@24.43.1` ne
+ * consomme que **treize symboles** de ce paquet, tous exportés par la 3.2.2, et la CI **exécute**
+ * Lighthouse à chaque PR. L'override scopé est donc posé, et ces tests tiennent sa promesse.
  *
- * L'exposition réelle est mince : `extract-zip` décompresse l'archive Chrome téléchargée chez
- * Google en TLS. L'exploiter suppose qu'on nous serve un faux Chrome — auquel cas le binaire qu'on
- * s'apprête à exécuter est un problème plus grave qu'une traversée de chemin.
- *
- * Ce test ne protège de rien ; il **rougit le jour où la situation change**, et c'est ce qu'on lui
- * demande : une version différente veut dire qu'un correctif est apparu, ou que l'arbre a bougé
- * sous nos pieds. Dans les deux cas, la décision est à reprendre.
- *
- * Il ne voit cependant que l'arbre **installé**. Un correctif publié que rien n'a encore tiré lui
- * reste invisible — et c'est le cas ordinaire ici, dependabot ne proposant pas de montée de version
- * pour une dépendance transitive. Cette moitié-là est surveillée par
- * `scripts/check-blocked-advisories.ts`, qui interroge le registre (décision n° 155).
+ * Le contrat est **dérivé**, jamais recopié : on relit les appels `browsers_N.X` dans le code
+ * compilé de `puppeteer-core`, et on exige que chacun existe dans le paquet réellement installé.
+ * Une future majeure qui retirerait un symbole rougirait ici, en le nommant, au lieu de casser un
+ * jour où quelqu'un lance Lighthouse.
  */
-describe('l’exception assumée', () => {
-  it('extract-zip reste la seule faille non corrigée, et toujours en 2.0.1', () => {
-    expect(installedCopies('extract-zip')).toEqual(['2.0.1']);
+describe('la faille sortie de l’arbre, et ce qui la tient dehors', () => {
+  it('extract-zip n’est plus installé nulle part', () => {
+    expect(installedCopies('extract-zip')).toEqual([]);
+  });
+
+  it('le téléchargeur de navigateurs est en 3.x, celui qui ne décompresse plus de zip', () => {
+    const copies = installedCopies('@puppeteer/browsers');
+    expect(
+      copies.length,
+      'plus aucun @puppeteer/browsers : la chaîne Lighthouse a-t-elle bougé ?',
+    ).toBeGreaterThan(0);
+    for (const version of copies)
+      expect(compare(version, '3.0.0') >= 0, `@puppeteer/browsers@${version} est sous 3.0.0`).toBe(
+        true,
+      );
+  });
+
+  it('puppeteer-core ne consomme que des symboles que cette version exporte', () => {
+    const browsers = requireFrom(packageDir('@puppeteer/browsers'));
+    const used = symbolsUsedByPuppeteerCore();
+    expect(
+      used.size,
+      'aucun appel trouvé : le code compilé de puppeteer-core a changé de forme',
+    ).toBeGreaterThan(5);
+    for (const symbol of used)
+      expect(
+        browsers[symbol] !== undefined,
+        `puppeteer-core appelle ${symbol}, absent de @puppeteer/browsers installé : ` +
+          "l'override de package.json est allé trop loin",
+      ).toBe(true);
   });
 });

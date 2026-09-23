@@ -110,10 +110,10 @@ export interface UiSettings {
    */
   customRange: CustomRange | null;
   /**
-   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 183) : même choix que
+   * **Le filtre de la liste des trades, pour l'appareil** (P121, décision n° 184) : même choix que
    * `period` ci-dessus, et pour la même raison — le routeur est à hash sans modèle de requête,
    * aucune donnée ne voyage dans l'URL, et le seul bénéfice restant (le bouton retour) est déjà
-   * couvert autrement (`JournalSheet`, décision n° 183). Vivre ici, plutôt que dans un état de
+   * couvert autrement (`JournalSheet`, décision n° 184). Vivre ici, plutôt que dans un état de
    * route perdu à la navigation, est justement ce qui le fait **survivre** à l'aller-retour vers
    * la fiche d'un trade.
    */
