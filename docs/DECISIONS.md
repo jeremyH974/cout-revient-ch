@@ -6308,7 +6308,7 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
 true` posé, `sheetOpen = false` retiré) — la spec `page.goBack()` rougit en constatant le
      dialogue toujours visible au lieu de fermé.
 
-184. **Le téléphone : écran et installation Android** (22/09/2026).
+185. **Le téléphone : écran et installation Android** (22/09/2026).
 
      **Le constat.** L'application n'avait jamais été pensée au doigt sur un petit écran : `100vh`
      comptait la barre d'adresse de Chrome Android dépliée, laissant un bandeau vide au pied de

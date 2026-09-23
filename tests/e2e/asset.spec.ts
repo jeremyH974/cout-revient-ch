@@ -21,7 +21,7 @@ test('fiche actif : historique avec PRU après chaque ligne, courbe PRU vs prix'
     tabs.getByRole('button', { name: `Historique (${btc.history.length})` }),
   ).toBeVisible();
   const operations = page.locator('article.op');
-  // Pagination (décision n° 184, P124) : 20 opérations d'abord, même motif que les exécutions de
+  // Pagination (décision n° 185, P124) : 20 opérations d'abord, même motif que les exécutions de
   // trading/TradeDetail.svelte.
   const OPS_PAGE = 20;
   await expect(operations).toHaveCount(Math.min(OPS_PAGE, btc.history.length));

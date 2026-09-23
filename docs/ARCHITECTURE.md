@@ -281,7 +281,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
   (docs/DECISIONS.md n° 56). Deux pourcentages coexistent et ne se mélangent pas : `roiOf`
   (résultat ÷ apports) pour un bilan, `periodPerformance` (Dietz modifié) pour une fenêtre — chaque
   carte nomme le sien (docs/DECISIONS.md n° 96).
-- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 184) : capture de
+- `src/lib/pwa/install.ts` — installation Android (P124, décision n° 185) : capture de
   `beforeinstallprompt` **au chargement du module** (posée en tête de `main.ts`, avant
   `app.init()`, qui est asynchrone et laisserait échapper un événement précoce),
   `preventDefault()` pour supprimer la mini-infobar native, invite gardée en mémoire de module et
@@ -425,7 +425,7 @@ affichés en texte nu), et les deux barres d'onglets d'espace dupliquaient le m�
   (`var(--tap)`) sous `(any-pointer: coarse)` (WCAG 2.2 SC 2.5.8, target-size-minimum) — sans
   grossir le rond ni décaler la mise en page d'un titre où l'icône est en ligne avec du texte.
 
-  **P124 (décision n° 184)** ajoute deux primitives sur le même principe — un endroit, jamais un
+  **P124 (décision n° 185)** ajoute deux primitives sur le même principe — un endroit, jamais un
   style redéfini par écran :
 
   - **Interrupteur** (`src/components/shared/Switch.svelte`) : `<input type="checkbox"

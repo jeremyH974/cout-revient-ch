@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * Interrupteur partagé (décision n° 184, P124) : `role="switch"` plutôt qu'une case à cocher
+   * Interrupteur partagé (décision n° 185, P124) : `role="switch"` plutôt qu'une case à cocher
    * nue, toute la ligne cliquable — le `<label>` porte le texte ET le contrôle, comportement natif
    * — et une cible tactile ≥ 44 px sous `(any-pointer: coarse)`, ≥ 24 px sinon (WCAG 2.2 SC 2.5.8).
    *
