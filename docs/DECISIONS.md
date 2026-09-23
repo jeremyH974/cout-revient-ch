@@ -6174,7 +6174,47 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      conserver l'historique complet des instantanés, alors que l'objectif ici est de converger, pas
      de proposer une résolution manuelle de conflit à l'écran.
 
-183. **Des trades qu'on retrouve, et qu'on annote en trois gestes : filtres, synthèse du filtre et
+183. **La dernière faille sans correctif est sortie de l'arbre, pas tolérée** (22/09/2026).
+
+     **Ce qui restait.** Après la décision n° 180, `npm audit` comptait encore six paquets — une
+     seule faille, `extract-zip` (CVE-2026-19693 et CVE-2026-56876, écriture arbitraire par entrées
+     de lien symbolique), remontée par `@lhci/cli` → `lighthouse` → `puppeteer-core` →
+     `@puppeteer/browsers`. Aucune version corrigée n'existe : 2.0.1 date de 2020, le correctif
+     amont a consisté à **supprimer le paquet**, `@puppeteer/browsers` 3.x décompressant avec
+     `modern-tar`.
+
+     **Pourquoi la décision n° 154 l'avait écartée, et ce qui a changé.** Elle jugeait qu'il
+     faudrait « forcer une majeure sur le pilote de Chrome, à l'intérieur d'un outil que plus
+     personne ne publie, sans aucun test pour rattraper la casse ». Deux faits, mesurés le 22/09,
+     renversent l'argument : `puppeteer-core@24.43.1` ne consomme que **treize symboles** de ce
+     paquet — relevés dans son code compilé, pas devinés — et **tous les treize sont exportés par
+     la 3.2.2**, à la déclaration comme à l'exécution ; et la CI **exécute** Lighthouse à chaque PR,
+     ce qui n'est pas un test unitaire mais bien le parcours réel.
+
+     **Ce qui est fait.** Un `override` scopé sous `@lhci/cli` impose `@puppeteer/browsers ^3.2.2`.
+     `extract-zip` disparaît, avec cinq autres dépendances (`tar-fs`, `proxy-agent`, `progress`,
+     `debug`, `semver` n'étant plus tirés par ce chemin) : **35 paquets retirés, 15 ajoutés**.
+     `npm audit` tombe à **zéro à tous les niveaux**, production comme développement. Les alertes
+     GitHub #4 et #11 se refermeront d'elles-mêmes.
+
+     **Les garde-fous suivent le changement de situation.** Le test qui exigeait `extract-zip` en
+     2.0.1 exige maintenant son **absence**, et que le téléchargeur reste en 3.x. Un troisième,
+     **dérivé**, relit les appels `browsers_N.X` dans `puppeteer-core` et vérifie que chacun existe
+     dans le paquet réellement installé : une majeure qui retirerait un symbole rougirait en le
+     nommant, au lieu de casser le jour où quelqu'un lance Lighthouse. La table de
+     `check-blocked-advisories.ts` devient **vide** — il n'y a plus rien à guetter — et son contrôle
+     refuse désormais une ligne qui surveillerait un paquet que plus rien n'installe, l'autre façon
+     de ne plus rien surveiller. Le résumé du veilleur distingue « aucun avis ouvert » de « rien
+     n'a bougé ».
+
+     **Le risque assumé.** `@puppeteer/browsers` 3.x n'est pas la version que `puppeteer-core`
+     24.43.1 déclare : un chemin d'exécution que ni la CI ni le contrat de symboles n'atteignent
+     pourrait différer. Ce chemin est celui du **téléchargement d'un navigateur**, que Lighthouse CI
+     n'emprunte pas (il lance le Chrome déjà installé) — c'était d'ailleurs déjà la raison pour
+     laquelle la faille était inatteignable. Le jour où `@lhci/cli` sort du gel (juin 2025), cet
+     `override` deviendra inutile et se retirera.
+
+184. **Des trades qu'on retrouve, et qu'on annote en trois gestes : filtres, synthèse du filtre et
      tags vivants** (P121-P122, 22/09/2026).
 
      **Le filtre vit dans les réglages de l'appareil, pas dans l'URL.** Même choix que la plage

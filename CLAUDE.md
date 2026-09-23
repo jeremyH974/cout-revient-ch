@@ -29,7 +29,7 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   moteurs fiscaux de `src/lib/domain`, le cœur de la plage d'analyse (`src/lib/history/window.ts`,
   décision n° 179), le trio trading (`src/lib/domain/trading/filter.ts`, `tags.ts`,
   `liquidation.ts` — filtre de la liste des trades, tags du journal, distance à la liquidation,
-  P121-P123, décision n° 183) et la fusion multi-appareils (`src/lib/storage/sync`, décision
+  P121-P123, décision n° 184) et la fusion multi-appareils (`src/lib/storage/sync`, décision
   n° 182), c'est-à-dire les modules **purs**. Il mesure ce que la couverture ne dit pas : un mutant
   **survivant** est une ligne exécutée mais **jamais vérifiée**. Premier relevé : `derive/` tenait
   95 % de couverture avec **11,6 % de survivants**, et le registre des cases écrit le jour même

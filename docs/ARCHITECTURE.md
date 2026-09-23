@@ -319,7 +319,7 @@ texte CSV ─▶ import/csv.ts ─▶ coinhouse/detect.ts ─▶ coinhouse/rows.
     feuille « Filtres (n) ») et affiche `summarizeFiltered` au-dessus de la liste : exactement la
     recette de `TradeStats.svelte`, pour que les deux écrans ne puissent pas se contredire sur le
     même sous-ensemble. L'état du filtre vit dans `ui.tradeFilter` (réglages de l'appareil), comme
-    `ui.period` et pour la même raison (décisions n° 156-157 et n° 183) : il survit ainsi à
+    `ui.period` et pour la même raison (décisions n° 156-157 et n° 184) : il survit ainsi à
     l'aller-retour vers la fiche d'un trade. `components/trading/JournalSheet.svelte` (sur
     `Sheet.svelte`) ouvre une annotation rapide — setup, erreurs, tags, note, une ligne de revue —
     depuis chaque ligne et depuis le haut de `TradeDetail.svelte` ; « Enregistrer » fusionne ce

@@ -194,7 +194,7 @@ describe('fixture gelée v1 (backup-v1.json)', () => {
         breakevenSizes: {},
         twelveDataApiKey: null,
         alphaVantageApiKey: null,
-        // Le filtre de la liste des trades (P121, décision n° 183) : encore un réglage partagé
+        // Le filtre de la liste des trades (P121, décision n° 184) : encore un réglage partagé
         // additif, vide tant qu'une sauvegarde d'avant n'en connaissait pas la forme.
         tradeFilter: { ...EMPTY_FILTER },
       },
