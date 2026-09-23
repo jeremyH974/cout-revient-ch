@@ -7,11 +7,13 @@
 
 <script lang="ts">
   /**
-   * Espace Trading — tableau de bord (P20, présentation alignée sur la synthèse Investissement) :
-   * carte Synthèse (dépôts nets, équité, P&L total), courbe d'équité / P&L de la plateforme
-   * (`portfolio`, persistée à la synchronisation), résultat par période, positions ouvertes
-   * (chacune renvoie vers son aller-retour), avoirs spot, auto-vérification. Les fills vivent
-   * dans leur propre onglet. Jamais de PRU ici ; montants USDC convertis au taux BCE du jour.
+   * Espace Trading — tableau de bord « d'un coup d'œil » (P20, P124) : Synthèse (apports nets,
+   * équité, résultat total) → Positions ouvertes (chacune renvoie vers son aller-retour, avec sa
+   * distance à la liquidation, P123) → lien « n trades à annoter » (`needsAnnotation`, absent si
+   * 0) → Évolution (courbe `portfolio` de la plateforme, persistée à la synchronisation) →
+   * Résultat de la période → Avoirs spot → Auto-vérification. Les paragraphes d'explication vivent
+   * dans des bulles `Info`, au plus une phrase visible par carte. Les fills vivent dans leur propre
+   * onglet. Jamais de PRU ici ; montants USDC convertis au taux BCE du jour.
    */
   import { untrack } from 'svelte';
   import { nowMs } from '$lib/clock';
@@ -29,6 +31,7 @@
     type DetailOutcome,
     type PriceBook,
   } from '$lib/domain/trading/equity-path';
+  import { needsAnnotation } from '$lib/domain/trading/filter';
   import { rateLookup } from '$lib/fx';
   import { dayToMs, resolveWindow, todayOf, type Period } from '$lib/history';
   import { candleWords, marketList, platformPoints } from '$lib/format/curve-detail';
@@ -84,12 +87,21 @@
   /** `null` = pas d'instantané : l'équité est **inconnue**, pas nulle (décision n° 97). */
   const equity = $derived(current ? current.equity : report.equity);
   const unrealized = $derived(current ? current.unrealized : report.unrealized);
-  /** P&L total = réalisé net (tout l'historique) + latent des positions ouvertes. */
+  /** Résultat total (« P&L ») = réalisé net (tout l'historique) + latent des positions ouvertes. */
   const totalPnl = $derived(allTotals.net.plus(unrealized));
   const money = (value: Big | null): Big | null =>
     value === null ? null : app.usdcToDisplay(value);
   const positions = $derived(scoped.accounts.flatMap((a) => a.snapshot?.positions ?? []));
   const holdings = $derived(scoped.accounts.flatMap((a) => a.snapshot?.spot ?? []));
+  /**
+   * Trades clos sans entrée de journal (`needsAnnotation`, seule définition du dépôt), sur le
+   * même périmètre de compte que le reste de l'écran — jamais un second calcul du filtre Trades.
+   */
+  const toAnnotate = $derived(
+    app.roundTrips.filter(
+      (t) => (selected === 'all' || t.trip.accountId === selected) && needsAnnotation(t),
+    ).length,
+  );
   /** Au moins un des deux flux est demandé : la pastille d'état n'a de sens que dans ce cas. */
   const liveOn = $derived(app.state.ui.liveMids || app.state.ui.liveFills);
   const syncing = $derived(accounts.some((a) => app.syncStatus[a.id]?.syncing));
@@ -376,8 +388,8 @@
     <h2>Vos trades, bientôt ici</h2>
     <p>
       Cet espace est séparé de l'investissement : un trade se lit en aller-retour (entrée → sortie),
-      avec un P&L net de frais et de funding, un résultat en R, une note « pourquoi j'ai pris ce
-      trade » et des statistiques par setup — jamais un PRU.
+      avec un résultat net de frais et de funding, un résultat en R, une note « pourquoi j'ai pris
+      ce trade » et des statistiques par setup — jamais un PRU.
     </p>
     <ul>
       <li>
@@ -465,7 +477,7 @@
     <div class="trio">
       <div>
         <p class="label">
-          Dépôts nets <Info title="Dépôts nets"
+          Apports nets <Info title="Apports nets"
             >Somme signée des mouvements d'argent du compte perps : dépôts, retraits, transferts
             spot ↔ perps, vaults. C'est le capital réellement engagé sur la plateforme.</Info
           >
@@ -489,9 +501,10 @@
       </div>
       <div>
         <p class="label">
-          P&L total <Info title="P&L total"
+          Résultat total <Info title="Résultat total"
             >Réalisé net (closedPnl brut − frais + funding, tout l'historique) + latent des
-            positions ouvertes. Jamais additionné aux plus-values d'investissement.</Info
+            positions ouvertes. Appelé « P&L » (profit and loss) sur la plupart des plateformes de
+            trading. Jamais additionné aux plus-values d'investissement.</Info
           >
         </p>
         <p class="big"><Money value={money(totalPnl)} sign colored strong /></p>
@@ -514,9 +527,37 @@
     </a>
   </section>
 
+  <section class="card flush positions-card">
+    <h2>Positions ouvertes</h2>
+    {#if positions.length === 0}
+      <p class="muted">Aucune position ouverte à la dernière synchronisation.</p>
+    {:else}
+      <div class="table-head" aria-hidden="true">
+        <span>Actif</span><span class="num">Taille · entrée</span><span class="num">Marque</span
+        ><span class="num">Valeur</span><span class="num">Latent</span>
+      </div>
+      <ul class="positions" aria-label="Positions ouvertes">
+        {#each positions as p (p.symbol + p.side)}
+          <PositionRow position={p} tripId={tripOfPosition(p.symbol)} />
+        {/each}
+      </ul>
+    {/if}
+    {#if toAnnotate > 0}
+      <a class="annotate-link" href={router.href({ name: 'trades' })}>
+        {toAnnotate} trade{toAnnotate > 1 ? 's' : ''} à annoter →
+      </a>
+    {/if}
+  </section>
+
   <section class="card evolution">
     <div class="tools">
-      <h2>Évolution</h2>
+      <h2>
+        Évolution <Info title="Courbe d'évolution"
+          >Fournie par la plateforme, convertie au taux BCE de chaque jour ; le P&L de la courbe est
+          celui de la plateforme (période glissante). Zoomée, elle se reconstitue entre ses points
+          depuis vos exécutions et les cours, jusqu'à la minute.</Info
+        >
+      </h2>
       <div class="actions">
         <div class="segments" role="group" aria-label="Courbe">
           <button
@@ -627,9 +668,6 @@
         </p>
       {/if}
       <p class="muted small">
-        Courbe fournie par la plateforme ({label(curveAccount)}), convertie au taux BCE de chaque
-        jour ; le P&L de la courbe est celui de la plateforme (période glissante). Zoomée, elle se
-        reconstitue entre ses points depuis vos exécutions et les cours, jusqu'à la minute.
         <strong>Ses fenêtres sont celles d'Hyperliquid</strong> — jour, semaine, mois, tout — et ne suivent
         donc pas la plage choisie plus haut : afficher ici une période qu'on ne reçoit pas reviendrait
         à l'inventer.
@@ -639,12 +677,19 @@
 
   <section class="card">
     <div class="head">
-      <h2>Résultat</h2>
+      <h2>
+        Résultat <Info title="Résultat net"
+          >Aussi appelé « P&L » (profit and loss) sur la plupart des plateformes de trading.
+          Résultat net = réalisé brut − frais perps + funding, sur les fills de la période. Le
+          détail des fills vit dans l'onglet <a href={router.href({ name: 'fills' })}>Fills</a
+          >.</Info
+        >
+      </h2>
       <RangePicker id="trading" available={['1w', '1m', '3m', '1y', 'all', 'custom']} />
     </div>
     <dl class="stat-grid cols-3">
       <div class="main">
-        <dt>P&L net</dt>
+        <dt>Résultat net</dt>
         <dd><Money value={money(totals.net)} sign colored strong /></dd>
       </div>
       <div>
@@ -660,7 +705,7 @@
         <dd><Money value={money(totals.funding)} sign colored /></dd>
       </div>
       <div>
-        <dt>Dépôts nets</dt>
+        <dt>Apports nets</dt>
         <dd><Money value={money(totals.netFlows)} sign /></dd>
       </div>
       <div>
@@ -669,32 +714,17 @@
       </div>
     </dl>
     <p class="muted small">
-      P&L net = réalisé brut − frais perps + funding, sur les fills de la période ; le latent des
-      positions ouvertes est affiché à part. Le détail des fills vit dans l'onglet
-      <a href={router.href({ name: 'fills' })}>Fills</a>.
+      Sur les fills de la période ; le latent des positions ouvertes est affiché à part.
     </p>
   </section>
 
-  <section class="card flush positions-card">
-    <h2>Positions ouvertes</h2>
-    {#if positions.length === 0}
-      <p class="muted">Aucune position ouverte à la dernière synchronisation.</p>
-    {:else}
-      <div class="table-head" aria-hidden="true">
-        <span>Actif</span><span class="num">Taille · entrée</span><span class="num"
-          >Marque · liq.</span
-        ><span class="num">Valeur</span><span class="num">Latent</span>
-      </div>
-      <ul class="positions" aria-label="Positions ouvertes">
-        {#each positions as p (p.symbol + p.side)}
-          <PositionRow position={p} tripId={tripOfPosition(p.symbol)} />
-        {/each}
-      </ul>
-    {/if}
-  </section>
-
   <section class="card">
-    <h2>Avoirs spot</h2>
+    <h2>
+      Avoirs spot <Info title="Avoirs spot"
+        >Pour un PRU et des plus-values sur le spot, cochez « traiter le spot comme de
+        l'investissement » sur le compte (écran Comptes).</Info
+      >
+    </h2>
     {#if holdings.length === 0}
       <p class="muted">Aucun avoir spot.</p>
     {:else}
@@ -712,9 +742,7 @@
         {/each}
       </ul>
       <p class="muted small">
-        Valorisés au dernier prix connu, et <strong>comptés dans la valeur du compte</strong>. Pour
-        un PRU et des plus-values, cochez « traiter le spot comme de l'investissement » sur le
-        compte (écran Comptes).
+        Valorisés au dernier prix connu, et <strong>comptés dans la valeur du compte</strong>.
       </p>
     {/if}
   </section>
@@ -758,9 +786,17 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
+    /* Zone cliquable de toute la ligne (case + libellé) : ≥ 24 px partout, ≥ 44 px (var(--tap))
+       au doigt — même repère que `Info.svelte` (décision P124). */
+    min-height: 24px;
     font-size: var(--fs-xs);
     color: var(--fg-muted);
     cursor: pointer;
+  }
+  @media (any-pointer: coarse) {
+    .live {
+      min-height: var(--tap);
+    }
   }
   .dot {
     width: 0.6em;
@@ -901,6 +937,19 @@
   .positions-card p {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
+  }
+  /* Rejoint au pied de la carte qu'il résume, comme `.report-link` (décision n° 178) : une ligne
+     de plus dans la liste plutôt qu'un lien perdu entre deux cartes. */
+  .annotate-link {
+    display: block;
+    padding: var(--space-3) var(--space-4);
+    border-top: 1px solid var(--border);
+    color: var(--accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .annotate-link:hover {
+    text-decoration: underline;
   }
   .table-head {
     display: none;

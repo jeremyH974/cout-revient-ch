@@ -6213,3 +6213,97 @@ string>` qui oblige tout genre de compte nouveau à fournir un identifiant d'exe
      n'emprunte pas (il lance le Chrome déjà installé) — c'était d'ailleurs déjà la raison pour
      laquelle la faille était inatteignable. Le jour où `@lhci/cli` sort du gel (juin 2025), cet
      `override` deviendra inutile et se retirera.
+
+184. **Des trades qu'on retrouve, et qu'on annote en trois gestes : filtres, synthèse du filtre et
+     tags vivants** (P121-P122, 22/09/2026).
+
+     **Le filtre vit dans les réglages de l'appareil, pas dans l'URL.** Même choix que la plage
+     d'analyse et pour la même raison (décisions n° 156-157) : le routeur est à hash sans modèle de
+     requête, aucune donnée ne voyage dans une URL partagée, et le seul bénéfice qu'une URL
+     apporterait — le bouton retour — est couvert autrement ici, par le piège d'historique de la
+     feuille d'annotation (ci-dessous). `ui.tradeFilter` est un champ additif de plus dans
+     `UiSettings`, assaini champ par champ dans `sanitizeState` : listes de chaînes plafonnées au
+     même plafond que le journal (`textList`, 40 entrées), `sides`/`outcomes` en LISTE BLANCHE —
+     jamais une chaîne arbitraire réinjectée dans `applyFilter` —, un identifiant de compte mal
+     formé écarté seul plutôt que d'invalider tout le filtre. Vivre dans les réglages plutôt que
+     dans un état de route est justement ce qui le fait **survivre** à l'aller-retour vers la fiche
+     d'un trade — le vrai besoin derrière la demande initiale d'un bouton retour.
+
+     **Sémantique des facettes, standard des praticiens (TradeZella, TradesViz, Edgewonk) : ET
+     entre facettes, OU à l'intérieur d'une facette.** Cocher « Long » et « Perdant » retient les
+     longs perdants ; cocher « Long » et « Short » retient tout. `domain/trading/filter.ts` (déjà
+     posé et sous test de mutation, décision antérieure de cette même session) porte ce prédicat,
+     `facetOptions` peuple les puces à partir de l'ensemble NON filtré — les options ne
+     disparaissent pas à mesure qu'on filtre, un choix de lisibilité plutôt que de narrowing
+     progressif — et `summarizeFiltered` applique la fenêtre de période **seulement** au sous-
+     ensemble déjà filtré, exactement la recette de `TradeStats.svelte:31-42`. La liste elle-même
+     n'est PAS bornée par la période : un trade ouvert plus ancien que la fenêtre reste visible
+     dans un journal, quand un rapport, lui, a raison de le taire.
+
+     **La feuille d'annotation fusionne un patch, jamais toute l'entrée.** `JournalSheet.svelte`
+     n'édite que setup, erreurs, tags, note et une ligne de revue — la thèse et le plan restent la
+     part du formulaire complet de la fiche, qui gagne simplement le champ de tags. « Enregistrer »
+     recompose `{ ...app.journalOf(id), ...patch }` avant `app.saveJournal` : sans ce mélange, la
+     feuille rapide effacerait silencieusement la thèse déjà écrite depuis la fiche.
+
+     **Brouillon en mémoire, hors de `app.state` (décision n° 45 : brouillon automatique ET action
+     explicite).** Une carte `Map` tenue au niveau du module (`<script module>`), jamais un champ
+     réactif de l'application : elle ne doit ni se sauvegarder, ni se synchroniser entre appareils
+     (P120), ni survivre à un rechargement — un brouillon n'est pas une donnée, c'est un filet entre
+     deux gestes. `eslint-disable` explicite sur le `Map` (la règle `svelte/prefer-svelte-reactivity`
+     suppose par défaut qu'une carte mutable veut être réactive ; celle-ci ne le veut justement pas).
+
+     **Le piège d'historique, vérifié sur les sources primaires du jour** (MDN, « Window: popstate
+     event » et « History: pushState() », consultées le 22/09/2026). `pushState()` ne déclenche
+     jamais lui-même `popstate` ni `hashchange` ; `popstate` ne se déclenche qu'à une navigation
+     réelle (retour, `history.back()`). À l'ouverture, la feuille pousse une entrée sur la MÊME URL
+     (aucun `hashchange`, donc le routeur ne bouge pas) ; le retour Android ou navigateur déclenche
+     `popstate`, que la feuille intercepte pour se refermer sans quitter l'écran. Une fermeture
+     DEPUIS la feuille (croix, fond — sauf `dismissible={false}`, ajouté à `Sheet.svelte` pour
+     cette seule feuille, décision ci-dessous —, Échap natif du `<dialog>`) consomme au contraire
+     l'entrée posée via `history.back()`, pour ne pas en laisser traîner une qui ne fermerait plus
+     rien au retour suivant — sauf si l'URL a déjà changé entre-temps (l'utilisateur a quitté
+     l'écran par un autre lien pendant que la feuille était ouverte) : revenir en arrière romprait
+     ALORS cette navigation-là, donc l'entrée orpheline est acceptée plutôt que corrigée à l'aveugle.
+     **Deux fermetures, pas trois** (NN/g, fermetures accidentelles de superpositions, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) :
+     `Sheet.svelte` gagne une prop `dismissible` (`true` par défaut, inchangé pour ses six autres
+     usages) que seule `JournalSheet` met à `false` — un tapotement à côté ne doit pas faire perdre
+     une saisie que le brouillon, de toute façon, aurait déjà mise à l'abri, mais autant ne pas
+     entraîner l'habitude.
+
+     **Un dialogue qui se nomme.** `Sheet.svelte` ne portait ni `aria-label` ni `aria-labelledby` :
+     un lecteur d'écran qui y entrait n'annonçait rien qui la distingue d'une autre feuille du même
+     écran — le motif APG « Dialog (Modal) » l'exige. `$props.id()` pose un identifiant stable,
+     `aria-labelledby` le relie au `<h2>{title}</h2>` déjà présent : un correctif transverse à ses
+     sept usages, jamais un ajout propre à cette seule feuille.
+
+     **Les tags se normalisent à l'ÉCRITURE, jamais à la lecture.** `domain/trading/tags.ts` (posé
+     plus tôt dans cette session, sous test de mutation) distingue le libellé affiché (espaces
+     réduits, casse conservée) de la clé de comparaison (NFKD sans diacritiques, minuscules
+     françaises) : « Breakout », « breakout » et « bréakout » partagent une clé, jamais deux
+     entrées. `TagField.svelte` est le seul point de saisie (motif APG combobox with list
+     autocomplete — `role="combobox"`, `aria-expanded`, `aria-controls`, `aria-activedescendant`,
+     `aria-autocomplete="list"`, popup `role="listbox"`/`role="option"` ; W3C ARIA Authoring
+     Practices Guide, motif combobox, consulté le 22/09/2026, lien dans
+     docs/proposals/2026-09-22-coherence-trading-mobile.md) ; un premier brouillon posait un
+     `<button>` DANS chaque `role="option"` — deux
+     éléments interactifs imbriqués, que le motif proscrit — corrigé en rendant l'option elle-même
+     cliquable. Renommer (`TagManageSheet.svelte`) fusionne s'il cible un nom déjà pris, en UNE
+     mutation de l'état (`app.renameJournalTag`, qui n'existait pas : `saveJournal` ne referait
+     qu'une entrée à la fois).
+
+     **Hors périmètre, à dessein.** La distance à la liquidation (P123) a son module pur
+     (`domain/trading/liquidation.ts`, posé et testé plus tôt dans cette session) ; son affichage
+     sur les positions ouvertes appartient à `PositionRow.svelte`/`Trading.svelte`, travaillés EN
+     PARALLÈLE par un autre agent sur cette même branche — n'y pas toucher était la consigne, pas
+     un oubli.
+
+     **Contre-épreuves** (décision n° 75), chacune rouge en nommant sa cause puis restaurée à
+     l'octet près : le bandeau de `Trades.svelte` bricolé pour résumer `trips` (non filtré) plutôt
+     que `filtered` — la spec attendait 1 trade clos, en a reçu 4 ; `collapseSpaces` de
+     `domain/trading/tags.ts` bricolée pour ne plus réduire les espaces internes (`tags.test.ts`
+     rougit sur `'Breakout    Range'` reçu là où `'Breakout Range'` était attendu) ; le gestionnaire
+     `popstate` de `JournalSheet.svelte` bricolé pour ne plus fermer la feuille (`closedByBack =
+true` posé, `sheetOpen = false` retiré) — la spec `page.goBack()` rougit en constatant le
+     dialogue toujours visible au lieu de fermé.

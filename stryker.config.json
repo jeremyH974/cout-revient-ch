@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
-  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/`, les sept moteurs fiscaux et `history/window.ts` (la fenêtre d’analyse du Rapport, P118). Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 96` est un CLIQUET posé sous le score mesuré (97,03 % le 20/09/2026, contre 96,51 % le 15/09 et 86,47 % la veille du premier relevé), jamais une cible ; on le resserre à chaque gain durable. Voir docs/tests-de-mutation.md. `src/lib/storage/sync/**` (fusion multi-appareils, décision de ce chantier) a rejoint le périmètre : lui aussi un module pur, mais suivi à PART — son propre plancher (≥ 90 %) est plus bas que celui, déjà durci, de `derive/` et des moteurs fiscaux ; `break: 96` n'a donc pas bougé tant qu'aucune course combinée n'a mesuré le score mélangé des deux plancher différents (lancer `npx stryker run --mutate \"src/lib/storage/sync/**/*.ts\" --mutate \"!src/lib/storage/sync/**/*.test.ts\"` pour son seul score).",
+  "_comment": "Test de mutation (décision n° 147). Un test vert ne prouve rien tant qu'on ne l'a pas vu rougir : la décision n° 75 en fait une discipline manuelle, Stryker la mesure. PÉRIMÈTRE : les modules PURS qui produisent des chiffres — `derive/`, les sept moteurs fiscaux, `history/window.ts` (la fenêtre d'analyse du Rapport, P118) et les trois modules du journal de trading (`domain/trading/{filter,tags,liquidation}.ts`, P121-P123, décision n° 184). Ni `src/state` (classes à runes couplées au navigateur, que Vitest n'exécute pas) ni les `.svelte` (mutants de rendu bruyants, valeur faible). `break: 96` est un CLIQUET posé sous le score mesuré (97,00 % le 22/09/2026 avec les modules du journal, 97,03 % le 20/09, 86,47 % la veille du premier relevé), jamais une cible ; on le resserre à chaque gain durable. `src/lib/storage/sync/**` (fusion multi-appareils, décision n° 182) est dans le périmètre mais suivi à PART : son propre plancher (≥ 90 %, 91,82 % au 22/09) est plus bas que celui, déjà durci, de `derive/` et des moteurs fiscaux — un `npx stryker run --mutate` limité à ce dossier rend son seul score. Voir docs/tests-de-mutation.md.",
   "packageManager": "npm",
   "testRunner": "vitest",
   "vitest": {
@@ -19,6 +19,9 @@
     "src/lib/domain/lending/tax-fr.ts",
     "src/lib/domain/declarations-fr.ts",
     "src/lib/history/window.ts",
+    "src/lib/domain/trading/filter.ts",
+    "src/lib/domain/trading/tags.ts",
+    "src/lib/domain/trading/liquidation.ts",
     "src/lib/storage/sync/**/*.ts",
     "!**/*.test.ts"
   ],

@@ -27,14 +27,16 @@ plus/moins-values par crypto à partir de l'export CSV Coinhouse. Publiée sur G
   grandeurs déterministes (décisions n° 85 et 87).
 - `npm run mutation` — **test de mutation** (Stryker, ≈ 3 min) sur `src/lib/derive`, les sept
   moteurs fiscaux de `src/lib/domain`, le cœur de la plage d'analyse (`src/lib/history/window.ts`,
-  décision n° 179) et la fusion multi-appareils (`src/lib/storage/sync`, décision n° 182),
-  c'est-à-dire les modules **purs**. Il mesure ce que la couverture ne dit pas : un mutant
+  décision n° 179), le trio trading (`src/lib/domain/trading/filter.ts`, `tags.ts`,
+  `liquidation.ts` — filtre de la liste des trades, tags du journal, distance à la liquidation,
+  P121-P123, décision n° 184) et la fusion multi-appareils (`src/lib/storage/sync`, décision
+  n° 182), c'est-à-dire les modules **purs**. Il mesure ce que la couverture ne dit pas : un mutant
   **survivant** est une ligne exécutée mais **jamais vérifiée**. Premier relevé : `derive/` tenait
   95 % de couverture avec **11,6 % de survivants**, et le registre des cases écrit le jour même
-  sortait à 63 %. Score au 21/09/2026 : **97,23 %** (relevé sans cache), cliquet `break: 96` —
-  resserré de 94 le 20/09, décision n° 173 — posé **sous** lui, jamais une cible. `sync/`, mesuré
-  seul, tient 91,82 % au 22/09/2026 : le prochain relevé complet doit vérifier que le cliquet tient
-  avec lui. Hors CI ; `src/state` et les `.svelte` sont hors périmètre. Les pièges (cache
+  sortait à 63 %. Score complet au 22/09/2026 : **97,00 %** (trio trading compris), cliquet
+  `break: 96` — resserré de 94 le 20/09, décision n° 173 — posé **sous** lui, jamais une cible.
+  `sync/` se mesure À PART (plancher ≥ 90 %, 91,82 % au 22/09), son plancher étant plus bas que
+  celui du reste. Hors CI ; `src/state` et les `.svelte` sont hors périmètre. Les pièges (cache
   incrémental périmé, `EPERM` Windows, rapport périmé lu comme un relevé sans progrès, dix ouvriers
   sur une machine à court de mémoire) et ce qu'on a délibérément écarté : `docs/tests-de-mutation.md`,
   décisions n° 147 et 153.

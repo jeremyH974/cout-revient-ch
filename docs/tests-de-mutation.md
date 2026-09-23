@@ -309,6 +309,11 @@ n° 182) : pur aussi, mais un plancher SÉPARÉ (≥ 90 %, mesuré seul avec `--
 pas des montants mais des décisions de fusion, et son plancher est délibérément plus bas que celui,
 déjà durci au fil des relevés, du reste du périmètre ci-dessous.
 
+À P121-P123 (décision n° 184) s'ajoutent
+`src/lib/domain/trading/filter.ts`, `tags.ts` et `liquidation.ts` : mêmes contraintes (purs, big.js
+seul), et mêmes chiffres qu'un utilisateur peut recopier ou suivre — le sous-ensemble filtré de ses
+trades, ses tags, la distance à la liquidation d'une position ouverte.
+
 - **`src/state` est hors périmètre** : ce sont des classes à runes couplées au navigateur, que
   Vitest n'exécute pas. C'est pourtant là qu'est le vrai trou — `app.svelte.ts` est à **0 %** de
   couverture et a été modifié **22 fois** en deux semaines, avec **49 `$derived`** dedans. La

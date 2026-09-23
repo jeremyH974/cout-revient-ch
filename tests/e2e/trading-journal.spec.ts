@@ -1,50 +1,24 @@
-import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 import { D } from '../../src/lib/domain/money';
 import { executionLines, tradeCosts } from '../../src/lib/domain/trading/costs';
-import { journaledTrips } from '../../src/lib/domain/trading/journal';
-import { buildRoundTrips } from '../../src/lib/domain/trading/round-trips';
 import { fmtMoney, fmtPct, fmtSmallPct } from '../../src/lib/format/fr';
 import {
   breakevenSentence,
   fmtBreakevenPrice,
   rolesSentence,
 } from '../../src/lib/format/trade-costs';
-import { fixtureClient, type HlFixture } from '../../src/lib/import/hyperliquid/fixture-client';
-import { normalizeHlAccount } from '../../src/lib/import/hyperliquid/normalize';
-import { syncAccount } from '../../src/lib/import/hyperliquid/sync';
 import { openDemo } from './helpers/demo';
-import { normalize } from './helpers/expected';
+import {
+  expectedTrading,
+  expectedTrips,
+  HL_EUR_USD as EUR_USD,
+  normalize,
+} from './helpers/expected';
 import { stubNetwork } from './helpers/network';
-
-const EUR_USD = '1.1';
 
 test.beforeEach(async ({ context }) => {
   await stubNetwork(context);
 });
-
-/** Exécutions et aller-retours attendus, reconstruits par le moteur depuis la fixture. */
-async function expectedTrading() {
-  const fixture = JSON.parse(
-    readFileSync('tests/fixtures/hyperliquid/demo.json', 'utf8'),
-  ) as HlFixture;
-  const sync = await syncAccount(fixtureClient(fixture), null, fixture.address, {
-    now: () => 1_755_900_000_000,
-  });
-  const normalized = normalizeHlAccount(sync.data, {
-    accountId: `hl:${fixture.address}`,
-    spotPairs: sync.spotPairs,
-    spotAsInvestment: false,
-    eurUsdRate: () => EUR_USD,
-  });
-  const { executions, funding } = normalized.trading;
-  return { executions, trips: journaledTrips(buildRoundTrips(executions, funding), [], {}) };
-}
-
-/** Aller-retours attendus (aucun chiffre en dur). */
-async function expectedTrips() {
-  return (await expectedTrading()).trips;
-}
 
 test('démo : la liste des trades recoupe le moteur, le journal se sauvegarde et survit au rechargement', async ({
   page,

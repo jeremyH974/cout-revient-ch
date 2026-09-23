@@ -3,7 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { D, ZERO } from '../money';
 import { emptyJournalEntry, type JournaledTrip } from './journal';
 import type { RoundTrip } from './round-trips';
-import { computeStats, statsBuckets, tripsClosedIn, weekdayOf, type ToDisplay } from './stats';
+import {
+  computeStats,
+  outcomeOf,
+  statsBuckets,
+  tripsClosedIn,
+  weekdayOf,
+  type ToDisplay,
+} from './stats';
 
 let seq = 0;
 const rt = (over: Partial<RoundTrip> = {}): RoundTrip => {
@@ -48,6 +55,14 @@ const jt = (
   r: null,
   entrySlippage: null,
   ...overJt,
+});
+
+describe('outcomeOf', () => {
+  it('positif = gagnant, négatif = perdant, nul = à l’équilibre — le seuil que filter.ts réutilise', () => {
+    expect(outcomeOf(rt({ netPnl: D('10') }))).toBe('win');
+    expect(outcomeOf(rt({ netPnl: D('-10') }))).toBe('loss');
+    expect(outcomeOf(rt({ netPnl: ZERO }))).toBe('breakeven');
+  });
 });
 
 describe('computeStats', () => {

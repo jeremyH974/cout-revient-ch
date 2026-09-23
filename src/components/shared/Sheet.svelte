@@ -4,9 +4,18 @@
   let {
     open = $bindable(false),
     title,
+    /**
+     * Un clic sur le fond ferme la feuille par défaut. `false` pour une feuille dont la saisie ne
+     * doit se perdre que par un geste nommé — la croix, ou retour/Échap (P122, `JournalSheet`) :
+     * deux fermetures plutôt que trois, la troisième étant celle qu'on déclenche par accident.
+     */
+    dismissible = true,
     children,
-  }: { open?: boolean; title: string; children: Snippet } = $props();
+  }: { open?: boolean; title: string; dismissible?: boolean; children: Snippet } = $props();
   let dialog = $state<HTMLDialogElement | undefined>();
+  // Nom accessible du `<dialog>` (motif APG « Dialog (Modal) ») : sans lui, un lecteur d'écran
+  // qui entre dans la feuille n'annonce rien qui la distingue d'une autre.
+  const titleId = $props.id();
 
   $effect(() => {
     if (!dialog) return;
@@ -18,14 +27,15 @@
 <dialog
   bind:this={dialog}
   class="sheet"
+  aria-labelledby={titleId}
   onclose={() => (open = false)}
   onclick={(event) => {
-    if (event.target === dialog) open = false;
+    if (dismissible && event.target === dialog) open = false;
   }}
 >
   <div class="panel">
     <header>
-      <h2>{title}</h2>
+      <h2 id={titleId}>{title}</h2>
       <button class="close" type="button" onclick={() => (open = false)} aria-label="Fermer"
         >✕</button
       >
