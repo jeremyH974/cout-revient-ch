@@ -6,45 +6,24 @@
 import type { Calendar } from './types';
 
 export const CALENDAR: Calendar = {
-  generatedAt: '2026-09-25T11:50:19Z',
-  coversFrom: '2026-06-25',
+  generatedAt: '2026-09-28T13:53:23Z',
+  coversFrom: '2026-06-30',
   coversTo: '2028-12-07',
   completeTo: '2026-12-15',
   sources: [
-    { source: 'fomc', checkedOn: '2026-09-25', count: 12, coversTo: '2027-12-08', upkeep: 'auto' },
-    { source: 'bea', checkedOn: '2026-09-25', count: 14, coversTo: '2026-12-23', upkeep: 'auto' },
+    { source: 'fomc', checkedOn: '2026-09-28', count: 12, coversTo: '2027-12-08', upkeep: 'auto' },
+    { source: 'bea', checkedOn: '2026-09-28', count: 12, coversTo: '2026-12-23', upkeep: 'auto' },
     { source: 'bls', checkedOn: '2026-09-01', count: 24, coversTo: '2026-12-15', upkeep: 'manual' },
-    { source: 'ecb', checkedOn: '2026-09-25', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
+    { source: 'ecb', checkedOn: '2026-09-28', count: 18, coversTo: '2028-12-07', upkeep: 'auto' },
     {
       source: 'eurostat',
-      checkedOn: '2026-09-25',
+      checkedOn: '2026-09-28',
       count: 8,
       coversTo: '2027-01-19',
       upkeep: 'auto',
     },
   ],
   events: [
-    {
-      id: 'bea-gdp-2026-06-25',
-      kind: 'gdp',
-      at: '2026-06-25T12:30:00Z',
-      precision: 'exact',
-      title: 'PIB américain',
-      tier: 'major',
-      source: 'bea',
-      url: 'https://www.bea.gov/data/gdp/gross-domestic-product',
-    },
-    {
-      id: 'bea-pce-2026-06-25',
-      kind: 'pce',
-      at: '2026-06-25T12:30:00Z',
-      precision: 'exact',
-      title: 'Inflation PCE et revenus des ménages',
-      detail: 'La mesure d’inflation que la Fed regarde en priorité',
-      tier: 'major',
-      source: 'bea',
-      url: 'https://www.bea.gov/data/income-saving/personal-income',
-    },
     {
       id: 'bls-jolts-2026-06-30',
       kind: 'jolts',
